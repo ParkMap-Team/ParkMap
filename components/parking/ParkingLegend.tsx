@@ -1,0 +1,2 @@
+const items = [{ label: 'Occupied', color: 'bg-red-500' }, { label: 'Available', color: 'bg-emerald-500' }, { label: 'Uncertain', color: 'bg-amber-400' }];
+export function ParkingLegend() { return <div className="flex flex-wrap gap-x-5 gap-y-2">{items.map((item) => <span key={item.label} className="inline-flex items-center gap-2 text-xs font-medium text-slate-300"><span className={`size-2.5 rounded-sm ${item.color}`} />{item.label}</span>)}</div>; }
