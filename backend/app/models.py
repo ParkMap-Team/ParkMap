@@ -187,3 +187,14 @@ class MetricCalibrationResponse(BaseModel):
     row_measurements_complete: bool
     ground_plane_calibration_available: Literal[False] = False
     calibration: MetricCalibration | None
+
+
+class MotorcycleFittingConfiguration(BaseModel):
+    schema_version: Literal[1] = 1
+    measurement_source: MetricMeasurementSource = "ESTIMATED"
+    required_space_m: float = Field(gt=0.0, allow_inf_nan=False)
+
+
+class MotorcycleFittingResponse(BaseModel):
+    configured: bool
+    configuration: MotorcycleFittingConfiguration | None

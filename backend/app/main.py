@@ -7,10 +7,11 @@ from fastapi import FastAPI, File, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, UnidentifiedImageError
 
-from app.models import DetectionResponse, HealthResponse, MetricCalibration, MetricCalibrationResponse, ParkingCalibration, ParkingStatusResponse
+from app.models import DetectionResponse, HealthResponse, MetricCalibration, MetricCalibrationResponse, MotorcycleFittingConfiguration, MotorcycleFittingResponse, ParkingCalibration, ParkingStatusResponse
 from app.services.calibration_service import calibration_service
 from app.services.cv_service import cv_service
 from app.services.metric_calibration_service import metric_calibration_service
+from app.services.motorcycle_fitting_service import motorcycle_fitting_service
 from app.services.parking_service import parking_service
 
 load_dotenv()
@@ -58,6 +59,19 @@ def get_metric_calibration() -> MetricCalibrationResponse:
 @app.post("/api/metric-calibration", response_model=MetricCalibrationResponse)
 def save_metric_calibration(calibration: MetricCalibration) -> MetricCalibrationResponse:
     return metric_calibration_service.save(calibration)
+
+
+@app.get("/api/motorcycle-fitting", response_model=MotorcycleFittingResponse)
+def get_motorcycle_fitting() -> MotorcycleFittingResponse:
+    try:
+        return motorcycle_fitting_service.get_response()
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Motorcycle fitting configuration could not be loaded: {error}") from error
+
+
+@app.post("/api/motorcycle-fitting", response_model=MotorcycleFittingResponse)
+def save_motorcycle_fitting(configuration: MotorcycleFittingConfiguration) -> MotorcycleFittingResponse:
+    return motorcycle_fitting_service.save(configuration)
 
 
 @app.post("/api/detection/analyze", response_model=DetectionResponse)

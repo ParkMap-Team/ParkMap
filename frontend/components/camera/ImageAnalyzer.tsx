@@ -4,6 +4,7 @@ import { AlertCircle, ImagePlus, LoaderCircle, MapPinned, RotateCcw, ScanSearch 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ParkingCalibration } from '@/components/calibration/ParkingCalibration';
 import { CameraMonitor } from '@/components/camera/CameraMonitor';
+import { MotorcycleFittingPrototype } from '@/components/camera/MotorcycleFittingPrototype';
 import { OccupiedIntervalsAndGaps } from '@/components/camera/OccupiedIntervalsAndGaps';
 import { RowAssignmentSummary } from '@/components/camera/RowAssignmentSummary';
 import { RowOccupancyProjection } from '@/components/camera/RowOccupancyProjection';
@@ -14,14 +15,17 @@ import { assignDetectionsToParkingRows, hasSignificantAspectRatioMismatch } from
 import { buildRowOccupancyProjection } from '@/lib/rowProjection';
 import { buildGroundContactDiagnostics, buildVisualOccupancyDiagnostics } from '@/lib/occupancyDiagnostics';
 import { buildOccupiedIntervalPrototype } from '@/lib/occupiedIntervals';
+import { buildNormalizedParkingMapData } from '@/lib/normalizedParkingMap';
 import { getMetricCalibration } from '@/lib/metricCalibration';
 import type { ParkingCalibration as ParkingCalibrationData } from '@/types/calibration';
 import type { DetectionResponse } from '@/types/detection';
 import type { GroundProxyHeightRatio } from '@/types/occupancyDiagnostics';
 import type { MetricCalibrationResponse } from '@/types/metricCalibration';
+import type { MotorcycleFittingData } from '@/types/motorcycleFitting';
+import type { NormalizedParkingMapData } from '@/types/normalizedParkingMap';
 import type { CameraData, CameraOverlay, ModelData, ParkingZone, SystemState } from '@/types/parking';
 
-export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = [] }: { camera?: CameraData; model?: ModelData; zone: ParkingZone; status: SystemState; fallbackOverlays?: CameraOverlay[] }) {
+export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = [], onNormalizedMapChange }: { camera?: CameraData; model?: ModelData; zone: ParkingZone; status: SystemState; fallbackOverlays?: CameraOverlay[]; onNormalizedMapChange?: (data: NormalizedParkingMapData | null) => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
@@ -34,6 +38,7 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
   const [calibrationError, setCalibrationError] = useState<string | null>(null);
   const [groundProxyHeightRatio, setGroundProxyHeightRatio] = useState<GroundProxyHeightRatio>(.2);
   const [metricCalibration, setMetricCalibration] = useState<MetricCalibrationResponse | null>(null);
+  const [fittingData, setFittingData] = useState<MotorcycleFittingData | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => controllerRef.current?.abort(), []);
@@ -47,6 +52,8 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
     setCalibrationState('idle');
     setCalibrationError(null);
     setMetricCalibration(null);
+    setFittingData(null);
+    onNormalizedMapChange?.(null);
     setError(null);
     if (!selected) return;
     if (!SUPPORTED_IMAGE_TYPES.includes(selected.type as (typeof SUPPORTED_IMAGE_TYPES)[number])) { setFile(null); setPreviewUrl(null); setDimensions(null); setError('Choose a JPEG, PNG, or WebP image.'); return; }
@@ -109,6 +116,7 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
   const occupancyDiagnostics = useMemo(() => analysis && calibration ? buildVisualOccupancyDiagnostics(analysis.detections, assignments, calibration) : null, [analysis, assignments, calibration]);
   const groundContactDiagnostics = useMemo(() => analysis && calibration ? buildGroundContactDiagnostics(analysis.detections, assignments, calibration, groundProxyHeightRatio) : null, [analysis, assignments, calibration, groundProxyHeightRatio]);
   const occupiedIntervals = useMemo(() => analysis && calibration ? buildOccupiedIntervalPrototype(analysis.detections, assignments, calibration, metricCalibration) : null, [analysis, assignments, calibration, metricCalibration]);
+  useEffect(() => { onNormalizedMapChange?.(rowProjection && occupiedIntervals ? buildNormalizedParkingMapData(rowProjection, occupiedIntervals, fittingData) : null); }, [fittingData, occupiedIntervals, onNormalizedMapChange, rowProjection]);
   const aspectRatioMismatch = Boolean(analysis && calibration && hasSignificantAspectRatioMismatch(analysis.image_width, analysis.image_height, calibration));
 
   return (
@@ -140,6 +148,7 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
       {rowProjection && <RowOccupancyProjection projection={rowProjection} />}
       {occupancyDiagnostics && groundContactDiagnostics && <VisualOccupancyDiagnostics data={occupancyDiagnostics} groundContact={groundContactDiagnostics} heightRatio={groundProxyHeightRatio} onHeightRatioChange={setGroundProxyHeightRatio} />}
       {occupiedIntervals && <OccupiedIntervalsAndGaps data={occupiedIntervals} />}
+      {occupiedIntervals && <MotorcycleFittingPrototype intervals={occupiedIntervals} onDataChange={setFittingData} />}
       {calibrationOpen && previewUrl && dimensions && <ParkingCalibration open onOpenChange={setCalibrationOpen} imageUrl={previewUrl} imageWidth={dimensions.width} imageHeight={dimensions.height} cameraId={camera?.id ?? 'SPU_CAM_01'} detections={analysis?.detections ?? []} />}
     </div>
   );
