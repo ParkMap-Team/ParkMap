@@ -19,3 +19,13 @@ export interface ParkingCalibration {
   parking_roi: CalibrationPolygon;
   rows: CalibrationRow[];
 }
+
+export type RowAssignmentStatus = 'ASSIGNED' | 'OUTSIDE_ROI' | 'UNASSIGNED' | 'AMBIGUOUS';
+
+export interface DetectionRowAssignment {
+  detection_index: number;
+  ground_point: CalibrationPoint;
+  status: RowAssignmentStatus;
+  row_id: CalibrationRow['id'] | null;
+  matching_rows: CalibrationRow['id'][];
+}

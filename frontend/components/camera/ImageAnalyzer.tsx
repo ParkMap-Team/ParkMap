@@ -1,10 +1,14 @@
 'use client';
 
 import { AlertCircle, ImagePlus, LoaderCircle, MapPinned, RotateCcw, ScanSearch } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ParkingCalibration } from '@/components/calibration/ParkingCalibration';
 import { CameraMonitor } from '@/components/camera/CameraMonitor';
+import { RowAssignmentSummary } from '@/components/camera/RowAssignmentSummary';
+import { getCalibration } from '@/lib/calibration';
 import { analyzeParkingImage, MAX_UPLOAD_BYTES, SUPPORTED_IMAGE_TYPES } from '@/lib/detection';
+import { assignDetectionsToParkingRows, hasSignificantAspectRatioMismatch } from '@/lib/rowAssignment';
+import type { ParkingCalibration as ParkingCalibrationData } from '@/types/calibration';
 import type { DetectionResponse } from '@/types/detection';
 import type { CameraData, CameraOverlay, ModelData, ParkingZone, SystemState } from '@/types/parking';
 
@@ -16,6 +20,9 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
   const [analysisState, setAnalysisState] = useState<'idle' | 'processing' | 'error' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [calibrationOpen, setCalibrationOpen] = useState(false);
+  const [calibration, setCalibration] = useState<ParkingCalibrationData | null>(null);
+  const [calibrationState, setCalibrationState] = useState<'idle' | 'loading' | 'ready' | 'missing' | 'error'>('idle');
+  const [calibrationError, setCalibrationError] = useState<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => controllerRef.current?.abort(), []);
@@ -25,6 +32,9 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
     controllerRef.current?.abort();
     setAnalysis(null);
     setAnalysisState('idle');
+    setCalibration(null);
+    setCalibrationState('idle');
+    setCalibrationError(null);
     setError(null);
     if (!selected) return;
     if (!SUPPORTED_IMAGE_TYPES.includes(selected.type as (typeof SUPPORTED_IMAGE_TYPES)[number])) { setFile(null); setPreviewUrl(null); setDimensions(null); setError('Choose a JPEG, PNG, or WebP image.'); return; }
@@ -50,6 +60,18 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
       setAnalysis(result);
       setDimensions({ width: result.image_width, height: result.image_height });
       setAnalysisState('done');
+      setCalibrationState('loading');
+      setCalibrationError(null);
+      try {
+        const savedCalibration = await getCalibration(controller.signal);
+        setCalibration(savedCalibration);
+        setCalibrationState(savedCalibration ? 'ready' : 'missing');
+      } catch (calibrationFailure) {
+        if (calibrationFailure instanceof DOMException && calibrationFailure.name === 'AbortError') return;
+        setCalibration(null);
+        setCalibrationState('error');
+        setCalibrationError(calibrationFailure instanceof Error ? calibrationFailure.message : 'Unable to load parking calibration.');
+      }
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === 'AbortError') return;
       setError(caught instanceof Error ? caught.message : 'Unable to analyze this image.');
@@ -66,6 +88,8 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
     height: detection.bbox.height,
     label: `${detection.class_name} ${(detection.confidence * 100).toFixed(0)}%`,
   })) ?? [];
+  const assignments = useMemo(() => analysis && calibration ? assignDetectionsToParkingRows(analysis.detections, calibration) : [], [analysis, calibration]);
+  const aspectRatioMismatch = Boolean(analysis && calibration && hasSignificantAspectRatioMismatch(analysis.image_width, analysis.image_height, calibration));
 
   return (
     <div className="space-y-3">
@@ -91,7 +115,8 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
         {file && <p className="mt-3 truncate text-xs text-slate-500">Selected: <span className="font-medium text-slate-700">{file.name}</span></p>}
         {error && <div role="alert" className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700"><span className="inline-flex items-center gap-2"><AlertCircle className="size-4 shrink-0" />{error}</span>{file && <button type="button" onClick={() => void analyze()} className="inline-flex shrink-0 items-center gap-1 font-semibold"><RotateCcw className="size-3.5" />Retry</button>}</div>}
       </div>
-      <CameraMonitor camera={camera} model={model} zone={zone} status={analysisState === 'processing' ? 'processing' : status} imageUrl={previewUrl} imageDimensions={dimensions} analysis={analysis} overlays={previewUrl ? detectionOverlays : fallbackOverlays} />
+      <CameraMonitor camera={camera} model={model} zone={zone} status={analysisState === 'processing' ? 'processing' : status} imageUrl={previewUrl} imageDimensions={dimensions} analysis={analysis} overlays={previewUrl ? detectionOverlays : fallbackOverlays} calibration={calibration} assignments={assignments} />
+      {analysis && <RowAssignmentSummary detectedCount={analysis.detections.length} calibration={calibration} assignments={assignments} state={calibrationState} aspectRatioMismatch={aspectRatioMismatch} error={calibrationError} />}
       {calibrationOpen && previewUrl && dimensions && <ParkingCalibration open onOpenChange={setCalibrationOpen} imageUrl={previewUrl} imageWidth={dimensions.width} imageHeight={dimensions.height} cameraId={camera?.id ?? 'SPU_CAM_01'} detections={analysis?.detections ?? []} />}
     </div>
   );
