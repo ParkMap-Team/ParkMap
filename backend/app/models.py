@@ -256,6 +256,69 @@ class GroundPlaneCalibrationResponse(BaseModel):
     calibration: GroundPlaneCalibration
 
 
+GroundPlaneHomographyStatus = Literal["INPUT_NOT_READY", "CALCULATED", "VALIDATED", "VALIDATION_WARNING", "INVALID", "STALE"]
+
+
+class GroundPlanePointDiagnostic(BaseModel):
+    id: str
+    measured_x_m: float = Field(allow_inf_nan=False)
+    measured_y_m: float = Field(allow_inf_nan=False)
+    projected_x_m: float = Field(allow_inf_nan=False)
+    projected_y_m: float = Field(allow_inf_nan=False)
+    error_x_m: float = Field(allow_inf_nan=False)
+    error_y_m: float = Field(allow_inf_nan=False)
+    error_m: float = Field(ge=0.0, allow_inf_nan=False)
+    inlier: bool
+
+
+class GroundPlaneMetricPoint(BaseModel):
+    x_m: float = Field(allow_inf_nan=False)
+    y_m: float = Field(allow_inf_nan=False)
+
+
+class GroundPlaneMetricPolygon(BaseModel):
+    id: str
+    points: list[GroundPlaneMetricPoint]
+    longitudinal_extent_m: float = Field(ge=0.0, allow_inf_nan=False)
+    cross_extent_m: float = Field(ge=0.0, allow_inf_nan=False)
+    measured_length_m: float | None = None
+    measured_width_m: float | None = None
+    length_difference_m: float | None = None
+    width_difference_m: float | None = None
+
+
+class GroundPlaneHomographyResult(BaseModel):
+    schema_version: Literal[1] = 1
+    camera_id: str
+    source_calibration_fingerprint: str
+    row_measurements_fingerprint: str
+    matrix: list[list[float]]
+    inverse_matrix: list[list[float]]
+    control_point_count: int
+    inlier_count: int
+    rmse_m: float
+    mean_error_m: float
+    median_error_m: float
+    max_error_m: float
+    warning_rmse_m: float
+    warning_max_error_m: float
+    status: GroundPlaneHomographyStatus
+    calculated_at: datetime
+    method: Literal["NORMALIZED_DLT_SVD"] = "NORMALIZED_DLT_SVD"
+    ransac_used: Literal[False] = False
+    point_diagnostics: list[GroundPlanePointDiagnostic]
+    roi_metric: GroundPlaneMetricPolygon | None = None
+    rows_metric: list[GroundPlaneMetricPolygon] = Field(default_factory=list)
+
+
+class GroundPlaneHomographyResponse(BaseModel):
+    status: GroundPlaneHomographyStatus
+    current: bool
+    row_validation_current: bool
+    message: str
+    result: GroundPlaneHomographyResult | None = None
+
+
 class MotorcycleFittingConfiguration(BaseModel):
     schema_version: Literal[1] = 1
     measurement_source: MetricMeasurementSource = "ESTIMATED"

@@ -1,6 +1,8 @@
 import type { GroundControlPoint, GroundPlaneCalibration, GroundReferenceDistance } from '../types/groundPlaneCalibration.ts';
 export const GROUND_PLANE_LOCAL_BACKUP_KEY = 'parkmap-ground-plane-calibration-v1';
 export const groundPlaneSignature = (config: GroundPlaneCalibration) => JSON.stringify(config);
+export const groundPlaneHomographySourceSignature = (config: GroundPlaneCalibration) => JSON.stringify({ camera_id: config.camera_id, reference_image: config.reference_image, control_points: config.control_points });
+export const groundPlaneRowMeasurementSignature = (config: GroundPlaneCalibration) => JSON.stringify(config.measured_rows);
 export const groundPlaneConfigsMatch = (expected: GroundPlaneCalibration, actual: GroundPlaneCalibration) => groundPlaneSignature(expected) === groundPlaneSignature(actual);
 export function chooseGroundPlaneCalibration(server: GroundPlaneCalibration, local: GroundPlaneCalibration | null): { calibration: GroundPlaneCalibration; source: 'SERVER' | 'LOCAL_RECOVERY' } { if (!local) return { calibration: server, source: 'SERVER' }; const serverEntries = server.control_points.length + server.reference_distances.length + Object.keys(server.measured_rows).length; const localEntries = local.control_points.length + local.reference_distances.length + Object.keys(local.measured_rows).length; return localEntries > serverEntries ? { calibration: local, source: 'LOCAL_RECOVERY' } : { calibration: server, source: 'SERVER' }; }
 const finite = (...values: number[]) => values.every(Number.isFinite);

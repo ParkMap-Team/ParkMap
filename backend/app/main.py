@@ -7,12 +7,13 @@ from fastapi import FastAPI, File, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, UnidentifiedImageError
 
-from app.models import DetectionResponse, GroundPlaneCalibration, GroundPlaneCalibrationResponse, HealthResponse, MetricCalibration, MetricCalibrationResponse, MotorcycleFittingConfiguration, MotorcycleFittingResponse, ParkingCalibration, ParkingStatusResponse
+from app.models import DetectionResponse, GroundPlaneCalibration, GroundPlaneCalibrationResponse, GroundPlaneHomographyResponse, HealthResponse, MetricCalibration, MetricCalibrationResponse, MotorcycleFittingConfiguration, MotorcycleFittingResponse, ParkingCalibration, ParkingStatusResponse
 from app.services.calibration_service import calibration_service
 from app.services.cv_service import cv_service
 from app.services.metric_calibration_service import metric_calibration_service
 from app.services.motorcycle_fitting_service import motorcycle_fitting_service
 from app.services.ground_plane_calibration_service import ground_plane_calibration_service
+from app.services.ground_plane_homography_service import HomographyInputError, ground_plane_homography_service
 from app.services.parking_service import parking_service
 
 load_dotenv()
@@ -73,6 +74,30 @@ def save_ground_plane_calibration(calibration: GroundPlaneCalibration) -> Ground
         return ground_plane_calibration_service.save(calibration)
     except (OSError, ValueError, json.JSONDecodeError) as error:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Ground-plane calibration could not be persisted and verified: {error}") from error
+
+
+@app.get("/api/ground-plane/homography", response_model=GroundPlaneHomographyResponse)
+def get_ground_plane_homography() -> GroundPlaneHomographyResponse:
+    try:
+        return ground_plane_homography_service.get_response(ground_plane_calibration_service.load())
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Ground-plane homography could not be loaded: {error}") from error
+
+
+@app.post("/api/ground-plane/homography/calculate", response_model=GroundPlaneHomographyResponse)
+def calculate_ground_plane_homography() -> GroundPlaneHomographyResponse:
+    try:
+        calibration = ground_plane_calibration_service.load()
+        parking = calibration_service.load()
+        if parking is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Parking calibration is required for metric geometry diagnostics.")
+        return ground_plane_homography_service.calculate(calibration, parking)
+    except HomographyInputError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+    except HTTPException:
+        raise
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Ground-plane homography could not be calculated and verified: {error}") from error
 
 
 @app.get("/api/motorcycle-fitting", response_model=MotorcycleFittingResponse)
