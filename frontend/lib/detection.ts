@@ -2,7 +2,7 @@ import { PARKMAP_API_URL, ParkingApiError } from '@/lib/parking';
 import type { DetectionResponse } from '@/types/detection';
 
 export const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
-export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 export async function analyzeParkingImage(file: File, signal?: AbortSignal): Promise<DetectionResponse> {
   const formData = new FormData();

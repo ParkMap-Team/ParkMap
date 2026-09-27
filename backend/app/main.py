@@ -6,7 +6,8 @@ from fastapi import FastAPI, File, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, UnidentifiedImageError
 
-from app.models import DetectionResponse, HealthResponse, ParkingStatusResponse
+from app.models import DetectionResponse, HealthResponse, ParkingCalibration, ParkingStatusResponse
+from app.services.calibration_service import calibration_service
 from app.services.cv_service import cv_service
 from app.services.parking_service import parking_service
 
@@ -18,7 +19,7 @@ allowed_origins = [origin.strip() for origin in os.getenv("PARKMAP_ALLOWED_ORIGI
 app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_credentials=True, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
 
 SUPPORTED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
-MAX_UPLOAD_BYTES = int(float(os.getenv("PARKMAP_MAX_UPLOAD_MB", "10")) * 1024 * 1024)
+MAX_UPLOAD_BYTES = int(float(os.getenv("PARKMAP_MAX_UPLOAD_MB", "25")) * 1024 * 1024)
 
 
 @app.get("/api/health", response_model=HealthResponse)
@@ -29,6 +30,19 @@ def health() -> HealthResponse:
 @app.get("/api/parking/status", response_model=ParkingStatusResponse)
 def parking_status() -> ParkingStatusResponse:
     return parking_service.get_status()
+
+
+@app.get("/api/calibration", response_model=ParkingCalibration)
+def get_calibration() -> ParkingCalibration:
+    calibration = calibration_service.load()
+    if calibration is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parking calibration is not configured.")
+    return calibration
+
+
+@app.post("/api/calibration", response_model=ParkingCalibration)
+def save_calibration(calibration: ParkingCalibration) -> ParkingCalibration:
+    return calibration_service.save(calibration)
 
 
 @app.post("/api/detection/analyze", response_model=DetectionResponse)

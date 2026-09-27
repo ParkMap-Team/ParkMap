@@ -20,3 +20,9 @@ Model weights belong at `models/best.pt` by default. ROI, homography, and row ca
 `POST /api/detection/analyze` accepts a JPEG, PNG, or WebP as multipart field `image` and returns real class-0 motorcycle detections. Bounding boxes use normalized top-left coordinates (`x=left`, `y=top`). The endpoint validates file type, size, image decoding, and real dimensions.
 
 The model is loaded once when the application starts and is reused for each upload. Configure its path, input size, confidence, NMS IoU, and device with the `PARKMAP_MODEL_*` values shown in `.env.example`. Model initialization fails clearly instead of falling back to fake detections.
+
+## Parking calibration
+
+`GET /api/calibration` returns the saved schema-v2 calibration or `404` when calibration has not been configured. `POST /api/calibration` validates and atomically saves a normalized parking ROI plus exactly five manually drawn parking rows to `config/parking_calibration.json`.
+
+Legacy `config/parking_roi.json` pixel coordinates are not loaded as normalized coordinates. Calibration currently defines geometry only; it does not calculate capacity, occupancy, or available parking space.

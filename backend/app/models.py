@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 SystemStatus = Literal["loading", "online", "offline", "error", "stale", "processing"]
 ModelStatus = Literal["ready", "processing", "offline", "error"]
@@ -90,3 +90,41 @@ class DetectionResponse(BaseModel):
     model: DetectionAnalysisModel
     inference: DetectionInference
     detections: list[Detection]
+
+
+class CalibrationPoint(BaseModel):
+    x: float = Field(ge=0.0, le=1.0)
+    y: float = Field(ge=0.0, le=1.0)
+
+
+class CalibrationPolygon(BaseModel):
+    polygon: list[CalibrationPoint] = Field(min_length=3)
+
+
+class CalibrationRow(CalibrationPolygon):
+    id: str
+    name: str
+
+
+class CalibrationReferenceImage(BaseModel):
+    width: int = Field(gt=0)
+    height: int = Field(gt=0)
+
+
+class ParkingCalibration(BaseModel):
+    schema_version: Literal[2] = 2
+    camera_id: str = Field(min_length=1)
+    reference_image: CalibrationReferenceImage
+    parking_roi: CalibrationPolygon
+    rows: list[CalibrationRow] = Field(min_length=5, max_length=5)
+
+    @model_validator(mode="after")
+    def validate_rows(self) -> "ParkingCalibration":
+        expected = [f"row_{index}" for index in range(1, 6)]
+        actual = [row.id for row in self.rows]
+        if actual != expected:
+            raise ValueError("Calibration rows must be exactly row_1 through row_5 in order.")
+        expected_names = [f"Parking Row {index}" for index in range(1, 6)]
+        if [row.name for row in self.rows] != expected_names:
+            raise ValueError("Calibration row names must be Parking Row 1 through Parking Row 5 in order.")
+        return self
