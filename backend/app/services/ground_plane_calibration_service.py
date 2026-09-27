@@ -48,7 +48,10 @@ class GroundPlaneCalibrationService:
             os.replace(temporary_path, self.calibration_path)
         finally:
             if temporary_path is not None and temporary_path.exists(): temporary_path.unlink()
-        return self.response(calibration)
+        persisted = self.load()
+        if persisted.model_dump(mode="json") != calibration.model_dump(mode="json"):
+            raise OSError("Ground-plane calibration read-after-write verification failed.")
+        return self.response(persisted)
 
 
 ground_plane_calibration_service = GroundPlaneCalibrationService()

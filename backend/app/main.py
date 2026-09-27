@@ -69,7 +69,10 @@ def get_ground_plane_calibration() -> GroundPlaneCalibrationResponse:
 
 @app.post("/api/ground-plane-calibration", response_model=GroundPlaneCalibrationResponse)
 def save_ground_plane_calibration(calibration: GroundPlaneCalibration) -> GroundPlaneCalibrationResponse:
-    return ground_plane_calibration_service.save(calibration)
+    try:
+        return ground_plane_calibration_service.save(calibration)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Ground-plane calibration could not be persisted and verified: {error}") from error
 
 
 @app.get("/api/motorcycle-fitting", response_model=MotorcycleFittingResponse)

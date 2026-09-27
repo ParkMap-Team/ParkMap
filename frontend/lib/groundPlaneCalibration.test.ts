@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { addGroundControlPoint, deleteGroundControlPoint, editGroundControlPoint, groundPlaneReadiness, validGroundControlPoint, validReferenceDistance } from './groundPlaneCalibrationState.ts';
+import { addGroundControlPoint, chooseGroundPlaneCalibration, deleteGroundControlPoint, editGroundControlPoint, groundPlaneConfigsMatch, groundPlaneReadiness, validGroundControlPoint, validReferenceDistance } from './groundPlaneCalibrationState.ts';
 import type { GroundControlPoint, GroundPlaneCalibration } from '../types/groundPlaneCalibration.ts';
 
 const empty: GroundPlaneCalibration = { schema_version: 1, camera_id: 'test', reference_image: { width: 4032, height: 3024 }, coordinate_system: { unit: 'meter', description: 'Local parking ground-plane coordinates' }, control_points: [], reference_distances: [], measured_rows: {} };
@@ -16,3 +16,7 @@ void test('rejects collinear points for readiness', () => assert.equal(groundPla
 void test('supports more than four points', () => assert.equal(groundPlaneReadiness([...ready, point('P5', .5, .5, 2.5, 2.5)]), 'READY_FOR_HOMOGRAPHY'));
 void test('validates reference distances', () => { assert.equal(validReferenceDistance({ id: 'D1', point_a: 'P1', point_b: 'P2', distance_m: 5, provenance: 'MEASURED' }, ready), true); assert.equal(validReferenceDistance({ id: 'D1', point_a: 'P1', point_b: 'P1', distance_m: 5, provenance: 'MEASURED' }, ready), false); });
 void test('ESTIMATED points are not promoted to measured readiness', () => assert.equal(groundPlaneReadiness(ready.map((item) => ({ ...item, provenance: 'ESTIMATED' }))), 'NOT_READY'));
+void test('save and reload comparison preserves control points, rows, distances and provenance', () => { const saved = { ...empty, control_points: ready, measured_rows: { row_1: { length_m: 15, width_m: 2, provenance: 'MEASURED' as const } }, reference_distances: [{ id: 'D1', point_a: 'P1', point_b: 'P2', distance_m: 5, provenance: 'MEASURED' as const }] }; const reloaded = structuredClone(saved); assert.equal(groundPlaneConfigsMatch(saved, reloaded), true); assert.deepEqual(reloaded, saved); });
+void test('read-after-write mismatch is detected', () => assert.equal(groundPlaneConfigsMatch({ ...empty, control_points: ready }, empty), false));
+void test('initialization keeps richer local recovery instead of empty server config', () => { const local = { ...empty, control_points: ready }; const result = chooseGroundPlaneCalibration(empty, local); assert.equal(result.source, 'LOCAL_RECOVERY'); assert.equal(result.calibration.control_points.length, 4); });
+void test('transient reference image is not part of or required by persisted calibration data', () => { const saved = structuredClone(empty); assert.equal('file' in saved.reference_image, false); assert.equal(groundPlaneConfigsMatch(saved, empty), true); });
