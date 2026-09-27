@@ -37,6 +37,7 @@
   ],
   "rules": {
     "jsx-a11y/prefer-tag-over-role": "off",
+    "nextjs/no-img-element": "off",
     "no-array-constructor": "error",
     "no-var": "error",
     "prefer-const": "error",

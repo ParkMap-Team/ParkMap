@@ -1,7 +1,9 @@
-import type { ParkingMapData } from '@/types/parking';
+import type { DemoScenario, ParkingMapData, ParkingObject, SystemState } from '@/types/parking';
 
 export const mockParkingData: ParkingMapData = {
-  cameraId: 'SPU_CAM_01', timestamp: '2026-09-27T08:30:00+07:00',
+  cameraId: 'SPU_CAM_01', timestamp: '2026-09-27T08:30:00+07:00', systemStatus: 'online',
+  camera: { id: 'SPU_CAM_01', name: 'SPU Motorcycle Parking', status: 'online', lastFrameAt: '2026-09-27T08:30:00+07:00' },
+  model: { name: 'YOLO11n-SPU', status: 'ready' },
   zone: { id: 'zone_A', name: 'Parking Zone A', polygon: [{ x: 0.06, y: 0.13 }, { x: 0.91, y: 0.08 }, { x: 0.96, y: 0.84 }, { x: 0.12, y: 0.92 }] },
   objects: [
     { id: 'M001', x: 0.16, y: 0.23, width: 0.048, height: 0.15, rotation: -4, status: 'occupied', confidence: 0.96 },
@@ -21,3 +23,39 @@ export const mockParkingData: ParkingMapData = {
     { id: 'M009', x: 0.84, y: 0.55, width: 0.046, height: 0.16, rotation: 183, status: 'occupied', confidence: 0.92 },
   ],
 };
+
+const availableCandidates: ParkingObject[] = [
+  { id: 'A005', x: 0.12, y: 0.43, width: 0.052, height: 0.16, rotation: -1, status: 'available' },
+  { id: 'A006', x: 0.46, y: 0.41, width: 0.054, height: 0.17, rotation: 2, status: 'available' },
+];
+
+const scenarioConfig: Record<DemoScenario, { state: SystemState; objectCount: number; extra?: ParkingObject[] }> = {
+  normal: { state: 'online', objectCount: 15 },
+  busy: { state: 'online', objectCount: 13 },
+  'almost-full': { state: 'online', objectCount: 11 },
+  processing: { state: 'processing', objectCount: 15 },
+  stale: { state: 'stale', objectCount: 15 },
+  offline: { state: 'offline', objectCount: 15 },
+  error: { state: 'error', objectCount: 15 },
+};
+
+export function getDemoParkingData(scenario: DemoScenario = 'normal'): ParkingMapData {
+  const config = scenarioConfig[scenario];
+  const now = new Date();
+  const timestamp = scenario === 'stale' ? new Date(now.getTime() - 5 * 60_000).toISOString() : now.toISOString();
+  let objects = [...mockParkingData.objects, ...(config.extra ?? [])].slice(0, config.objectCount);
+  if (scenario === 'busy') objects = objects.filter((item) => item.id !== 'A003');
+  if (scenario === 'almost-full') objects = objects.filter((item) => item.status !== 'available').concat(availableCandidates.slice(0, 1));
+  const motorcycles = objects.filter((item) => item.status === 'occupied').length;
+  const available = objects.filter((item) => item.status === 'available').length;
+  const uncertain = objects.filter((item) => item.status === 'uncertain').length;
+  return {
+    ...mockParkingData,
+    timestamp,
+    systemStatus: config.state,
+    objects,
+    summary: { motorcycles, occupied: motorcycles, available, uncertain },
+    camera: { ...mockParkingData.camera!, status: config.state === 'processing' ? 'online' : config.state, lastFrameAt: timestamp },
+    model: { ...mockParkingData.model!, status: config.state === 'processing' ? 'processing' : config.state === 'error' ? 'error' : config.state === 'offline' ? 'offline' : 'ready' },
+  };
+}
