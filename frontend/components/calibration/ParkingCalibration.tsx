@@ -95,23 +95,23 @@ export function ParkingCalibration({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="flex h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] grid-rows-none flex-col gap-3 overflow-hidden p-3 sm:p-4">
-        <DialogHeader className="shrink-0 pr-2">
+      <DialogContent showCloseButton={false} className="flex h-dvh! w-screen! max-w-none! grid-rows-none flex-col gap-2 overflow-hidden rounded-none p-2 sm:max-w-none! sm:p-3">
+        <DialogHeader className="shrink-0 px-1">
           <DialogTitle>Parking calibration</DialogTitle>
           <DialogDescription>Step {step + 1} / 6 · {definitions[step].label}. Click to add points; drag a vertex to fine-tune it.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_15rem]">
+        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-2 lg:grid-cols-[minmax(0,1fr)_13rem] lg:grid-rows-1">
           {state === 'loading'
             ? <div className="grid min-h-72 place-items-center rounded-xl bg-slate-950 text-white"><LoaderCircle className="size-7 animate-spin" aria-label="Loading calibration" /></div>
             : <CalibrationCanvas imageUrl={imageUrl} imageWidth={imageWidth} imageHeight={imageHeight} shapes={shapes} activeIndex={step} detections={detections} showDetections={showDetections} onChangeActive={updateCurrent} />}
 
-          <aside className="flex min-h-0 flex-col gap-3 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <aside className="flex max-h-44 min-h-0 flex-col gap-2 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-2 lg:max-h-none">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Completion</p>
-              <div className="mt-2 space-y-1">
+              <div className="mt-1.5 grid grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-1">
                 {definitions.map((definition, index) => (
-                  <button key={definition.id} type="button" onClick={() => setStep(index)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm ${step === index ? 'bg-blue-600 font-semibold text-white' : 'bg-white text-slate-700 hover:bg-slate-100'}`}>
+                  <button key={definition.id} type="button" onClick={() => setStep(index)} className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-sm ${step === index ? 'bg-blue-600 font-semibold text-white' : 'bg-white text-slate-700 hover:bg-slate-100'}`}>
                     <span>{definition.label}</span>
                     {complete[index] ? <Check className="size-4" /> : <span className={`text-xs ${step === index ? 'text-blue-100' : 'text-slate-400'}`}>Missing</span>}
                   </button>
@@ -119,7 +119,7 @@ export function ParkingCalibration({
               </div>
             </div>
 
-            <label className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm text-slate-700">
+            <label className="flex items-center justify-between gap-3 rounded-lg bg-white px-2.5 py-1.5 text-sm text-slate-700">
               <span>Show YOLO detections</span>
               <input type="checkbox" checked={showDetections} disabled={detections.length === 0} onChange={(event) => setShowDetections(event.target.checked)} className="size-4 accent-blue-600" />
             </label>
@@ -128,13 +128,13 @@ export function ParkingCalibration({
           </aside>
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-slate-200 pt-3">
-          <Button variant="outline" onClick={() => setStep((value) => Math.max(0, value - 1))} disabled={step === 0 || state !== 'editing'}><ChevronLeft />Previous</Button>
-          <Button variant="outline" onClick={() => setStep((value) => Math.min(5, value + 1))} disabled={step === 5 || state !== 'editing'}>Next<ChevronRight /></Button>
-          <Button variant="outline" onClick={() => updateCurrent(shapes[step].points.slice(0, -1))} disabled={shapes[step].points.length === 0 || state !== 'editing'}><Undo2 />Undo point</Button>
-          <Button variant="outline" onClick={() => updateCurrent([])} disabled={shapes[step].points.length === 0 || state !== 'editing'}><Trash2 />Clear current</Button>
-          <Button variant="outline" onClick={() => { setShapes(emptyShapes()); setStep(0); setMessage(null); }} disabled={state !== 'editing'}><RotateCcw />Reset all</Button>
-          <div className="ml-auto flex gap-2">
+        <div className="flex shrink-0 flex-nowrap items-center gap-2 overflow-x-auto border-t border-slate-200 pt-2">
+          <Button className="shrink-0" variant="outline" onClick={() => setStep((value) => Math.max(0, value - 1))} disabled={step === 0 || state !== 'editing'}><ChevronLeft />Previous</Button>
+          <Button className="shrink-0" variant="outline" onClick={() => setStep((value) => Math.min(5, value + 1))} disabled={step === 5 || state !== 'editing'}>Next<ChevronRight /></Button>
+          <Button className="shrink-0" variant="outline" onClick={() => updateCurrent(shapes[step].points.slice(0, -1))} disabled={shapes[step].points.length === 0 || state !== 'editing'}><Undo2 />Undo point</Button>
+          <Button className="shrink-0" variant="outline" onClick={() => updateCurrent([])} disabled={shapes[step].points.length === 0 || state !== 'editing'}><Trash2 />Clear current</Button>
+          <Button className="shrink-0" variant="outline" onClick={() => { setShapes(emptyShapes()); setStep(0); setMessage(null); }} disabled={state !== 'editing'}><RotateCcw />Reset all</Button>
+          <div className="ml-auto flex shrink-0 gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={state === 'saving'}>Cancel</Button>
             <Button onClick={() => void save()} disabled={!canSave || state !== 'editing'}><Save />{state === 'saving' ? 'Saving…' : 'Save calibration'}</Button>
           </div>

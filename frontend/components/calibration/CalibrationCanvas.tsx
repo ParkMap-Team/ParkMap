@@ -42,9 +42,9 @@ export function CalibrationCanvas({
   };
 
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-xl bg-slate-950 p-2 sm:p-4">
+    <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto rounded-xl bg-slate-950 p-1 sm:p-2">
       <div className="relative inline-block max-h-full max-w-full select-none">
-        <img src={imageUrl} alt="Parking calibration reference" draggable={false} className="block max-h-[calc(100vh-15rem)] max-w-full object-contain" />
+        <img src={imageUrl} alt="Parking calibration reference" draggable={false} className="block max-h-[calc(100dvh-9rem)] max-w-full object-contain" />
         <svg
           ref={svgRef}
           viewBox={`0 0 ${imageWidth} ${imageHeight}`}
