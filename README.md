@@ -49,3 +49,24 @@ The detection endpoint runs the configured YOLO model and returns normalized top
 - Collect additional known, non-collinear ground points and surveyed coordinates if accurate 2D image-to-ground calibration is required.
 
 Do not estimate missing values from pixels, motorcycles, painted lines, maps, or generic vehicle dimensions. These measurements will later connect normalized row position `t` to longitudinal position through `s = t × measured row length`; they do not by themselves establish complete 2D metric geometry.
+
+## Estimated and measured metric values
+
+- `ESTIMATED` values are temporary approximations entered manually for development and workflow testing. They are not verified site measurements.
+- `MEASURED` values are values the user physically measured at the parking site.
+
+The source is selected explicitly in the Metric Calibration UI and is preserved when saved. Completing all five estimated row lengths does not create a ground-plane calibration, homography, or meters-per-pixel scale. When real measurements are available, replace the values in the same UI and explicitly select **Measured on site** before saving.
+
+## ParkMap Branding
+
+Logo file:
+
+`frontend/public/branding/parkmap-logo.png`
+
+Absolute local path:
+
+`C:\Users\user\Desktop\ParkMap Test\frontend\public\branding\parkmap-logo.png`
+
+Use a PNG with a transparent background and keep the filename exactly `parkmap-logo.png`. Copy or replace that file to update the header logo, then refresh the page; restart or rebuild the frontend if the development or deployed build has cached the previous asset. If the file is missing or cannot load, the header safely keeps the existing ParkMap icon and text without showing a broken image.
+
+For a future favicon or app icon, first create a dedicated square/cropped variant suited to small sizes. Do not use the full logo blindly when its aspect ratio or detail is unsuitable.

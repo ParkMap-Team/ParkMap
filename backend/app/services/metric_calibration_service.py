@@ -26,6 +26,7 @@ class MetricCalibrationService:
         status = "CALIBRATED" if measured_rows == 5 else "PARTIALLY_CALIBRATED" if has_measurements else "NOT_CALIBRATED"
         return MetricCalibrationResponse(
             status=status,
+            measurement_source=calibration.measurement_source if calibration else "ESTIMATED",
             row_measurements_complete=measured_rows == 5,
             ground_plane_calibration_available=False,
             calibration=calibration,

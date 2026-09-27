@@ -27,11 +27,12 @@ class MetricCalibrationApiTest(unittest.TestCase):
         self.temporary_directory.cleanup()
 
     @staticmethod
-    def payload(rows: list[dict] | None = None) -> dict:
+    def payload(rows: list[dict] | None = None, source: str = "ESTIMATED") -> dict:
         return {
             "schema_version": 1,
             "camera_id": "SPU_CAM_01",
             "unit": "meter",
+            "measurement_source": source,
             "rows": rows or [],
             "reference_segments": [],
             "ground_control_points": [],
@@ -102,6 +103,38 @@ class MetricCalibrationApiTest(unittest.TestCase):
         response = self.client.get("/api/metric-calibration")
         self.assertEqual(response.status_code, 500)
         self.assertIn("could not be loaded", response.json()["detail"])
+
+    def test_accepts_estimated_and_measured_sources(self) -> None:
+        for source in ("ESTIMATED", "MEASURED"):
+            with self.subTest(source=source):
+                response = self.client.post("/api/metric-calibration", json=self.payload([{"id": "row_1", "length_m": 5}], source))
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["measurement_source"], source)
+
+    def test_rejects_invalid_measurement_source(self) -> None:
+        response = self.client.post("/api/metric-calibration", json=self.payload([{"id": "row_1", "length_m": 5}], "GUESSED"))
+        self.assertEqual(response.status_code, 422)
+
+    def test_measurement_source_survives_save_and_load(self) -> None:
+        for source in ("ESTIMATED", "MEASURED"):
+            with self.subTest(source=source):
+                self.client.post("/api/metric-calibration", json=self.payload([{"id": "row_1", "length_m": 5}], source))
+                self.assertEqual(self.client.get("/api/metric-calibration").json()["measurement_source"], source)
+
+    def test_complete_estimated_rows_do_not_enable_ground_plane(self) -> None:
+        rows = [{"id": f"row_{index}", "length_m": float(index)} for index in range(1, 6)]
+        response = self.client.post("/api/metric-calibration", json=self.payload(rows, "ESTIMATED"))
+        self.assertEqual(response.json()["status"], "CALIBRATED")
+        self.assertEqual(response.json()["measurement_source"], "ESTIMATED")
+        self.assertFalse(response.json()["ground_plane_calibration_available"])
+
+    def test_switching_to_measured_requires_explicit_post(self) -> None:
+        rows = [{"id": "row_1", "length_m": 5}]
+        estimated = self.client.post("/api/metric-calibration", json=self.payload(rows, "ESTIMATED")).json()
+        self.assertEqual(estimated["measurement_source"], "ESTIMATED")
+        self.assertEqual(self.client.get("/api/metric-calibration").json()["measurement_source"], "ESTIMATED")
+        measured = self.client.post("/api/metric-calibration", json=self.payload(rows, "MEASURED")).json()
+        self.assertEqual(measured["measurement_source"], "MEASURED")
 
 
 if __name__ == "__main__":

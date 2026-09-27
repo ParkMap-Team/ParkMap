@@ -29,7 +29,7 @@ Legacy `config/parking_roi.json` pixel coordinates are not loaded as normalized 
 
 ## Metric calibration
 
-`GET /api/metric-calibration` returns `NOT_CALIBRATED` when no physical measurements have been saved. `POST /api/metric-calibration` validates and atomically stores optional measured row lengths, reference segments, and ground-control points in the separate ignored file `config/metric_calibration.json`. Row lengths use meters internally and may be added incrementally. The service does not estimate missing measurements or calculate a homography.
+`GET /api/metric-calibration` returns `NOT_CALIBRATED` when no physical measurements have been saved. `POST /api/metric-calibration` validates and atomically stores optional row lengths, reference segments, ground-control points, and explicit `ESTIMATED` or `MEASURED` provenance in the separate ignored file `config/metric_calibration.json`. Row lengths use meters internally and may be added incrementally. Estimated values are testing inputs, not verified site measurements. The service does not estimate missing measurements or calculate a homography.
 
 ### Future Site Measurement Checklist
 

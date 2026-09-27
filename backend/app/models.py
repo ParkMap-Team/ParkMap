@@ -131,6 +131,7 @@ class ParkingCalibration(BaseModel):
 
 
 MetricCalibrationStatus = Literal["NOT_CALIBRATED", "PARTIALLY_CALIBRATED", "CALIBRATED"]
+MetricMeasurementSource = Literal["ESTIMATED", "MEASURED"]
 MetricRowId = Literal["row_1", "row_2", "row_3", "row_4", "row_5"]
 
 
@@ -162,6 +163,7 @@ class MetricCalibration(BaseModel):
     schema_version: Literal[1] = 1
     camera_id: str = Field(min_length=1)
     unit: Literal["meter"] = "meter"
+    measurement_source: MetricMeasurementSource = "ESTIMATED"
     rows: list[MetricRowMeasurement] = Field(default_factory=list, max_length=5)
     reference_segments: list[MetricReferenceSegment] = Field(default_factory=list)
     ground_control_points: list[MetricGroundControlPoint] = Field(default_factory=list)
@@ -181,6 +183,7 @@ class MetricCalibration(BaseModel):
 
 class MetricCalibrationResponse(BaseModel):
     status: MetricCalibrationStatus
+    measurement_source: MetricMeasurementSource
     row_measurements_complete: bool
     ground_plane_calibration_available: Literal[False] = False
     calibration: MetricCalibration | None
