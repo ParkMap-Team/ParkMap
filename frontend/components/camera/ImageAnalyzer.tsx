@@ -4,6 +4,7 @@ import { AlertCircle, ImagePlus, LoaderCircle, MapPinned, RotateCcw, ScanSearch 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ParkingCalibration } from '@/components/calibration/ParkingCalibration';
 import { CameraMonitor } from '@/components/camera/CameraMonitor';
+import { OccupiedIntervalsAndGaps } from '@/components/camera/OccupiedIntervalsAndGaps';
 import { RowAssignmentSummary } from '@/components/camera/RowAssignmentSummary';
 import { RowOccupancyProjection } from '@/components/camera/RowOccupancyProjection';
 import { VisualOccupancyDiagnostics } from '@/components/camera/VisualOccupancyDiagnostics';
@@ -12,9 +13,12 @@ import { analyzeParkingImage, MAX_UPLOAD_BYTES, SUPPORTED_IMAGE_TYPES } from '@/
 import { assignDetectionsToParkingRows, hasSignificantAspectRatioMismatch } from '@/lib/rowAssignment';
 import { buildRowOccupancyProjection } from '@/lib/rowProjection';
 import { buildGroundContactDiagnostics, buildVisualOccupancyDiagnostics } from '@/lib/occupancyDiagnostics';
+import { buildOccupiedIntervalPrototype } from '@/lib/occupiedIntervals';
+import { getMetricCalibration } from '@/lib/metricCalibration';
 import type { ParkingCalibration as ParkingCalibrationData } from '@/types/calibration';
 import type { DetectionResponse } from '@/types/detection';
 import type { GroundProxyHeightRatio } from '@/types/occupancyDiagnostics';
+import type { MetricCalibrationResponse } from '@/types/metricCalibration';
 import type { CameraData, CameraOverlay, ModelData, ParkingZone, SystemState } from '@/types/parking';
 
 export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = [] }: { camera?: CameraData; model?: ModelData; zone: ParkingZone; status: SystemState; fallbackOverlays?: CameraOverlay[] }) {
@@ -29,6 +33,7 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
   const [calibrationState, setCalibrationState] = useState<'idle' | 'loading' | 'ready' | 'missing' | 'error'>('idle');
   const [calibrationError, setCalibrationError] = useState<string | null>(null);
   const [groundProxyHeightRatio, setGroundProxyHeightRatio] = useState<GroundProxyHeightRatio>(.2);
+  const [metricCalibration, setMetricCalibration] = useState<MetricCalibrationResponse | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => controllerRef.current?.abort(), []);
@@ -41,6 +46,7 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
     setCalibration(null);
     setCalibrationState('idle');
     setCalibrationError(null);
+    setMetricCalibration(null);
     setError(null);
     if (!selected) return;
     if (!SUPPORTED_IMAGE_TYPES.includes(selected.type as (typeof SUPPORTED_IMAGE_TYPES)[number])) { setFile(null); setPreviewUrl(null); setDimensions(null); setError('Choose a JPEG, PNG, or WebP image.'); return; }
@@ -69,8 +75,12 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
       setCalibrationState('loading');
       setCalibrationError(null);
       try {
-        const savedCalibration = await getCalibration(controller.signal);
+        const [savedCalibration, savedMetricCalibration] = await Promise.all([
+          getCalibration(controller.signal),
+          getMetricCalibration(controller.signal).catch(() => null),
+        ]);
         setCalibration(savedCalibration);
+        setMetricCalibration(savedMetricCalibration);
         setCalibrationState(savedCalibration ? 'ready' : 'missing');
       } catch (calibrationFailure) {
         if (calibrationFailure instanceof DOMException && calibrationFailure.name === 'AbortError') return;
@@ -98,6 +108,7 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
   const rowProjection = useMemo(() => analysis && calibration ? buildRowOccupancyProjection(analysis.detections, assignments, calibration) : null, [analysis, assignments, calibration]);
   const occupancyDiagnostics = useMemo(() => analysis && calibration ? buildVisualOccupancyDiagnostics(analysis.detections, assignments, calibration) : null, [analysis, assignments, calibration]);
   const groundContactDiagnostics = useMemo(() => analysis && calibration ? buildGroundContactDiagnostics(analysis.detections, assignments, calibration, groundProxyHeightRatio) : null, [analysis, assignments, calibration, groundProxyHeightRatio]);
+  const occupiedIntervals = useMemo(() => analysis && calibration ? buildOccupiedIntervalPrototype(analysis.detections, assignments, calibration, metricCalibration) : null, [analysis, assignments, calibration, metricCalibration]);
   const aspectRatioMismatch = Boolean(analysis && calibration && hasSignificantAspectRatioMismatch(analysis.image_width, analysis.image_height, calibration));
 
   return (
@@ -124,10 +135,11 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
         {file && <p className="mt-3 truncate text-xs text-slate-500">Selected: <span className="font-medium text-slate-700">{file.name}</span></p>}
         {error && <div role="alert" className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700"><span className="inline-flex items-center gap-2"><AlertCircle className="size-4 shrink-0" />{error}</span>{file && <button type="button" onClick={() => void analyze()} className="inline-flex shrink-0 items-center gap-1 font-semibold"><RotateCcw className="size-3.5" />Retry</button>}</div>}
       </div>
-      <CameraMonitor camera={camera} model={model} zone={zone} status={analysisState === 'processing' ? 'processing' : status} imageUrl={previewUrl} imageDimensions={dimensions} analysis={analysis} overlays={previewUrl ? detectionOverlays : fallbackOverlays} calibration={calibration} assignments={assignments} rowProjection={rowProjection} occupancyDiagnostics={occupancyDiagnostics} groundContactDiagnostics={groundContactDiagnostics} />
+      <CameraMonitor camera={camera} model={model} zone={zone} status={analysisState === 'processing' ? 'processing' : status} imageUrl={previewUrl} imageDimensions={dimensions} analysis={analysis} overlays={previewUrl ? detectionOverlays : fallbackOverlays} calibration={calibration} assignments={assignments} rowProjection={rowProjection} occupancyDiagnostics={occupancyDiagnostics} groundContactDiagnostics={groundContactDiagnostics} occupiedIntervals={occupiedIntervals} />
       {analysis && <RowAssignmentSummary detectedCount={analysis.detections.length} calibration={calibration} assignments={assignments} state={calibrationState} aspectRatioMismatch={aspectRatioMismatch} error={calibrationError} />}
       {rowProjection && <RowOccupancyProjection projection={rowProjection} />}
       {occupancyDiagnostics && groundContactDiagnostics && <VisualOccupancyDiagnostics data={occupancyDiagnostics} groundContact={groundContactDiagnostics} heightRatio={groundProxyHeightRatio} onHeightRatioChange={setGroundProxyHeightRatio} />}
+      {occupiedIntervals && <OccupiedIntervalsAndGaps data={occupiedIntervals} />}
       {calibrationOpen && previewUrl && dimensions && <ParkingCalibration open onOpenChange={setCalibrationOpen} imageUrl={previewUrl} imageWidth={dimensions.width} imageHeight={dimensions.height} cameraId={camera?.id ?? 'SPU_CAM_01'} detections={analysis?.detections ?? []} />}
     </div>
   );
