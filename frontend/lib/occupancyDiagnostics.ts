@@ -1,7 +1,7 @@
 import { pointInPolygon } from './geometry.ts';
-import type { CalibrationPoint, DetectionRowAssignment, ParkingCalibration } from '../types/calibration.ts';
+import type { CalibrationPoint, CalibrationRow, DetectionRowAssignment, ParkingCalibration } from '../types/calibration.ts';
 import type { Detection, DetectionBBox } from '../types/detection.ts';
-import type { GroundContactDiagnostic, GroundContactDiagnosticsData, VisualOccupancyDiagnostic, VisualOccupancyDiagnosticsData, VisualRowOverlap } from '../types/occupancyDiagnostics.ts';
+import type { GroundContactDiagnostic, GroundContactDiagnosticsData, OutsideRoiProxyDiagnosticsData, VisualOccupancyDiagnostic, VisualOccupancyDiagnosticsData, VisualRowOverlap } from '../types/occupancyDiagnostics.ts';
 
 const EPSILON = 1e-12;
 
@@ -120,14 +120,14 @@ export function buildGroundContactDiagnostics(detections: Detection[], assignmen
     const assignment = assignments.find((item) => item.detection_index === detectionIndex);
     const primary = assignment ? { status: assignment.status, row_id: assignment.row_id } : { status: 'OUTSIDE_ROI' as const, row_id: null };
     const proxyResult = createGroundContactProxy(detection.bbox, heightRatio);
-    if (!proxyResult.ok) return { detection_index: detectionIndex, primary_assignment: primary, proxy_bbox: null, proxy_intersects_parking_roi: false, parking_roi_proxy_overlap_ratio: 0, intersecting_rows: [], geometry_error: proxyResult.error };
+    if (!proxyResult.ok) return { detection_index: detectionIndex, primary_assignment: primary, proxy_bbox: null, proxy_intersects_parking_roi: false, parking_roi_proxy_overlap_ratio: 0, parking_roi_intersection_polygon: [], intersecting_rows: [], geometry_error: proxyResult.error };
     const roi = intersectBboxWithPolygon(proxyResult.proxy, calibration.parking_roi.polygon);
-    if (!roi.ok) return { detection_index: detectionIndex, primary_assignment: primary, proxy_bbox: proxyResult.proxy, proxy_intersects_parking_roi: false, parking_roi_proxy_overlap_ratio: 0, intersecting_rows: [], geometry_error: 'MALFORMED_PARKING_ROI' as const };
+    if (!roi.ok) return { detection_index: detectionIndex, primary_assignment: primary, proxy_bbox: proxyResult.proxy, proxy_intersects_parking_roi: false, parking_roi_proxy_overlap_ratio: 0, parking_roi_intersection_polygon: [], intersecting_rows: [], geometry_error: 'MALFORMED_PARKING_ROI' as const };
     const rows = roi.intersects ? calibration.rows.flatMap((row) => {
       const overlap = intersectBboxWithPolygon(proxyResult.proxy, row.polygon);
       return overlap.ok && overlap.intersects ? [{ row_id: row.id, intersection_area_normalized: overlap.intersection_area_normalized, proxy_overlap_ratio: overlap.bbox_overlap_ratio, intersection_polygon: overlap.intersection_polygon }] : [];
     }) : [];
-    return { detection_index: detectionIndex, primary_assignment: primary, proxy_bbox: proxyResult.proxy, proxy_intersects_parking_roi: roi.intersects, parking_roi_proxy_overlap_ratio: roi.bbox_overlap_ratio, intersecting_rows: rows, geometry_error: null };
+    return { detection_index: detectionIndex, primary_assignment: primary, proxy_bbox: proxyResult.proxy, proxy_intersects_parking_roi: roi.intersects, parking_roi_proxy_overlap_ratio: roi.bbox_overlap_ratio, parking_roi_intersection_polygon: roi.intersection_polygon, intersecting_rows: rows, geometry_error: null };
   });
   const assigned = diagnostics.filter((item) => item.primary_assignment.status === 'ASSIGNED');
   const unassigned = diagnostics.filter((item) => item.primary_assignment.status === 'UNASSIGNED');
@@ -141,4 +141,10 @@ export function buildGroundContactDiagnostics(detections: Detection[], assignmen
     unassigned_with_proxy_row_overlap: unassigned.filter((item) => item.intersecting_rows.length > 0).length,
     proxy_overlapping_multiple_rows: diagnostics.filter((item) => item.intersecting_rows.length > 1).length,
   };
+}
+
+export function buildOutsideRoiProxyDiagnostics(detections: Detection[], assignments: DetectionRowAssignment[], calibration: ParkingCalibration): OutsideRoiProxyDiagnosticsData {
+  const outside = buildGroundContactDiagnostics(detections, assignments, calibration, .2).detections.filter((item) => item.primary_assignment.status === 'OUTSIDE_ROI');
+  const affected = (rowId: CalibrationRow['id']) => outside.filter((item) => item.intersecting_rows.some((row) => row.row_id === rowId)).length;
+  return { height_ratio: .2, detections: outside, total: outside.length, proxy_intersects_parking_roi: outside.filter((item) => item.proxy_intersects_parking_roi).length, proxy_does_not_intersect_parking_roi: outside.filter((item) => !item.proxy_intersects_parking_roi).length, proxy_intersects_at_least_one_row: outside.filter((item) => item.intersecting_rows.length > 0).length, affected_by_row: { row_1: affected('row_1'), row_2: affected('row_2'), row_3: affected('row_3'), row_4: affected('row_4'), row_5: affected('row_5') }, proxy_intersects_multiple_rows: outside.filter((item) => item.intersecting_rows.length > 1).length };
 }

@@ -41,8 +41,20 @@ export interface GroundContactDiagnostic {
   proxy_bbox: { x: number; y: number; width: number; height: number } | null;
   proxy_intersects_parking_roi: boolean;
   parking_roi_proxy_overlap_ratio: number;
+  parking_roi_intersection_polygon: CalibrationPoint[];
   intersecting_rows: GroundProxyRowOverlap[];
   geometry_error: 'MALFORMED_BBOX' | 'INVALID_HEIGHT_RATIO' | 'MALFORMED_PARKING_ROI' | null;
+}
+
+export interface OutsideRoiProxyDiagnosticsData {
+  height_ratio: 0.2;
+  detections: GroundContactDiagnostic[];
+  total: number;
+  proxy_intersects_parking_roi: number;
+  proxy_does_not_intersect_parking_roi: number;
+  proxy_intersects_at_least_one_row: number;
+  affected_by_row: Record<CalibrationRow['id'], number>;
+  proxy_intersects_multiple_rows: number;
 }
 
 export interface GroundContactDiagnosticsData {
