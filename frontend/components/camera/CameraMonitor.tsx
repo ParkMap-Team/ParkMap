@@ -3,13 +3,14 @@ import { useState } from 'react';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import type { DetectionRowAssignment, ParkingCalibration, RowOccupancyProjectionData } from '@/types/calibration';
 import type { DetectionResponse } from '@/types/detection';
+import type { VisualOccupancyDiagnosticsData } from '@/types/occupancyDiagnostics';
 import type { CameraData, CameraOverlay, ModelData, ParkingZone, SystemState } from '@/types/parking';
 
 function formatTime(timestamp?: string | null) {
   return timestamp ? new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(timestamp)) : '—';
 }
 
-export function CameraMonitor({ camera, model, zone, overlays = [], status, imageUrl, imageDimensions, analysis, calibration, assignments = [], rowProjection }: {
+export function CameraMonitor({ camera, model, zone, overlays = [], status, imageUrl, imageDimensions, analysis, calibration, assignments = [], rowProjection, occupancyDiagnostics }: {
   camera?: CameraData;
   model?: ModelData;
   zone: ParkingZone;
@@ -21,10 +22,12 @@ export function CameraMonitor({ camera, model, zone, overlays = [], status, imag
   calibration?: ParkingCalibration | null;
   assignments?: DetectionRowAssignment[];
   rowProjection?: RowOccupancyProjectionData | null;
+  occupancyDiagnostics?: VisualOccupancyDiagnosticsData | null;
 }) {
   const [showOverlays, setShowOverlays] = useState(true);
   const [showCalibration, setShowCalibration] = useState(false);
   const [showRowProjection, setShowRowProjection] = useState(false);
+  const [showOccupancyDiagnostics, setShowOccupancyDiagnostics] = useState(false);
   const source = imageUrl ?? camera?.frameUrl;
   const width = imageDimensions?.width ?? analysis?.image_width ?? 1000;
   const height = imageDimensions?.height ?? analysis?.image_height ?? 562;
@@ -39,7 +42,7 @@ export function CameraMonitor({ camera, model, zone, overlays = [], status, imag
         {source ? (
           <div className="relative inline-block max-h-[520px] max-w-full">
             <img src={source} alt={`Analysis source for ${camera?.name ?? 'ParkMap camera'}`} className="block max-h-[520px] max-w-full object-contain" />
-            {(showOverlays || (showCalibration && calibration) || (showRowProjection && rowProjection)) && <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full" aria-label="Detection and parking assignment overlay">
+            {(showOverlays || (showCalibration && calibration) || (showRowProjection && rowProjection) || (showOccupancyDiagnostics && occupancyDiagnostics)) && <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full" aria-label="Detection and parking assignment overlay">
               {showCalibration && calibration && [
                 { id: 'parking-roi', label: 'Parking ROI', polygon: calibration.parking_roi.polygon, roi: true },
                 ...calibration.rows.map((row, index) => ({ id: row.id, label: `R${index + 1}`, polygon: row.polygon, roi: false })),
@@ -70,10 +73,23 @@ export function CameraMonitor({ camera, model, zone, overlays = [], status, imag
                   <text x={motorcycle.row_position.projection.x * width + width * .006} y={motorcycle.row_position.projection.y * height - height * .008} fill="#cffafe" stroke="#0f172a" strokeWidth={height * .002} paintOrder="stroke" fontSize={height * .019} fontWeight="700">t={motorcycle.row_position.t.toFixed(2)}</text>
                 </g>)}
               </g>)}
+              {showOccupancyDiagnostics && occupancyDiagnostics?.detections.filter((item) => item.primary_assignment.status !== 'OUTSIDE_ROI' || item.bbox_intersects_parking_roi).map((item) => {
+                const first = item.bbox_polygon[0];
+                if (!first || item.bbox_polygon.length < 4) return null;
+                const boxWidth = (item.bbox_polygon[1].x - first.x) * width;
+                const boxHeight = (item.bbox_polygon[3].y - first.y) * height;
+                const color = item.primary_assignment.status === 'UNASSIGNED' ? '#fbbf24' : '#a78bfa';
+                const rows = item.intersecting_rows.map((row) => row.row_id.replace('row_', 'R')).join(',') || 'none';
+                return <g key={`occupancy-${item.detection_index}`}>
+                  <rect x={first.x * width} y={first.y * height} width={boxWidth} height={boxHeight} fill="rgba(168,85,247,.06)" stroke={color} strokeWidth={Math.max(width, height) * .002} strokeDasharray="7 5" />
+                  {item.intersecting_rows.flatMap((row) => row.intersection_polygon.length >= 3 ? [<polygon key={`${item.detection_index}-${row.row_id}`} points={row.intersection_polygon.map((point) => `${point.x * width},${point.y * height}`).join(' ')} fill="rgba(168,85,247,.24)" stroke="#c084fc" strokeWidth={Math.max(width, height) * .001} />] : [])}
+                  <text x={first.x * width} y={Math.max(height * .02, first.y * height - height * .008)} fill={color} stroke="#0f172a" strokeWidth={height * .002} paintOrder="stroke" fontSize={height * .018} fontWeight="700">#{item.detection_index} overlap: {rows}</text>
+                </g>;
+              })}
             </svg>}
           </div>
         ) : <div className="grid aspect-video w-full place-items-center bg-[linear-gradient(rgba(51,65,85,.22)_1px,transparent_1px),linear-gradient(90deg,rgba(51,65,85,.22)_1px,transparent_1px)] bg-[size:32px_32px]"><div className="text-center text-slate-500"><ImageIcon className="mx-auto size-8" /><p className="mt-2 text-xs font-medium">Camera frame placeholder</p></div></div>}
-        {source && <div className="absolute bottom-3 right-3 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setShowOverlays((value) => !value)} className="inline-flex items-center gap-2 rounded-lg bg-slate-950/80 px-3 py-2 text-xs font-semibold text-white backdrop-blur" aria-pressed={showOverlays}>{showOverlays ? <Eye className="size-4" /> : <EyeOff className="size-4" />}{showOverlays ? 'Detections on' : 'Detections off'}</button>{calibration && <button type="button" onClick={() => setShowCalibration((value) => !value)} className="inline-flex items-center gap-2 rounded-lg bg-slate-950/80 px-3 py-2 text-xs font-semibold text-white backdrop-blur" aria-pressed={showCalibration}>{showCalibration ? <Eye className="size-4" /> : <EyeOff className="size-4" />}{showCalibration ? 'Calibration on' : 'Show parking calibration'}</button>}{rowProjection && <button type="button" onClick={() => setShowRowProjection((value) => !value)} className="inline-flex items-center gap-2 rounded-lg bg-cyan-950/85 px-3 py-2 text-xs font-semibold text-white backdrop-blur" aria-pressed={showRowProjection}>{showRowProjection ? <Eye className="size-4" /> : <EyeOff className="size-4" />}{showRowProjection ? 'Row projection on' : 'Show row projection'}</button>}</div>}
+        {source && <div className="absolute bottom-3 right-3 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setShowOverlays((value) => !value)} className="inline-flex items-center gap-2 rounded-lg bg-slate-950/80 px-3 py-2 text-xs font-semibold text-white backdrop-blur" aria-pressed={showOverlays}>{showOverlays ? <Eye className="size-4" /> : <EyeOff className="size-4" />}{showOverlays ? 'Detections on' : 'Detections off'}</button>{calibration && <button type="button" onClick={() => setShowCalibration((value) => !value)} className="inline-flex items-center gap-2 rounded-lg bg-slate-950/80 px-3 py-2 text-xs font-semibold text-white backdrop-blur" aria-pressed={showCalibration}>{showCalibration ? <Eye className="size-4" /> : <EyeOff className="size-4" />}{showCalibration ? 'Calibration on' : 'Show parking calibration'}</button>}{rowProjection && <button type="button" onClick={() => setShowRowProjection((value) => !value)} className="inline-flex items-center gap-2 rounded-lg bg-cyan-950/85 px-3 py-2 text-xs font-semibold text-white backdrop-blur" aria-pressed={showRowProjection}>{showRowProjection ? <Eye className="size-4" /> : <EyeOff className="size-4" />}{showRowProjection ? 'Row projection on' : 'Show row projection'}</button>}{occupancyDiagnostics && <button type="button" onClick={() => setShowOccupancyDiagnostics((value) => !value)} className="inline-flex items-center gap-2 rounded-lg bg-violet-950/85 px-3 py-2 text-xs font-semibold text-white backdrop-blur" aria-pressed={showOccupancyDiagnostics}>{showOccupancyDiagnostics ? <Eye className="size-4" /> : <EyeOff className="size-4" />}{showOccupancyDiagnostics ? 'Occupancy diagnostics on' : 'Show occupancy diagnostics'}</button>}</div>}
       </div>
       {analysis && <div className="grid grid-cols-2 gap-3 border-b border-slate-200 bg-emerald-50/60 px-5 py-4 text-xs sm:grid-cols-3"><strong className="col-span-2 text-emerald-700 sm:col-span-3">REAL YOLO INFERENCE · {analysis.model.status}</strong><Metric label="Motorcycles detected" value={String(analysis.detections.length)} /><Metric label="Model" value={analysis.model.name} /><Metric label="Input size" value={String(analysis.inference.imgsz)} /><Metric label="Confidence" value={analysis.inference.confidence_threshold.toFixed(2)} /><Metric label="NMS IoU" value={analysis.inference.nms_iou.toFixed(2)} /><Metric label="Processing" value={`${analysis.inference.processing_time_ms.toFixed(1)} ms`} /></div>}
       <dl className="grid grid-cols-2 gap-x-5 gap-y-4 p-5 text-sm"><div><dt className="text-xs text-slate-400">Camera</dt><dd className="mt-1 font-semibold">{camera?.id ?? 'Not reported'}</dd></div><div><dt className="text-xs text-slate-400">Location</dt><dd className="mt-1 font-semibold">{camera?.name ?? 'Unknown'}</dd></div><div><dt className="text-xs text-slate-400">Zone</dt><dd className="mt-1 font-semibold">{zone.id}</dd></div><div><dt className="text-xs text-slate-400">Last frame</dt><dd className="mt-1 font-mono font-semibold">{formatTime(camera?.lastFrameAt)}</dd></div><div><dt className="text-xs text-slate-400">Parking model</dt><dd className="mt-1 font-semibold">{model?.name ?? 'Not reported'}</dd></div><div><dt className="text-xs text-slate-400">Model status</dt><dd className="mt-1 font-semibold capitalize">{model?.status ?? 'unknown'}</dd></div></dl>

@@ -6,10 +6,12 @@ import { ParkingCalibration } from '@/components/calibration/ParkingCalibration'
 import { CameraMonitor } from '@/components/camera/CameraMonitor';
 import { RowAssignmentSummary } from '@/components/camera/RowAssignmentSummary';
 import { RowOccupancyProjection } from '@/components/camera/RowOccupancyProjection';
+import { VisualOccupancyDiagnostics } from '@/components/camera/VisualOccupancyDiagnostics';
 import { getCalibration } from '@/lib/calibration';
 import { analyzeParkingImage, MAX_UPLOAD_BYTES, SUPPORTED_IMAGE_TYPES } from '@/lib/detection';
 import { assignDetectionsToParkingRows, hasSignificantAspectRatioMismatch } from '@/lib/rowAssignment';
 import { buildRowOccupancyProjection } from '@/lib/rowProjection';
+import { buildVisualOccupancyDiagnostics } from '@/lib/occupancyDiagnostics';
 import type { ParkingCalibration as ParkingCalibrationData } from '@/types/calibration';
 import type { DetectionResponse } from '@/types/detection';
 import type { CameraData, CameraOverlay, ModelData, ParkingZone, SystemState } from '@/types/parking';
@@ -92,6 +94,7 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
   })) ?? [];
   const assignments = useMemo(() => analysis && calibration ? assignDetectionsToParkingRows(analysis.detections, calibration) : [], [analysis, calibration]);
   const rowProjection = useMemo(() => analysis && calibration ? buildRowOccupancyProjection(analysis.detections, assignments, calibration) : null, [analysis, assignments, calibration]);
+  const occupancyDiagnostics = useMemo(() => analysis && calibration ? buildVisualOccupancyDiagnostics(analysis.detections, assignments, calibration) : null, [analysis, assignments, calibration]);
   const aspectRatioMismatch = Boolean(analysis && calibration && hasSignificantAspectRatioMismatch(analysis.image_width, analysis.image_height, calibration));
 
   return (
@@ -118,9 +121,10 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
         {file && <p className="mt-3 truncate text-xs text-slate-500">Selected: <span className="font-medium text-slate-700">{file.name}</span></p>}
         {error && <div role="alert" className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700"><span className="inline-flex items-center gap-2"><AlertCircle className="size-4 shrink-0" />{error}</span>{file && <button type="button" onClick={() => void analyze()} className="inline-flex shrink-0 items-center gap-1 font-semibold"><RotateCcw className="size-3.5" />Retry</button>}</div>}
       </div>
-      <CameraMonitor camera={camera} model={model} zone={zone} status={analysisState === 'processing' ? 'processing' : status} imageUrl={previewUrl} imageDimensions={dimensions} analysis={analysis} overlays={previewUrl ? detectionOverlays : fallbackOverlays} calibration={calibration} assignments={assignments} rowProjection={rowProjection} />
+      <CameraMonitor camera={camera} model={model} zone={zone} status={analysisState === 'processing' ? 'processing' : status} imageUrl={previewUrl} imageDimensions={dimensions} analysis={analysis} overlays={previewUrl ? detectionOverlays : fallbackOverlays} calibration={calibration} assignments={assignments} rowProjection={rowProjection} occupancyDiagnostics={occupancyDiagnostics} />
       {analysis && <RowAssignmentSummary detectedCount={analysis.detections.length} calibration={calibration} assignments={assignments} state={calibrationState} aspectRatioMismatch={aspectRatioMismatch} error={calibrationError} />}
       {rowProjection && <RowOccupancyProjection projection={rowProjection} />}
+      {occupancyDiagnostics && <VisualOccupancyDiagnostics data={occupancyDiagnostics} />}
       {calibrationOpen && previewUrl && dimensions && <ParkingCalibration open onOpenChange={setCalibrationOpen} imageUrl={previewUrl} imageWidth={dimensions.width} imageHeight={dimensions.height} cameraId={camera?.id ?? 'SPU_CAM_01'} detections={analysis?.detections ?? []} />}
     </div>
   );
