@@ -25,3 +25,33 @@ export interface VisualOccupancyDiagnosticsData {
   unassigned_without_visual_row_overlap: number;
   visually_overlapping_multiple_rows: number;
 }
+
+export type GroundProxyHeightRatio = 0.1 | 0.2 | 0.3;
+
+export interface GroundProxyRowOverlap {
+  row_id: CalibrationRow['id'];
+  intersection_area_normalized: number;
+  proxy_overlap_ratio: number;
+  intersection_polygon: CalibrationPoint[];
+}
+
+export interface GroundContactDiagnostic {
+  detection_index: number;
+  primary_assignment: { status: RowAssignmentStatus; row_id: CalibrationRow['id'] | null };
+  proxy_bbox: { x: number; y: number; width: number; height: number } | null;
+  proxy_intersects_parking_roi: boolean;
+  parking_roi_proxy_overlap_ratio: number;
+  intersecting_rows: GroundProxyRowOverlap[];
+  geometry_error: 'MALFORMED_BBOX' | 'INVALID_HEIGHT_RATIO' | 'MALFORMED_PARKING_ROI' | null;
+}
+
+export interface GroundContactDiagnosticsData {
+  height_ratio: number;
+  detections: GroundContactDiagnostic[];
+  assigned_total: number;
+  unassigned_total: number;
+  assigned_proxy_intersects_primary: number;
+  assigned_proxy_intersects_neighbor: number;
+  unassigned_with_proxy_row_overlap: number;
+  proxy_overlapping_multiple_rows: number;
+}

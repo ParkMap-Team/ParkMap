@@ -3,14 +3,14 @@ import { useState } from 'react';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import type { DetectionRowAssignment, ParkingCalibration, RowOccupancyProjectionData } from '@/types/calibration';
 import type { DetectionResponse } from '@/types/detection';
-import type { VisualOccupancyDiagnosticsData } from '@/types/occupancyDiagnostics';
+import type { GroundContactDiagnosticsData, VisualOccupancyDiagnosticsData } from '@/types/occupancyDiagnostics';
 import type { CameraData, CameraOverlay, ModelData, ParkingZone, SystemState } from '@/types/parking';
 
 function formatTime(timestamp?: string | null) {
   return timestamp ? new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(timestamp)) : '—';
 }
 
-export function CameraMonitor({ camera, model, zone, overlays = [], status, imageUrl, imageDimensions, analysis, calibration, assignments = [], rowProjection, occupancyDiagnostics }: {
+export function CameraMonitor({ camera, model, zone, overlays = [], status, imageUrl, imageDimensions, analysis, calibration, assignments = [], rowProjection, occupancyDiagnostics, groundContactDiagnostics }: {
   camera?: CameraData;
   model?: ModelData;
   zone: ParkingZone;
@@ -23,6 +23,7 @@ export function CameraMonitor({ camera, model, zone, overlays = [], status, imag
   assignments?: DetectionRowAssignment[];
   rowProjection?: RowOccupancyProjectionData | null;
   occupancyDiagnostics?: VisualOccupancyDiagnosticsData | null;
+  groundContactDiagnostics?: GroundContactDiagnosticsData | null;
 }) {
   const [showOverlays, setShowOverlays] = useState(true);
   const [showCalibration, setShowCalibration] = useState(false);
@@ -43,6 +44,8 @@ export function CameraMonitor({ camera, model, zone, overlays = [], status, imag
           <div className="relative inline-block max-h-[520px] max-w-full">
             <img src={source} alt={`Analysis source for ${camera?.name ?? 'ParkMap camera'}`} className="block max-h-[520px] max-w-full object-contain" />
             {(showOverlays || (showCalibration && calibration) || (showRowProjection && rowProjection) || (showOccupancyDiagnostics && occupancyDiagnostics)) && <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full" aria-label="Detection and parking assignment overlay">
+              <defs><pattern id="ground-proxy-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#34d399" strokeWidth="3" /></pattern></defs>
+              {showOccupancyDiagnostics && calibration?.rows.map((row) => <polygon key={`diagnostic-row-${row.id}`} points={row.polygon.map((point) => `${point.x * width},${point.y * height}`).join(' ')} fill="none" stroke="#c4b5fd" strokeWidth={Math.max(width, height) * .0015} strokeDasharray="5 5" />)}
               {showCalibration && calibration && [
                 { id: 'parking-roi', label: 'Parking ROI', polygon: calibration.parking_roi.polygon, roi: true },
                 ...calibration.rows.map((row, index) => ({ id: row.id, label: `R${index + 1}`, polygon: row.polygon, roi: false })),
@@ -80,10 +83,12 @@ export function CameraMonitor({ camera, model, zone, overlays = [], status, imag
                 const boxHeight = (item.bbox_polygon[3].y - first.y) * height;
                 const color = item.primary_assignment.status === 'UNASSIGNED' ? '#fbbf24' : '#a78bfa';
                 const rows = item.intersecting_rows.map((row) => row.row_id.replace('row_', 'R')).join(',') || 'none';
+                const proxy = groundContactDiagnostics?.detections.find((candidate) => candidate.detection_index === item.detection_index)?.proxy_bbox;
                 return <g key={`occupancy-${item.detection_index}`}>
                   <rect x={first.x * width} y={first.y * height} width={boxWidth} height={boxHeight} fill="rgba(168,85,247,.06)" stroke={color} strokeWidth={Math.max(width, height) * .002} strokeDasharray="7 5" />
                   {item.intersecting_rows.flatMap((row) => row.intersection_polygon.length >= 3 ? [<polygon key={`${item.detection_index}-${row.row_id}`} points={row.intersection_polygon.map((point) => `${point.x * width},${point.y * height}`).join(' ')} fill="rgba(168,85,247,.24)" stroke="#c084fc" strokeWidth={Math.max(width, height) * .001} />] : [])}
                   <text x={first.x * width} y={Math.max(height * .02, first.y * height - height * .008)} fill={color} stroke="#0f172a" strokeWidth={height * .002} paintOrder="stroke" fontSize={height * .018} fontWeight="700">#{item.detection_index} overlap: {rows}</text>
+                  {proxy && <><rect x={proxy.x * width} y={proxy.y * height} width={proxy.width * width} height={proxy.height * height} fill="url(#ground-proxy-hatch)" fillOpacity=".45" stroke="#34d399" strokeWidth={Math.max(width, height) * .0025} /><text x={proxy.x * width + width * .003} y={proxy.y * height + height * .018} fill="#6ee7b7" stroke="#0f172a" strokeWidth={height * .0015} paintOrder="stroke" fontSize={height * .014} fontWeight="700">proxy {(groundContactDiagnostics?.height_ratio ?? 0) * 100}%</text></>}
                 </g>;
               })}
             </svg>}

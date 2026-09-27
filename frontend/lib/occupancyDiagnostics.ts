@@ -1,7 +1,7 @@
 import { pointInPolygon } from './geometry.ts';
 import type { CalibrationPoint, DetectionRowAssignment, ParkingCalibration } from '../types/calibration.ts';
 import type { Detection, DetectionBBox } from '../types/detection.ts';
-import type { VisualOccupancyDiagnostic, VisualOccupancyDiagnosticsData, VisualRowOverlap } from '../types/occupancyDiagnostics.ts';
+import type { GroundContactDiagnostic, GroundContactDiagnosticsData, VisualOccupancyDiagnostic, VisualOccupancyDiagnosticsData, VisualRowOverlap } from '../types/occupancyDiagnostics.ts';
 
 const EPSILON = 1e-12;
 
@@ -102,5 +102,43 @@ export function buildVisualOccupancyDiagnostics(detections: Detection[], assignm
     unassigned_with_visual_row_overlap: unassigned.filter((item) => item.intersecting_rows.length > 0).length,
     unassigned_without_visual_row_overlap: unassigned.filter((item) => item.intersecting_rows.length === 0).length,
     visually_overlapping_multiple_rows: diagnostics.filter((item) => item.intersecting_rows.length > 1).length,
+  };
+}
+
+export function createGroundContactProxy(bbox: DetectionBBox, heightRatio: number):
+  | { ok: true; proxy: DetectionBBox }
+  | { ok: false; error: 'MALFORMED_BBOX' | 'INVALID_HEIGHT_RATIO' } {
+  if (!Number.isFinite(heightRatio) || heightRatio <= 0 || heightRatio > 1) return { ok: false, error: 'INVALID_HEIGHT_RATIO' };
+  const rectangle = bboxToPolygon(bbox);
+  if (!rectangle.ok) return rectangle;
+  const proxyHeight = bbox.height * heightRatio;
+  return { ok: true, proxy: { x: bbox.x, y: bbox.y + bbox.height - proxyHeight, width: bbox.width, height: proxyHeight } };
+}
+
+export function buildGroundContactDiagnostics(detections: Detection[], assignments: DetectionRowAssignment[], calibration: ParkingCalibration, heightRatio: number): GroundContactDiagnosticsData {
+  const diagnostics: GroundContactDiagnostic[] = detections.map((detection, detectionIndex) => {
+    const assignment = assignments.find((item) => item.detection_index === detectionIndex);
+    const primary = assignment ? { status: assignment.status, row_id: assignment.row_id } : { status: 'OUTSIDE_ROI' as const, row_id: null };
+    const proxyResult = createGroundContactProxy(detection.bbox, heightRatio);
+    if (!proxyResult.ok) return { detection_index: detectionIndex, primary_assignment: primary, proxy_bbox: null, proxy_intersects_parking_roi: false, parking_roi_proxy_overlap_ratio: 0, intersecting_rows: [], geometry_error: proxyResult.error };
+    const roi = intersectBboxWithPolygon(proxyResult.proxy, calibration.parking_roi.polygon);
+    if (!roi.ok) return { detection_index: detectionIndex, primary_assignment: primary, proxy_bbox: proxyResult.proxy, proxy_intersects_parking_roi: false, parking_roi_proxy_overlap_ratio: 0, intersecting_rows: [], geometry_error: 'MALFORMED_PARKING_ROI' as const };
+    const rows = roi.intersects ? calibration.rows.flatMap((row) => {
+      const overlap = intersectBboxWithPolygon(proxyResult.proxy, row.polygon);
+      return overlap.ok && overlap.intersects ? [{ row_id: row.id, intersection_area_normalized: overlap.intersection_area_normalized, proxy_overlap_ratio: overlap.bbox_overlap_ratio, intersection_polygon: overlap.intersection_polygon }] : [];
+    }) : [];
+    return { detection_index: detectionIndex, primary_assignment: primary, proxy_bbox: proxyResult.proxy, proxy_intersects_parking_roi: roi.intersects, parking_roi_proxy_overlap_ratio: roi.bbox_overlap_ratio, intersecting_rows: rows, geometry_error: null };
+  });
+  const assigned = diagnostics.filter((item) => item.primary_assignment.status === 'ASSIGNED');
+  const unassigned = diagnostics.filter((item) => item.primary_assignment.status === 'UNASSIGNED');
+  return {
+    height_ratio: heightRatio,
+    detections: diagnostics,
+    assigned_total: assigned.length,
+    unassigned_total: unassigned.length,
+    assigned_proxy_intersects_primary: assigned.filter((item) => item.intersecting_rows.some((row) => row.row_id === item.primary_assignment.row_id)).length,
+    assigned_proxy_intersects_neighbor: assigned.filter((item) => item.intersecting_rows.some((row) => row.row_id !== item.primary_assignment.row_id)).length,
+    unassigned_with_proxy_row_overlap: unassigned.filter((item) => item.intersecting_rows.length > 0).length,
+    proxy_overlapping_multiple_rows: diagnostics.filter((item) => item.intersecting_rows.length > 1).length,
   };
 }
