@@ -7,11 +7,12 @@ from fastapi import FastAPI, File, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, UnidentifiedImageError
 
-from app.models import DetectionResponse, HealthResponse, MetricCalibration, MetricCalibrationResponse, MotorcycleFittingConfiguration, MotorcycleFittingResponse, ParkingCalibration, ParkingStatusResponse
+from app.models import DetectionResponse, GroundPlaneCalibration, GroundPlaneCalibrationResponse, HealthResponse, MetricCalibration, MetricCalibrationResponse, MotorcycleFittingConfiguration, MotorcycleFittingResponse, ParkingCalibration, ParkingStatusResponse
 from app.services.calibration_service import calibration_service
 from app.services.cv_service import cv_service
 from app.services.metric_calibration_service import metric_calibration_service
 from app.services.motorcycle_fitting_service import motorcycle_fitting_service
+from app.services.ground_plane_calibration_service import ground_plane_calibration_service
 from app.services.parking_service import parking_service
 
 load_dotenv()
@@ -59,6 +60,16 @@ def get_metric_calibration() -> MetricCalibrationResponse:
 @app.post("/api/metric-calibration", response_model=MetricCalibrationResponse)
 def save_metric_calibration(calibration: MetricCalibration) -> MetricCalibrationResponse:
     return metric_calibration_service.save(calibration)
+
+
+@app.get("/api/ground-plane-calibration", response_model=GroundPlaneCalibrationResponse)
+def get_ground_plane_calibration() -> GroundPlaneCalibrationResponse:
+    return ground_plane_calibration_service.response(ground_plane_calibration_service.load())
+
+
+@app.post("/api/ground-plane-calibration", response_model=GroundPlaneCalibrationResponse)
+def save_ground_plane_calibration(calibration: GroundPlaneCalibration) -> GroundPlaneCalibrationResponse:
+    return ground_plane_calibration_service.save(calibration)
 
 
 @app.get("/api/motorcycle-fitting", response_model=MotorcycleFittingResponse)

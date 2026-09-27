@@ -189,6 +189,73 @@ class MetricCalibrationResponse(BaseModel):
     calibration: MetricCalibration | None
 
 
+GroundMeasurementSource = Literal["ESTIMATED", "MEASURED"]
+
+
+class GroundCoordinate(BaseModel):
+    x_m: float = Field(allow_inf_nan=False)
+    y_m: float = Field(allow_inf_nan=False)
+
+
+class GroundControlPoint(BaseModel):
+    id: str = Field(min_length=1)
+    image_x: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
+    image_y: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
+    ground_x_m: float = Field(allow_inf_nan=False)
+    ground_y_m: float = Field(allow_inf_nan=False)
+    provenance: GroundMeasurementSource
+
+
+class GroundReferenceDistance(BaseModel):
+    id: str = Field(min_length=1)
+    point_a: str = Field(min_length=1)
+    point_b: str = Field(min_length=1)
+    distance_m: float = Field(gt=0.0, allow_inf_nan=False)
+    provenance: GroundMeasurementSource
+
+
+class GroundMeasuredRow(BaseModel):
+    length_m: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
+    width_m: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
+    provenance: GroundMeasurementSource
+
+
+class GroundPlaneCalibration(BaseModel):
+    schema_version: Literal[1] = 1
+    camera_id: str = Field(min_length=1)
+    reference_image: CalibrationReferenceImage
+    coordinate_system: dict[str, str]
+    control_points: list[GroundControlPoint] = Field(default_factory=list)
+    reference_distances: list[GroundReferenceDistance] = Field(default_factory=list)
+    measured_rows: dict[MetricRowId, GroundMeasuredRow] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_ground_plane_ids(self) -> "GroundPlaneCalibration":
+        for items, label in ((self.control_points, "control point"), (self.reference_distances, "reference distance")):
+            ids = [item.id for item in items]
+            if len(ids) != len(set(ids)):
+                raise ValueError(f"Duplicate {label} IDs are not allowed.")
+        point_ids = {point.id for point in self.control_points}
+        image_points = {(point.image_x, point.image_y) for point in self.control_points}
+        ground_points = {(point.ground_x_m, point.ground_y_m) for point in self.control_points}
+        if len(image_points) != len(self.control_points):
+            raise ValueError("Ground control point image coordinates must be unique.")
+        if len(ground_points) != len(self.control_points):
+            raise ValueError("Ground control point ground coordinates must be unique.")
+        for segment in self.reference_distances:
+            if segment.point_a == segment.point_b or segment.point_a not in point_ids or segment.point_b not in point_ids:
+                raise ValueError("Reference distances must connect two existing, distinct control points.")
+        return self
+
+
+class GroundPlaneCalibrationResponse(BaseModel):
+    status: Literal["NOT_READY", "READY_FOR_HOMOGRAPHY"]
+    control_point_count: int
+    measured_point_count: int
+    minimum_required: Literal[4] = 4
+    calibration: GroundPlaneCalibration
+
+
 class MotorcycleFittingConfiguration(BaseModel):
     schema_version: Literal[1] = 1
     measurement_source: MetricMeasurementSource = "ESTIMATED"

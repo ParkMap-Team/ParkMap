@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "camera_id": "SPU_CAM_01",
+  "reference_image": {
+    "width": 4032,
+    "height": 3024
+  },
+  "coordinate_system": {
+    "unit": "meter",
+    "description": "Local parking ground-plane coordinates"
+  },
+  "control_points": [],
+  "reference_distances": [],
+  "measured_rows": {}
+}
