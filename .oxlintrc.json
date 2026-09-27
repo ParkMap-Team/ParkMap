@@ -28,6 +28,8 @@
     "out/**",
     "build/**",
     "dist/**",
+    ".deploy-stage/**",
+    ".deploy-stage2/**",
     "coverage/**",
     "components/ui/**",
     "hooks/**",

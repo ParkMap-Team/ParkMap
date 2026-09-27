@@ -1,7 +1,30 @@
 import { ParkingLegend } from '@/components/parking/ParkingLegend';
 import { ParkingObject } from '@/components/parking/ParkingObject';
 import type { ParkingMapData } from '@/types/parking';
+
 export function ParkingMap({ data }: { data: ParkingMapData }) {
   const points = data.zone.polygon.map((point) => `${point.x * 1000},${point.y * 620}`).join(' ');
-  return <div className="bg-slate-950 p-3 sm:p-5"><svg viewBox="0 0 1000 620" role="img" aria-labelledby="map-title map-description" className="aspect-[16/10] h-auto w-full overflow-visible rounded-xl"><title id="map-title">{data.zone.name} parking map</title><desc id="map-description">Bird&apos;s-eye view of occupied, available, and uncertain motorcycle parking areas.</desc><defs><pattern id="surface-grid" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M 50 0 L 0 0 0 50" fill="none" stroke="#334155" strokeWidth="1" opacity=".42" /></pattern><filter id="zone-shadow"><feDropShadow dx="0" dy="7" stdDeviation="10" floodOpacity=".25" /></filter></defs><rect width="1000" height="620" rx="20" fill="#172033" /><rect width="1000" height="620" rx="20" fill="url(#surface-grid)" /><polygon points={points} fill="#263247" stroke="#64748b" strokeWidth="3" filter="url(#zone-shadow)" /><path d="M 105 310 C 300 290, 675 305, 925 270" fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="16 14" opacity=".5" /><text x="90" y="104" fill="#94a3b8" fontSize="17" fontWeight="600" letterSpacing="2">ZONE A · NORMALIZED ROI</text>{data.objects.map((object) => <ParkingObject key={object.id} object={object} />)}</svg><div className="mt-4 flex flex-col gap-3 border-t border-slate-800 pt-4 sm:flex-row sm:items-center sm:justify-between"><ParkingLegend /><span className="font-mono text-xs text-slate-500">X/Y 0.00 — 1.00</span></div></div>;
+
+  return (
+    <div className="bg-slate-950 p-3 sm:p-5">
+      <svg viewBox="0 0 1000 620" role="img" aria-labelledby="map-title map-description" className="aspect-[16/10] h-auto w-full overflow-visible rounded-xl">
+        <title id="map-title">{`${data.zone.name} parking map`}</title>
+        <desc id="map-description">Bird&apos;s-eye view of occupied, available, and uncertain motorcycle parking areas.</desc>
+        <defs>
+          <pattern id="surface-grid" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M 50 0 L 0 0 0 50" fill="none" stroke="#334155" strokeWidth="1" opacity=".42" /></pattern>
+          <filter id="zone-shadow"><feDropShadow dx="0" dy="7" stdDeviation="10" floodOpacity=".25" /></filter>
+        </defs>
+        <rect width="1000" height="620" rx="20" fill="#172033" />
+        <rect width="1000" height="620" rx="20" fill="url(#surface-grid)" />
+        <polygon points={points} fill="#263247" stroke="#64748b" strokeWidth="3" filter="url(#zone-shadow)" />
+        <path d="M 105 310 C 300 290, 675 305, 925 270" fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="16 14" opacity=".5" />
+        <text x="90" y="104" fill="#94a3b8" fontSize="17" fontWeight="600" letterSpacing="2">ZONE A · NORMALIZED ROI</text>
+        {data.objects.map((object) => <ParkingObject key={object.id} object={object} />)}
+      </svg>
+      <div className="mt-4 flex flex-col gap-3 border-t border-slate-800 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <ParkingLegend />
+        <span className="font-mono text-xs text-slate-500">X/Y 0.00 — 1.00</span>
+      </div>
+    </div>
+  );
 }
