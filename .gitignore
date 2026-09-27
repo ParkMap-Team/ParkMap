@@ -21,6 +21,7 @@ backend/.mypy_cache/
 backend/.ruff_cache/
 backend/.env
 backend/config/parking_calibration.json
+backend/config/metric_calibration.json
 backend/models/*.pt
 backend/models/*.onnx
 

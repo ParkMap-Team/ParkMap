@@ -35,8 +35,17 @@ Endpoints:
 - Health: <http://localhost:8000/api/health>
 - Parking API: <http://localhost:8000/api/parking/status>
 - Image analysis: `POST http://localhost:8000/api/detection/analyze` with multipart field `image`
+- Metric calibration: `GET/POST http://localhost:8000/api/metric-calibration`
 - API docs: <http://localhost:8000/docs>
 
 Run the frontend and backend in separate terminals. Local CORS permits `http://localhost:3000`; additional origins can be configured through the backend environment.
 
-The detection endpoint currently returns deterministic **DETECTION STUB** motorcycle boxes. It reads the uploaded image's real dimensions and returns normalized top-left bounding boxes. It does not run YOLO yet. Future weights should be copied to `backend/models/best.pt`; model input size and thresholds are configured through `backend/.env`.
+The detection endpoint runs the configured YOLO model and returns normalized top-left motorcycle bounding boxes. Physical metric calibration remains separate and unconfigured until real site measurements are supplied.
+
+## Future Site Measurement Checklist
+
+- Measure the usable physical length of Parking Rows 1 through 5 separately.
+- Measure useful Parking ROI boundary/reference segments and record their exact endpoints.
+- Collect additional known, non-collinear ground points and surveyed coordinates if accurate 2D image-to-ground calibration is required.
+
+Do not estimate missing values from pixels, motorcycles, painted lines, maps, or generic vehicle dimensions. These measurements will later connect normalized row position `t` to longitudinal position through `s = t × measured row length`; they do not by themselves establish complete 2D metric geometry.

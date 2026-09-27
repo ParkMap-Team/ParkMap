@@ -26,3 +26,20 @@ The model is loaded once when the application starts and is reused for each uplo
 `GET /api/calibration` returns the saved schema-v2 calibration or `404` when calibration has not been configured. `POST /api/calibration` validates and atomically saves a normalized parking ROI plus exactly five manually drawn parking rows to `config/parking_calibration.json`.
 
 Legacy `config/parking_roi.json` pixel coordinates are not loaded as normalized coordinates. Calibration currently defines geometry only; it does not calculate capacity, occupancy, or available parking space.
+
+## Metric calibration
+
+`GET /api/metric-calibration` returns `NOT_CALIBRATED` when no physical measurements have been saved. `POST /api/metric-calibration` validates and atomically stores optional measured row lengths, reference segments, and ground-control points in the separate ignored file `config/metric_calibration.json`. Row lengths use meters internally and may be added incrementally. The service does not estimate missing measurements or calculate a homography.
+
+### Future Site Measurement Checklist
+
+- Measure the real usable length of Row 1.
+- Measure the real usable length of Row 2.
+- Measure the real usable length of Row 3.
+- Measure the real usable length of Row 4.
+- Measure the real usable length of Row 5.
+- Record useful Parking ROI boundary distances as identifiable reference segments.
+- Photograph or mark the exact endpoints used for every measured segment.
+- For accurate future 2D ground-plane calibration, collect additional non-collinear ground-control points with normalized image locations and surveyed ground coordinates.
+
+The intended future pipeline is: fixed camera → YOLO detection → Parking ROI → row assignment → row projection (`t`) → metric calibration → physical occupancy footprint → occupied intervals → candidate gaps → virtual motorcycle fitting → availability states. Motorcycles inside the ROI that are currently `UNASSIGNED` must remain available to future obstruction and bad-parking analysis.
