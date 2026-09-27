@@ -53,4 +53,4 @@ async def analyze_detection(image: UploadFile = File(...)) -> DetectionResponse:
 
     if width <= 0 or height <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The uploaded image has invalid dimensions.")
-    return cv_service.analyze_image(image_bytes=image_bytes, image_width=width, image_height=height)
+    return cv_service.analyze_image(image_bytes=image_bytes)

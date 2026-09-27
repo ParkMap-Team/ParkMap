@@ -16,7 +16,7 @@ export interface Detection {
 
 export interface DetectionModel {
   name: string;
-  status: 'stub';
+  status: 'ready';
 }
 
 export interface DetectionInference {

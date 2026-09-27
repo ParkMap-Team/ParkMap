@@ -74,7 +74,7 @@ class Detection(BaseModel):
 
 class DetectionAnalysisModel(BaseModel):
     name: str
-    status: Literal["stub"] = "stub"
+    status: Literal["ready"] = "ready"
 
 
 class DetectionInference(BaseModel):
