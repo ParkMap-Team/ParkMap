@@ -23,7 +23,7 @@ class ParkingService:
         return ParkingStatusResponse(
             camera_id="SPU_CAM_01", zone_id="zone_A", timestamp=timestamp, system_status="online",
             camera=CameraStatus(id="SPU_CAM_01", name="SPU Motorcycle Parking", status="online", last_frame_at=timestamp),
-            model=DetectionModelStatus(name="YOLO11n-SPU", status="ready"),
+            model=DetectionModelStatus(name="ParkMap Detection Stub", status="offline"),
             summary=ParkingSummary(motorcycles=len(occupied), occupied=len(occupied), available=len(available), uncertain=len(uncertain)),
             occupied=occupied, available=available, uncertain=uncertain,
         )
