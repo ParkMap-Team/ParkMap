@@ -1,4 +1,4 @@
-import type { RowAssignmentStatus } from './calibration';
+import type { CalibrationPoint, RowAssignmentStatus } from './calibration';
 import type { MotorcycleFittingData } from './motorcycleFitting';
 import type { OccupiedIntervalPrototypeData } from './occupiedIntervals';
 import type { MetricMeasurementSource } from './metricCalibration';
@@ -15,4 +15,8 @@ export interface NormalizedParkingMapData {
   fitting: MotorcycleFittingData | null;
   row_lengths: Record<string, number | null>;
   row_length_source: MetricMeasurementSource | null;
+  hybrid_layout: {
+    roi_polygon: CalibrationPoint[];
+    rows: Array<{ row_id: string; polygon: CalibrationPoint[]; center: CalibrationPoint; centerline: { start: CalibrationPoint; end: CalibrationPoint } | null }>;
+  } | null;
 }
