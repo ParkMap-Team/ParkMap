@@ -1,7 +1,7 @@
 import type { CalibrationRow, RowCenterlineResult } from './calibration';
 import type { MetricMeasurementSource } from './metricCalibration';
 
-export type OccupiedIntervalSource = 'ASSIGNED' | 'UNASSIGNED_OBSTRUCTION' | 'AMBIGUOUS_OBSTRUCTION';
+export type OccupiedIntervalSource = 'ASSIGNED' | 'UNASSIGNED_OBSTRUCTION' | 'AMBIGUOUS_OBSTRUCTION' | 'EXTERNAL_OBSTRUCTION';
 
 export interface OccupiedInterval {
   row_id: CalibrationRow['id'];
@@ -39,6 +39,16 @@ export interface OccupiedIntervalRow {
   gaps: OccupiedGap[];
   contributing_detection_count: number;
   obstruction_count: number;
+  external_obstruction_count: number;
+  before_external_obstructions: {
+    intervals: OccupiedInterval[];
+    merged_intervals: MergedOccupiedInterval[];
+    gaps: OccupiedGap[];
+    contributing_detection_count: number;
+    merged_interval_count: number;
+    gap_count: number;
+    largest_gap_m: number | null;
+  };
 }
 
 export interface OccupiedIntervalPrototypeData {

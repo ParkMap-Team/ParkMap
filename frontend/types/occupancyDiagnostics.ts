@@ -55,6 +55,8 @@ export interface OutsideRoiProxyDiagnosticsData {
   proxy_intersects_at_least_one_row: number;
   affected_by_row: Record<CalibrationRow['id'], number>;
   proxy_intersects_multiple_rows: number;
+  external_obstructions_created: number;
+  external_obstructions_by_row: Record<CalibrationRow['id'], number>;
 }
 
 export interface GroundContactDiagnosticsData {

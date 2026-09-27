@@ -2,16 +2,17 @@ import { Rows3 } from 'lucide-react';
 import type { OccupiedGap, OccupiedInterval, OccupiedIntervalPrototypeData } from '@/types/occupiedIntervals';
 
 const normalizedRange = (start: number, end: number) => `t ${start.toFixed(3)}–${end.toFixed(3)}`;
-const metricRange = (item: Pick<OccupiedInterval | OccupiedGap, 'position_start_m' | 'position_end_m' | 'metric_source'>) => item.position_start_m === null || item.position_end_m === null
-  ? 'metric: not calibrated'
-  : `${item.position_start_m.toFixed(2)}–${item.position_end_m.toFixed(2)} m · ${item.metric_source}`;
+const metricRange = (item: Pick<OccupiedInterval | OccupiedGap, 'position_start_m' | 'position_end_m' | 'metric_source'>) => item.position_start_m === null || item.position_end_m === null ? 'metric: not calibrated' : `${item.position_start_m.toFixed(2)}–${item.position_end_m.toFixed(2)} m · ${item.metric_source}`;
+const largestGap = (gaps: OccupiedGap[]) => gaps.every((gap) => gap.gap_length_m === null) ? null : Math.max(0, ...gaps.flatMap((gap) => gap.gap_length_m === null ? [] : [gap.gap_length_m]));
+const formatLargestGap = (value: number | null) => value === null ? 'metric unavailable' : `${value.toFixed(2)} m`;
 
 export function OccupiedIntervalsAndGaps({ data }: { data: OccupiedIntervalPrototypeData }) {
   return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
     <div className="flex items-start gap-2"><Rows3 className="mt-0.5 size-5 text-indigo-600" /><div><h2 className="font-semibold">Occupied Intervals &amp; Gaps</h2><p className="mt-1 text-xs leading-5 text-slate-500">Prototype derived from the fixed bottom 20% Ground Proxy. Gaps are geometric complements only; they are not labelled available, free, or parkable.</p></div></div>
     <div className="mt-4 grid gap-3 xl:grid-cols-2">
       {data.rows.map((row) => <article key={row.row_id} className="rounded-xl border border-slate-200 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2"><strong>{row.name}</strong><span className="text-xs text-slate-500">{row.contributing_detection_count} detections · {row.obstruction_count} obstructions · {row.merged_intervals.length} merged · {row.gaps.length} gaps</span></div>
+        <div className="flex flex-wrap items-center justify-between gap-2"><strong>{row.name}</strong><span className="text-xs text-slate-500">{row.contributing_detection_count} contributions · {row.external_obstruction_count} external · {row.merged_intervals.length} merged · {row.gaps.length} gaps</span></div>
+        <div className="mt-3 rounded-lg border border-cyan-100 bg-cyan-50/60 p-2.5 text-xs text-slate-600"><p className="font-semibold text-cyan-900">Before → after EXTERNAL_OBSTRUCTION</p><p className="mt-1">Contributions {row.before_external_obstructions.contributing_detection_count} → {row.contributing_detection_count} · merged {row.before_external_obstructions.merged_interval_count} → {row.merged_intervals.length} · gaps {row.before_external_obstructions.gap_count} → {row.gaps.length}</p><p className="mt-1">Largest gap {formatLargestGap(row.before_external_obstructions.largest_gap_m)} → {formatLargestGap(largestGap(row.gaps))}</p></div>
         <IntervalList title="Individual / obstruction intervals" empty="No occupied interval" items={row.intervals.map((item) => ({ key: `${item.detection_index}-${item.row_id}-${item.source_type}`, label: `#${item.detection_index} · ${item.source_type}`, range: normalizedRange(item.t_start, item.t_end), metric: metricRange(item) }))} />
         <IntervalList title="Merged occupied intervals" empty="No merged occupied interval" items={row.merged_intervals.map((item, index) => ({ key: `merged-${index}`, label: `detections ${item.detection_indices.map((value) => `#${value}`).join(', ')} · ${item.source_types.join(' + ')}`, range: normalizedRange(item.t_start, item.t_end), metric: metricRange(item) }))} />
         <IntervalList title="Gaps (geometric complement)" empty="No remaining gap" items={row.gaps.map((item, index) => ({ key: `gap-${index}`, label: `normalized length ${item.normalized_length.toFixed(3)}`, range: normalizedRange(item.t_start, item.t_end), metric: item.gap_length_m === null ? metricRange(item) : `${metricRange(item)} · length ${item.gap_length_m.toFixed(2)} m` }))} />

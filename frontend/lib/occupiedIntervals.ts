@@ -100,17 +100,20 @@ export function buildOccupiedIntervalPrototype(
   metricCalibration: MetricCalibrationResponse | null = null,
 ): OccupiedIntervalPrototypeData {
   const ground = buildGroundContactDiagnostics(detections, assignments, calibration, OCCUPIED_INTERVAL_GROUND_PROXY_RATIO);
-  const rows = calibration.rows.map((row) => ({ row_id: row.id, name: row.name, centerline: deriveRowCenterline(row.polygon), intervals: [] as OccupiedInterval[], merged_intervals: [] as MergedOccupiedInterval[], gaps: [] as OccupiedGap[], contributing_detection_count: 0, obstruction_count: 0 }));
+  const rows = calibration.rows.map((row) => ({ row_id: row.id, name: row.name, centerline: deriveRowCenterline(row.polygon), intervals: [] as OccupiedInterval[], merged_intervals: [] as MergedOccupiedInterval[], gaps: [] as OccupiedGap[], contributing_detection_count: 0, obstruction_count: 0, external_obstruction_count: 0, before_external_obstructions: { intervals: [] as OccupiedInterval[], merged_intervals: [] as MergedOccupiedInterval[], gaps: [] as OccupiedGap[], contributing_detection_count: 0, merged_interval_count: 0, gap_count: 0, largest_gap_m: null as number | null } }));
   const unsupported: OccupiedIntervalPrototypeData['unsupported'] = [];
   const ignored: OccupiedIntervalPrototypeData['ignored'] = { outside_roi: [], unassigned_without_row_overlap: [], ambiguous_without_candidate_overlap: [] };
   const measurementSource = metricCalibration?.calibration?.measurement_source ?? null;
 
   for (const diagnostic of ground.detections) {
     const assignment = assignments.find((item) => item.detection_index === diagnostic.detection_index);
-    if (!assignment || assignment.status === 'OUTSIDE_ROI') { ignored.outside_roi.push(diagnostic.detection_index); continue; }
+    if (!assignment) { ignored.outside_roi.push(diagnostic.detection_index); continue; }
     let source: OccupiedIntervalSource;
     let overlaps = diagnostic.intersecting_rows;
-    if (assignment.status === 'ASSIGNED') {
+    if (assignment.status === 'OUTSIDE_ROI') {
+      source = 'EXTERNAL_OBSTRUCTION';
+      if (!overlaps.length) { ignored.outside_roi.push(diagnostic.detection_index); continue; }
+    } else if (assignment.status === 'ASSIGNED') {
       source = 'ASSIGNED';
       overlaps = overlaps.filter((overlap) => overlap.row_id === assignment.row_id);
       if (!overlaps.length) unsupported.push({ detection_index: diagnostic.detection_index, row_id: assignment.row_id, error: 'PRIMARY_ROW_NOT_INTERSECTED' });
@@ -142,6 +145,19 @@ export function buildOccupiedIntervalPrototype(
     bucket.gaps = calculateOccupiedGaps(bucket.merged_intervals, bucket.row_id, rowLength, rowLength === null ? null : measurementSource);
     bucket.contributing_detection_count = new Set(bucket.intervals.map((interval) => interval.detection_index)).size;
     bucket.obstruction_count = bucket.intervals.filter((interval) => interval.source_type !== 'ASSIGNED').length;
+    bucket.external_obstruction_count = bucket.intervals.filter((interval) => interval.source_type === 'EXTERNAL_OBSTRUCTION').length;
+    const beforeIntervals = bucket.intervals.filter((interval) => interval.source_type !== 'EXTERNAL_OBSTRUCTION');
+    const beforeMerged = mergeOccupiedIntervals(beforeIntervals, bucket.row_id, rowLength, rowLength === null ? null : measurementSource);
+    const beforeGaps = calculateOccupiedGaps(beforeMerged, bucket.row_id, rowLength, rowLength === null ? null : measurementSource);
+    bucket.before_external_obstructions = {
+      intervals: beforeIntervals,
+      merged_intervals: beforeMerged,
+      gaps: beforeGaps,
+      contributing_detection_count: new Set(beforeIntervals.map((interval) => interval.detection_index)).size,
+      merged_interval_count: beforeMerged.length,
+      gap_count: beforeGaps.length,
+      largest_gap_m: beforeGaps.every((gap) => gap.gap_length_m === null) ? null : Math.max(0, ...beforeGaps.flatMap((gap) => gap.gap_length_m === null ? [] : [gap.gap_length_m])),
+    };
   }
   return { ground_proxy_height_ratio: OCCUPIED_INTERVAL_GROUND_PROXY_RATIO, rows, ignored, unsupported };
 }

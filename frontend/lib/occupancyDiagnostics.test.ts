@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bboxToPolygon, buildVisualOccupancyDiagnostics, intersectBboxWithPolygon } from './occupancyDiagnostics.ts';
+import { bboxToPolygon, buildOutsideRoiProxyDiagnostics, buildVisualOccupancyDiagnostics, intersectBboxWithPolygon } from './occupancyDiagnostics.ts';
 import type { DetectionRowAssignment, ParkingCalibration } from '../types/calibration.ts';
 import type { Detection, DetectionBBox } from '../types/detection.ts';
 
@@ -54,6 +54,7 @@ void test('outside ROI primary assignment remains unchanged for partial bbox int
   const result = buildVisualOccupancyDiagnostics([detection({ x: .2, y: 0, width: .1, height: .1 })], [assignment('OUTSIDE_ROI')], calibration);
   assert.equal(result.detections[0].primary_assignment.status, 'OUTSIDE_ROI'); assert.equal(result.detections[0].bbox_intersects_parking_roi, true);
 });
+void test('outside diagnostic counts external obstructions per intersected row without changing assignment', () => { const assignments = [assignment('OUTSIDE_ROI')]; const result = buildOutsideRoiProxyDiagnostics([detection({ x: .2, y: .1, width: .1, height: .2 })], assignments, calibration); assert.equal(result.external_obstructions_created, 1); assert.equal(result.external_obstructions_by_row.row_1, 1); assert.equal(assignments[0].status, 'OUTSIDE_ROI'); });
 void test('rejects malformed bbox', () => assert.deepEqual(bboxToPolygon({ x: .2, y: .2, width: Number.NaN, height: .1 }), { ok: false, error: 'MALFORMED_BBOX' }));
 void test('rejects zero-area bbox', () => assert.deepEqual(bboxToPolygon({ x: .2, y: .2, width: 0, height: .1 }), { ok: false, error: 'MALFORMED_BBOX' }));
 void test('rejects malformed polygon', () => assert.deepEqual(intersectBboxWithPolygon({ x: .2, y: .2, width: .1, height: .1 }, [{ x: 0, y: 0 }, { x: .1, y: .1 }]), { ok: false, error: 'MALFORMED_POLYGON' }));
