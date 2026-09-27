@@ -122,7 +122,7 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
   const occupiedIntervals = useMemo(() => analysis && calibration ? buildOccupiedIntervalPrototype(analysis.detections, assignments, calibration, metricCalibration) : null, [analysis, assignments, calibration, metricCalibration]);
   const outsideRoiDiagnostics = useMemo(() => analysis && calibration ? buildOutsideRoiProxyDiagnostics(analysis.detections, assignments, calibration) : null, [analysis, assignments, calibration]);
   const roiSpatialMap = useMemo(() => analysis && calibration ? buildRoiSpatialMapData(analysis.detections, assignments, calibration) : null, [analysis, assignments, calibration]);
-  useEffect(() => { onNormalizedMapChange?.(rowProjection && occupiedIntervals ? buildNormalizedParkingMapData(rowProjection, occupiedIntervals, fittingData) : null); }, [fittingData, occupiedIntervals, onNormalizedMapChange, rowProjection]);
+  useEffect(() => { onNormalizedMapChange?.(rowProjection && occupiedIntervals ? buildNormalizedParkingMapData(rowProjection, occupiedIntervals, fittingData, metricCalibration) : null); }, [fittingData, metricCalibration, occupiedIntervals, onNormalizedMapChange, rowProjection]);
   useEffect(() => onRoiSpatialMapChange?.(roiSpatialMap), [onRoiSpatialMapChange, roiSpatialMap]);
   const aspectRatioMismatch = Boolean(analysis && calibration && hasSignificantAspectRatioMismatch(analysis.image_width, analysis.image_height, calibration));
 

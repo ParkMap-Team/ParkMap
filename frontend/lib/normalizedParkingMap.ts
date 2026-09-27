@@ -2,8 +2,9 @@ import type { RowOccupancyProjectionData } from '../types/calibration.ts';
 import type { MotorcycleFittingData } from '../types/motorcycleFitting.ts';
 import type { NormalizedParkingMapData } from '../types/normalizedParkingMap.ts';
 import type { OccupiedIntervalPrototypeData } from '../types/occupiedIntervals.ts';
+import type { MetricCalibrationResponse } from '../types/metricCalibration.ts';
 
-export function buildNormalizedParkingMapData(projection: RowOccupancyProjectionData, intervals: OccupiedIntervalPrototypeData, fitting: MotorcycleFittingData | null): NormalizedParkingMapData {
+export function buildNormalizedParkingMapData(projection: RowOccupancyProjectionData, intervals: OccupiedIntervalPrototypeData, fitting: MotorcycleFittingData | null, metricCalibration: MetricCalibrationResponse | null = null): NormalizedParkingMapData {
   return {
     map_mode: 'NORMALIZED',
     rows: intervals.rows,
@@ -12,5 +13,7 @@ export function buildNormalizedParkingMapData(projection: RowOccupancyProjection
     unassigned_count: projection.unassigned.length,
     outside_roi_count: projection.outside_roi.length,
     fitting,
+    row_lengths: Object.fromEntries(intervals.rows.map((row) => [row.row_id, metricCalibration?.calibration?.rows.find((measurement) => measurement.id === row.row_id)?.length_m ?? null])),
+    row_length_source: metricCalibration?.calibration?.measurement_source ?? null,
   };
 }

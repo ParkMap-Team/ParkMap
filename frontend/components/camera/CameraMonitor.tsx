@@ -1,6 +1,7 @@
 import { Camera, Eye, EyeOff, ImageIcon } from 'lucide-react';
 import { useState } from 'react';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { DetectionCoverageDiagnostic } from '@/components/camera/DetectionCoverageDiagnostic';
 import type { DetectionRowAssignment, ParkingCalibration, RowOccupancyProjectionData } from '@/types/calibration';
 import type { DetectionResponse } from '@/types/detection';
 import type { GroundContactDiagnosticsData, OutsideRoiProxyDiagnosticsData, VisualOccupancyDiagnosticsData } from '@/types/occupancyDiagnostics';
@@ -35,6 +36,7 @@ export function CameraMonitor({ camera, model, zone, overlays = [], status, imag
   const [showRowProjection, setShowRowProjection] = useState(false);
   const [showOccupancyDiagnostics, setShowOccupancyDiagnostics] = useState(false);
   const [showOccupiedIntervals, setShowOccupiedIntervals] = useState(false);
+  const [showDetectionCoverage, setShowDetectionCoverage] = useState(false);
   const source = imageUrl ?? camera?.frameUrl;
   const width = imageDimensions?.width ?? analysis?.image_width ?? 1000;
   const height = imageDimensions?.height ?? analysis?.image_height ?? 562;
@@ -43,13 +45,14 @@ export function CameraMonitor({ camera, model, zone, overlays = [], status, imag
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
         <div className="flex items-center gap-2"><Camera className="size-5 text-blue-600" /><h2 className="font-semibold">Camera monitoring</h2></div>
-        <StatusBadge status={camera?.status ?? status} />
+        <div className="flex items-center gap-2">{analysis && calibration && groundContactDiagnostics && <button type="button" onClick={() => setShowDetectionCoverage((value) => !value)} aria-pressed={showDetectionCoverage} className={`rounded-lg px-3 py-2 text-xs font-semibold ${showDetectionCoverage ? 'bg-cyan-700 text-white' : 'border border-slate-200 text-slate-600'}`}>Detection Coverage</button>}<StatusBadge status={camera?.status ?? status} /></div>
       </div>
       <div className="relative flex min-h-56 items-center justify-center overflow-hidden bg-slate-900">
         {source ? (
           <div className="relative inline-block max-h-[520px] max-w-full">
             <img src={source} alt={`Analysis source for ${camera?.name ?? 'ParkMap camera'}`} className="block max-h-[520px] max-w-full object-contain" />
-            {(showOverlays || (showCalibration && calibration) || (showRowProjection && rowProjection) || (showOccupancyDiagnostics && occupancyDiagnostics) || (showOccupiedIntervals && occupiedIntervals) || (showOutsideRoiDiagnostics && outsideRoiDiagnostics)) && <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full" aria-label="Detection and parking assignment overlay">
+            {showDetectionCoverage && analysis && calibration && groundContactDiagnostics && <DetectionCoverageDiagnostic analysis={analysis} calibration={calibration} assignments={assignments} groundContact={groundContactDiagnostics} width={width} height={height} />}
+            {!showDetectionCoverage && (showOverlays || (showCalibration && calibration) || (showRowProjection && rowProjection) || (showOccupancyDiagnostics && occupancyDiagnostics) || (showOccupiedIntervals && occupiedIntervals) || (showOutsideRoiDiagnostics && outsideRoiDiagnostics)) && <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full" aria-label="Detection and parking assignment overlay">
               <defs><pattern id="ground-proxy-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#34d399" strokeWidth="3" /></pattern></defs>
               {showOccupancyDiagnostics && calibration?.rows.map((row) => <polygon key={`diagnostic-row-${row.id}`} points={row.polygon.map((point) => `${point.x * width},${point.y * height}`).join(' ')} fill="none" stroke="#c4b5fd" strokeWidth={Math.max(width, height) * .0015} strokeDasharray="5 5" />)}
               {showCalibration && calibration && [
