@@ -9,3 +9,9 @@ export async function getCalibration(signal?: AbortSignal): Promise<ParkingCalib
   if (!response.ok) throw new ParkingApiError(`Unable to load parking calibration (${response.status}).`);
   return await response.json() as ParkingCalibration;
 }
+
+export async function saveCalibration(calibration: ParkingCalibration, signal?: AbortSignal): Promise<ParkingCalibration> {
+  const response = await fetch(calibrationUrl, { method: 'POST', signal, headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(calibration) });
+  if (!response.ok) throw new ParkingApiError(`Unable to save parking calibration (${response.status}).`);
+  return await response.json() as ParkingCalibration;
+}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildMetricMotorcycleMapping, metricPointInPolygon } from './metricMotorcycle.ts';
+import { buildMetricMotorcycleMapping, metricPointInPolygon, parkingMapMotorcycles } from './metricMotorcycle.ts';
 import type { DetectionRowAssignment } from '../types/calibration.ts';
 import type { Detection } from '../types/detection.ts';
 import type { GroundPlaneHomographyResponse } from '../types/groundPlaneCalibration.ts';
@@ -45,4 +45,22 @@ void test('assignment cross-check reports mismatch without changing image assign
   assert.equal(mismatch.assignment_comparison, 'MISMATCH');
   assert.equal(mismatch.image_row_assignment.row_id, 'row_2');
   assert.equal(mismatch.physical_row_id, 'row_1');
+});
+
+void test('outside-ROI detection stays in analysis mapping but has no metric map point', () => {
+  const outside = { ...assignment, status: 'OUTSIDE_ROI' as const, row_id: null, matching_rows: [] };
+  const result = buildMetricMotorcycleMapping([detection], [outside], homography, physical);
+  assert.equal(result.motorcycles.length, 1);
+  assert.equal(result.motorcycles[0].inside_parking_roi, false);
+  assert.equal(result.motorcycles[0].metric_point, null);
+  assert.equal(result.motorcycles[0].transform_valid, false);
+  assert.equal(parkingMapMotorcycles(result).length, 0);
+});
+
+void test('inside ROI without an image row remains eligible for metric rendering', () => {
+  const unassigned = { ...assignment, status: 'UNASSIGNED' as const, row_id: null, matching_rows: [] };
+  const result = buildMetricMotorcycleMapping([detection], [unassigned], homography, physical).motorcycles[0];
+  assert.equal(result.inside_parking_roi, true);
+  assert.equal(result.transform_valid, true);
+  assert.equal(parkingMapMotorcycles({ status: 'READY', motorcycles: [result] }).length, 1);
 });

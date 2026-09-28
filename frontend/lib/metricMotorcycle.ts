@@ -3,10 +3,14 @@ import { imageNormalizedToGroundMeters } from './groundPlaneHomography.ts';
 import type { DetectionRowAssignment } from '../types/calibration.ts';
 import type { Detection } from '../types/detection.ts';
 import type { GroundPlaneMetricPoint, GroundPlaneHomographyResponse } from '../types/groundPlaneCalibration.ts';
-import type { MetricMotorcycleMapping } from '../types/metricMotorcycle.ts';
+import type { MetricMotorcycle, MetricMotorcycleMapping } from '../types/metricMotorcycle.ts';
 import type { PhysicalRowGeometryResponse } from '../types/physicalRowGeometry.ts';
 
 const EPSILON = 1e-9;
+
+export function parkingMapMotorcycles(mapping: MetricMotorcycleMapping | null): MetricMotorcycle[] {
+  return mapping?.motorcycles.filter((item) => item.inside_parking_roi && item.metric_point !== null) ?? [];
+}
 
 export function metricPointInPolygon(point: GroundPlaneMetricPoint, polygon: GroundPlaneMetricPoint[]): boolean {
   if (polygon.length < 3) return false;
@@ -45,7 +49,15 @@ export function buildMetricMotorcycleMapping(
     status: ready ? 'READY' : 'CALIBRATION_REQUIRED',
     motorcycles: detections.map((detection, index) => {
       const imageGroundPoint = getMotorcycleGroundPoint(detection.bbox);
-      const metricPoint = matrix ? imageNormalizedToGroundMeters(imageGroundPoint.x, imageGroundPoint.y, matrix) : null;
+      const imageAssignment = assignments[index] ?? {
+        detection_index: index,
+        ground_point: imageGroundPoint,
+        status: 'OUTSIDE_ROI' as const,
+        row_id: null,
+        matching_rows: [],
+      };
+      const insideParkingRoi = imageAssignment.status !== 'OUTSIDE_ROI';
+      const metricPoint = matrix && insideParkingRoi ? imageNormalizedToGroundMeters(imageGroundPoint.x, imageGroundPoint.y, matrix) : null;
       const matchingRows = metricPoint
         ? rows.filter((row) => row.physical_polygon && metricPointInPolygon(metricPoint, row.physical_polygon)).map((row) => row.row_id)
         : [];
@@ -55,13 +67,6 @@ export function buildMetricMotorcycleMapping(
           ? 'MULTIPLE_PHYSICAL_ROWS'
           : 'OUTSIDE_PHYSICAL_ROWS';
       const physicalRowId = matchingRows.length === 1 ? matchingRows[0] : null;
-      const imageAssignment = assignments[index] ?? {
-        detection_index: index,
-        ground_point: imageGroundPoint,
-        status: 'UNASSIGNED' as const,
-        row_id: null,
-        matching_rows: [],
-      };
       const assignmentMatches = imageAssignment.row_id === physicalRowId
         && (physicalRowId !== null || imageAssignment.status !== 'ASSIGNED');
       return {
@@ -70,6 +75,7 @@ export function buildMetricMotorcycleMapping(
         confidence: detection.confidence,
         bbox: detection.bbox,
         image_ground_point: imageGroundPoint,
+        inside_parking_roi: insideParkingRoi,
         metric_point: metricPoint,
         transform_valid: metricPoint !== null,
         image_row_assignment: imageAssignment,

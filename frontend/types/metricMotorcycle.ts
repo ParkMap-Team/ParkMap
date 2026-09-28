@@ -13,6 +13,7 @@ export interface MetricMotorcycle {
   confidence: number;
   bbox: DetectionBBox;
   image_ground_point: CalibrationPoint;
+  inside_parking_roi: boolean;
   metric_point: GroundPlaneMetricPoint | null;
   transform_valid: boolean;
   image_row_assignment: DetectionRowAssignment;

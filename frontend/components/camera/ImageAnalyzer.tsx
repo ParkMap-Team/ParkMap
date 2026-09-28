@@ -15,7 +15,7 @@ import type { DetectionResponse } from '@/types/detection';
 import type { GroundPlaneHomographyResponse } from '@/types/groundPlaneCalibration';
 import type { PhysicalRowGeometryResponse } from '@/types/physicalRowGeometry';
 
-export function ImageAnalyzer() {
+export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<DetectionResponse | null>(null);
@@ -81,6 +81,10 @@ export function ImageAnalyzer() {
 
   const motorcycles = analysis?.detections.length ?? 0;
   const validMetric = mapping?.motorcycles.filter((item) => item.transform_valid).length ?? 0;
+  const insideRoi = assignments.filter((item) => item.status !== 'OUTSIDE_ROI').length;
+  const outsideRoi = assignments.filter((item) => item.status === 'OUTSIDE_ROI').length;
+  const assigned = assignments.filter((item) => item.status === 'ASSIGNED').length;
+  const insideWithoutRow = assignments.filter((item) => item.status === 'UNASSIGNED').length;
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="camera-image-title">
@@ -100,11 +104,14 @@ export function ImageAnalyzer() {
 
       <section className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm" aria-labelledby="summary-title">
         <h2 id="summary-title" className="font-semibold">Summary</h2>
-        <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
-          <div><dt className="text-slate-500">Motorcycles</dt><dd className="mt-1 text-2xl font-bold">{motorcycles}</dd></div>
-          <div><dt className="text-slate-500">Rows</dt><dd className="mt-1 text-2xl font-bold">5</dd></div>
+        <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <div><dt className="text-slate-500">Detected motorcycles</dt><dd className="mt-1 text-2xl font-bold">{motorcycles}</dd></div>
+          <div><dt className="text-slate-500">Inside parking area</dt><dd className="mt-1 text-2xl font-bold">{insideRoi}</dd></div>
+          <div><dt className="text-slate-500">Outside parking area</dt><dd className="mt-1 text-2xl font-bold">{outsideRoi}</dd></div>
           <div><dt className="text-slate-500">System status</dt><dd className={`mt-1 text-lg font-bold ${mapReady ? 'text-emerald-700' : 'text-amber-700'}`}>{mapReady ? 'Map ready' : 'Calibration required'}</dd></div>
         </dl>
+        {analysis && <p className="mt-3 text-sm text-slate-600">Mapped in parking area: <strong>{validMetric}</strong> · Assigned to row: <strong>{assigned}</strong> · Inside area without row: <strong>{insideWithoutRow}</strong></p>}
+        {!mapReady && <button type="button" onClick={onOpenSetup} className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Open Setup</button>}
         {analysis && mapReady && validMetric !== motorcycles && <p className="mt-3 text-sm text-amber-700">Some detections could not be placed on the parking map.</p>}
       </section>
     </div>

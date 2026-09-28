@@ -1,10 +1,28 @@
 import type { CalibrationPoint, ParkingCalibration } from '../types/calibration.ts';
-import type { GroundPlaneHomographyResponse, GroundPlaneMetricPoint } from '../types/groundPlaneCalibration.ts';
+import type { GroundPlaneCalibration, GroundPlaneCalibrationResponse, GroundPlaneHomographyResponse, GroundPlaneMetricPoint } from '../types/groundPlaneCalibration.ts';
 import { PARKMAP_API_URL, ParkingApiError } from './api.ts';
 
 export type HomographyMatrix = number[][];
 
 const homographyUrl = `${PARKMAP_API_URL.replace(/\/$/, '')}/api/ground-plane/homography`;
+const calibrationUrl = `${PARKMAP_API_URL.replace(/\/$/, '')}/api/ground-plane-calibration`;
+
+async function readJson<T>(response: Response, label: string): Promise<T> {
+  if (!response.ok) throw new ParkingApiError(`${label} (${response.status}).`);
+  return await response.json() as T;
+}
+
+export async function getGroundPlaneCalibration(signal?: AbortSignal): Promise<GroundPlaneCalibrationResponse> {
+  return readJson(await fetch(calibrationUrl, { signal, cache: 'no-store' }), 'Unable to load ground calibration');
+}
+
+export async function saveGroundPlaneCalibration(calibration: GroundPlaneCalibration, signal?: AbortSignal): Promise<GroundPlaneCalibrationResponse> {
+  return readJson(await fetch(calibrationUrl, { method: 'POST', signal, headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(calibration) }), 'Unable to save ground calibration');
+}
+
+export async function calculateGroundPlaneHomography(signal?: AbortSignal): Promise<GroundPlaneHomographyResponse> {
+  return readJson(await fetch(`${homographyUrl}/calculate`, { method: 'POST', signal, headers: { Accept: 'application/json' } }), 'Unable to calculate map calibration');
+}
 
 export async function getGroundPlaneHomography(signal?: AbortSignal): Promise<GroundPlaneHomographyResponse> {
   const response = await fetch(homographyUrl, { signal, cache: 'no-store' });
