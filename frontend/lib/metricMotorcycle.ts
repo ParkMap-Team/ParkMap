@@ -86,6 +86,15 @@ export function buildMetricMotorcycleMapping(
       }) : [];
       const best = candidates.reduce<typeof candidates[number] | null>((current, candidate) => !current || candidate.overlap.overlap_ratio > current.overlap.overlap_ratio ? candidate : current, null);
       const oriented = imageAssignment.row_id ? candidates.find((candidate) => candidate.row.row_id === imageAssignment.row_id) ?? best : best;
+      const positiveOverlaps = candidates.filter((candidate) => candidate.overlap.overlap_ratio > EPSILON);
+      const bestDiagnostic = positiveOverlaps.reduce<typeof candidates[number] | null>((current, candidate) => !current || candidate.overlap.overlap_ratio > current.overlap.overlap_ratio ? candidate : current, null);
+      const diagnostic = positiveOverlaps.length > 1
+        ? 'MULTIPLE_ROW_FOOTPRINT_OVERLAP'
+        : positiveOverlaps.length === 0
+          ? 'POINT_OUTSIDE_AND_NO_FOOTPRINT_OVERLAP'
+          : insideParkingRoi && matchingRows.length > 0
+            ? 'POINT_INSIDE_AND_FOOTPRINT_OVERLAPS'
+            : 'POINT_OUTSIDE_BUT_FOOTPRINT_OVERLAPS';
       return {
         detection_id: `detection-${index + 1}`,
         detection_index: index,
@@ -105,6 +114,8 @@ export function buildMetricMotorcycleMapping(
         footprint_orientation_row_id: oriented?.row.row_id ?? null,
         footprint_candidate_row_id: best?.row.row_id ?? null,
         row_overlaps: candidates.map((candidate) => ({ row_id: candidate.row.row_id, ...candidate.overlap })),
+        footprint_diagnostic: diagnostic,
+        best_diagnostic_row_id: bestDiagnostic?.row.row_id ?? null,
       };
     }),
   };
