@@ -14,11 +14,13 @@ const signedArea = (p: GroundPlaneMetricPoint[]) => p.reduce((s, a, i) => { cons
 
 export function buildMotorcycleFootprint(anchor: GroundPlaneMetricPoint, direction: UnitVector, width = MOTORCYCLE_FOOTPRINT_CONFIG.motorcycle_width_m, length = MOTORCYCLE_FOOTPRINT_CONFIG.motorcycle_length_m) {
   const n = { x: -direction.y, y: direction.x };
-  const rearLeft = point(anchor.x_m - n.x * width / 2, anchor.y_m - n.y * width / 2);
-  const rearRight = point(anchor.x_m + n.x * width / 2, anchor.y_m + n.y * width / 2);
-  const frontLeft = point(anchor.x_m + direction.x * length - n.x * width / 2, anchor.y_m + direction.y * length - n.y * width / 2);
-  const frontRight = point(anchor.x_m + direction.x * length + n.x * width / 2, anchor.y_m + direction.y * length + n.y * width / 2);
-  return [rearLeft, frontLeft, frontRight, rearRight];
+  const halfLength = length / 2;
+  const halfWidth = width / 2;
+  const rearLeft = point(anchor.x_m - direction.x * halfLength - n.x * halfWidth, anchor.y_m - direction.y * halfLength - n.y * halfWidth);
+  const rearRight = point(anchor.x_m - direction.x * halfLength + n.x * halfWidth, anchor.y_m - direction.y * halfLength + n.y * halfWidth);
+  const frontRight = point(anchor.x_m + direction.x * halfLength + n.x * halfWidth, anchor.y_m + direction.y * halfLength + n.y * halfWidth);
+  const frontLeft = point(anchor.x_m + direction.x * halfLength - n.x * halfWidth, anchor.y_m + direction.y * halfLength - n.y * halfWidth);
+  return [rearLeft, rearRight, frontRight, frontLeft];
 }
 
 export function polygonArea(polygon: GroundPlaneMetricPoint[]) { return Math.abs(signedArea(polygon)); }
