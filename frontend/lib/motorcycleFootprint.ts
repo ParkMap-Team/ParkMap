@@ -7,6 +7,7 @@ export const MOTORCYCLE_FOOTPRINT_CONFIG = {
 };
 
 export type UnitVector = { x: number; y: number };
+export const GLOBAL_MOTORCYCLE_DIRECTION: UnitVector = { x: 0, y: 1 };
 export type FootprintOverlap = { intersection_area_m2: number; footprint_area_m2: number; overlap_ratio: number; overlap_percent: number };
 
 const point = (x: number, y: number): GroundPlaneMetricPoint => ({ x_m: x, y_m: y });
@@ -57,4 +58,13 @@ export function rowDirection(row: GroundPlaneMetricPoint[]): UnitVector {
   let best = { length: -1, x: 1, y: 0 };
   for (let i = 0; i < row.length; i++) { const a = row[i], b = row[(i + 1) % row.length]; const x = b.x_m - a.x_m, y = b.y_m - a.y_m, length = Math.hypot(x, y); if (length > best.length) best = { length, x: x / length, y: y / length }; }
   return { x: best.x, y: best.y };
+}
+
+export function rowNormal(row: GroundPlaneMetricPoint[], reference: GroundPlaneMetricPoint[]): UnitVector {
+  const u = rowDirection(row);
+  const normal = { x: -u.y, y: u.x };
+  const center = (items: GroundPlaneMetricPoint[]) => items.reduce((s, p) => ({ x_m: s.x_m + p.x_m / items.length, y_m: s.y_m + p.y_m / items.length }), { x_m: 0, y_m: 0 });
+  const a = center(row), b = center(reference);
+  const toReference = { x: b.x_m - a.x_m, y: b.y_m - a.y_m };
+  return normal.x * toReference.x + normal.y * toReference.y >= 0 ? normal : { x: -normal.x, y: -normal.y };
 }

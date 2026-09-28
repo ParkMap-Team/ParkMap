@@ -5,7 +5,7 @@ import type { Detection } from '../types/detection.ts';
 import type { GroundPlaneMetricPoint, GroundPlaneHomographyResponse } from '../types/groundPlaneCalibration.ts';
 import type { MetricMotorcycle, MetricMotorcycleMapping } from '../types/metricMotorcycle.ts';
 import type { PhysicalRowGeometryResponse } from '../types/physicalRowGeometry.ts';
-import { buildMotorcycleFootprint, footprintOverlap, polygonArea, rowDirection } from './motorcycleFootprint';
+import { buildMotorcycleFootprint, footprintOverlap, polygonArea, GLOBAL_MOTORCYCLE_DIRECTION } from './motorcycleFootprint';
 
 const EPSILON = 1e-9;
 
@@ -74,16 +74,8 @@ export function buildMetricMotorcycleMapping(
       const physicalRowId = matchingRows.length === 1 ? matchingRows[0] : null;
       const assignmentMatches = imageAssignment.row_id === physicalRowId
         && (physicalRowId !== null || imageAssignment.status !== 'ASSIGNED');
-      const candidates = metricPoint ? rows.map((row) => {
-        const direction = rowDirection(row.physical_polygon!);
-        const centroid = row.physical_polygon!.reduce((sum, p) => ({ x_m: sum.x_m + p.x_m, y_m: sum.y_m + p.y_m }), { x_m: 0, y_m: 0 });
-        centroid.x_m /= row.physical_polygon!.length; centroid.y_m /= row.physical_polygon!.length;
-        const normal = { x: -direction.y, y: direction.x };
-        const toInterior = { x: centroid.x_m - metricPoint.x_m, y: centroid.y_m - metricPoint.y_m };
-        const inward = normal.x * toInterior.x + normal.y * toInterior.y >= 0 ? normal : { x: -normal.x, y: -normal.y };
-        const footprint = buildMotorcycleFootprint(metricPoint, direction, undefined, undefined, inward);
-        return { row, footprint, overlap: footprintOverlap(footprint, row.physical_polygon!) };
-      }) : [];
+      const globalFootprint = metricPoint ? buildMotorcycleFootprint(metricPoint, { x: -GLOBAL_MOTORCYCLE_DIRECTION.y, y: GLOBAL_MOTORCYCLE_DIRECTION.x }, undefined, undefined, GLOBAL_MOTORCYCLE_DIRECTION) : null;
+      const candidates = globalFootprint ? rows.map((row) => ({ row, footprint: globalFootprint, overlap: footprintOverlap(globalFootprint, row.physical_polygon!) })) : [];
       const best = candidates.reduce<typeof candidates[number] | null>((current, candidate) => !current || candidate.overlap.overlap_ratio > current.overlap.overlap_ratio ? candidate : current, null);
       const oriented = imageAssignment.row_id ? candidates.find((candidate) => candidate.row.row_id === imageAssignment.row_id) ?? best : best;
       const positiveOverlaps = candidates.filter((candidate) => candidate.overlap.overlap_ratio > EPSILON);
