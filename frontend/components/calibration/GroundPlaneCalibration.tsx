@@ -199,6 +199,7 @@ export function GroundPlaneCalibration() {
     );
     if (endpointMode && physical) {
       const pair = physical.config.rows[endpointMode.row] ?? {
+        override_enabled: false,
         start: null,
         end: null,
       };
@@ -886,6 +887,8 @@ function PhysicalRowEndpoints({
                   {diagnostic?.status ?? "NOT_CALIBRATED"}
                 </span>
               </div>
+              <label className="mt-3 flex items-center gap-2 rounded bg-amber-50 p-2 font-semibold text-amber-900"><input type="checkbox" checked={pair?.override_enabled ?? false} onChange={(event) => { const current = pair ?? { override_enabled: false, start: null, end: null }; onChange({ ...physical, status: "STALE", config: { ...physical.config, rows: { ...physical.config.rows, [rowId]: { ...current, override_enabled: event.target.checked } } } }); }} />Use manual override</label>
+              <p className="mt-2 text-[10px] text-slate-500">Source: {diagnostic?.source ?? "DERIVED_FROM_EXISTING_ROW"}</p>
               <p className="mt-2">
                 Measured: {fmt(diagnostic?.measured_length_m ?? null)} ×{" "}
                 {fmt(diagnostic?.measured_width_m ?? null)} m

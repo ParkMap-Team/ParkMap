@@ -326,6 +326,7 @@ class PhysicalRowEndpoint(BaseModel):
 
 
 class PhysicalRowEndpointPair(BaseModel):
+    override_enabled: bool = False
     start: PhysicalRowEndpoint | None = None
     end: PhysicalRowEndpoint | None = None
 

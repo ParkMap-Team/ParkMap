@@ -150,7 +150,7 @@ export function DashboardClient({
     const controller = new AbortController();
     void getPhysicalRowGeometry(controller.signal)
       .then((result) => {
-        if (result.rows.some((row) => row.status === "CALIBRATED")) setMapView("PHYSICAL");
+        if (result.rows.every((row) => row.status === "PHYSICAL_READY")) setMapView("PHYSICAL");
       })
       .catch(() => { /* Keep the existing map when metric row geometry is unavailable. */ });
     return () => controller.abort();
