@@ -7,6 +7,7 @@ import { PhysicalMeasuredMap } from '@/components/parking/PhysicalMeasuredMap';
 import { ExperimentalSizeDiagnostic } from '@/components/parking/ExperimentalSizeDiagnostic';
 import { RowAssignmentV2Diagnostic } from '@/components/parking/RowAssignmentV2Diagnostic';
 import { DetectionMapDiagnostic } from '@/components/camera/DetectionMapDiagnostic';
+import { RoiRowsGeometryDiagnostic } from '@/components/parking/RoiRowsGeometryDiagnostic';
 import { getCalibration } from '@/lib/calibration';
 import { analyzeParkingImage, MAX_UPLOAD_BYTES, SUPPORTED_IMAGE_TYPES } from '@/lib/detection';
 import { getGroundPlaneHomography } from '@/lib/groundPlaneHomography';
@@ -104,6 +105,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
 
       <CameraMonitor imageUrl={previewUrl} analysis={analysis} assignments={assignments} />
       <DetectionMapDiagnostic analysis={analysis} assignments={assignments} mapping={mapping} />
+      <RoiRowsGeometryDiagnostic physical={physical} homography={homography} />
       <PhysicalMeasuredMap physical={physical} mapping={mapping} homography={homography} />
       <ExperimentalSizeDiagnostic mapping={mapping} />
       <RowAssignmentV2Diagnostic mapping={mapping} />
