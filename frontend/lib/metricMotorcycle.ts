@@ -76,7 +76,12 @@ export function buildMetricMotorcycleMapping(
         && (physicalRowId !== null || imageAssignment.status !== 'ASSIGNED');
       const candidates = metricPoint ? rows.map((row) => {
         const direction = rowDirection(row.physical_polygon!);
-        const footprint = buildMotorcycleFootprint(metricPoint, direction);
+        const centroid = row.physical_polygon!.reduce((sum, p) => ({ x_m: sum.x_m + p.x_m, y_m: sum.y_m + p.y_m }), { x_m: 0, y_m: 0 });
+        centroid.x_m /= row.physical_polygon!.length; centroid.y_m /= row.physical_polygon!.length;
+        const normal = { x: -direction.y, y: direction.x };
+        const toInterior = { x: centroid.x_m - metricPoint.x_m, y: centroid.y_m - metricPoint.y_m };
+        const inward = normal.x * toInterior.x + normal.y * toInterior.y >= 0 ? normal : { x: -normal.x, y: -normal.y };
+        const footprint = buildMotorcycleFootprint(metricPoint, direction, undefined, undefined, inward);
         return { row, footprint, overlap: footprintOverlap(footprint, row.physical_polygon!) };
       }) : [];
       const best = candidates.reduce<typeof candidates[number] | null>((current, candidate) => !current || candidate.overlap.overlap_ratio > current.overlap.overlap_ratio ? candidate : current, null);

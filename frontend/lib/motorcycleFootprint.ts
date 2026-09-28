@@ -12,14 +12,18 @@ export type FootprintOverlap = { intersection_area_m2: number; footprint_area_m2
 const point = (x: number, y: number): GroundPlaneMetricPoint => ({ x_m: x, y_m: y });
 const signedArea = (p: GroundPlaneMetricPoint[]) => p.reduce((s, a, i) => { const b = p[(i + 1) % p.length]; return s + a.x_m * b.y_m - b.x_m * a.y_m; }, 0) / 2;
 
-export function buildMotorcycleFootprint(anchor: GroundPlaneMetricPoint, direction: UnitVector, width = MOTORCYCLE_FOOTPRINT_CONFIG.motorcycle_width_m, length = MOTORCYCLE_FOOTPRINT_CONFIG.motorcycle_length_m) {
+export function buildMotorcycleFootprint(anchor: GroundPlaneMetricPoint, direction: UnitVector, width = MOTORCYCLE_FOOTPRINT_CONFIG.motorcycle_width_m, length = MOTORCYCLE_FOOTPRINT_CONFIG.motorcycle_length_m, inward?: UnitVector) {
   const n = { x: -direction.y, y: direction.x };
-  const halfLength = length / 2;
   const halfWidth = width / 2;
-  const rearLeft = point(anchor.x_m - direction.x * halfWidth - n.x * halfLength, anchor.y_m - direction.y * halfWidth - n.y * halfLength);
-  const rearRight = point(anchor.x_m + direction.x * halfWidth - n.x * halfLength, anchor.y_m + direction.y * halfWidth - n.y * halfLength);
-  const frontRight = point(anchor.x_m + direction.x * halfWidth + n.x * halfLength, anchor.y_m + direction.y * halfWidth + n.y * halfLength);
-  const frontLeft = point(anchor.x_m - direction.x * halfWidth + n.x * halfLength, anchor.y_m - direction.y * halfWidth + n.y * halfLength);
+  const axis = inward ?? n;
+  const nearLeft = point(anchor.x_m - direction.x * halfWidth, anchor.y_m - direction.y * halfWidth);
+  const nearRight = point(anchor.x_m + direction.x * halfWidth, anchor.y_m + direction.y * halfWidth);
+  const farRight = point(nearRight.x_m + axis.x * length, nearRight.y_m + axis.y * length);
+  const farLeft = point(nearLeft.x_m + axis.x * length, nearLeft.y_m + axis.y * length);
+  const rearLeft = nearLeft;
+  const rearRight = nearRight;
+  const frontRight = farRight;
+  const frontLeft = farLeft;
   return [rearLeft, rearRight, frontRight, frontLeft];
 }
 
