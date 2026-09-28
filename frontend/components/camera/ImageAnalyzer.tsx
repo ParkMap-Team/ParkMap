@@ -118,7 +118,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
           <div><dt className="text-slate-500">Parking Analysis Excluded</dt><dd className="mt-1 text-2xl font-bold">{excluded}</dd></div>
           <div><dt className="text-slate-500">System status</dt><dd className={`mt-1 text-lg font-bold ${mapReady ? 'text-emerald-700' : 'text-amber-700'}`}>{mapReady ? 'Map ready' : 'Calibration required'}</dd></div>
         </dl>
-        {analysis && <p className="mt-3 text-sm text-slate-600">Mapped in parking area: <strong>{validMetric}</strong> · Assigned to row: <strong>{assigned}</strong> · Inside area without row: <strong>{insideWithoutRow}</strong></p>}
+        {analysis && <p className="mt-3 text-sm text-slate-600">Metric projected: <strong>{validMetric}</strong> · Parking analysis included: <strong>{insideRoi}</strong> · Parking analysis excluded: <strong>{excluded}</strong> · Physical map rendered: <strong>{insideRoi}</strong> · Row Assignment V2 assigned: <strong>{assigned}</strong> · Without row: <strong>{insideWithoutRow}</strong></p>}
         {!mapReady && <button type="button" onClick={onOpenSetup} className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Open Setup</button>}
         {analysis && mapReady && validMetric !== motorcycles && <p className="mt-3 text-sm text-amber-700">Some detections could not be placed on the parking map.</p>}
       </section>
