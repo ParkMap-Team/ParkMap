@@ -6,6 +6,7 @@ import { CameraMonitor } from '@/components/camera/CameraMonitor';
 import { PhysicalMeasuredMap } from '@/components/parking/PhysicalMeasuredMap';
 import { ExperimentalSizeDiagnostic } from '@/components/parking/ExperimentalSizeDiagnostic';
 import { RowAssignmentV2Diagnostic } from '@/components/parking/RowAssignmentV2Diagnostic';
+import { DetectionMapDiagnostic } from '@/components/camera/DetectionMapDiagnostic';
 import { getCalibration } from '@/lib/calibration';
 import { analyzeParkingImage, MAX_UPLOAD_BYTES, SUPPORTED_IMAGE_TYPES } from '@/lib/detection';
 import { getGroundPlaneHomography } from '@/lib/groundPlaneHomography';
@@ -101,7 +102,8 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
         {error && <div role="alert" className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"><span className="inline-flex items-center gap-2"><AlertCircle className="size-4" />{error}</span>{file && state === 'error' && <button type="button" onClick={() => void analyze()} className="inline-flex items-center gap-1 font-semibold"><RotateCcw className="size-4" />Retry</button>}</div>}
       </section>
 
-      <CameraMonitor imageUrl={previewUrl} analysis={analysis} />
+      <CameraMonitor imageUrl={previewUrl} analysis={analysis} assignments={assignments} />
+      <DetectionMapDiagnostic analysis={analysis} assignments={assignments} mapping={mapping} />
       <PhysicalMeasuredMap physical={physical} mapping={mapping} homography={homography} />
       <ExperimentalSizeDiagnostic mapping={mapping} />
       <RowAssignmentV2Diagnostic mapping={mapping} />

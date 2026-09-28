@@ -1,7 +1,8 @@
 import { Camera, ImageIcon } from 'lucide-react';
 import type { DetectionResponse } from '@/types/detection';
+import type { DetectionRowAssignment } from '@/types/calibration';
 
-export function CameraMonitor({ imageUrl, analysis }: { imageUrl: string | null; analysis: DetectionResponse | null }) {
+export function CameraMonitor({ imageUrl, analysis, assignments: _assignments = [] }: { imageUrl: string | null; analysis: DetectionResponse | null; assignments?: DetectionRowAssignment[] }) {
   const width = analysis?.image_width ?? 1000;
   const height = analysis?.image_height ?? 562;
   return (
