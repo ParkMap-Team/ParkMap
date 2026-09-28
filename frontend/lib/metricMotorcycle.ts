@@ -90,6 +90,11 @@ export function buildMetricMotorcycleMapping(
           : insideParkingRoi && matchingRows.length > 0
             ? 'POINT_INSIDE_AND_FOOTPRINT_OVERLAPS'
             : 'POINT_OUTSIDE_BUT_FOOTPRINT_OVERLAPS';
+      const ranked = [...candidates].sort((a, b) => b.overlap.overlap_ratio - a.overlap.overlap_ratio), bestV2 = ranked[0], secondV2 = ranked[1];
+      const bestOverlap = bestV2?.overlap.overlap_ratio ?? 0, secondOverlap = secondV2?.overlap.overlap_ratio ?? 0, margin = bestOverlap - secondOverlap, pointOverlap = imageAssignment.row_id ? candidates.find((c) => c.row.row_id === imageAssignment.row_id)?.overlap.overlap_ratio ?? 0 : 0;
+      const strong = bestOverlap >= .6 && margin >= .2;
+      const conflict = imageAssignment.row_id !== null && bestV2 && bestV2.row.row_id !== imageAssignment.row_id && bestOverlap >= pointOverlap + .2;
+      const v2State = imageAssignment.row_id && !conflict ? 'POINT_ASSIGNED' : conflict ? 'AMBIGUOUS' : strong ? 'FOOTPRINT_ASSIGNED' : bestOverlap > 0 ? 'AMBIGUOUS' : 'UNASSIGNED';
       return {
         detection_id: `detection-${index + 1}`,
         detection_index: index,
@@ -112,6 +117,7 @@ export function buildMetricMotorcycleMapping(
         footprint_diagnostic: diagnostic,
         best_diagnostic_row_id: bestDiagnostic?.row.row_id ?? null,
         experimental_size: metricPoint && matrix ? estimateMotorcycleSize(detection.bbox, imageWidth, imageHeight, matrix) : null,
+        row_assignment_v2: { point_row_id: imageAssignment.row_id, assigned_row_id: v2State === 'FOOTPRINT_ASSIGNED' ? bestV2.row.row_id : v2State === 'POINT_ASSIGNED' ? imageAssignment.row_id : null, state: v2State, best_row_id: bestV2?.row.row_id ?? null, best_overlap: bestOverlap, second_row_id: secondV2?.row.row_id ?? null, second_overlap: secondOverlap, overlap_margin: margin, point_row_overlap: pointOverlap, reason: conflict ? 'POINT_FOOTPRINT_CONFLICT' : strong ? 'FOOTPRINT_DOMINANT_SINGLE_ROW' : bestOverlap > 0 ? 'FOOTPRINT_INSUFFICIENT_MARGIN' : 'NO_ROW_OVERLAP' },
       };
     }),
   };

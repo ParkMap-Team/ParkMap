@@ -9,6 +9,8 @@ export type PhysicalContainment =
   | 'OUTSIDE_PHYSICAL_ROWS'
   | 'MULTIPLE_PHYSICAL_ROWS';
 export type FootprintDiagnostic = 'POINT_INSIDE_AND_FOOTPRINT_OVERLAPS' | 'POINT_OUTSIDE_BUT_FOOTPRINT_OVERLAPS' | 'POINT_OUTSIDE_AND_NO_FOOTPRINT_OVERLAP' | 'MULTIPLE_ROW_FOOTPRINT_OVERLAP';
+export type RowAssignmentV2State = 'POINT_ASSIGNED' | 'FOOTPRINT_ASSIGNED' | 'AMBIGUOUS' | 'UNASSIGNED';
+export interface RowAssignmentV2 { point_row_id: CalibrationRow['id'] | null; assigned_row_id: CalibrationRow['id'] | null; state: RowAssignmentV2State; best_row_id: CalibrationRow['id'] | null; best_overlap: number; second_row_id: CalibrationRow['id'] | null; second_overlap: number; overlap_margin: number; point_row_overlap: number; reason: string; }
 
 export interface MetricMotorcycle {
   detection_id: string;
@@ -32,6 +34,7 @@ export interface MetricMotorcycle {
   footprint_diagnostic: FootprintDiagnostic;
   best_diagnostic_row_id: CalibrationRow['id'] | null;
   experimental_size: ExperimentalMotorcycleSize | null;
+  row_assignment_v2: RowAssignmentV2;
 }
 
 export interface MetricMotorcycleMapping {

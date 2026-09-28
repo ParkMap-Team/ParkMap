@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CameraMonitor } from '@/components/camera/CameraMonitor';
 import { PhysicalMeasuredMap } from '@/components/parking/PhysicalMeasuredMap';
 import { ExperimentalSizeDiagnostic } from '@/components/parking/ExperimentalSizeDiagnostic';
+import { RowAssignmentV2Diagnostic } from '@/components/parking/RowAssignmentV2Diagnostic';
 import { getCalibration } from '@/lib/calibration';
 import { analyzeParkingImage, MAX_UPLOAD_BYTES, SUPPORTED_IMAGE_TYPES } from '@/lib/detection';
 import { getGroundPlaneHomography } from '@/lib/groundPlaneHomography';
@@ -103,6 +104,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
       <CameraMonitor imageUrl={previewUrl} analysis={analysis} />
       <PhysicalMeasuredMap physical={physical} mapping={mapping} homography={homography} />
       <ExperimentalSizeDiagnostic mapping={mapping} />
+      <RowAssignmentV2Diagnostic mapping={mapping} />
 
       <section className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm" aria-labelledby="summary-title">
         <h2 id="summary-title" className="font-semibold">Summary</h2>
