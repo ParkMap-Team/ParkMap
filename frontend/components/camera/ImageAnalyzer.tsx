@@ -109,7 +109,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
       <CameraMonitor imageUrl={previewUrl} analysis={analysis} assignments={assignments} />
       <DetectionMapDiagnostic analysis={analysis} assignments={assignments} mapping={mapping} />
       <RoiRowsGeometryDiagnostic physical={physical} homography={homography} />
-      <PhysicalMeasuredMap physical={physical} mapping={mapping} homography={homography} />
+      <PhysicalMeasuredMap physical={physical} mapping={mapping} homography={homography} occupiedSpace={occupiedSpace} />
       <ExperimentalSizeDiagnostic mapping={mapping} />
       <RowAssignmentV2Diagnostic mapping={mapping} />
       <OccupiedSpaceDiagnostic result={occupiedSpace} />
