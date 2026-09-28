@@ -85,8 +85,6 @@ export function buildMetricMotorcycleMapping(
       const roiOverlap = oriented && roiPolygon.length >= 3 ? footprintOverlap(oriented.footprint, roiPolygon) : null;
       const groundPointInsideRoi = metricPoint ? metricPointInPolygon(metricPoint, roiPolygon) : false;
       const footprintInsideRoi = (roiOverlap?.intersection_area_m2 ?? 0) > 1e-8;
-      const included = metricPoint !== null && (groundPointInsideRoi || footprintInsideRoi);
-      const inclusionSource = groundPointInsideRoi && footprintInsideRoi ? 'BOTH' : groundPointInsideRoi ? 'GROUND_POINT' : footprintInsideRoi ? 'FOOTPRINT_OVERLAP' : 'OUTSIDE';
       const positiveOverlaps = candidates.filter((candidate) => candidate.overlap.overlap_ratio > EPSILON);
       const bestDiagnostic = positiveOverlaps.reduce<typeof candidates[number] | null>((current, candidate) => !current || candidate.overlap.overlap_ratio > current.overlap.overlap_ratio ? candidate : current, null);
       const diagnostic = positiveOverlaps.length > 1
@@ -98,6 +96,9 @@ export function buildMetricMotorcycleMapping(
             : 'POINT_OUTSIDE_BUT_FOOTPRINT_OVERLAPS';
       const ranked = [...candidates].sort((a, b) => b.overlap.overlap_ratio - a.overlap.overlap_ratio), bestV2 = ranked[0], secondV2 = ranked[1];
       const bestOverlap = bestV2?.overlap.overlap_ratio ?? 0, secondOverlap = secondV2?.overlap.overlap_ratio ?? 0, margin = bestOverlap - secondOverlap, pointOverlap = imageAssignment.row_id ? candidates.find((c) => c.row.row_id === imageAssignment.row_id)?.overlap.overlap_ratio ?? 0 : 0;
+      const rowStrong = bestOverlap >= .6 && margin >= .2;
+      const included = metricPoint !== null && (groundPointInsideRoi || footprintInsideRoi || rowStrong);
+      const inclusionSource = [groundPointInsideRoi, footprintInsideRoi, rowStrong].filter(Boolean).length > 1 ? 'MULTIPLE_EVIDENCE' : groundPointInsideRoi ? 'GROUND_POINT_ROI' : footprintInsideRoi ? 'FOOTPRINT_ROI' : rowStrong ? 'PHYSICAL_ROW' : 'OUTSIDE';
       const strong = bestOverlap >= .6 && margin >= .2;
       const conflict = imageAssignment.row_id !== null && bestV2 && bestV2.row.row_id !== imageAssignment.row_id && bestOverlap >= pointOverlap + .2;
       const v2State = imageAssignment.row_id && !conflict ? 'POINT_ASSIGNED' : conflict ? 'AMBIGUOUS' : strong ? 'FOOTPRINT_ASSIGNED' : bestOverlap > 0 ? 'AMBIGUOUS' : 'UNASSIGNED';
