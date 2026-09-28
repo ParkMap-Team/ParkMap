@@ -1,62 +1,1002 @@
-'use client';
+"use client";
 /* oxlint-disable jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions, jsx-a11y/control-has-associated-label */
-import { Calculator, Crosshair, LoaderCircle, Plus, Save, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { getCalibration } from '@/lib/calibration';
-import { calculateGroundPlaneHomography, getGroundPlaneCalibration, getGroundPlaneHomography, saveAndVerifyGroundPlaneCalibration } from '@/lib/groundPlaneCalibration';
-import { addGroundControlPoint, chooseGroundPlaneCalibration, deleteGroundControlPoint, editGroundControlPoint, GROUND_PLANE_LOCAL_BACKUP_KEY, groundPlaneHomographySourceSignature, groundPlaneReadiness, groundPlaneRowMeasurementSignature, groundPlaneSignature, validGroundControlPoint, validReferenceDistance } from '@/lib/groundPlaneCalibrationState';
-import type { ParkingCalibration } from '@/types/calibration';
-import type { GroundControlPoint, GroundPlaneCalibration as Config, GroundPlaneHomographyResponse, GroundReferenceDistance } from '@/types/groundPlaneCalibration';
-import type { MetricRowId } from '@/types/metricCalibration';
-import { HomographyValidation } from './HomographyValidation';
-import { getPhysicalRowGeometry, savePhysicalRowGeometry } from '@/lib/physicalRowGeometry';
-import { nearestPolygonBoundary, normalizedPointFromClick } from '@/lib/physicalRowGeometryMath';
-import type { PhysicalRowGeometryResponse } from '@/types/physicalRowGeometry';
+import {
+  Calculator,
+  Crosshair,
+  LoaderCircle,
+  Plus,
+  Save,
+  Trash2,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { getCalibration } from "@/lib/calibration";
+import {
+  calculateGroundPlaneHomography,
+  getGroundPlaneCalibration,
+  getGroundPlaneHomography,
+  saveAndVerifyGroundPlaneCalibration,
+} from "@/lib/groundPlaneCalibration";
+import {
+  addGroundControlPoint,
+  chooseGroundPlaneCalibration,
+  deleteGroundControlPoint,
+  editGroundControlPoint,
+  GROUND_PLANE_LOCAL_BACKUP_KEY,
+  groundPlaneHomographySourceSignature,
+  groundPlaneReadiness,
+  groundPlaneRowMeasurementSignature,
+  groundPlaneSignature,
+  validGroundControlPoint,
+  validReferenceDistance,
+} from "@/lib/groundPlaneCalibrationState";
+import type { ParkingCalibration } from "@/types/calibration";
+import type {
+  GroundControlPoint,
+  GroundPlaneCalibration as Config,
+  GroundPlaneHomographyResponse,
+  GroundReferenceDistance,
+} from "@/types/groundPlaneCalibration";
+import type { MetricRowId } from "@/types/metricCalibration";
+import { HomographyValidation } from "./HomographyValidation";
+import {
+  getPhysicalRowGeometry,
+  savePhysicalRowGeometry,
+} from "@/lib/physicalRowGeometry";
+import {
+  nearestPolygonBoundary,
+  normalizedPointFromClick,
+} from "@/lib/physicalRowGeometryMath";
+import type { PhysicalRowGeometryResponse } from "@/types/physicalRowGeometry";
 
-const ROWS: MetricRowId[] = ['row_1', 'row_2', 'row_3', 'row_4', 'row_5'];
+const ROWS: MetricRowId[] = ["row_1", "row_2", "row_3", "row_4", "row_5"];
 export function GroundPlaneCalibration() {
-  const [config, setConfig] = useState<Config | null>(null), [parking, setParking] = useState<ParkingCalibration | null>(null);
-  const [imageUrl, setImageUrl] = useState<string | null>(null), [addMode, setAddMode] = useState(false), [selected, setSelected] = useState<string | null>(null), [saving, setSaving] = useState(false), [message, setMessage] = useState<string | null>(null);
-  const [homography, setHomography] = useState<GroundPlaneHomographyResponse | null>(null), [calculating, setCalculating] = useState(false);
-  const [physical, setPhysical] = useState<PhysicalRowGeometryResponse | null>(null), [endpointMode, setEndpointMode] = useState<{ row: MetricRowId; endpoint: 'start' | 'end' } | null>(null), [savingEndpoints, setSavingEndpoints] = useState(false);
-  const [savedSignature, setSavedSignature] = useState<string | null>(null), [, setLoadState] = useState<'loading' | 'server' | 'recovery' | 'error'>('loading');
-  const [savedHomographySource, setSavedHomographySource] = useState<string | null>(null), [savedRows, setSavedRows] = useState<string | null>(null);
+  const [config, setConfig] = useState<Config | null>(null),
+    [parking, setParking] = useState<ParkingCalibration | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null),
+    [addMode, setAddMode] = useState(false),
+    [selected, setSelected] = useState<string | null>(null),
+    [saving, setSaving] = useState(false),
+    [message, setMessage] = useState<string | null>(null);
+  const [homography, setHomography] =
+      useState<GroundPlaneHomographyResponse | null>(null),
+    [calculating, setCalculating] = useState(false);
+  const [physical, setPhysical] = useState<PhysicalRowGeometryResponse | null>(
+      null,
+    ),
+    [endpointMode, setEndpointMode] = useState<{
+      row: MetricRowId;
+      endpoint: "start" | "end";
+    } | null>(null),
+    [savingEndpoints, setSavingEndpoints] = useState(false);
+  const [savedSignature, setSavedSignature] = useState<string | null>(null),
+    [, setLoadState] = useState<"loading" | "server" | "recovery" | "error">(
+      "loading",
+    );
+  const [savedHomographySource, setSavedHomographySource] = useState<
+      string | null
+    >(null),
+    [savedRows, setSavedRows] = useState<string | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
-  useEffect(() => { const controller = new AbortController(); void Promise.all([getGroundPlaneCalibration(controller.signal), getCalibration(controller.signal), getGroundPlaneHomography(controller.signal), getPhysicalRowGeometry(controller.signal)]).then(([ground, park, derived, physicalRows]) => { let local: Config | null = null; try { const raw = window.localStorage.getItem(GROUND_PLANE_LOCAL_BACKUP_KEY); local = raw ? JSON.parse(raw) as Config : null; } catch { local = null; } const selected = chooseGroundPlaneCalibration(ground.calibration, local); setConfig(selected.calibration); setSavedSignature(groundPlaneSignature(selected.calibration)); setSavedHomographySource(groundPlaneHomographySourceSignature(ground.calibration)); setSavedRows(groundPlaneRowMeasurementSignature(ground.calibration)); setParking(park); setHomography(derived); setPhysical(physicalRows); setLoadState(selected.source === 'LOCAL_RECOVERY' ? 'recovery' : 'server'); if (selected.source === 'LOCAL_RECOVERY') setMessage('Recovered richer calibration data from this browser. Save it to verify backend persistence.'); }).catch((error) => { setLoadState('error'); setMessage(error instanceof Error ? error.message : 'Unable to load calibration.'); }); return () => controller.abort(); }, []);
-  useEffect(() => () => { if (imageUrl) URL.revokeObjectURL(imageUrl); }, [imageUrl]);
-  const status = useMemo(() => config ? groundPlaneReadiness(config.control_points) : 'NOT_READY', [config]);
-  const dirty = Boolean(config && savedSignature !== null && groundPlaneSignature(config) !== savedSignature);
-  const homographyDisplay = useMemo(() => { if (!homography || !config) return homography; if (savedHomographySource !== groundPlaneHomographySourceSignature(config)) return { ...homography, status: 'STALE' as const, current: false, row_validation_current: false, message: 'Unsaved homography source changes make this result stale.' }; if (savedRows !== groundPlaneRowMeasurementSignature(config)) return { ...homography, row_validation_current: false, message: 'Unsaved row measurements make row comparisons stale.' }; return homography; }, [config, homography, savedHomographySource, savedRows]);
-  useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault(); }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [dirty]);
-  useEffect(() => { if (!dirty || saving) return; const timer = window.setTimeout(() => setMessage('Unsaved calibration changes'), 0); return () => window.clearTimeout(timer); }, [dirty, saving]);
-  if (!config || !parking) return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><LoaderCircle className="size-5 animate-spin" /> Loading Ground-Plane Calibration…</section>;
-  const pointInlier = (id: string) => homographyDisplay?.result?.point_diagnostics.find((point) => point.id === id)?.inlier;
-  const updatePoint = (point: GroundControlPoint) => setConfig((current) => current ? editGroundControlPoint(current, point) : current);
-  const addAt = (event: React.MouseEvent<HTMLDivElement>) => { if (!imageRef.current) return; const rect = imageRef.current.getBoundingClientRect(); const clicked = normalizedPointFromClick(event.clientX, event.clientY, rect); if (endpointMode && physical) { const pair = physical.config.rows[endpointMode.row] ?? { start: null, end: null }; setPhysical({ ...physical, status: 'STALE', config: { ...physical.config, rows: { ...physical.config.rows, [endpointMode.row]: { ...pair, [endpointMode.endpoint]: { clicked_image: clicked, effective_image: clicked, snapped_to_roi_boundary: false } } } } }); setEndpointMode(null); return; } if (!addMode) return; const id = `P${Math.max(0, ...config.control_points.map((point) => Number(point.id.replace(/^P/, '')) || 0)) + 1}`; const point: GroundControlPoint = { id, image_x: clicked.x, image_y: clicked.y, ground_x_m: 0, ground_y_m: 0, provenance: 'MEASURED' }; setConfig(addGroundControlPoint(config, point)); setSelected(id); setAddMode(false); };
-  const save = async () => { if (config.control_points.some((point) => !validGroundControlPoint(point)) || config.reference_distances.some((segment) => !validReferenceDistance(segment, config.control_points))) { setMessage('Fix invalid control points or reference distances before saving.'); return; } setSaving(true); setMessage(null); try { const result = await saveAndVerifyGroundPlaneCalibration(config); window.localStorage.setItem(GROUND_PLANE_LOCAL_BACKUP_KEY, JSON.stringify(result.calibration)); setConfig(result.calibration); setSavedSignature(groundPlaneSignature(result.calibration)); setSavedHomographySource(groundPlaneHomographySourceSignature(result.calibration)); setSavedRows(groundPlaneRowMeasurementSignature(result.calibration)); setLoadState('server'); const derived = await getGroundPlaneHomography(); setHomography(derived); setMessage('Ground-plane calibration saved and verified by reading it back. Recalculate if the stored homography is stale.'); } catch (error) { window.localStorage.setItem(GROUND_PLANE_LOCAL_BACKUP_KEY, JSON.stringify(config)); setMessage(error instanceof Error ? error.message : 'Unable to save and verify calibration. A recovery copy remains in this browser.'); } finally { setSaving(false); } };
-  const calculate = async () => { setCalculating(true); setMessage(null); try { const result = await calculateGroundPlaneHomography(); setHomography(result); setMessage('Homography calculated, persisted, and verified. Review validation errors before field use.'); } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to calculate homography.'); } finally { setCalculating(false); } };
-  const saveEndpoints = async () => { if (!physical) return; setSavingEndpoints(true); try { const result = await savePhysicalRowGeometry(physical.config); setPhysical(result); setMessage('Physical row endpoints saved and verified by reading them back.'); } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to save physical row endpoints.'); } finally { setSavingEndpoints(false); } };
-  const addDistance = () => { if (config.control_points.length < 2) return; const segment: GroundReferenceDistance = { id: `D${config.reference_distances.length + 1}`, point_a: config.control_points[0].id, point_b: config.control_points[1].id, distance_m: 1, provenance: 'MEASURED' }; setConfig({ ...config, reference_distances: [...config.reference_distances, segment] }); };
-  return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><Crosshair className="size-5 text-cyan-700" /><h2 className="font-semibold">Ground-Plane Calibration</h2></div><p className="mt-1 text-sm text-slate-500">Collect local ground coordinates in meters. X is horizontal and Y is vertical; GPS is not required.</p></div><div className={`rounded-full px-3 py-1 text-xs font-bold ${status === 'READY_FOR_HOMOGRAPHY' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{status}</div></div>
-    <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(360px,.75fr)]"><div><div className="flex flex-wrap gap-2"><label className="cursor-pointer rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold">Choose reference image<input type="file" accept="image/*" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) setImageUrl(URL.createObjectURL(file)); }} /></label><button type="button" disabled={!imageUrl} onClick={() => setAddMode((value) => !value)} className="rounded-lg bg-cyan-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"><Plus className="mr-1 inline size-4" />Add Ground Control Point</button></div>
-      <div onClick={addAt} className={`relative mt-3 overflow-hidden rounded-xl bg-slate-950 ${addMode ? 'cursor-crosshair ring-2 ring-cyan-500' : ''}`}>{imageUrl ? <><img ref={imageRef} src={imageUrl} alt="Ground-plane calibration reference" className="block w-full" /><svg viewBox="0 0 1 1" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full"><polygon points={parking.parking_roi.polygon.map((p) => `${p.x},${p.y}`).join(' ')} fill="rgba(59,130,246,.06)" stroke="#60a5fa" strokeWidth=".003" />{parking.rows.map((row) => <polygon key={row.id} points={row.polygon.map((p) => `${p.x},${p.y}`).join(' ')} fill="none" stroke="#fbbf24" strokeWidth=".002" />)}{config.control_points.map((point) => <g key={point.id}><circle cx={point.image_x} cy={point.image_y} r={selected === point.id ? .012 : .009} fill={selected === point.id ? '#22d3ee' : pointInlier(point.id) === true ? '#22c55e' : pointInlier(point.id) === false ? '#ef4444' : '#f43f5e'} stroke="white" strokeWidth=".002" /></g>)}</svg>{config.control_points.map((point) => <button key={point.id} type="button" onClick={(event) => { event.stopPropagation(); setSelected(point.id); }} className="absolute -translate-x-1/2 -translate-y-1/2 rounded bg-slate-950/85 px-1.5 py-0.5 text-[10px] font-bold text-white" style={{ left: `${point.image_x * 100}%`, top: `${point.image_y * 100}%` }}>{point.id}</button>)}</> : <div className="grid aspect-[4/3] place-items-center px-6 text-center text-sm text-slate-400">Choose the existing 4032 × 3024 reference image. Calibration polygons will be overlaid without modification.</div>}</div>{imageUrl && homographyDisplay?.result && <p className="mt-2 text-xs text-slate-500"><span className="text-green-600">● Inlier</span> · <span className="text-red-600">● Outlier</span> · cyan indicates the selected point.</p>}</div>
-      <div className="rounded-xl bg-slate-50 p-4"><h3 className="font-semibold">Ground-plane calibration</h3><dl className="mt-3 grid grid-cols-3 gap-2 text-xs"><Stat label="Control points" value={config.control_points.length} /><Stat label="Measured" value={config.control_points.filter((p) => p.provenance === 'MEASURED').length} /><Stat label="Minimum" value={4} /></dl><p className="mt-3 text-xs text-slate-500">READY means sufficient non-collinear measured input to attempt homography; it does not guarantee accuracy.</p></div></div>
-    <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[850px] text-left text-xs"><thead><tr className="border-b text-slate-500">{['ID','Image X','Image Y','Ground X (m)','Ground Y (m)','Provenance',''].map((label) => <th key={label} className="p-2">{label}</th>)}</tr></thead><tbody>{config.control_points.map((point) => <tr key={point.id} onClick={() => setSelected(point.id)} className={`border-b ${selected === point.id ? 'bg-cyan-50' : ''}`}><td className="p-2 font-bold">{point.id}</td>{(['image_x','image_y','ground_x_m','ground_y_m'] as const).map((key) => <td key={key} className="p-2"><input type="number" step="any" value={point[key]} onChange={(event) => updatePoint({ ...point, [key]: Number(event.target.value) })} className="w-28 rounded border px-2 py-1" /></td>)}<td className="p-2"><select value={point.provenance} onChange={(event) => updatePoint({ ...point, provenance: event.target.value as 'ESTIMATED' | 'MEASURED' })} className="rounded border px-2 py-1"><option>MEASURED</option><option>ESTIMATED</option></select></td><td className="p-2"><button type="button" onClick={() => setConfig(deleteGroundControlPoint(config, point.id))} aria-label={`Delete ${point.id}`}><Trash2 className="size-4 text-rose-600" /></button></td></tr>)}</tbody></table></div>
-    <div className="mt-6"><h3 className="text-sm font-semibold">Physical row measurements</h3><p className="mt-1 text-xs text-slate-500">Stored separately. Existing ESTIMATED metric row lengths are not overwritten automatically.</p><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{ROWS.map((id) => { const row = config.measured_rows[id] ?? { length_m: null, width_m: null, provenance: 'MEASURED' as const }; const update = (next: typeof row) => setConfig({ ...config, measured_rows: { ...config.measured_rows, [id]: next } }); return <div key={id} className="rounded-lg border p-3 text-xs"><strong>{id.replace('row_', 'Row ')}</strong><label className="mt-2 block">Length m<input type="number" step="any" value={row.length_m ?? ''} onChange={(e) => update({ ...row, length_m: e.target.value ? Number(e.target.value) : null })} className="mt-1 w-full rounded border px-2 py-1" /></label><label className="mt-2 block">Width m<input type="number" step="any" value={row.width_m ?? ''} onChange={(e) => update({ ...row, width_m: e.target.value ? Number(e.target.value) : null })} className="mt-1 w-full rounded border px-2 py-1" /></label><select value={row.provenance} onChange={(e) => update({ ...row, provenance: e.target.value as 'MEASURED' | 'ESTIMATED' })} className="mt-2 w-full rounded border px-2 py-1"><option>MEASURED</option><option>ESTIMATED</option></select></div>; })}</div><button type="button" disabled className="mt-3 rounded-lg border px-3 py-2 text-xs font-semibold text-slate-400" title="Enabled only in a later explicit apply workflow">Apply measured row lengths</button></div>
-    <div className="mt-6"><div className="flex items-center justify-between"><h3 className="text-sm font-semibold">Reference distances</h3><button type="button" onClick={addDistance} disabled={config.control_points.length < 2} className="rounded border px-3 py-1.5 text-xs font-semibold disabled:opacity-40">Add distance</button></div>{config.reference_distances.map((segment, index) => <div key={segment.id} className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 p-2 text-xs"><strong>{segment.id}</strong><select value={segment.point_a} onChange={(e) => { const list = [...config.reference_distances]; list[index] = { ...segment, point_a: e.target.value }; setConfig({ ...config, reference_distances: list }); }}>{config.control_points.map((p) => <option key={p.id}>{p.id}</option>)}</select><span>←</span><input type="number" min="0" step="any" value={segment.distance_m} onChange={(e) => { const list = [...config.reference_distances]; list[index] = { ...segment, distance_m: Number(e.target.value) }; setConfig({ ...config, reference_distances: list }); }} className="w-24 rounded border px-2 py-1" /><span>m →</span><select value={segment.point_b} onChange={(e) => { const list = [...config.reference_distances]; list[index] = { ...segment, point_b: e.target.value }; setConfig({ ...config, reference_distances: list }); }}>{config.control_points.map((p) => <option key={p.id}>{p.id}</option>)}</select></div>)}</div>
-    <details className="mt-6 rounded-xl border p-4 text-sm"><summary className="cursor-pointer font-semibold">What should I measure on site?</summary><ol className="mt-3 list-decimal space-y-1 pl-5 text-slate-600"><li>Choose a clear origin P1 = (0,0).</li><li>Measure identifiable permanent ground markings or corners.</li><li>Spread 6–10 points across the Parking ROI.</li><li>Avoid placing every point on one straight line.</li><li>Measure row lengths and widths where possible.</li><li>Measure useful distances between points and rows.</li><li>Record every value in meters with its provenance.</li></ol></details>
-    {physical && <PhysicalRowEndpoints physical={physical} parking={parking} imageReady={Boolean(imageUrl)} active={endpointMode} onActivate={setEndpointMode} onChange={setPhysical} onSave={() => void saveEndpoints()} saving={savingEndpoints} />}
-    <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-slate-500">Calculation is diagnostic only and does not change production occupancy or fitting.</p><div className="flex gap-2"><button type="button" onClick={() => void calculate()} disabled={status !== 'READY_FOR_HOMOGRAPHY' || dirty || calculating} title={dirty ? 'Save input changes before calculation.' : undefined} className="rounded-lg border border-cyan-700 px-4 py-2 text-xs font-semibold text-cyan-800 disabled:opacity-40"><Calculator className="mr-1 inline size-4" />{calculating ? 'Calculating…' : 'Calculate Homography'}</button><button type="button" onClick={() => void save()} disabled={saving} className="rounded-lg bg-cyan-700 px-4 py-2 text-xs font-semibold text-white"><Save className="mr-1 inline size-4" />{saving ? 'Saving…' : 'Save ground-plane inputs'}</button></div></div>{message && <p className="mt-3 text-xs text-slate-600">{message}</p>}{homographyDisplay && <HomographyValidation homography={homographyDisplay} points={config.control_points} physical={physical} />}</section>;
+  useEffect(() => {
+    const controller = new AbortController();
+    void Promise.all([
+      getGroundPlaneCalibration(controller.signal),
+      getCalibration(controller.signal),
+      getGroundPlaneHomography(controller.signal),
+      getPhysicalRowGeometry(controller.signal),
+    ])
+      .then(([ground, park, derived, physicalRows]) => {
+        let local: Config | null = null;
+        try {
+          const raw = window.localStorage.getItem(
+            GROUND_PLANE_LOCAL_BACKUP_KEY,
+          );
+          local = raw ? (JSON.parse(raw) as Config) : null;
+        } catch {
+          local = null;
+        }
+        const selected = chooseGroundPlaneCalibration(
+          ground.calibration,
+          local,
+        );
+        setConfig(selected.calibration);
+        setSavedSignature(groundPlaneSignature(selected.calibration));
+        setSavedHomographySource(
+          groundPlaneHomographySourceSignature(ground.calibration),
+        );
+        setSavedRows(groundPlaneRowMeasurementSignature(ground.calibration));
+        setParking(park);
+        setHomography(derived);
+        setPhysical(physicalRows);
+        setLoadState(
+          selected.source === "LOCAL_RECOVERY" ? "recovery" : "server",
+        );
+        if (selected.source === "LOCAL_RECOVERY")
+          setMessage(
+            "Recovered richer calibration data from this browser. Save it to verify backend persistence.",
+          );
+      })
+      .catch((error) => {
+        setLoadState("error");
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to load calibration.",
+        );
+      });
+    return () => controller.abort();
+  }, []);
+  useEffect(
+    () => () => {
+      if (imageUrl) URL.revokeObjectURL(imageUrl);
+    },
+    [imageUrl],
+  );
+  const status = useMemo(
+    () => (config ? groundPlaneReadiness(config.control_points) : "NOT_READY"),
+    [config],
+  );
+  const dirty = Boolean(
+    config &&
+      savedSignature !== null &&
+      groundPlaneSignature(config) !== savedSignature,
+  );
+  const homographyDisplay = useMemo(() => {
+    if (!homography || !config) return homography;
+    if (savedHomographySource !== groundPlaneHomographySourceSignature(config))
+      return {
+        ...homography,
+        status: "STALE" as const,
+        current: false,
+        row_validation_current: false,
+        message: "Unsaved homography source changes make this result stale.",
+      };
+    if (savedRows !== groundPlaneRowMeasurementSignature(config))
+      return {
+        ...homography,
+        row_validation_current: false,
+        message: "Unsaved row measurements make row comparisons stale.",
+      };
+    return homography;
+  }, [config, homography, savedHomographySource, savedRows]);
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (dirty) event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+  useEffect(() => {
+    if (!dirty || saving) return;
+    const timer = window.setTimeout(
+      () => setMessage("Unsaved calibration changes"),
+      0,
+    );
+    return () => window.clearTimeout(timer);
+  }, [dirty, saving]);
+  if (!config || !parking)
+    return (
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <LoaderCircle className="size-5 animate-spin" /> Loading Ground-Plane
+        Calibration…
+      </section>
+    );
+  const pointInlier = (id: string) =>
+    homographyDisplay?.result?.point_diagnostics.find(
+      (point) => point.id === id,
+    )?.inlier;
+  const updatePoint = (point: GroundControlPoint) =>
+    setConfig((current) =>
+      current ? editGroundControlPoint(current, point) : current,
+    );
+  const addAt = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!imageRef.current) return;
+    const rect = imageRef.current.getBoundingClientRect();
+    const clicked = normalizedPointFromClick(
+      event.clientX,
+      event.clientY,
+      rect,
+    );
+    if (endpointMode && physical) {
+      const pair = physical.config.rows[endpointMode.row] ?? {
+        start: null,
+        end: null,
+      };
+      setPhysical({
+        ...physical,
+        status: "STALE",
+        config: {
+          ...physical.config,
+          rows: {
+            ...physical.config.rows,
+            [endpointMode.row]: {
+              ...pair,
+              [endpointMode.endpoint]: {
+                clicked_image: clicked,
+                effective_image: clicked,
+                snapped_to_roi_boundary: false,
+              },
+            },
+          },
+        },
+      });
+      setEndpointMode(null);
+      return;
+    }
+    if (!addMode) return;
+    const id = `P${Math.max(0, ...config.control_points.map((point) => Number(point.id.replace(/^P/, "")) || 0)) + 1}`;
+    const point: GroundControlPoint = {
+      id,
+      image_x: clicked.x,
+      image_y: clicked.y,
+      ground_x_m: 0,
+      ground_y_m: 0,
+      provenance: "MEASURED",
+    };
+    setConfig(addGroundControlPoint(config, point));
+    setSelected(id);
+    setAddMode(false);
+  };
+  const save = async () => {
+    if (
+      config.control_points.some((point) => !validGroundControlPoint(point)) ||
+      config.reference_distances.some(
+        (segment) => !validReferenceDistance(segment, config.control_points),
+      )
+    ) {
+      setMessage(
+        "Fix invalid control points or reference distances before saving.",
+      );
+      return;
+    }
+    setSaving(true);
+    setMessage(null);
+    try {
+      const result = await saveAndVerifyGroundPlaneCalibration(config);
+      window.localStorage.setItem(
+        GROUND_PLANE_LOCAL_BACKUP_KEY,
+        JSON.stringify(result.calibration),
+      );
+      setConfig(result.calibration);
+      setSavedSignature(groundPlaneSignature(result.calibration));
+      setSavedHomographySource(
+        groundPlaneHomographySourceSignature(result.calibration),
+      );
+      setSavedRows(groundPlaneRowMeasurementSignature(result.calibration));
+      setLoadState("server");
+      const derived = await getGroundPlaneHomography();
+      setHomography(derived);
+      setMessage(
+        "Ground-plane calibration saved and verified by reading it back. Recalculate if the stored homography is stale.",
+      );
+    } catch (error) {
+      window.localStorage.setItem(
+        GROUND_PLANE_LOCAL_BACKUP_KEY,
+        JSON.stringify(config),
+      );
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to save and verify calibration. A recovery copy remains in this browser.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+  const calculate = async () => {
+    setCalculating(true);
+    setMessage(null);
+    try {
+      const result = await calculateGroundPlaneHomography();
+      setHomography(result);
+      setMessage(
+        "Homography calculated, persisted, and verified. Review validation errors before field use.",
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to calculate homography.",
+      );
+    } finally {
+      setCalculating(false);
+    }
+  };
+  const saveEndpoints = async () => {
+    if (!physical) return;
+    setSavingEndpoints(true);
+    try {
+      const result = await savePhysicalRowGeometry(physical.config);
+      setPhysical(result);
+      setMessage(
+        "Physical row endpoints saved and verified by reading them back.",
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to save physical row endpoints.",
+      );
+    } finally {
+      setSavingEndpoints(false);
+    }
+  };
+  const addDistance = () => {
+    if (config.control_points.length < 2) return;
+    const segment: GroundReferenceDistance = {
+      id: `D${config.reference_distances.length + 1}`,
+      point_a: config.control_points[0].id,
+      point_b: config.control_points[1].id,
+      distance_m: 1,
+      provenance: "MEASURED",
+    };
+    setConfig({
+      ...config,
+      reference_distances: [...config.reference_distances, segment],
+    });
+  };
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Crosshair className="size-5 text-cyan-700" />
+            <h2 className="font-semibold">Ground-Plane Calibration</h2>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">
+            Collect local ground coordinates in meters. X is horizontal and Y is
+            vertical; GPS is not required.
+          </p>
+        </div>
+        <div
+          className={`rounded-full px-3 py-1 text-xs font-bold ${status === "READY_FOR_HOMOGRAPHY" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
+        >
+          {status}
+        </div>
+      </div>
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(360px,.75fr)]">
+        <div>
+          <div className="flex flex-wrap gap-2">
+            <label className="cursor-pointer rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold">
+              Choose reference image
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) setImageUrl(URL.createObjectURL(file));
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={!imageUrl}
+              onClick={() => setAddMode((value) => !value)}
+              className="rounded-lg bg-cyan-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"
+            >
+              <Plus className="mr-1 inline size-4" />
+              Add Ground Control Point
+            </button>
+          </div>
+          <div
+            onClick={addAt}
+            className={`relative mt-3 overflow-hidden rounded-xl bg-slate-950 ${addMode ? "cursor-crosshair ring-2 ring-cyan-500" : ""}`}
+          >
+            {imageUrl ? (
+              <>
+                <img
+                  ref={imageRef}
+                  src={imageUrl}
+                  alt="Ground-plane calibration reference"
+                  className="block w-full"
+                />
+                <svg
+                  viewBox="0 0 1 1"
+                  preserveAspectRatio="none"
+                  className="pointer-events-none absolute inset-0 size-full"
+                >
+                  <polygon
+                    points={parking.parking_roi.polygon
+                      .map((p) => `${p.x},${p.y}`)
+                      .join(" ")}
+                    fill="rgba(59,130,246,.06)"
+                    stroke="#60a5fa"
+                    strokeWidth=".003"
+                  />
+                  {parking.rows.map((row) => (
+                    <polygon
+                      key={row.id}
+                      points={row.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
+                      fill="none"
+                      stroke="#fbbf24"
+                      strokeWidth=".002"
+                    />
+                  ))}
+                  {config.control_points.map((point) => (
+                    <g key={point.id}>
+                      <circle
+                        cx={point.image_x}
+                        cy={point.image_y}
+                        r={selected === point.id ? 0.012 : 0.009}
+                        fill={
+                          selected === point.id
+                            ? "#22d3ee"
+                            : pointInlier(point.id) === true
+                              ? "#22c55e"
+                              : pointInlier(point.id) === false
+                                ? "#ef4444"
+                                : "#f43f5e"
+                        }
+                        stroke="white"
+                        strokeWidth=".002"
+                      />
+                    </g>
+                  ))}
+                </svg>
+                {config.control_points.map((point) => (
+                  <button
+                    key={point.id}
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelected(point.id);
+                    }}
+                    className="absolute -translate-x-1/2 -translate-y-1/2 rounded bg-slate-950/85 px-1.5 py-0.5 text-[10px] font-bold text-white"
+                    style={{
+                      left: `${point.image_x * 100}%`,
+                      top: `${point.image_y * 100}%`,
+                    }}
+                  >
+                    {point.id}
+                  </button>
+                ))}
+              </>
+            ) : (
+              <div className="grid aspect-[4/3] place-items-center px-6 text-center text-sm text-slate-400">
+                Choose the existing 4032 × 3024 reference image. Calibration
+                polygons will be overlaid without modification.
+              </div>
+            )}
+          </div>
+          {imageUrl && homographyDisplay?.result && (
+            <p className="mt-2 text-xs text-slate-500">
+              <span className="text-green-600">● Inlier</span> ·{" "}
+              <span className="text-red-600">● Outlier</span> · cyan indicates
+              the selected point.
+            </p>
+          )}
+        </div>
+        <div className="rounded-xl bg-slate-50 p-4">
+          <h3 className="font-semibold">Ground-plane calibration</h3>
+          <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
+            <Stat label="Control points" value={config.control_points.length} />
+            <Stat
+              label="Measured"
+              value={
+                config.control_points.filter((p) => p.provenance === "MEASURED")
+                  .length
+              }
+            />
+            <Stat label="Minimum" value={4} />
+          </dl>
+          <p className="mt-3 text-xs text-slate-500">
+            READY means sufficient non-collinear measured input to attempt
+            homography; it does not guarantee accuracy.
+          </p>
+        </div>
+      </div>
+      <div className="mt-5 overflow-x-auto">
+        <table className="w-full min-w-[850px] text-left text-xs">
+          <thead>
+            <tr className="border-b text-slate-500">
+              {[
+                "ID",
+                "Image X",
+                "Image Y",
+                "Ground X (m)",
+                "Ground Y (m)",
+                "Provenance",
+                "",
+              ].map((label) => (
+                <th key={label} className="p-2">
+                  {label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {config.control_points.map((point) => (
+              <tr
+                key={point.id}
+                onClick={() => setSelected(point.id)}
+                className={`border-b ${selected === point.id ? "bg-cyan-50" : ""}`}
+              >
+                <td className="p-2 font-bold">{point.id}</td>
+                {(
+                  ["image_x", "image_y", "ground_x_m", "ground_y_m"] as const
+                ).map((key) => (
+                  <td key={key} className="p-2">
+                    <input
+                      type="number"
+                      step="any"
+                      value={point[key]}
+                      onChange={(event) =>
+                        updatePoint({
+                          ...point,
+                          [key]: Number(event.target.value),
+                        })
+                      }
+                      className="w-28 rounded border px-2 py-1"
+                    />
+                  </td>
+                ))}
+                <td className="p-2">
+                  <select
+                    value={point.provenance}
+                    onChange={(event) =>
+                      updatePoint({
+                        ...point,
+                        provenance: event.target.value as
+                          | "ESTIMATED"
+                          | "MEASURED",
+                      })
+                    }
+                    className="rounded border px-2 py-1"
+                  >
+                    <option>MEASURED</option>
+                    <option>ESTIMATED</option>
+                  </select>
+                </td>
+                <td className="p-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setConfig(deleteGroundControlPoint(config, point.id))
+                    }
+                    aria-label={`Delete ${point.id}`}
+                  >
+                    <Trash2 className="size-4 text-rose-600" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-6">
+        <h3 className="text-sm font-semibold">Physical row measurements</h3>
+        <p className="mt-1 text-xs text-slate-500">
+          Stored separately. Existing ESTIMATED metric row lengths are not
+          overwritten automatically.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {ROWS.map((id) => {
+            const row = config.measured_rows[id] ?? {
+              length_m: null,
+              width_m: null,
+              provenance: "MEASURED" as const,
+            };
+            const update = (next: typeof row) =>
+              setConfig({
+                ...config,
+                measured_rows: { ...config.measured_rows, [id]: next },
+              });
+            return (
+              <div key={id} className="rounded-lg border p-3 text-xs">
+                <strong>{id.replace("row_", "Row ")}</strong>
+                <label className="mt-2 block">
+                  Length m
+                  <input
+                    type="number"
+                    step="any"
+                    value={row.length_m ?? ""}
+                    onChange={(e) =>
+                      update({
+                        ...row,
+                        length_m: e.target.value
+                          ? Number(e.target.value)
+                          : null,
+                      })
+                    }
+                    className="mt-1 w-full rounded border px-2 py-1"
+                  />
+                </label>
+                <label className="mt-2 block">
+                  Width m
+                  <input
+                    type="number"
+                    step="any"
+                    value={row.width_m ?? ""}
+                    onChange={(e) =>
+                      update({
+                        ...row,
+                        width_m: e.target.value ? Number(e.target.value) : null,
+                      })
+                    }
+                    className="mt-1 w-full rounded border px-2 py-1"
+                  />
+                </label>
+                <select
+                  value={row.provenance}
+                  onChange={(e) =>
+                    update({
+                      ...row,
+                      provenance: e.target.value as "MEASURED" | "ESTIMATED",
+                    })
+                  }
+                  className="mt-2 w-full rounded border px-2 py-1"
+                >
+                  <option>MEASURED</option>
+                  <option>ESTIMATED</option>
+                </select>
+              </div>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          disabled
+          className="mt-3 rounded-lg border px-3 py-2 text-xs font-semibold text-slate-400"
+          title="Enabled only in a later explicit apply workflow"
+        >
+          Apply measured row lengths
+        </button>
+      </div>
+      <div className="mt-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Reference distances</h3>
+          <button
+            type="button"
+            onClick={addDistance}
+            disabled={config.control_points.length < 2}
+            className="rounded border px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+          >
+            Add distance
+          </button>
+        </div>
+        {config.reference_distances.map((segment, index) => (
+          <div
+            key={segment.id}
+            className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 p-2 text-xs"
+          >
+            <strong>{segment.id}</strong>
+            <select
+              value={segment.point_a}
+              onChange={(e) => {
+                const list = [...config.reference_distances];
+                list[index] = { ...segment, point_a: e.target.value };
+                setConfig({ ...config, reference_distances: list });
+              }}
+            >
+              {config.control_points.map((p) => (
+                <option key={p.id}>{p.id}</option>
+              ))}
+            </select>
+            <span>←</span>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={segment.distance_m}
+              onChange={(e) => {
+                const list = [...config.reference_distances];
+                list[index] = {
+                  ...segment,
+                  distance_m: Number(e.target.value),
+                };
+                setConfig({ ...config, reference_distances: list });
+              }}
+              className="w-24 rounded border px-2 py-1"
+            />
+            <span>m →</span>
+            <select
+              value={segment.point_b}
+              onChange={(e) => {
+                const list = [...config.reference_distances];
+                list[index] = { ...segment, point_b: e.target.value };
+                setConfig({ ...config, reference_distances: list });
+              }}
+            >
+              {config.control_points.map((p) => (
+                <option key={p.id}>{p.id}</option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+      <details className="mt-6 rounded-xl border p-4 text-sm">
+        <summary className="cursor-pointer font-semibold">
+          What should I measure on site?
+        </summary>
+        <ol className="mt-3 list-decimal space-y-1 pl-5 text-slate-600">
+          <li>Choose a clear origin P1 = (0,0).</li>
+          <li>Measure identifiable permanent ground markings or corners.</li>
+          <li>Spread 6–10 points across the Parking ROI.</li>
+          <li>Avoid placing every point on one straight line.</li>
+          <li>Measure row lengths and widths where possible.</li>
+          <li>Measure useful distances between points and rows.</li>
+          <li>Record every value in meters with its provenance.</li>
+        </ol>
+      </details>
+      {physical && (
+        <details className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+          <summary className="cursor-pointer font-semibold">Advanced · Manual row geometry override</summary>
+          <p className="mt-2 text-xs text-amber-700">Only use this when the existing calibrated row geometry needs manual correction.</p>
+          <PhysicalRowEndpoints
+            physical={physical}
+            parking={parking}
+            imageReady={Boolean(imageUrl)}
+            active={endpointMode}
+            onActivate={setEndpointMode}
+            onChange={setPhysical}
+            onSave={() => void saveEndpoints()}
+            saving={savingEndpoints}
+          />
+        </details>
+      )}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-slate-500">
+          Calculation is diagnostic only and does not change production
+          occupancy or fitting.
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => void calculate()}
+            disabled={status !== "READY_FOR_HOMOGRAPHY" || dirty || calculating}
+            title={dirty ? "Save input changes before calculation." : undefined}
+            className="rounded-lg border border-cyan-700 px-4 py-2 text-xs font-semibold text-cyan-800 disabled:opacity-40"
+          >
+            <Calculator className="mr-1 inline size-4" />
+            {calculating ? "Calculating…" : "Calculate Homography"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={saving}
+            className="rounded-lg bg-cyan-700 px-4 py-2 text-xs font-semibold text-white"
+          >
+            <Save className="mr-1 inline size-4" />
+            {saving ? "Saving…" : "Save ground-plane inputs"}
+          </button>
+        </div>
+      </div>
+      {message && <p className="mt-3 text-xs text-slate-600">{message}</p>}
+      {homographyDisplay && (
+        <HomographyValidation
+          homography={homographyDisplay}
+          points={config.control_points}
+          physical={physical}
+        />
+      )}
+    </section>
+  );
 }
-function Stat({ label, value }: { label: string; value: number }) { return <div className="rounded-lg bg-white p-2"><dt className="text-slate-400">{label}</dt><dd className="mt-1 text-lg font-bold">{value}</dd></div>; }
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg bg-white p-2">
+      <dt className="text-slate-400">{label}</dt>
+      <dd className="mt-1 text-lg font-bold">{value}</dd>
+    </div>
+  );
+}
 
-function PhysicalRowEndpoints({ physical, parking, imageReady, active, onActivate, onChange, onSave, saving }: { physical: PhysicalRowGeometryResponse; parking: ParkingCalibration; imageReady: boolean; active: { row: MetricRowId; endpoint: 'start' | 'end' } | null; onActivate: (value: { row: MetricRowId; endpoint: 'start' | 'end' } | null) => void; onChange: (value: PhysicalRowGeometryResponse) => void; onSave: () => void; saving: boolean }) {
-  const snap = (row: MetricRowId, endpointName: 'start' | 'end') => { const pair = physical.config.rows[row], endpoint = pair?.[endpointName]; if (!pair || !endpoint) return; const nearest = nearestPolygonBoundary(endpoint.clicked_image, parking.parking_roi.polygon); onChange({ ...physical, status: 'STALE', config: { ...physical.config, rows: { ...physical.config.rows, [row]: { ...pair, [endpointName]: { ...endpoint, effective_image: nearest.point, snapped_to_roi_boundary: true } } } } }); };
-  const restore = (row: MetricRowId, endpointName: 'start' | 'end') => { const pair = physical.config.rows[row], endpoint = pair?.[endpointName]; if (!pair || !endpoint) return; onChange({ ...physical, status: 'STALE', config: { ...physical.config, rows: { ...physical.config.rows, [row]: { ...pair, [endpointName]: { ...endpoint, effective_image: endpoint.clicked_image, snapped_to_roi_boundary: false } } } } }); };
-  const fmt = (value: number | null) => value == null ? '—' : value.toFixed(3);
-  return <section className="mt-6 rounded-xl border border-violet-200 bg-violet-50/40 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-semibold">Physical Row Endpoints</h3><p className="mt-1 text-xs text-slate-500">Click the exact locations used for the physical measurement. Endpoints are never inferred or snapped automatically.</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${physical.status === 'CURRENT' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{physical.status}</span></div>
-    <div className="mt-4 grid gap-3 lg:grid-cols-5">{ROWS.map((rowId) => { const pair = physical.config.rows[rowId], diagnostic = physical.rows.find((row) => row.row_id === rowId); return <article key={rowId} className="rounded-lg border bg-white p-3 text-xs"><div className="flex items-center justify-between"><strong>{rowId.replace('row_', 'R')}</strong><span className="text-[10px] font-bold text-slate-500">{diagnostic?.status ?? 'NOT_CALIBRATED'}</span></div><p className="mt-2">Measured: {fmt(diagnostic?.measured_length_m ?? null)} × {fmt(diagnostic?.measured_width_m ?? null)} m</p>{(['start', 'end'] as const).map((kind) => { const endpoint = pair?.[kind]; return <div key={kind} className="mt-3 rounded bg-slate-50 p-2"><div className="flex items-center justify-between"><span className="font-semibold capitalize">{kind}</span><button type="button" disabled={!imageReady} onClick={() => onActivate({ row: rowId, endpoint: kind })} className={`rounded px-2 py-1 font-semibold ${active?.row === rowId && active.endpoint === kind ? 'bg-violet-700 text-white' : 'border bg-white'}`}>Set {kind}</button></div>{endpoint ? <><p className="mt-2 font-mono">({endpoint.effective_image.x.toFixed(4)}, {endpoint.effective_image.y.toFixed(4)})</p><button type="button" onClick={() => endpoint.snapped_to_roi_boundary ? restore(rowId, kind) : snap(rowId, kind)} className="mt-1 text-[10px] font-semibold text-violet-700">{endpoint.snapped_to_roi_boundary ? 'Restore clicked point' : 'Snap to ROI boundary'}</button></> : <p className="mt-2 text-slate-400">Not set</p>}</div>; })}{diagnostic?.homography_distance_m != null && <dl className="mt-3 space-y-1 border-t pt-2"><div>H endpoints: {fmt(diagnostic.homography_distance_m)} m</div><div>Difference: {diagnostic.difference_m! >= 0 ? '+' : ''}{fmt(diagnostic.difference_m)} m</div><div>Error: {fmt(diagnostic.relative_error_percent)}%</div><div>Endpoint discrepancy: {fmt(diagnostic.endpoint_discrepancy_m)} m</div><div>Start: ({fmt(diagnostic.start_metric?.x_m ?? null)}, {fmt(diagnostic.start_metric?.y_m ?? null)}) m</div><div>Clicked end: ({fmt(diagnostic.clicked_end_metric?.x_m ?? null)}, {fmt(diagnostic.clicked_end_metric?.y_m ?? null)}) m</div><div>Measured end: ({fmt(diagnostic.measured_model_end_metric?.x_m ?? null)}, {fmt(diagnostic.measured_model_end_metric?.y_m ?? null)}) m</div></dl>}{diagnostic?.start && <p className="mt-2 text-slate-500">Start→ROI: {diagnostic.start.roi_boundary_distance_normalized.toFixed(4)} normalized</p>}{diagnostic?.end && <p className="text-slate-500">End→ROI: {diagnostic.end.roi_boundary_distance_normalized.toFixed(4)} normalized</p>}</article>; })}</div>
-    {active && <p className="mt-3 rounded-lg bg-violet-100 p-3 text-xs font-semibold text-violet-900">Click the reference image to set {active.row.replace('row_', 'R')} {active.endpoint}. The clicked coordinate will be preserved.</p>}
-    <div className="mt-4 flex justify-end"><button type="button" onClick={onSave} disabled={saving} className="rounded-lg bg-violet-700 px-4 py-2 text-xs font-semibold text-white">{saving ? 'Saving…' : 'Save physical endpoints'}</button></div>
-  </section>;
+function PhysicalRowEndpoints({
+  physical,
+  parking,
+  imageReady,
+  active,
+  onActivate,
+  onChange,
+  onSave,
+  saving,
+}: {
+  physical: PhysicalRowGeometryResponse;
+  parking: ParkingCalibration;
+  imageReady: boolean;
+  active: { row: MetricRowId; endpoint: "start" | "end" } | null;
+  onActivate: (
+    value: { row: MetricRowId; endpoint: "start" | "end" } | null,
+  ) => void;
+  onChange: (value: PhysicalRowGeometryResponse) => void;
+  onSave: () => void;
+  saving: boolean;
+}) {
+  const snap = (row: MetricRowId, endpointName: "start" | "end") => {
+    const pair = physical.config.rows[row],
+      endpoint = pair?.[endpointName];
+    if (!pair || !endpoint) return;
+    const nearest = nearestPolygonBoundary(
+      endpoint.clicked_image,
+      parking.parking_roi.polygon,
+    );
+    onChange({
+      ...physical,
+      status: "STALE",
+      config: {
+        ...physical.config,
+        rows: {
+          ...physical.config.rows,
+          [row]: {
+            ...pair,
+            [endpointName]: {
+              ...endpoint,
+              effective_image: nearest.point,
+              snapped_to_roi_boundary: true,
+            },
+          },
+        },
+      },
+    });
+  };
+  const restore = (row: MetricRowId, endpointName: "start" | "end") => {
+    const pair = physical.config.rows[row],
+      endpoint = pair?.[endpointName];
+    if (!pair || !endpoint) return;
+    onChange({
+      ...physical,
+      status: "STALE",
+      config: {
+        ...physical.config,
+        rows: {
+          ...physical.config.rows,
+          [row]: {
+            ...pair,
+            [endpointName]: {
+              ...endpoint,
+              effective_image: endpoint.clicked_image,
+              snapped_to_roi_boundary: false,
+            },
+          },
+        },
+      },
+    });
+  };
+  const fmt = (value: number | null) =>
+    value == null ? "—" : value.toFixed(3);
+  return (
+    <section className="mt-6 rounded-xl border border-violet-200 bg-violet-50/40 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="font-semibold">Physical Row Endpoints</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Click the exact locations used for the physical measurement.
+            Endpoints are never inferred or snapped automatically.
+          </p>
+        </div>
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-bold ${physical.status === "CURRENT" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
+        >
+          {physical.status}
+        </span>
+      </div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-5">
+        {ROWS.map((rowId) => {
+          const pair = physical.config.rows[rowId],
+            diagnostic = physical.rows.find((row) => row.row_id === rowId);
+          return (
+            <article
+              key={rowId}
+              className="rounded-lg border bg-white p-3 text-xs"
+            >
+              <div className="flex items-center justify-between">
+                <strong>{rowId.replace("row_", "R")}</strong>
+                <span className="text-[10px] font-bold text-slate-500">
+                  {diagnostic?.status ?? "NOT_CALIBRATED"}
+                </span>
+              </div>
+              <p className="mt-2">
+                Measured: {fmt(diagnostic?.measured_length_m ?? null)} ×{" "}
+                {fmt(diagnostic?.measured_width_m ?? null)} m
+              </p>
+              {(["start", "end"] as const).map((kind) => {
+                const endpoint = pair?.[kind];
+                return (
+                  <div key={kind} className="mt-3 rounded bg-slate-50 p-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold capitalize">{kind}</span>
+                      <button
+                        type="button"
+                        disabled={!imageReady}
+                        onClick={() =>
+                          onActivate({ row: rowId, endpoint: kind })
+                        }
+                        className={`rounded px-2 py-1 font-semibold ${active?.row === rowId && active.endpoint === kind ? "bg-violet-700 text-white" : "border bg-white"}`}
+                      >
+                        Set {kind}
+                      </button>
+                    </div>
+                    {endpoint ? (
+                      <>
+                        <p className="mt-2 font-mono">
+                          ({endpoint.effective_image.x.toFixed(4)},{" "}
+                          {endpoint.effective_image.y.toFixed(4)})
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            endpoint.snapped_to_roi_boundary
+                              ? restore(rowId, kind)
+                              : snap(rowId, kind)
+                          }
+                          className="mt-1 text-[10px] font-semibold text-violet-700"
+                        >
+                          {endpoint.snapped_to_roi_boundary
+                            ? "Restore clicked point"
+                            : "Snap to ROI boundary"}
+                        </button>
+                      </>
+                    ) : (
+                      <p className="mt-2 text-slate-400">Not set</p>
+                    )}
+                  </div>
+                );
+              })}
+              {diagnostic?.homography_distance_m != null && (
+                <dl className="mt-3 space-y-1 border-t pt-2">
+                  <div>
+                    H endpoints: {fmt(diagnostic.homography_distance_m)} m
+                  </div>
+                  <div>
+                    Difference: {diagnostic.difference_m! >= 0 ? "+" : ""}
+                    {fmt(diagnostic.difference_m)} m
+                  </div>
+                  <div>Error: {fmt(diagnostic.relative_error_percent)}%</div>
+                  <div>
+                    Endpoint discrepancy:{" "}
+                    {fmt(diagnostic.endpoint_discrepancy_m)} m
+                  </div>
+                  <div>
+                    Start: ({fmt(diagnostic.start_metric?.x_m ?? null)},{" "}
+                    {fmt(diagnostic.start_metric?.y_m ?? null)}) m
+                  </div>
+                  <div>
+                    Clicked end: (
+                    {fmt(diagnostic.clicked_end_metric?.x_m ?? null)},{" "}
+                    {fmt(diagnostic.clicked_end_metric?.y_m ?? null)}) m
+                  </div>
+                  <div>
+                    Measured end: (
+                    {fmt(diagnostic.measured_model_end_metric?.x_m ?? null)},{" "}
+                    {fmt(diagnostic.measured_model_end_metric?.y_m ?? null)}) m
+                  </div>
+                </dl>
+              )}
+              {diagnostic?.start && (
+                <p className="mt-2 text-slate-500">
+                  Start→ROI:{" "}
+                  {diagnostic.start.roi_boundary_distance_normalized.toFixed(4)}{" "}
+                  normalized
+                </p>
+              )}
+              {diagnostic?.end && (
+                <p className="text-slate-500">
+                  End→ROI:{" "}
+                  {diagnostic.end.roi_boundary_distance_normalized.toFixed(4)}{" "}
+                  normalized
+                </p>
+              )}
+            </article>
+          );
+        })}
+      </div>
+      {active && (
+        <p className="mt-3 rounded-lg bg-violet-100 p-3 text-xs font-semibold text-violet-900">
+          Click the reference image to set {active.row.replace("row_", "R")}{" "}
+          {active.endpoint}. The clicked coordinate will be preserved.
+        </p>
+      )}
+      <div className="mt-4 flex justify-end">
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          className="rounded-lg bg-violet-700 px-4 py-2 text-xs font-semibold text-white"
+        >
+          {saving ? "Saving…" : "Save physical endpoints"}
+        </button>
+      </div>
+    </section>
+  );
 }

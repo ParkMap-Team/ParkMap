@@ -1,58 +1,118 @@
-'use client';
+"use client";
 
-import { AlertCircle, ImagePlus, LoaderCircle, MapPinned, RotateCcw, ScanSearch } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ParkingCalibration } from '@/components/calibration/ParkingCalibration';
-import { CameraMonitor } from '@/components/camera/CameraMonitor';
-import { MotorcycleFittingPrototype } from '@/components/camera/MotorcycleFittingPrototype';
-import { OutsideRoiProxyDiagnostics } from '@/components/camera/OutsideRoiProxyDiagnostics';
-import { OccupiedIntervalsAndGaps } from '@/components/camera/OccupiedIntervalsAndGaps';
-import { RowAssignmentSummary } from '@/components/camera/RowAssignmentSummary';
-import { RowOccupancyProjection } from '@/components/camera/RowOccupancyProjection';
-import { VisualOccupancyDiagnostics } from '@/components/camera/VisualOccupancyDiagnostics';
-import { getCalibration } from '@/lib/calibration';
-import { analyzeParkingImage, MAX_UPLOAD_BYTES, SUPPORTED_IMAGE_TYPES } from '@/lib/detection';
-import { assignDetectionsToParkingRows, hasSignificantAspectRatioMismatch } from '@/lib/rowAssignment';
-import { buildRowOccupancyProjection } from '@/lib/rowProjection';
-import { buildGroundContactDiagnostics, buildOutsideRoiProxyDiagnostics, buildVisualOccupancyDiagnostics } from '@/lib/occupancyDiagnostics';
-import { buildOccupiedIntervalPrototype } from '@/lib/occupiedIntervals';
-import { buildNormalizedParkingMapData } from '@/lib/normalizedParkingMap';
-import { getMetricCalibration } from '@/lib/metricCalibration';
-import { buildRoiSpatialMapData } from '@/lib/roiSpatialMap';
-import type { ParkingCalibration as ParkingCalibrationData } from '@/types/calibration';
-import type { DetectionResponse } from '@/types/detection';
-import type { GroundProxyHeightRatio } from '@/types/occupancyDiagnostics';
-import type { MetricCalibrationResponse } from '@/types/metricCalibration';
-import type { MotorcycleFittingData } from '@/types/motorcycleFitting';
-import type { NormalizedParkingMapData } from '@/types/normalizedParkingMap';
-import type { RoiSpatialMapData } from '@/types/roiSpatialMap';
-import type { CameraData, CameraOverlay, ModelData, ParkingZone, SystemState } from '@/types/parking';
+import {
+  AlertCircle,
+  ImagePlus,
+  LoaderCircle,
+  MapPinned,
+  RotateCcw,
+  ScanSearch,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ParkingCalibration } from "@/components/calibration/ParkingCalibration";
+import { CameraMonitor } from "@/components/camera/CameraMonitor";
+import { MotorcycleFittingPrototype } from "@/components/camera/MotorcycleFittingPrototype";
+import { OutsideRoiProxyDiagnostics } from "@/components/camera/OutsideRoiProxyDiagnostics";
+import { OccupiedIntervalsAndGaps } from "@/components/camera/OccupiedIntervalsAndGaps";
+import { RowAssignmentSummary } from "@/components/camera/RowAssignmentSummary";
+import { RowOccupancyProjection } from "@/components/camera/RowOccupancyProjection";
+import { VisualOccupancyDiagnostics } from "@/components/camera/VisualOccupancyDiagnostics";
+import { getCalibration } from "@/lib/calibration";
+import {
+  analyzeParkingImage,
+  MAX_UPLOAD_BYTES,
+  SUPPORTED_IMAGE_TYPES,
+} from "@/lib/detection";
+import {
+  assignDetectionsToParkingRows,
+  hasSignificantAspectRatioMismatch,
+} from "@/lib/rowAssignment";
+import { buildRowOccupancyProjection } from "@/lib/rowProjection";
+import {
+  buildGroundContactDiagnostics,
+  buildOutsideRoiProxyDiagnostics,
+  buildVisualOccupancyDiagnostics,
+} from "@/lib/occupancyDiagnostics";
+import { buildOccupiedIntervalPrototype } from "@/lib/occupiedIntervals";
+import { buildNormalizedParkingMapData } from "@/lib/normalizedParkingMap";
+import { getMetricCalibration } from "@/lib/metricCalibration";
+import { buildRoiSpatialMapData } from "@/lib/roiSpatialMap";
+import type { ParkingCalibration as ParkingCalibrationData } from "@/types/calibration";
+import type { DetectionResponse } from "@/types/detection";
+import type { GroundProxyHeightRatio } from "@/types/occupancyDiagnostics";
+import type { MetricCalibrationResponse } from "@/types/metricCalibration";
+import type { MotorcycleFittingData } from "@/types/motorcycleFitting";
+import type { NormalizedParkingMapData } from "@/types/normalizedParkingMap";
+import type { RoiSpatialMapData } from "@/types/roiSpatialMap";
+import type {
+  CameraData,
+  CameraOverlay,
+  ModelData,
+  ParkingZone,
+  SystemState,
+} from "@/types/parking";
 
-export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = [], onNormalizedMapChange, onRoiSpatialMapChange, showOutsideRoiDiagnostics = false, onShowOutsideRoiDiagnosticsChange }: { camera?: CameraData; model?: ModelData; zone: ParkingZone; status: SystemState; fallbackOverlays?: CameraOverlay[]; onNormalizedMapChange?: (data: NormalizedParkingMapData | null) => void; onRoiSpatialMapChange?: (data: RoiSpatialMapData | null) => void; showOutsideRoiDiagnostics?: boolean; onShowOutsideRoiDiagnosticsChange?: (show: boolean) => void }) {
+export function ImageAnalyzer({
+  camera,
+  model,
+  zone,
+  status,
+  fallbackOverlays = [],
+  onNormalizedMapChange,
+  onRoiSpatialMapChange,
+  showOutsideRoiDiagnostics = false,
+  onShowOutsideRoiDiagnosticsChange,
+}: {
+  camera?: CameraData;
+  model?: ModelData;
+  zone: ParkingZone;
+  status: SystemState;
+  fallbackOverlays?: CameraOverlay[];
+  onNormalizedMapChange?: (data: NormalizedParkingMapData | null) => void;
+  onRoiSpatialMapChange?: (data: RoiSpatialMapData | null) => void;
+  showOutsideRoiDiagnostics?: boolean;
+  onShowOutsideRoiDiagnosticsChange?: (show: boolean) => void;
+}) {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [dimensions, setDimensions] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
   const [analysis, setAnalysis] = useState<DetectionResponse | null>(null);
-  const [analysisState, setAnalysisState] = useState<'idle' | 'processing' | 'error' | 'done'>('idle');
+  const [analysisState, setAnalysisState] = useState<
+    "idle" | "processing" | "error" | "done"
+  >("idle");
   const [error, setError] = useState<string | null>(null);
   const [calibrationOpen, setCalibrationOpen] = useState(false);
-  const [calibration, setCalibration] = useState<ParkingCalibrationData | null>(null);
-  const [calibrationState, setCalibrationState] = useState<'idle' | 'loading' | 'ready' | 'missing' | 'error'>('idle');
+  const [calibration, setCalibration] = useState<ParkingCalibrationData | null>(
+    null,
+  );
+  const [calibrationState, setCalibrationState] = useState<
+    "idle" | "loading" | "ready" | "missing" | "error"
+  >("idle");
   const [calibrationError, setCalibrationError] = useState<string | null>(null);
-  const [groundProxyHeightRatio, setGroundProxyHeightRatio] = useState<GroundProxyHeightRatio>(.2);
-  const [metricCalibration, setMetricCalibration] = useState<MetricCalibrationResponse | null>(null);
-  const [fittingData, setFittingData] = useState<MotorcycleFittingData | null>(null);
+  const [groundProxyHeightRatio, setGroundProxyHeightRatio] =
+    useState<GroundProxyHeightRatio>(0.2);
+  const [metricCalibration, setMetricCalibration] =
+    useState<MetricCalibrationResponse | null>(null);
+  const [fittingData, setFittingData] = useState<MotorcycleFittingData | null>(
+    null,
+  );
   const controllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => controllerRef.current?.abort(), []);
-  useEffect(() => { if (!previewUrl) return; return () => URL.revokeObjectURL(previewUrl); }, [previewUrl]);
+  useEffect(() => {
+    if (!previewUrl) return;
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
 
   const chooseFile = (selected?: File) => {
     controllerRef.current?.abort();
     setAnalysis(null);
-    setAnalysisState('idle');
+    setAnalysisState("idle");
     setCalibration(null);
-    setCalibrationState('idle');
+    setCalibrationState("idle");
     setCalibrationError(null);
     setMetricCalibration(null);
     setFittingData(null);
@@ -60,14 +120,32 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
     onRoiSpatialMapChange?.(null);
     setError(null);
     if (!selected) return;
-    if (!SUPPORTED_IMAGE_TYPES.includes(selected.type as (typeof SUPPORTED_IMAGE_TYPES)[number])) { setFile(null); setPreviewUrl(null); setDimensions(null); setError('Choose a JPEG, PNG, or WebP image.'); return; }
-    if (selected.size > MAX_UPLOAD_BYTES) { setFile(null); setPreviewUrl(null); setDimensions(null); setError('Image must be 25 MB or smaller.'); return; }
+    if (
+      !SUPPORTED_IMAGE_TYPES.includes(
+        selected.type as (typeof SUPPORTED_IMAGE_TYPES)[number],
+      )
+    ) {
+      setFile(null);
+      setPreviewUrl(null);
+      setDimensions(null);
+      setError("Choose a JPEG, PNG, or WebP image.");
+      return;
+    }
+    if (selected.size > MAX_UPLOAD_BYTES) {
+      setFile(null);
+      setPreviewUrl(null);
+      setDimensions(null);
+      setError("Image must be 25 MB or smaller.");
+      return;
+    }
     const objectUrl = URL.createObjectURL(selected);
     setFile(selected);
     setPreviewUrl(objectUrl);
     const probe = new Image();
-    probe.onload = () => setDimensions({ width: probe.naturalWidth, height: probe.naturalHeight });
-    probe.onerror = () => setError('The selected image could not be previewed.');
+    probe.onload = () =>
+      setDimensions({ width: probe.naturalWidth, height: probe.naturalHeight });
+    probe.onerror = () =>
+      setError("The selected image could not be previewed.");
     probe.src = objectUrl;
   };
 
@@ -76,14 +154,14 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
-    setAnalysisState('processing');
+    setAnalysisState("processing");
     setError(null);
     try {
       const result = await analyzeParkingImage(file, controller.signal);
       setAnalysis(result);
       setDimensions({ width: result.image_width, height: result.image_height });
-      setAnalysisState('done');
-      setCalibrationState('loading');
+      setAnalysisState("done");
+      setCalibrationState("loading");
       setCalibrationError(null);
       try {
         const [savedCalibration, savedMetricCalibration] = await Promise.all([
@@ -92,39 +170,147 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
         ]);
         setCalibration(savedCalibration);
         setMetricCalibration(savedMetricCalibration);
-        setCalibrationState(savedCalibration ? 'ready' : 'missing');
+        setCalibrationState(savedCalibration ? "ready" : "missing");
       } catch (calibrationFailure) {
-        if (calibrationFailure instanceof DOMException && calibrationFailure.name === 'AbortError') return;
+        if (
+          calibrationFailure instanceof DOMException &&
+          calibrationFailure.name === "AbortError"
+        )
+          return;
         setCalibration(null);
-        setCalibrationState('error');
-        setCalibrationError(calibrationFailure instanceof Error ? calibrationFailure.message : 'Unable to load parking calibration.');
+        setCalibrationState("error");
+        setCalibrationError(
+          calibrationFailure instanceof Error
+            ? calibrationFailure.message
+            : "Unable to load parking calibration.",
+        );
       }
     } catch (caught) {
-      if (caught instanceof DOMException && caught.name === 'AbortError') return;
-      setError(caught instanceof Error ? caught.message : 'Unable to analyze this image.');
-      setAnalysisState('error');
+      if (caught instanceof DOMException && caught.name === "AbortError")
+        return;
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Unable to analyze this image.",
+      );
+      setAnalysisState("error");
     }
   };
 
-  const detectionOverlays: CameraOverlay[] = analysis?.detections.map((detection, index) => ({
-    id: `detection-${index}`,
-    type: 'bounding-box',
-    x: detection.bbox.x,
-    y: detection.bbox.y,
-    width: detection.bbox.width,
-    height: detection.bbox.height,
-    label: `${detection.class_name} ${(detection.confidence * 100).toFixed(0)}%`,
-  })) ?? [];
-  const assignments = useMemo(() => analysis && calibration ? assignDetectionsToParkingRows(analysis.detections, calibration) : [], [analysis, calibration]);
-  const rowProjection = useMemo(() => analysis && calibration ? buildRowOccupancyProjection(analysis.detections, assignments, calibration) : null, [analysis, assignments, calibration]);
-  const occupancyDiagnostics = useMemo(() => analysis && calibration ? buildVisualOccupancyDiagnostics(analysis.detections, assignments, calibration) : null, [analysis, assignments, calibration]);
-  const groundContactDiagnostics = useMemo(() => analysis && calibration ? buildGroundContactDiagnostics(analysis.detections, assignments, calibration, groundProxyHeightRatio) : null, [analysis, assignments, calibration, groundProxyHeightRatio]);
-  const occupiedIntervals = useMemo(() => analysis && calibration ? buildOccupiedIntervalPrototype(analysis.detections, assignments, calibration, metricCalibration) : null, [analysis, assignments, calibration, metricCalibration]);
-  const outsideRoiDiagnostics = useMemo(() => analysis && calibration ? buildOutsideRoiProxyDiagnostics(analysis.detections, assignments, calibration) : null, [analysis, assignments, calibration]);
-  const roiSpatialMap = useMemo(() => analysis && calibration ? buildRoiSpatialMapData(analysis.detections, assignments, calibration) : null, [analysis, assignments, calibration]);
-  useEffect(() => { onNormalizedMapChange?.(rowProjection && occupiedIntervals ? buildNormalizedParkingMapData(rowProjection, occupiedIntervals, fittingData, metricCalibration, calibration) : null); }, [calibration, fittingData, metricCalibration, occupiedIntervals, onNormalizedMapChange, rowProjection]);
-  useEffect(() => onRoiSpatialMapChange?.(roiSpatialMap), [onRoiSpatialMapChange, roiSpatialMap]);
-  const aspectRatioMismatch = Boolean(analysis && calibration && hasSignificantAspectRatioMismatch(analysis.image_width, analysis.image_height, calibration));
+  const detectionOverlays: CameraOverlay[] =
+    analysis?.detections.map((detection, index) => ({
+      id: `detection-${index}`,
+      type: "bounding-box",
+      x: detection.bbox.x,
+      y: detection.bbox.y,
+      width: detection.bbox.width,
+      height: detection.bbox.height,
+      label: `${detection.class_name} ${(detection.confidence * 100).toFixed(0)}%`,
+    })) ?? [];
+  const assignments = useMemo(
+    () =>
+      analysis && calibration
+        ? assignDetectionsToParkingRows(analysis.detections, calibration)
+        : [],
+    [analysis, calibration],
+  );
+  const rowProjection = useMemo(
+    () =>
+      analysis && calibration
+        ? buildRowOccupancyProjection(
+            analysis.detections,
+            assignments,
+            calibration,
+          )
+        : null,
+    [analysis, assignments, calibration],
+  );
+  const occupancyDiagnostics = useMemo(
+    () =>
+      analysis && calibration
+        ? buildVisualOccupancyDiagnostics(
+            analysis.detections,
+            assignments,
+            calibration,
+          )
+        : null,
+    [analysis, assignments, calibration],
+  );
+  const groundContactDiagnostics = useMemo(
+    () =>
+      analysis && calibration
+        ? buildGroundContactDiagnostics(
+            analysis.detections,
+            assignments,
+            calibration,
+            groundProxyHeightRatio,
+          )
+        : null,
+    [analysis, assignments, calibration, groundProxyHeightRatio],
+  );
+  const occupiedIntervals = useMemo(
+    () =>
+      analysis && calibration
+        ? buildOccupiedIntervalPrototype(
+            analysis.detections,
+            assignments,
+            calibration,
+            metricCalibration,
+          )
+        : null,
+    [analysis, assignments, calibration, metricCalibration],
+  );
+  const outsideRoiDiagnostics = useMemo(
+    () =>
+      analysis && calibration
+        ? buildOutsideRoiProxyDiagnostics(
+            analysis.detections,
+            assignments,
+            calibration,
+          )
+        : null,
+    [analysis, assignments, calibration],
+  );
+  const roiSpatialMap = useMemo(
+    () =>
+      analysis && calibration
+        ? buildRoiSpatialMapData(analysis.detections, assignments, calibration)
+        : null,
+    [analysis, assignments, calibration],
+  );
+  useEffect(() => {
+    onNormalizedMapChange?.(
+      rowProjection && occupiedIntervals
+        ? buildNormalizedParkingMapData(
+            rowProjection,
+            occupiedIntervals,
+            fittingData,
+            metricCalibration,
+            calibration,
+          )
+        : null,
+    );
+  }, [
+    calibration,
+    fittingData,
+    metricCalibration,
+    occupiedIntervals,
+    onNormalizedMapChange,
+    rowProjection,
+  ]);
+  useEffect(
+    () => onRoiSpatialMapChange?.(roiSpatialMap),
+    [onRoiSpatialMapChange, roiSpatialMap],
+  );
+  const aspectRatioMismatch = Boolean(
+    analysis &&
+      calibration &&
+      hasSignificantAspectRatioMismatch(
+        analysis.image_width,
+        analysis.image_height,
+        calibration,
+      ),
+  );
 
   return (
     <div className="space-y-3">
@@ -132,32 +318,143 @@ export function ImageAnalyzer({ camera, model, zone, status, fallbackOverlays = 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="text-sm font-semibold">Analyze parking image</h3>
-            <p className="mt-1 text-xs text-slate-500">JPEG, PNG or WebP · up to 25 MB · YOLO motorcycle detection</p>
+            <p className="mt-1 text-xs text-slate-500">
+              JPEG, PNG or WebP · up to 25 MB · YOLO motorcycle detection
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-              <ImagePlus className="size-4" />{file ? 'Choose another' : 'Choose image'}
-              <input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => chooseFile(event.target.files?.[0])} />
+              <ImagePlus className="size-4" />
+              {file ? "Choose another" : "Choose image"}
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                className="sr-only"
+                onChange={(event) => chooseFile(event.target.files?.[0])}
+              />
             </label>
-            <button type="button" onClick={() => void analyze()} disabled={!file || analysisState === 'processing'} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
-              {analysisState === 'processing' ? <LoaderCircle className="size-4 animate-spin" /> : <ScanSearch className="size-4" />}{analysisState === 'processing' ? 'Analyzing…' : 'Analyze'}
-            </button>
-            <button type="button" onClick={() => setCalibrationOpen(true)} disabled={!file || !previewUrl || !dimensions} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50">
-              <MapPinned className="size-4" />Calibrate parking area
+            <button
+              type="button"
+              onClick={() => void analyze()}
+              disabled={!file || analysisState === "processing"}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {analysisState === "processing" ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : (
+                <ScanSearch className="size-4" />
+              )}
+              {analysisState === "processing" ? "Analyzing…" : "Analyze"}
             </button>
           </div>
         </div>
-        {file && <p className="mt-3 truncate text-xs text-slate-500">Selected: <span className="font-medium text-slate-700">{file.name}</span></p>}
-        {error && <div role="alert" className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700"><span className="inline-flex items-center gap-2"><AlertCircle className="size-4 shrink-0" />{error}</span>{file && <button type="button" onClick={() => void analyze()} className="inline-flex shrink-0 items-center gap-1 font-semibold"><RotateCcw className="size-3.5" />Retry</button>}</div>}
+        {file && (
+          <p className="mt-3 truncate text-xs text-slate-500">
+            Selected:{" "}
+            <span className="font-medium text-slate-700">{file.name}</span>
+          </p>
+        )}
+        {error && (
+          <div
+            role="alert"
+            className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700"
+          >
+            <span className="inline-flex items-center gap-2">
+              <AlertCircle className="size-4 shrink-0" />
+              {error}
+            </span>
+            {file && (
+              <button
+                type="button"
+                onClick={() => void analyze()}
+                className="inline-flex shrink-0 items-center gap-1 font-semibold"
+              >
+                <RotateCcw className="size-3.5" />
+                Retry
+              </button>
+            )}
+          </div>
+        )}
       </div>
-      <CameraMonitor camera={camera} model={model} zone={zone} status={analysisState === 'processing' ? 'processing' : status} imageUrl={previewUrl} imageDimensions={dimensions} analysis={analysis} overlays={previewUrl ? detectionOverlays : fallbackOverlays} calibration={calibration} assignments={assignments} rowProjection={rowProjection} occupancyDiagnostics={occupancyDiagnostics} groundContactDiagnostics={groundContactDiagnostics} occupiedIntervals={occupiedIntervals} outsideRoiDiagnostics={outsideRoiDiagnostics} showOutsideRoiDiagnostics={showOutsideRoiDiagnostics} onShowOutsideRoiDiagnosticsChange={onShowOutsideRoiDiagnosticsChange} />
-      {analysis && <RowAssignmentSummary detectedCount={analysis.detections.length} calibration={calibration} assignments={assignments} state={calibrationState} aspectRatioMismatch={aspectRatioMismatch} error={calibrationError} />}
-      {rowProjection && <RowOccupancyProjection projection={rowProjection} />}
-      {occupancyDiagnostics && groundContactDiagnostics && <VisualOccupancyDiagnostics data={occupancyDiagnostics} groundContact={groundContactDiagnostics} heightRatio={groundProxyHeightRatio} onHeightRatioChange={setGroundProxyHeightRatio} />}
-      {outsideRoiDiagnostics && <OutsideRoiProxyDiagnostics data={outsideRoiDiagnostics} />}
-      {occupiedIntervals && <OccupiedIntervalsAndGaps data={occupiedIntervals} />}
-      {occupiedIntervals && <MotorcycleFittingPrototype intervals={occupiedIntervals} onDataChange={setFittingData} />}
-      {calibrationOpen && previewUrl && dimensions && <ParkingCalibration open onOpenChange={setCalibrationOpen} imageUrl={previewUrl} imageWidth={dimensions.width} imageHeight={dimensions.height} cameraId={camera?.id ?? 'SPU_CAM_01'} detections={analysis?.detections ?? []} />}
+      <CameraMonitor
+        camera={camera}
+        model={model}
+        zone={zone}
+        status={analysisState === "processing" ? "processing" : status}
+        imageUrl={previewUrl}
+        imageDimensions={dimensions}
+        analysis={analysis}
+        overlays={previewUrl ? detectionOverlays : fallbackOverlays}
+        calibration={calibration}
+        assignments={assignments}
+        rowProjection={rowProjection}
+        occupancyDiagnostics={occupancyDiagnostics}
+        groundContactDiagnostics={groundContactDiagnostics}
+        occupiedIntervals={occupiedIntervals}
+        outsideRoiDiagnostics={outsideRoiDiagnostics}
+        showOutsideRoiDiagnostics={showOutsideRoiDiagnostics}
+        onShowOutsideRoiDiagnosticsChange={onShowOutsideRoiDiagnosticsChange}
+      />
+      <details className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+        <summary className="cursor-pointer font-semibold text-slate-700">
+          Advanced analysis details
+        </summary>
+        <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={() => setCalibrationOpen(true)}
+            disabled={!file || !previewUrl || !dimensions}
+            className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 disabled:opacity-50"
+          >
+            <MapPinned className="size-4" />
+            Edit parking area calibration
+          </button>
+          {analysis && (
+            <RowAssignmentSummary
+              detectedCount={analysis.detections.length}
+              calibration={calibration}
+              assignments={assignments}
+              state={calibrationState}
+              aspectRatioMismatch={aspectRatioMismatch}
+              error={calibrationError}
+            />
+          )}
+          {rowProjection && (
+            <RowOccupancyProjection projection={rowProjection} />
+          )}
+          {occupancyDiagnostics && groundContactDiagnostics && (
+            <VisualOccupancyDiagnostics
+              data={occupancyDiagnostics}
+              groundContact={groundContactDiagnostics}
+              heightRatio={groundProxyHeightRatio}
+              onHeightRatioChange={setGroundProxyHeightRatio}
+            />
+          )}
+          {outsideRoiDiagnostics && (
+            <OutsideRoiProxyDiagnostics data={outsideRoiDiagnostics} />
+          )}
+          {occupiedIntervals && (
+            <OccupiedIntervalsAndGaps data={occupiedIntervals} />
+          )}
+          {occupiedIntervals && (
+            <MotorcycleFittingPrototype
+              intervals={occupiedIntervals}
+              onDataChange={setFittingData}
+            />
+          )}
+        </div>
+      </details>
+      {calibrationOpen && previewUrl && dimensions && (
+        <ParkingCalibration
+          open
+          onOpenChange={setCalibrationOpen}
+          imageUrl={previewUrl}
+          imageWidth={dimensions.width}
+          imageHeight={dimensions.height}
+          cameraId={camera?.id ?? "SPU_CAM_01"}
+          detections={analysis?.detections ?? []}
+        />
+      )}
     </div>
   );
 }
