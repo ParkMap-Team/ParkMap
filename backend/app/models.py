@@ -319,6 +319,24 @@ class GroundPlaneHomographyResponse(BaseModel):
     result: GroundPlaneHomographyResult | None = None
 
 
+class PhysicalRowEndpoint(BaseModel):
+    clicked_image: CalibrationPoint
+    effective_image: CalibrationPoint
+    snapped_to_roi_boundary: bool = False
+
+
+class PhysicalRowEndpointPair(BaseModel):
+    start: PhysicalRowEndpoint | None = None
+    end: PhysicalRowEndpoint | None = None
+
+
+class PhysicalRowGeometryConfig(BaseModel):
+    schema_version: Literal[1] = 1
+    camera_id: str = Field(min_length=1)
+    measurement_source_fingerprint: str
+    rows: dict[MetricRowId, PhysicalRowEndpointPair] = Field(default_factory=dict)
+
+
 class MotorcycleFittingConfiguration(BaseModel):
     schema_version: Literal[1] = 1
     measurement_source: MetricMeasurementSource = "ESTIMATED"

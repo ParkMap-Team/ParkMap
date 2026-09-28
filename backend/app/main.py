@@ -7,7 +7,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, UnidentifiedImageError
 
-from app.models import DetectionResponse, GroundPlaneCalibration, GroundPlaneCalibrationResponse, GroundPlaneHomographyResponse, HealthResponse, MetricCalibration, MetricCalibrationResponse, MotorcycleFittingConfiguration, MotorcycleFittingResponse, ParkingCalibration, ParkingStatusResponse
+from app.models import DetectionResponse, GroundPlaneCalibration, GroundPlaneCalibrationResponse, GroundPlaneHomographyResponse, HealthResponse, MetricCalibration, MetricCalibrationResponse, MotorcycleFittingConfiguration, MotorcycleFittingResponse, ParkingCalibration, ParkingStatusResponse, PhysicalRowGeometryConfig
 from app.services.calibration_service import calibration_service
 from app.services.cv_service import cv_service
 from app.services.metric_calibration_service import metric_calibration_service
@@ -15,6 +15,7 @@ from app.services.motorcycle_fitting_service import motorcycle_fitting_service
 from app.services.ground_plane_calibration_service import ground_plane_calibration_service
 from app.services.ground_plane_homography_service import HomographyInputError, ground_plane_homography_service
 from app.services.parking_service import parking_service
+from app.services.physical_row_geometry_service import measurement_fingerprint, physical_row_geometry_service
 
 load_dotenv()
 
@@ -98,6 +99,32 @@ def calculate_ground_plane_homography() -> GroundPlaneHomographyResponse:
         raise
     except (OSError, ValueError, json.JSONDecodeError) as error:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Ground-plane homography could not be calculated and verified: {error}") from error
+
+
+@app.get("/api/physical-row-geometry")
+def get_physical_row_geometry() -> dict:
+    calibration = ground_plane_calibration_service.load()
+    parking = calibration_service.load()
+    if parking is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Parking calibration is required.")
+    homography = ground_plane_homography_service.get_response(calibration)
+    return physical_row_geometry_service.response(physical_row_geometry_service.load(calibration), calibration, parking, homography)
+
+
+@app.post("/api/physical-row-geometry")
+def save_physical_row_geometry(config: PhysicalRowGeometryConfig) -> dict:
+    calibration = ground_plane_calibration_service.load()
+    parking = calibration_service.load()
+    if parking is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Parking calibration is required.")
+    if config.camera_id != calibration.camera_id:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Physical endpoint camera_id does not match ground-plane calibration.")
+    refreshed = config.model_copy(update={"measurement_source_fingerprint": measurement_fingerprint(calibration)})
+    try:
+        verified = physical_row_geometry_service.save(refreshed)
+        return physical_row_geometry_service.response(verified, calibration, parking, ground_plane_homography_service.get_response(calibration))
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Physical row endpoints could not be persisted and verified: {error}") from error
 
 
 @app.get("/api/motorcycle-fitting", response_model=MotorcycleFittingResponse)
