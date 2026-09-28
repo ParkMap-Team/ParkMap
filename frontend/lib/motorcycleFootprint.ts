@@ -16,10 +16,10 @@ export function buildMotorcycleFootprint(anchor: GroundPlaneMetricPoint, directi
   const n = { x: -direction.y, y: direction.x };
   const halfLength = length / 2;
   const halfWidth = width / 2;
-  const rearLeft = point(anchor.x_m - direction.x * halfLength - n.x * halfWidth, anchor.y_m - direction.y * halfLength - n.y * halfWidth);
-  const rearRight = point(anchor.x_m - direction.x * halfLength + n.x * halfWidth, anchor.y_m - direction.y * halfLength + n.y * halfWidth);
-  const frontRight = point(anchor.x_m + direction.x * halfLength + n.x * halfWidth, anchor.y_m + direction.y * halfLength + n.y * halfWidth);
-  const frontLeft = point(anchor.x_m + direction.x * halfLength - n.x * halfWidth, anchor.y_m + direction.y * halfLength - n.y * halfWidth);
+  const rearLeft = point(anchor.x_m - direction.x * halfWidth - n.x * halfLength, anchor.y_m - direction.y * halfWidth - n.y * halfLength);
+  const rearRight = point(anchor.x_m + direction.x * halfWidth - n.x * halfLength, anchor.y_m + direction.y * halfWidth - n.y * halfLength);
+  const frontRight = point(anchor.x_m + direction.x * halfWidth + n.x * halfLength, anchor.y_m + direction.y * halfWidth + n.y * halfLength);
+  const frontLeft = point(anchor.x_m - direction.x * halfWidth + n.x * halfLength, anchor.y_m - direction.y * halfWidth + n.y * halfLength);
   return [rearLeft, rearRight, frontRight, frontLeft];
 }
 
