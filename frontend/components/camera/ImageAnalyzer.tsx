@@ -8,6 +8,8 @@ import { ExperimentalSizeDiagnostic } from '@/components/parking/ExperimentalSiz
 import { RowAssignmentV2Diagnostic } from '@/components/parking/RowAssignmentV2Diagnostic';
 import { DetectionMapDiagnostic } from '@/components/camera/DetectionMapDiagnostic';
 import { RoiRowsGeometryDiagnostic } from '@/components/parking/RoiRowsGeometryDiagnostic';
+import { calculateOccupiedSpaceV1 } from '@/lib/occupiedSpace';
+import { OccupiedSpaceDiagnostic } from '@/components/parking/OccupiedSpaceDiagnostic';
 import { getCalibration } from '@/lib/calibration';
 import { analyzeParkingImage, MAX_UPLOAD_BYTES, SUPPORTED_IMAGE_TYPES } from '@/lib/detection';
 import { getGroundPlaneHomography } from '@/lib/groundPlaneHomography';
@@ -48,6 +50,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
 
   const assignments = useMemo(() => analysis && calibration ? assignDetectionsToParkingRows(analysis.detections, calibration) : [], [analysis, calibration]);
   const mapping = useMemo(() => analysis ? buildMetricMotorcycleMapping(analysis.detections, assignments, homography, physical, analysis.image_width, analysis.image_height) : null, [analysis, assignments, homography, physical]);
+  const occupiedSpace = useMemo(() => mapping && physical ? calculateOccupiedSpaceV1(mapping.motorcycles, physical) : null, [mapping, physical]);
   const mapReady = physical?.status === 'CURRENT' && physical.rows.every((row) => row.status === 'PHYSICAL_READY') && homography?.current === true && homography.status === 'VALIDATED';
 
   const chooseFile = (selected?: File) => {
@@ -109,6 +112,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
       <PhysicalMeasuredMap physical={physical} mapping={mapping} homography={homography} />
       <ExperimentalSizeDiagnostic mapping={mapping} />
       <RowAssignmentV2Diagnostic mapping={mapping} />
+      <OccupiedSpaceDiagnostic result={occupiedSpace} />
 
       <section className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm" aria-labelledby="summary-title">
         <h2 id="summary-title" className="font-semibold">Summary</h2>
