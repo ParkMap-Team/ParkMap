@@ -65,7 +65,7 @@ export function buildMetricMotorcycleMapping(
         matching_rows: [],
       };
       const insideParkingRoi = imageAssignment.status !== 'OUTSIDE_ROI';
-      const metricPoint = matrix && insideParkingRoi ? imageNormalizedToGroundMeters(imageGroundPoint.x, imageGroundPoint.y, matrix) : null;
+      const metricPoint = matrix ? imageNormalizedToGroundMeters(imageGroundPoint.x, imageGroundPoint.y, matrix) : null;
       const matchingRows = metricPoint
         ? rows.filter((row) => row.physical_polygon && metricPointInPolygon(metricPoint, row.physical_polygon)).map((row) => row.row_id)
         : [];
