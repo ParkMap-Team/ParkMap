@@ -5,6 +5,7 @@ import type { Detection } from '../types/detection.ts';
 import type { GroundPlaneMetricPoint, GroundPlaneHomographyResponse } from '../types/groundPlaneCalibration.ts';
 import type { MetricMotorcycle, MetricMotorcycleMapping } from '../types/metricMotorcycle.ts';
 import type { PhysicalRowGeometryResponse } from '../types/physicalRowGeometry.ts';
+import { buildMotorcycleFootprint, footprintOverlap, polygonArea, rowDirection } from './motorcycleFootprint';
 
 const EPSILON = 1e-9;
 
@@ -73,6 +74,16 @@ export function buildMetricMotorcycleMapping(
       const physicalRowId = matchingRows.length === 1 ? matchingRows[0] : null;
       const assignmentMatches = imageAssignment.row_id === physicalRowId
         && (physicalRowId !== null || imageAssignment.status !== 'ASSIGNED');
+      const candidates = metricPoint ? rows.map((row) => {
+        const direction = rowDirection(row.physical_polygon!);
+        const plus = buildMotorcycleFootprint(metricPoint, direction);
+        const minus = buildMotorcycleFootprint(metricPoint, { x: -direction.x, y: -direction.y });
+        const plusOverlap = footprintOverlap(plus, row.physical_polygon!);
+        const minusOverlap = footprintOverlap(minus, row.physical_polygon!);
+        return { row, footprint: plusOverlap.overlap_ratio >= minusOverlap.overlap_ratio ? plus : minus, overlap: plusOverlap.overlap_ratio >= minusOverlap.overlap_ratio ? plusOverlap : minusOverlap };
+      }) : [];
+      const best = candidates.reduce<typeof candidates[number] | null>((current, candidate) => !current || candidate.overlap.overlap_ratio > current.overlap.overlap_ratio ? candidate : current, null);
+      const oriented = imageAssignment.row_id ? candidates.find((candidate) => candidate.row.row_id === imageAssignment.row_id) ?? best : best;
       return {
         detection_id: `detection-${index + 1}`,
         detection_index: index,
@@ -87,6 +98,11 @@ export function buildMetricMotorcycleMapping(
         physical_row_id: physicalRowId,
         matching_physical_rows: matchingRows,
         assignment_comparison: assignmentMatches ? 'MATCH' : 'MISMATCH',
+        footprint_polygon: oriented?.footprint ?? null,
+        footprint_area_m2: oriented ? polygonArea(oriented.footprint) : null,
+        footprint_orientation_row_id: oriented?.row.row_id ?? null,
+        footprint_candidate_row_id: best?.row.row_id ?? null,
+        row_overlaps: candidates.map((candidate) => ({ row_id: candidate.row.row_id, ...candidate.overlap })),
       };
     }),
   };

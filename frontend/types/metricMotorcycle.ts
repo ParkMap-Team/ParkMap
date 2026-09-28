@@ -1,6 +1,7 @@
 import type { CalibrationPoint, CalibrationRow, DetectionRowAssignment } from './calibration';
 import type { DetectionBBox } from './detection';
 import type { GroundPlaneMetricPoint } from './groundPlaneCalibration';
+import type { FootprintOverlap } from '../lib/motorcycleFootprint';
 
 export type PhysicalContainment =
   | 'INSIDE_PHYSICAL_ROW'
@@ -21,6 +22,11 @@ export interface MetricMotorcycle {
   physical_row_id: CalibrationRow['id'] | null;
   matching_physical_rows: CalibrationRow['id'][];
   assignment_comparison: 'MATCH' | 'MISMATCH';
+  footprint_polygon: GroundPlaneMetricPoint[] | null;
+  footprint_area_m2: number | null;
+  footprint_orientation_row_id: CalibrationRow['id'] | null;
+  footprint_candidate_row_id: CalibrationRow['id'] | null;
+  row_overlaps: Array<FootprintOverlap & { row_id: CalibrationRow['id'] }>;
 }
 
 export interface MetricMotorcycleMapping {
