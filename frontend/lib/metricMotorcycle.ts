@@ -12,6 +12,10 @@ export function parkingMapMotorcycles(mapping: MetricMotorcycleMapping | null): 
   return mapping?.motorcycles.filter((item) => item.inside_parking_roi && item.metric_point !== null) ?? [];
 }
 
+export function parkingMapRoi(homography: GroundPlaneHomographyResponse | null): GroundPlaneMetricPoint[] {
+  return homography?.current === true && homography.status === 'VALIDATED' ? homography.result?.roi_metric?.points ?? [] : [];
+}
+
 export function metricPointInPolygon(point: GroundPlaneMetricPoint, polygon: GroundPlaneMetricPoint[]): boolean {
   if (polygon.length < 3) return false;
   let inside = false;

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildMetricMotorcycleMapping, metricPointInPolygon, parkingMapMotorcycles } from './metricMotorcycle.ts';
+import { buildMetricMotorcycleMapping, metricPointInPolygon, parkingMapMotorcycles, parkingMapRoi } from './metricMotorcycle.ts';
 import type { DetectionRowAssignment } from '../types/calibration.ts';
 import type { Detection } from '../types/detection.ts';
 import type { GroundPlaneHomographyResponse } from '../types/groundPlaneCalibration.ts';
@@ -63,4 +63,11 @@ void test('inside ROI without an image row remains eligible for metric rendering
   assert.equal(result.inside_parking_roi, true);
   assert.equal(result.transform_valid, true);
   assert.equal(parkingMapMotorcycles({ status: 'READY', motorcycles: [result] }).length, 1);
+});
+
+void test('physical map reuses the validated metric ROI from homography', () => {
+  const metricRoi = [{ x_m: 0, y_m: 0 }, { x_m: 14, y_m: 0 }, { x_m: 14, y_m: 14 }, { x_m: 0, y_m: 14 }];
+  const response = { ...homography, result: { ...homography.result!, roi_metric: { id: 'parking_roi', points: metricRoi, longitudinal_extent_m: 14, cross_extent_m: 14, measured_length_m: null, measured_width_m: null, length_difference_m: null, width_difference_m: null } } } as GroundPlaneHomographyResponse;
+  assert.deepEqual(parkingMapRoi(response), metricRoi);
+  assert.deepEqual(parkingMapRoi({ ...response, status: 'STALE', current: false }), []);
 });

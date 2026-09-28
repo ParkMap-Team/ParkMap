@@ -100,7 +100,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
       </section>
 
       <CameraMonitor imageUrl={previewUrl} analysis={analysis} />
-      <PhysicalMeasuredMap physical={physical} mapping={mapping} />
+      <PhysicalMeasuredMap physical={physical} mapping={mapping} homography={homography} />
 
       <section className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm" aria-labelledby="summary-title">
         <h2 id="summary-title" className="font-semibold">Summary</h2>
