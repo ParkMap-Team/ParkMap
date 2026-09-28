@@ -81,6 +81,12 @@ export function buildMetricMotorcycleMapping(
       const candidates = globalFootprint ? rows.map((row) => ({ row, footprint: globalFootprint, overlap: footprintOverlap(globalFootprint, row.physical_polygon!) })) : [];
       const best = candidates.reduce<typeof candidates[number] | null>((current, candidate) => !current || candidate.overlap.overlap_ratio > current.overlap.overlap_ratio ? candidate : current, null);
       const oriented = imageAssignment.row_id ? candidates.find((candidate) => candidate.row.row_id === imageAssignment.row_id) ?? best : best;
+      const roiPolygon = homography?.result?.roi_metric?.points ?? [];
+      const roiOverlap = oriented && roiPolygon.length >= 3 ? footprintOverlap(oriented.footprint, roiPolygon) : null;
+      const groundPointInsideRoi = metricPoint ? metricPointInPolygon(metricPoint, roiPolygon) : false;
+      const footprintInsideRoi = (roiOverlap?.intersection_area_m2 ?? 0) > 1e-8;
+      const included = metricPoint !== null && (groundPointInsideRoi || footprintInsideRoi);
+      const inclusionSource = groundPointInsideRoi && footprintInsideRoi ? 'BOTH' : groundPointInsideRoi ? 'GROUND_POINT' : footprintInsideRoi ? 'FOOTPRINT_OVERLAP' : 'OUTSIDE';
       const positiveOverlaps = candidates.filter((candidate) => candidate.overlap.overlap_ratio > EPSILON);
       const bestDiagnostic = positiveOverlaps.reduce<typeof candidates[number] | null>((current, candidate) => !current || candidate.overlap.overlap_ratio > current.overlap.overlap_ratio ? candidate : current, null);
       const diagnostic = positiveOverlaps.length > 1
@@ -101,7 +107,7 @@ export function buildMetricMotorcycleMapping(
         confidence: detection.confidence,
         bbox: detection.bbox,
         image_ground_point: imageGroundPoint,
-        inside_parking_roi: insideParkingRoi,
+        inside_parking_roi: included,
         metric_point: metricPoint,
         transform_valid: metricPoint !== null,
         image_row_assignment: imageAssignment,
@@ -118,6 +124,11 @@ export function buildMetricMotorcycleMapping(
         best_diagnostic_row_id: bestDiagnostic?.row.row_id ?? null,
         experimental_size: metricPoint && matrix ? estimateMotorcycleSize(detection.bbox, imageWidth, imageHeight, matrix) : null,
         row_assignment_v2: { point_row_id: imageAssignment.row_id, assigned_row_id: v2State === 'FOOTPRINT_ASSIGNED' ? bestV2.row.row_id : v2State === 'POINT_ASSIGNED' ? imageAssignment.row_id : null, state: v2State, best_row_id: bestV2?.row.row_id ?? null, best_overlap: bestOverlap, second_row_id: secondV2?.row.row_id ?? null, second_overlap: secondOverlap, overlap_margin: margin, point_row_overlap: pointOverlap, reason: conflict ? 'POINT_FOOTPRINT_CONFLICT' : strong ? 'FOOTPRINT_DOMINANT_SINGLE_ROW' : bestOverlap > 0 ? 'FOOTPRINT_INSUFFICIENT_MARGIN' : 'NO_ROW_OVERLAP' },
+        ground_point_inside_roi: groundPointInsideRoi,
+        footprint_roi_overlap_area_m2: roiOverlap?.intersection_area_m2 ?? 0,
+        footprint_roi_overlap_ratio: roiOverlap?.overlap_ratio ?? 0,
+        footprint_roi_overlap_percent: roiOverlap?.overlap_percent ?? 0,
+        roi_inclusion_source: inclusionSource,
       };
     }),
   };
