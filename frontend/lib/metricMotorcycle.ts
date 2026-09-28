@@ -6,6 +6,7 @@ import type { GroundPlaneMetricPoint, GroundPlaneHomographyResponse } from '../t
 import type { MetricMotorcycle, MetricMotorcycleMapping } from '../types/metricMotorcycle.ts';
 import type { PhysicalRowGeometryResponse } from '../types/physicalRowGeometry.ts';
 import { buildMotorcycleFootprint, footprintOverlap, polygonArea, GLOBAL_MOTORCYCLE_DIRECTION } from './motorcycleFootprint';
+import { estimateMotorcycleSize } from './motorcycleSizeExperiment';
 
 const EPSILON = 1e-9;
 
@@ -41,6 +42,8 @@ export function buildMetricMotorcycleMapping(
   assignments: DetectionRowAssignment[],
   homography: GroundPlaneHomographyResponse | null,
   physical: PhysicalRowGeometryResponse | null,
+  imageWidth = 4032,
+  imageHeight = 3024,
 ): MetricMotorcycleMapping {
   const ready = homography?.current === true
     && homography.status === 'VALIDATED'
@@ -108,6 +111,7 @@ export function buildMetricMotorcycleMapping(
         row_overlaps: candidates.map((candidate) => ({ row_id: candidate.row.row_id, ...candidate.overlap })),
         footprint_diagnostic: diagnostic,
         best_diagnostic_row_id: bestDiagnostic?.row.row_id ?? null,
+        experimental_size: metricPoint && matrix ? estimateMotorcycleSize(detection.bbox, imageWidth, imageHeight, matrix) : null,
       };
     }),
   };

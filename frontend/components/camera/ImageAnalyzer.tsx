@@ -43,7 +43,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   useEffect(() => previewUrl ? () => URL.revokeObjectURL(previewUrl) : undefined, [previewUrl]);
 
   const assignments = useMemo(() => analysis && calibration ? assignDetectionsToParkingRows(analysis.detections, calibration) : [], [analysis, calibration]);
-  const mapping = useMemo(() => analysis ? buildMetricMotorcycleMapping(analysis.detections, assignments, homography, physical) : null, [analysis, assignments, homography, physical]);
+  const mapping = useMemo(() => analysis ? buildMetricMotorcycleMapping(analysis.detections, assignments, homography, physical, analysis.image_width, analysis.image_height) : null, [analysis, assignments, homography, physical]);
   const mapReady = physical?.status === 'CURRENT' && physical.rows.every((row) => row.status === 'PHYSICAL_READY') && homography?.current === true && homography.status === 'VALIDATED';
 
   const chooseFile = (selected?: File) => {

@@ -2,6 +2,7 @@ import type { CalibrationPoint, CalibrationRow, DetectionRowAssignment } from '.
 import type { DetectionBBox } from './detection';
 import type { GroundPlaneMetricPoint } from './groundPlaneCalibration';
 import type { FootprintOverlap } from '../lib/motorcycleFootprint';
+import type { ExperimentalMotorcycleSize } from '../lib/motorcycleSizeExperiment';
 
 export type PhysicalContainment =
   | 'INSIDE_PHYSICAL_ROW'
@@ -30,6 +31,7 @@ export interface MetricMotorcycle {
   row_overlaps: Array<FootprintOverlap & { row_id: CalibrationRow['id'] }>;
   footprint_diagnostic: FootprintDiagnostic;
   best_diagnostic_row_id: CalibrationRow['id'] | null;
+  experimental_size: ExperimentalMotorcycleSize | null;
 }
 
 export interface MetricMotorcycleMapping {
