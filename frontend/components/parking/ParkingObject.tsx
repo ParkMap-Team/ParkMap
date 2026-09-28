@@ -1,9 +1,0 @@
-import type { ParkingObject as ParkingObjectType } from '@/types/parking';
-const colors = { occupied: { fill: '#ef4444', stroke: '#fca5a5' }, available: { fill: '#10b981', stroke: '#6ee7b7' }, uncertain: { fill: '#f59e0b', stroke: '#fcd34d' } };
-export function ParkingObject({ object }: { object: ParkingObjectType }) {
-  const x = object.x * 1000, y = object.y * 620, width = object.width * 1000, height = object.height * 620, color = colors[object.status];
-  const details = `${object.id} · ${object.status}\nPosition: ${object.x.toFixed(2)}, ${object.y.toFixed(2)}${object.confidence ? `\nConfidence: ${(object.confidence * 100).toFixed(0)}%` : ''}`;
-  const transform = `rotate(${object.rotation ?? 0} ${x + width / 2} ${y + height / 2})`;
-  if (object.status !== 'occupied') return <g className="cursor-help" transform={transform}><title>{details}</title><rect x={x} y={y} width={width} height={height} rx="9" fill={color.fill} fillOpacity="0.28" stroke={color.stroke} strokeWidth="2" strokeDasharray={object.status === 'uncertain' ? '8 6' : '0'} /><path d={`M ${x + 8} ${y + 12} h ${width - 16} M ${x + 8} ${y + height - 12} h ${width - 16}`} stroke={color.stroke} strokeWidth="2" opacity=".7" /></g>;
-  return <g className="cursor-help" transform={transform}><title>{details}</title><rect x={x} y={y} width={width} height={height} rx="12" fill={color.fill} fillOpacity="0.2" stroke={color.stroke} strokeWidth="2" /><circle cx={x + width / 2} cy={y + 13} r="7" fill="#fecaca" stroke="#991b1b" strokeWidth="2" /><circle cx={x + width / 2} cy={y + height - 13} r="7" fill="#fecaca" stroke="#991b1b" strokeWidth="2" /><rect x={x + width * 0.28} y={y + 18} width={width * 0.44} height={height - 36} rx="8" fill="#dc2626" stroke="#fee2e2" strokeWidth="2" /><path d={`M ${x + width * 0.15} ${y + height * 0.35} H ${x + width * 0.85}`} stroke="#fee2e2" strokeWidth="3" strokeLinecap="round" /></g>;
-}

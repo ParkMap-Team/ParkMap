@@ -1,7 +1,16 @@
 import type { CalibrationPoint, ParkingCalibration } from '../types/calibration.ts';
-import type { GroundPlaneMetricPoint } from '../types/groundPlaneCalibration.ts';
+import type { GroundPlaneHomographyResponse, GroundPlaneMetricPoint } from '../types/groundPlaneCalibration.ts';
+import { PARKMAP_API_URL, ParkingApiError } from './api.ts';
 
 export type HomographyMatrix = number[][];
+
+const homographyUrl = `${PARKMAP_API_URL.replace(/\/$/, '')}/api/ground-plane/homography`;
+
+export async function getGroundPlaneHomography(signal?: AbortSignal): Promise<GroundPlaneHomographyResponse> {
+  const response = await fetch(homographyUrl, { signal, cache: 'no-store' });
+  if (!response.ok) throw new ParkingApiError(`Unable to load map calibration (${response.status}).`);
+  return await response.json() as GroundPlaneHomographyResponse;
+}
 
 export function imageNormalizedToGroundMeters(x: number, y: number, matrix: HomographyMatrix): GroundPlaneMetricPoint | null {
   if (matrix.length !== 3 || matrix.some((row) => row.length !== 3) || !Number.isFinite(x) || !Number.isFinite(y)) return null;

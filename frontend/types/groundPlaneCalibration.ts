@@ -1,4 +1,5 @@
-import type { MetricMeasurementSource, MetricRowId } from './metricCalibration';
+export type MetricMeasurementSource = 'MEASURED' | 'ESTIMATED';
+export type MetricRowId = `row_${1 | 2 | 3 | 4 | 5}`;
 
 export interface GroundControlPoint { id: string; image_x: number; image_y: number; ground_x_m: number; ground_y_m: number; provenance: MetricMeasurementSource; }
 export interface GroundReferenceDistance { id: string; point_a: string; point_b: string; distance_m: number; provenance: MetricMeasurementSource; }

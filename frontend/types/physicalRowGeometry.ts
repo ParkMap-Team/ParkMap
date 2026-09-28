@@ -1,6 +1,5 @@
 import type { CalibrationPoint } from './calibration';
-import type { GroundPlaneMetricPoint } from './groundPlaneCalibration';
-import type { MetricMeasurementSource, MetricRowId } from './metricCalibration';
+import type { GroundPlaneMetricPoint, MetricMeasurementSource, MetricRowId } from './groundPlaneCalibration';
 
 export interface PhysicalRowEndpoint { clicked_image: CalibrationPoint; effective_image: CalibrationPoint; snapped_to_roi_boundary: boolean; }
 export interface PhysicalRowEndpointPair { override_enabled: boolean; start: PhysicalRowEndpoint | null; end: PhysicalRowEndpoint | null; }

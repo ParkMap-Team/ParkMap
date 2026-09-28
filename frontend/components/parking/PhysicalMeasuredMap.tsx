@@ -1,15 +1,25 @@
-'use client';
-import { useEffect, useState } from 'react';
-import { getPhysicalRowGeometry } from '@/lib/physicalRowGeometry';
+import type { MetricMotorcycleMapping } from '@/types/metricMotorcycle';
 import type { PhysicalRowGeometryResponse } from '@/types/physicalRowGeometry';
 
-export function PhysicalMeasuredMap() {
-  const [data, setData] = useState<PhysicalRowGeometryResponse | null>(null), [error, setError] = useState<string | null>(null);
-  useEffect(() => { const controller = new AbortController(); void getPhysicalRowGeometry(controller.signal).then(setData).catch((reason) => setError(reason instanceof Error ? reason.message : 'Unable to load physical row geometry.')); return () => controller.abort(); }, []);
-  if (error) return <div className="grid min-h-[420px] place-items-center bg-slate-950 p-6 text-center text-amber-300">{error}</div>;
-  if (!data) return <div className="grid min-h-[420px] place-items-center bg-slate-950 text-slate-400">Loading physical row geometry…</div>;
-  const rows = data.rows.filter((row) => row.physical_polygon);
-  if (!rows.length) return <div className="grid min-h-[420px] place-items-center bg-slate-950 p-6 text-center"><div><p className="font-semibold text-slate-200">Physical row geometry is not ready.</p><p className="mt-2 text-sm text-slate-400">Validated map calibration and measured row dimensions are required.</p></div></div>;
-  const points = rows.flatMap((row) => row.physical_polygon!); const minX = Math.min(...points.map((p) => p.x_m)), maxX = Math.max(...points.map((p) => p.x_m)), minY = Math.min(...points.map((p) => p.y_m)), maxY = Math.max(...points.map((p) => p.y_m)); const range = Math.max(maxX - minX, maxY - minY, .001), scale = Math.min(880 / range, 520 / range); const map = (point: { x_m: number; y_m: number }) => `${60 + (point.x_m - minX) * scale},${585 - (point.y_m - minY) * scale}`;
-  return <div className="bg-slate-950 p-5"><svg viewBox="0 0 1000 650" className="w-full rounded-xl" aria-label="Physical measured row geometry"><rect width="1000" height="650" rx="20" fill="#172033" />{rows.map((row) => <g key={row.row_id}><polygon points={row.physical_polygon!.map(map).join(' ')} fill="rgba(167,139,250,.2)" stroke="#a78bfa" strokeWidth="3" /><text x={Number(map(row.physical_polygon![0]).split(',')[0])} y={Number(map(row.physical_polygon![0]).split(',')[1]) - 10} fill="white" fontSize="15" fontWeight="700">{row.row_id.replace('row_', 'R')} · {row.measured_length_m} m × {row.measured_width_m} m · {row.provenance}</text></g>)}</svg><p className="mt-3 text-xs text-slate-400">Physical measured rows use existing calibrated row geometry by default. A row uses manual endpoints only when its override is explicitly enabled.</p></div>;
+export function PhysicalMeasuredMap({ physical, mapping }: { physical: PhysicalRowGeometryResponse | null; mapping: MetricMotorcycleMapping | null }) {
+  const rows = physical?.rows.filter((row) => row.status === 'PHYSICAL_READY' && row.physical_polygon) ?? [];
+  if (!rows.length) return <section className="grid min-h-80 place-items-center rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center text-amber-900"><div><h2 className="font-semibold">Parking map needs calibration</h2><p className="mt-1 text-sm">Parking rows, measured dimensions, and validated map calibration are required.</p></div></section>;
+  const points = rows.flatMap((row) => row.physical_polygon!);
+  const motorcycles = mapping?.motorcycles.filter((item) => item.metric_point) ?? [];
+  const allX = [...points.map((point) => point.x_m), ...motorcycles.map((item) => item.metric_point!.x_m)];
+  const allY = [...points.map((point) => point.y_m), ...motorcycles.map((item) => item.metric_point!.y_m)];
+  const minX = Math.min(...allX), maxX = Math.max(...allX), minY = Math.min(...allY), maxY = Math.max(...allY), padding = 1.5;
+  const width = Math.max(maxX - minX + padding * 2, 1), height = Math.max(maxY - minY + padding * 2, 1);
+  const polygon = (row: NonNullable<(typeof rows)[number]['physical_polygon']>) => row.map((point) => `${point.x_m},${-point.y_m}`).join(' ');
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" aria-labelledby="parking-map-title">
+      <div className="border-b border-slate-200 px-5 py-4"><h2 id="parking-map-title" className="font-semibold">Parking map</h2><p className="mt-1 text-sm text-slate-500">Physical R1–R5 and mapped motorcycle positions</p></div>
+      <div className="bg-slate-950 p-4 sm:p-6">
+        <svg viewBox={`${minX - padding} ${-(maxY + padding)} ${width} ${height}`} preserveAspectRatio="xMidYMid meet" className="mx-auto block max-h-[560px] w-full" style={{ aspectRatio: `${width} / ${height}` }} aria-label="Physical measured parking map">
+          {rows.map((row) => { const anchor = row.physical_polygon![0]; return <g key={row.row_id}><polygon points={polygon(row.physical_polygon!)} fill="rgba(59,130,246,.18)" stroke="#60a5fa" strokeWidth="0.08" vectorEffect="non-scaling-stroke" /><text x={anchor.x_m} y={-anchor.y_m - .25} fill="#dbeafe" fontSize=".48" fontWeight="700">{row.row_id.replace('row_', 'R')} · {row.measured_length_m}×{row.measured_width_m} m</text></g>; })}
+          {motorcycles.map((item) => <g key={item.detection_id}><circle cx={item.metric_point!.x_m} cy={-item.metric_point!.y_m} r=".18" fill={item.physical_containment === 'INSIDE_PHYSICAL_ROW' ? '#22c55e' : '#f59e0b'} stroke="#fff" strokeWidth=".06" /><text x={item.metric_point!.x_m + .25} y={-item.metric_point!.y_m + .16} fill="white" fontSize=".42" fontWeight="700">{item.detection_index + 1}</text></g>)}
+        </svg>
+      </div>
+    </section>
+  );
 }

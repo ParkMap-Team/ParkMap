@@ -1,4 +1,0 @@
-import { Bike, CircleAlert, CircleParking, MapPinned } from 'lucide-react';
-const styles = { blue: 'bg-blue-50 text-blue-700', green: 'bg-emerald-50 text-emerald-700', red: 'bg-red-50 text-red-700', amber: 'bg-amber-50 text-amber-700' };
-const icons = { motorcycle: Bike, available: MapPinned, occupied: CircleParking, uncertain: CircleAlert };
-export function SummaryCard({ label, value, tone, icon }: { label: string; value: number; tone: keyof typeof styles; icon: keyof typeof icons }) { const Icon = icons[icon]; return <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-medium text-slate-500">{label}</p><p className="mt-2 text-3xl font-bold tracking-tight">{value}</p></div><span className={`grid size-10 place-items-center rounded-xl ${styles[tone]}`}><Icon className="size-5" /></span></div></article>; }

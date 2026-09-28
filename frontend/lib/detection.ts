@@ -1,5 +1,5 @@
-import { PARKMAP_API_URL, ParkingApiError } from '@/lib/parking';
-import type { DetectionResponse } from '@/types/detection';
+import { PARKMAP_API_URL, ParkingApiError } from './api.ts';
+import type { DetectionResponse } from '../types/detection.ts';
 
 export const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
