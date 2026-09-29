@@ -11,11 +11,15 @@ from app.services.calibration_service import calibration_service
 class CalibrationApiTest(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary_directory = tempfile.TemporaryDirectory()
+        self.original_directory = calibration_service.config_directory
+        self.original_path = calibration_service.calibration_path
         calibration_service.config_directory = Path(self.temporary_directory.name)
         calibration_service.calibration_path = calibration_service.config_directory / "parking_calibration.json"
         self.client = TestClient(app)
 
     def tearDown(self) -> None:
+        calibration_service.config_directory = self.original_directory
+        calibration_service.calibration_path = self.original_path
         self.temporary_directory.cleanup()
 
     @staticmethod
@@ -46,12 +50,30 @@ class CalibrationApiTest(unittest.TestCase):
 
     def test_rejects_incomplete_and_pixel_coordinate_payloads(self) -> None:
         incomplete = self.valid_payload()
-        incomplete["rows"] = incomplete["rows"][:4]
+        incomplete["rows"] = []
         self.assertEqual(self.client.post("/api/calibration", json=incomplete).status_code, 422)
 
         pixel_coordinates = self.valid_payload()
         pixel_coordinates["parking_roi"]["polygon"][0]["x"] = 512
         self.assertEqual(self.client.post("/api/calibration", json=pixel_coordinates).status_code, 422)
+
+    def test_accepts_dynamic_row_counts_and_rejects_duplicate_ids(self) -> None:
+        for count in (1, 3, 5, 8):
+            payload = self.valid_payload()
+            payload["rows"] = [{"id": f"row_{index}", "name": f"Parking Row {index}", "polygon": payload["parking_roi"]["polygon"]} for index in range(1, count + 1)]
+            response = self.client.post("/api/calibration", json=payload)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.json()["rows"]), count)
+        duplicate = self.valid_payload()
+        duplicate["rows"][1]["id"] = "row_1"
+        self.assertEqual(self.client.post("/api/calibration", json=duplicate).status_code, 422)
+
+    def test_sparse_row_ids_remain_stable(self) -> None:
+        payload = self.valid_payload()
+        payload["rows"] = [payload["rows"][0], payload["rows"][2], payload["rows"][4], {**payload["rows"][0], "id": "row_6", "name": "Parking Row 6"}]
+        response = self.client.post("/api/calibration", json=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([row["id"] for row in response.json()["rows"]], ["row_1", "row_3", "row_5", "row_6"])
 
 
 if __name__ == "__main__":

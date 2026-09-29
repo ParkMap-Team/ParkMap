@@ -1,10 +1,18 @@
 from datetime import datetime
-from typing import Literal
+import re
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
 SystemStatus = Literal["loading", "online", "offline", "error", "stale", "processing"]
 ModelStatus = Literal["ready", "processing", "offline", "error"]
+
+
+def _row_number(row_id: str) -> int:
+    match = re.fullmatch(r"row_([1-9][0-9]*)", row_id)
+    if match is None:
+        raise ValueError("Row IDs must use the row_N format with N >= 1.")
+    return int(match.group(1))
 
 
 class ParkingObject(BaseModel):
@@ -90,6 +98,7 @@ class DetectionResponse(BaseModel):
     model: DetectionAnalysisModel
     inference: DetectionInference
     detections: list[Detection]
+    parking_analysis: dict[str, Any] | None = None
 
 
 class CalibrationPoint(BaseModel):
@@ -102,8 +111,8 @@ class CalibrationPolygon(BaseModel):
 
 
 class CalibrationRow(CalibrationPolygon):
-    id: str
-    name: str
+    id: str = Field(pattern=r"^row_[1-9][0-9]*$")
+    name: str = Field(min_length=1)
 
 
 class CalibrationReferenceImage(BaseModel):
@@ -116,27 +125,24 @@ class ParkingCalibration(BaseModel):
     camera_id: str = Field(min_length=1)
     reference_image: CalibrationReferenceImage
     parking_roi: CalibrationPolygon
-    rows: list[CalibrationRow] = Field(min_length=5, max_length=5)
+    rows: list[CalibrationRow] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_rows(self) -> "ParkingCalibration":
-        expected = [f"row_{index}" for index in range(1, 6)]
-        actual = [row.id for row in self.rows]
-        if actual != expected:
-            raise ValueError("Calibration rows must be exactly row_1 through row_5 in order.")
-        expected_names = [f"Parking Row {index}" for index in range(1, 6)]
-        if [row.name for row in self.rows] != expected_names:
-            raise ValueError("Calibration row names must be Parking Row 1 through Parking Row 5 in order.")
+        ids = [row.id for row in self.rows]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Calibration row IDs must be unique.")
+        self.rows.sort(key=lambda row: _row_number(row.id))
         return self
 
 
 MetricCalibrationStatus = Literal["NOT_CALIBRATED", "PARTIALLY_CALIBRATED", "CALIBRATED"]
 MetricMeasurementSource = Literal["ESTIMATED", "MEASURED"]
-MetricRowId = Literal["row_1", "row_2", "row_3", "row_4", "row_5"]
+MetricRowId = str
 
 
 class MetricRowMeasurement(BaseModel):
-    id: MetricRowId
+    id: MetricRowId = Field(pattern=r"^row_[1-9][0-9]*$")
     length_m: float = Field(gt=0.0, allow_inf_nan=False)
 
 
@@ -164,7 +170,7 @@ class MetricCalibration(BaseModel):
     camera_id: str = Field(min_length=1)
     unit: Literal["meter"] = "meter"
     measurement_source: MetricMeasurementSource = "ESTIMATED"
-    rows: list[MetricRowMeasurement] = Field(default_factory=list, max_length=5)
+    rows: list[MetricRowMeasurement] = Field(default_factory=list)
     reference_segments: list[MetricReferenceSegment] = Field(default_factory=list)
     ground_control_points: list[MetricGroundControlPoint] = Field(default_factory=list)
 
@@ -231,6 +237,8 @@ class GroundPlaneCalibration(BaseModel):
 
     @model_validator(mode="after")
     def validate_ground_plane_ids(self) -> "GroundPlaneCalibration":
+        for row_id in self.measured_rows:
+            _row_number(row_id)
         for items, label in ((self.control_points, "control point"), (self.reference_distances, "reference distance")):
             ids = [item.id for item in items]
             if len(ids) != len(set(ids)):
@@ -336,6 +344,12 @@ class PhysicalRowGeometryConfig(BaseModel):
     camera_id: str = Field(min_length=1)
     measurement_source_fingerprint: str
     rows: dict[MetricRowId, PhysicalRowEndpointPair] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_row_ids(self) -> "PhysicalRowGeometryConfig":
+        for row_id in self.rows:
+            _row_number(row_id)
+        return self
 
 
 class MotorcycleFittingConfiguration(BaseModel):

@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "camera_id": "SPU_CAM_01",
+  "measurement_source_fingerprint": "ca5842549fe0ffcdf5d09f4e52b71137b50e4852cac8d38e72b3c68dc346a563",
+  "rows": {
+    "row_1": {
+      "start": {
+        "clicked_image": {
+          "x": 0.10218596738039204,
+          "y": 0.8408482623130269
+        },
+        "effective_image": {
+          "x": 0.10218596738039204,
+          "y": 0.8408482623130269
+        },
+        "snapped_to_roi_boundary": false
+      },
+      "end": {
+        "clicked_image": {
+          "x": 0.873866203804732,
+          "y": 0.8507666939371338
+        },
+        "effective_image": {
+          "x": 0.873866203804732,
+          "y": 0.8507666939371338
+        },
+        "snapped_to_roi_boundary": false
+      }
+    },
+    "row_2": {
+      "start": {
+        "clicked_image": {
+          "x": 0.11980423761839068,
+          "y": 0.8063947560698296
+        },
+        "effective_image": {
+          "x": 0.11980423761839068,
+          "y": 0.8063947560698296
+        },
+        "snapped_to_roi_boundary": false
+      },
+      "end": {
+        "clicked_image": {
+          "x": 0.860946138963533,
+          "y": 0.8095268930010293
+        },
+        "effective_image": {
+          "x": 0.860946138963533,
+          "y": 0.8095268930010293
+        },
+        "snapped_to_roi_boundary": false
+      }
+    },
+    "row_3": {
+      "start": {
+        "clicked_image": {
+          "x": 0.14564436730078867,
+          "y": 0.7573246128057258
+        },
+        "effective_image": {
+          "x": 0.14564436730078867,
+          "y": 0.7573246128057258
+        },
+        "snapped_to_roi_boundary": false
+      },
+      "end": {
+        "clicked_image": {
+          "x": 0.8456769714239342,
+          "y": 0.762544839033033
+        },
+        "effective_image": {
+          "x": 0.8456769714239342,
+          "y": 0.762544839033033
+        },
+        "snapped_to_roi_boundary": false
+      }
+    },
+    "row_4": {
+      "start": {
+        "clicked_image": {
+          "x": 0.023491026983998173,
+          "y": 0.7213050380969286
+        },
+        "effective_image": {
+          "x": 0.023491026983998173,
+          "y": 0.7213050380969286
+        },
+        "snapped_to_roi_boundary": false
+      },
+      "end": {
+        "clicked_image": {
+          "x": 0.835106009281135,
+          "y": 0.7322675173561277
+        },
+        "effective_image": {
+          "x": 0.835106009281135,
+          "y": 0.7322675173561277
+        },
+        "snapped_to_roi_boundary": false
+      }
+    },
+    "row_5": {
+      "start": {
+        "clicked_image": {
+          "x": 0.06460032420599497,
+          "y": 0.655008135737149
+        },
+        "effective_image": {
+          "x": 0.06460032420599497,
+          "y": 0.655008135737149
+        },
+        "snapped_to_roi_boundary": false
+      },
+      "end": {
+        "clicked_image": {
+          "x": 0.8116149822971368,
+          "y": 0.6644045465307483
+        },
+        "effective_image": {
+          "x": 0.8116149822971368,
+          "y": 0.6644045465307483
+        },
+        "snapped_to_roi_boundary": false
+      }
+    }
+  }
+}

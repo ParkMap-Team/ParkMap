@@ -91,10 +91,10 @@ class PhysicalRowGeometryService:
         matrix = np.asarray(homography.result.matrix, dtype=float) if usable_h else None
         threshold = float(os.getenv("PARKMAP_PHYSICAL_ROW_WARNING_RELATIVE_PERCENT", "5.0"))
         rows = []
-        for row_id in [f"row_{index}" for index in range(1, 6)]:
+        for parking_row in parking.rows:
+            row_id = parking_row.id
             endpoints = config.rows.get(row_id)
             measured = calibration.measured_rows.get(row_id)
-            parking_row = next((row for row in parking.rows if row.id == row_id), None)
             override_enabled = bool(endpoints and endpoints.override_enabled)
             source = "MANUAL_OVERRIDE" if override_enabled else "DERIVED_FROM_EXISTING_ROW"
             diagnostic = {"row_id": row_id, "status": "NOT_READY", "validation_status": "NOT_CHECKED", "source": source, "manual_override_enabled": override_enabled, "measured_length_m": measured.length_m if measured else None, "measured_width_m": measured.width_m if measured else None, "provenance": measured.provenance if measured else None, "start": None, "end": None, "source_start_image": None, "source_end_image": None, "homography_distance_m": None, "difference_m": None, "absolute_error_m": None, "relative_error_percent": None, "start_metric": None, "clicked_end_metric": None, "measured_model_end_metric": None, "endpoint_discrepancy_m": None, "physical_polygon": None}

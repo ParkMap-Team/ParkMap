@@ -16,6 +16,7 @@ from app.services.ground_plane_calibration_service import ground_plane_calibrati
 from app.services.ground_plane_homography_service import HomographyInputError, ground_plane_homography_service
 from app.services.parking_service import parking_service
 from app.services.physical_row_geometry_service import measurement_fingerprint, physical_row_geometry_service
+from app.services.parking_analysis_service import parking_analysis_service
 
 load_dotenv()
 
@@ -61,6 +62,13 @@ def get_metric_calibration() -> MetricCalibrationResponse:
 
 @app.post("/api/metric-calibration", response_model=MetricCalibrationResponse)
 def save_metric_calibration(calibration: MetricCalibration) -> MetricCalibrationResponse:
+    parking = calibration_service.load()
+    if parking is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Parking calibration is required before saving metric row measurements.")
+    valid_row_ids = {row.id for row in parking.rows}
+    unknown_row_ids = sorted({row.id for row in calibration.rows} - valid_row_ids)
+    if unknown_row_ids:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Metric calibration contains unknown parking rows: {', '.join(unknown_row_ids)}.")
     return metric_calibration_service.save(calibration)
 
 
@@ -162,4 +170,5 @@ async def analyze_detection(image: UploadFile = File(...)) -> DetectionResponse:
 
     if width <= 0 or height <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The uploaded image has invalid dimensions.")
-    return cv_service.analyze_image(image_bytes=image_bytes)
+    detection = cv_service.analyze_image(image_bytes=image_bytes)
+    return {**detection.model_dump(mode="json"), "parking_analysis": parking_analysis_service.analyze(detection)}

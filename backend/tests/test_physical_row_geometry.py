@@ -59,5 +59,16 @@ class PhysicalRowGeometryTest(unittest.TestCase):
         self.assertEqual(overridden["source"], "MANUAL_OVERRIDE")
         self.assertNotEqual(derived["start_metric"], overridden["start_metric"])
 
+    def test_returns_every_configured_dynamic_row(self):
+        ground, parking, homography = self.inputs()
+        polygon = parking.rows[0].polygon
+        parking = parking.model_copy(update={"rows": [parking.rows[0].model_copy(update={"id": f"row_{index}", "name": f"Parking Row {index}", "polygon": polygon}) for index in range(1, 9)]})
+        measured = {f"row_{index}": ground.measured_rows["row_1"].model_copy(update={"length_m": 15.0}) for index in range(1, 9)}
+        ground = ground.model_copy(update={"measured_rows": measured})
+        config = PhysicalRowGeometryConfig(camera_id="CAM", measurement_source_fingerprint=measurement_fingerprint(ground), rows={})
+        response = PhysicalRowGeometryService().response(config, ground, parking, homography)
+        self.assertEqual([row["row_id"] for row in response["rows"]], [f"row_{index}" for index in range(1, 9)])
+        self.assertTrue(all(row["status"] == "PHYSICAL_READY" for row in response["rows"]))
+
 
 if __name__ == "__main__": unittest.main()

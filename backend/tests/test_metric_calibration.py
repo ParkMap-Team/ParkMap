@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from app.main import app
 from app.models import MetricRowMeasurement
+from app.services.calibration_service import calibration_service
 from app.services.metric_calibration_service import metric_calibration_service
 
 
@@ -17,14 +18,40 @@ class MetricCalibrationApiTest(unittest.TestCase):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.original_directory = metric_calibration_service.config_directory
         self.original_path = metric_calibration_service.calibration_path
+        self.original_parking_directory = calibration_service.config_directory
+        self.original_parking_path = calibration_service.calibration_path
         metric_calibration_service.config_directory = Path(self.temporary_directory.name)
         metric_calibration_service.calibration_path = metric_calibration_service.config_directory / "metric_calibration.json"
+        calibration_service.config_directory = Path(self.temporary_directory.name)
+        calibration_service.calibration_path = calibration_service.config_directory / "parking_calibration.json"
+        calibration_service.calibration_path.write_text(json.dumps(self.parking_calibration()), encoding="utf-8")
         self.client = TestClient(app)
 
     def tearDown(self) -> None:
         metric_calibration_service.config_directory = self.original_directory
         metric_calibration_service.calibration_path = self.original_path
+        calibration_service.config_directory = self.original_parking_directory
+        calibration_service.calibration_path = self.original_parking_path
         self.temporary_directory.cleanup()
+
+    @staticmethod
+    def parking_calibration() -> dict:
+        polygon = [
+            {"x": 0.1, "y": 0.9},
+            {"x": 0.9, "y": 0.9},
+            {"x": 0.9, "y": 0.7},
+            {"x": 0.1, "y": 0.7},
+        ]
+        return {
+            "schema_version": 2,
+            "camera_id": "SPU_CAM_01",
+            "reference_image": {"width": 1000, "height": 800},
+            "parking_roi": {"polygon": polygon},
+            "rows": [
+                {"id": f"row_{index}", "name": f"Parking Row {index}", "polygon": polygon}
+                for index in range(1, 7)
+            ],
+        }
 
     @staticmethod
     def payload(rows: list[dict] | None = None, source: str = "ESTIMATED") -> dict:
@@ -73,8 +100,10 @@ class MetricCalibrationApiTest(unittest.TestCase):
                 MetricRowMeasurement(id="row_1", length_m=value)
 
     def test_rejects_unknown_and_duplicate_rows(self) -> None:
-        unknown = self.payload([{"id": "row_6", "length_m": 1}])
+        configured = self.payload([{"id": "row_1", "length_m": 1}, {"id": "row_6", "length_m": 1}])
+        unknown = self.payload([{"id": "row_999", "length_m": 1}])
         duplicate = self.payload([{"id": "row_1", "length_m": 1}, {"id": "row_1", "length_m": 2}])
+        self.assertEqual(self.client.post("/api/metric-calibration", json=configured).status_code, 200)
         self.assertEqual(self.client.post("/api/metric-calibration", json=unknown).status_code, 422)
         self.assertEqual(self.client.post("/api/metric-calibration", json=duplicate).status_code, 422)
 
@@ -91,9 +120,8 @@ class MetricCalibrationApiTest(unittest.TestCase):
         self.assertEqual(response.json()["calibration"]["ground_control_points"], [])
 
     def test_saving_metric_data_does_not_modify_parking_calibration(self) -> None:
-        parking_path = metric_calibration_service.config_directory / "parking_calibration.json"
-        original = b'{"preserve":"exactly"}\n'
-        parking_path.write_bytes(original)
+        parking_path = calibration_service.calibration_path
+        original = parking_path.read_bytes()
         response = self.client.post("/api/metric-calibration", json=self.payload([{"id": "row_1", "length_m": 5}]))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(parking_path.read_bytes(), original)

@@ -32,4 +32,7 @@ export interface DetectionResponse {
   model: DetectionModel;
   inference: DetectionInference;
   detections: Detection[];
+  parking_analysis?: ParkingAnalysisResponse;
 }
+import type { ParkingAnalysisResponse } from './parkingAnalysis';
+

@@ -7,7 +7,7 @@ from app.models import ParkingCalibration
 
 
 class CalibrationService:
-    """Persists normalized parking ROI and five manually calibrated rows."""
+    """Persists a normalized parking ROI and a dynamic collection of rows."""
 
     def __init__(self, config_directory: Path | None = None) -> None:
         self.config_directory = config_directory or Path(__file__).resolve().parents[2] / "config"

@@ -8,8 +8,8 @@ export interface CalibrationPolygon {
 }
 
 export interface CalibrationRow extends CalibrationPolygon {
-  id: `row_${1 | 2 | 3 | 4 | 5}`;
-  name: `Parking Row ${1 | 2 | 3 | 4 | 5}`;
+  id: `row_${number}`;
+  name: string;
 }
 
 export interface ParkingCalibration {
