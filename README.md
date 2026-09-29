@@ -8,7 +8,7 @@ ParkMap/
 └── backend/   # FastAPI API and future Computer Vision pipeline
 ```
 
-The frontend visualizes processed parking data. YOLO inference, ROI calibration, homography, calibrated rows, occupied intervals, and free-space calculation belong in the Python backend. The current backend returns deterministic test data only.
+The frontend visualizes the backend parking-analysis pipeline. YOLO inference, ROI calibration, homography, dynamic physical rows, occupied geometry, free-space calculation, capacity witnesses, and parking-state diagnostics belong in the Python backend.
 
 ## Frontend
 
@@ -18,7 +18,7 @@ npm install
 npm run dev
 ```
 
-Open <http://localhost:3000>. Select Live mode to request `GET http://localhost:8000/api/parking/status`.
+Open <http://localhost:3000>. The dashboard can analyze an uploaded image through the backend and display the Physical Map and camera overlay.
 
 ## Backend
 
@@ -40,11 +40,20 @@ Endpoints:
 
 Run the frontend and backend in separate terminals. Local CORS permits `http://localhost:3000`; additional origins can be configured through the backend environment.
 
-The detection endpoint runs the configured YOLO model and returns normalized top-left motorcycle bounding boxes. Physical metric calibration remains separate and unconfigured until real site measurements are supplied.
+The detection endpoint runs the configured YOLO model and returns normalized top-left motorcycle bounding boxes. Upload analysis then applies the active parking calibration, homography, physical row dimensions, occupied/free geometry, capacity, and parking-state validation.
+
+## Setup workflow
+
+The Setup page uses one reference image and two editing modes:
+
+1. **Parking Area** — draw the Parking ROI and any number of rows (R1–Rn), then edit physical row dimensions in the collapsed dimensions panel.
+2. **Ground Map Calibration** — edit the P1–Pn ground-control points and calculate/update the homography.
+
+Switching modes changes the visible editor while keeping the same reference image. Row IDs are dynamic and may be sparse (for example `row_1`, `row_2`, `row_4`).
 
 ## Future Site Measurement Checklist
 
-- Measure the usable physical length of Parking Rows 1 through 5 separately.
+- Measure the usable physical length and width of every configured parking row separately.
 - Measure useful Parking ROI boundary/reference segments and record their exact endpoints.
 - Collect additional known, non-collinear ground points and surveyed coordinates if accurate 2D image-to-ground calibration is required.
 
@@ -55,7 +64,7 @@ Do not estimate missing values from pixels, motorcycles, painted lines, maps, or
 - `ESTIMATED` values are temporary approximations entered manually for development and workflow testing. They are not verified site measurements.
 - `MEASURED` values are values the user physically measured at the parking site.
 
-The source is selected explicitly in the Metric Calibration UI and is preserved when saved. Completing all five estimated row lengths does not create a ground-plane calibration, homography, or meters-per-pixel scale. When real measurements are available, replace the values in the same UI and explicitly select **Measured on site** before saving.
+Measured physical row dimensions are edited from Setup and saved with the ground-plane calibration. They are used with the validated homography to derive physical row geometry; they do not replace the ground-control points required for a 2D map.
 
 ## ParkMap Branding
 

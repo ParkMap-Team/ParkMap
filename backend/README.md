@@ -1,6 +1,6 @@
 # ParkMap Backend
 
-FastAPI service for the ParkMap frontend. The upload analysis endpoint runs the custom ParkMap Ultralytics YOLO model. The parking-status endpoint still returns deterministic **TEST DATA** and does not infer free space, calculate homography, or contain calibrated parking rows.
+FastAPI service for the ParkMap frontend. The upload analysis endpoint runs the custom ParkMap Ultralytics YOLO model and, when calibration is ready, returns the dynamic parking-analysis pipeline.
 
 ## Run locally
 
@@ -23,21 +23,17 @@ The model is loaded once when the application starts and is reused for each uplo
 
 ## Parking calibration
 
-`GET /api/calibration` returns the saved schema-v2 calibration or `404` when calibration has not been configured. `POST /api/calibration` validates and atomically saves a normalized parking ROI plus exactly five manually drawn parking rows to `config/parking_calibration.json`.
+`GET /api/calibration` returns the saved schema-v2 calibration or `404` when calibration has not been configured. `POST /api/calibration` validates and atomically saves a normalized parking ROI plus a dynamic collection of manually drawn parking rows to `config/parking_calibration.json`.
 
-Legacy `config/parking_roi.json` pixel coordinates are not loaded as normalized coordinates. Calibration currently defines geometry only; it does not calculate capacity, occupancy, or available parking space.
+Legacy `config/parking_roi.json` pixel coordinates are not loaded as normalized coordinates. Calibration defines the geometry consumed by the upload parking-analysis endpoint; it does not itself run inference.
 
 ## Metric calibration
 
-`GET /api/metric-calibration` returns `NOT_CALIBRATED` when no physical measurements have been saved. `POST /api/metric-calibration` validates and atomically stores optional row lengths, reference segments, ground-control points, and explicit `ESTIMATED` or `MEASURED` provenance in the separate ignored file `config/metric_calibration.json`. Row lengths use meters internally and may be added incrementally. Estimated values are testing inputs, not verified site measurements. The service does not estimate missing measurements or calculate a homography.
+`GET /api/metric-calibration` returns `NOT_CALIBRATED` when no physical measurements have been saved. `POST /api/metric-calibration` validates and atomically stores dynamic row dimensions and ground-control data in the separate ignored file `config/metric_calibration.json`. Every measured row ID must currently exist in Parking Calibration; sparse dynamic IDs are supported. Dimensions use meters internally and are treated as measured site values by the current Setup workflow.
 
 ### Future Site Measurement Checklist
 
-- Measure the real usable length of Row 1.
-- Measure the real usable length of Row 2.
-- Measure the real usable length of Row 3.
-- Measure the real usable length of Row 4.
-- Measure the real usable length of Row 5.
+- Measure the real usable length and width of every configured row.
 - Record useful Parking ROI boundary distances as identifiable reference segments.
 - Photograph or mark the exact endpoints used for every measured segment.
 - For accurate future 2D ground-plane calibration, collect additional non-collinear ground-control points with normalized image locations and surveyed ground coordinates.
