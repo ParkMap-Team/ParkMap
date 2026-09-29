@@ -72,10 +72,6 @@ Logo file:
 
 `frontend/public/branding/parkmap-logo.png`
 
-Absolute local path:
-
-`C:\Users\user\Desktop\ParkMap Test\frontend\public\branding\parkmap-logo.png`
-
 Use a PNG with a transparent background and keep the filename exactly `parkmap-logo.png`. Copy or replace that file to update the header logo, then refresh the page; restart or rebuild the frontend if the development or deployed build has cached the previous asset. If the file is missing or cannot load, the header safely keeps the existing ParkMap icon and text without showing a broken image.
 
 For a future favicon or app icon, first create a dedicated square/cropped variant suited to small sizes. Do not use the full logo blindly when its aspect ratio or detail is unsuitable.
