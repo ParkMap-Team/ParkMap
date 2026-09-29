@@ -2,6 +2,7 @@ import type { GroundPlaneMetricPoint } from './groundPlaneCalibration';
 import type { MetricMotorcycle } from './metricMotorcycle';
 
 export interface MetricMultiPolygon { polygons: GroundPlaneMetricPoint[][][]; }
+export interface AlmostAvailablePlacement { row_id: string; status: 'ALMOST_AVAILABLE'; footprint_metric: MetricMultiPolygon; }
 export interface PhysicalMapRowResult { row_id: string; polygon: GroundPlaneMetricPoint[]; measured_length_m: number | null; measured_width_m: number | null; area_m2: number; }
 export interface OccupiedRowResult { row_id: string; row_area_m2: number; occupied_union_area_m2: number; occupied_percent: number; occupied_geometry: MetricMultiPolygon; blocking_detection_ids?: string[]; contributions?: BlockingContributionResult[]; components?: OccupiedGeometryComponent[]; }
 export interface FreeRowResult { row_id: string; row_area_m2: number; occupied_union_area_m2: number; free_geometry: MetricMultiPolygon; free_area_m2: number; free_component_count: number; hole_count: number; occupied_percent: number; free_percent: number; validation_status: 'VALID' | 'INVALID'; }
