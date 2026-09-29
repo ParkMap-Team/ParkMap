@@ -5,8 +5,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CameraMonitor } from '@/components/camera/CameraMonitor';
 import { PhysicalMeasuredMap } from '@/components/parking/PhysicalMeasuredMap';
 import { ParkingStateSummary } from '@/components/parking/ParkingStateSummary';
-import { UncertaintyEvidenceInspector } from '@/components/parking/UncertaintyEvidenceInspector';
-import { MotorcycleFootprintInspector } from '@/components/parking/MotorcycleFootprintInspector';
 import { CameraParkingOverlay } from '@/components/parking/CameraParkingOverlay';
 import { adaptBackendParkingGeometry } from '@/lib/legacyParkingAnalysis';
 import { getCalibration } from '@/lib/calibration';
@@ -26,9 +24,6 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const [analysis, setAnalysis] = useState<DetectionResponse | null>(null);
   const [state, setState] = useState<'idle' | 'processing' | 'error' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [selectedEvidenceDetectionId, setSelectedEvidenceDetectionId] = useState<string | null>(null);
-  const [selectedOccupiedRowId, setSelectedOccupiedRowId] = useState<string | null>(null);
-  const [selectedOccupiedComponentKey, setSelectedOccupiedComponentKey] = useState<string | null>(null);
   const [parkingView, setParkingView] = useState<'camera' | 'physical'>('physical');
   const [calibration, setCalibration] = useState<ParkingCalibration | null>(null);
   const [homography, setHomography] = useState<GroundPlaneHomographyResponse | null>(null);
@@ -97,9 +92,6 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const backendSummary = analysis?.parking_analysis?.detection_summary;
   const insideRoi = backendSummary?.parking_included ?? 0;
   const excluded = backendSummary?.parking_excluded ?? 0;
-  const backendDetections = analysis?.parking_analysis?.detections ?? [];
-  const assigned = backendDetections.filter((item) => ['POINT_ASSIGNED', 'FOOTPRINT_ASSIGNED'].includes(item.row_assignment_v2?.state)).length;
-  const insideWithoutRow = backendDetections.filter((item) => item.inside_parking_roi && !['POINT_ASSIGNED', 'FOOTPRINT_ASSIGNED'].includes(item.row_assignment_v2?.state)).length;
   const analysisUnavailable = state === 'done' && !analysis?.parking_analysis;
   return (
     <div className="space-y-6">
@@ -117,9 +109,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
 
       <CameraMonitor imageUrl={previewUrl} analysis={analysis} assignments={assignments} />
       <div className="flex gap-2 text-sm"><button type="button" onClick={() => setParkingView('camera')} className={parkingView === 'camera' ? 'font-semibold text-blue-700' : 'text-slate-500'}>Camera View</button><button type="button" onClick={() => setParkingView('physical')} className={parkingView === 'physical' ? 'font-semibold text-blue-700' : 'text-slate-500'}>Physical Map</button></div>
-      {parkingView === 'camera' ? <CameraParkingOverlay imageUrl={previewUrl} analysis={analysis?.parking_analysis} /> : <PhysicalMeasuredMap physical={physical} mapping={mapping} homography={homography} occupiedSpace={occupiedSpace} freeSpace={freeSpace} fitting={null} recommendations={analysis?.parking_analysis?.placement_recommendation} capacity={analysis?.parking_analysis?.capacity} almostAvailablePlacements={analysis?.parking_analysis?.almost_available_placements} witnessSafety={analysis?.parking_analysis?.witness_safety} parkingState={analysis?.parking_analysis?.parking_state} uncertainty={analysis?.parking_analysis?.uncertainty} selectedEvidenceDetectionId={selectedEvidenceDetectionId} onSelectDetection={setSelectedEvidenceDetectionId} selectedOccupiedRowId={selectedOccupiedRowId} onSelectOccupiedRow={(rowId) => { setSelectedOccupiedRowId(rowId); setSelectedOccupiedComponentKey(null); }} selectedOccupiedComponentKey={selectedOccupiedComponentKey} onSelectOccupiedComponent={(rowId, index) => { setSelectedOccupiedRowId(rowId); setSelectedOccupiedComponentKey(`${rowId}:${index}`); }} />}
-      <MotorcycleFootprintInspector mapping={mapping} analysis={analysis?.parking_analysis} occupiedSpace={occupiedSpace} selectedOccupiedRowId={selectedOccupiedRowId} onSelectOccupiedRow={(rowId) => { setSelectedOccupiedRowId(rowId); setSelectedOccupiedComponentKey(null); }} selectedOccupiedComponentKey={selectedOccupiedComponentKey} onSelectOccupiedComponent={(rowId, index) => setSelectedOccupiedComponentKey(`${rowId}:${index}`)} selectedDetectionId={selectedEvidenceDetectionId} onSelect={setSelectedEvidenceDetectionId} onClear={() => setSelectedEvidenceDetectionId(null)} />
-      {analysis?.parking_analysis?.uncertainty && <UncertaintyEvidenceInspector rows={analysis.parking_analysis.uncertainty.rows} mapping={mapping} selectedDetectionId={selectedEvidenceDetectionId} onSelect={setSelectedEvidenceDetectionId} onClear={() => setSelectedEvidenceDetectionId(null)} />}
+      {parkingView === 'camera' ? <CameraParkingOverlay imageUrl={previewUrl} analysis={analysis?.parking_analysis} /> : <PhysicalMeasuredMap physical={physical} mapping={mapping} homography={homography} occupiedSpace={occupiedSpace} freeSpace={freeSpace} fitting={null} recommendations={analysis?.parking_analysis?.placement_recommendation} capacity={analysis?.parking_analysis?.capacity} almostAvailablePlacements={analysis?.parking_analysis?.almost_available_placements} witnessSafety={analysis?.parking_analysis?.witness_safety} parkingState={analysis?.parking_analysis?.parking_state} uncertainty={analysis?.parking_analysis?.uncertainty} />}
       {analysis?.parking_analysis && <ParkingStateSummary analysis={analysis.parking_analysis} />}
 
       <section className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm" aria-labelledby="summary-title">
@@ -130,9 +120,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
           <div><dt className="text-slate-500">Parking Analysis Excluded</dt><dd className="mt-1 text-2xl font-bold">{excluded}</dd></div>
           <div><dt className="text-slate-500">System status</dt><dd className={`mt-1 text-lg font-bold ${mapReady ? 'text-emerald-700' : 'text-amber-700'}`}>{mapReady ? 'Map ready' : 'Calibration required'}</dd></div>
         </dl>
-        {analysis && <p className="mt-3 text-sm text-slate-600">Metric projected: <strong>{validMetric}</strong> · Parking analysis included: <strong>{insideRoi}</strong> · Parking analysis excluded: <strong>{excluded}</strong> · Physical map rendered: <strong>{insideRoi}</strong> · Row Assignment V2 assigned: <strong>{assigned}</strong> · Without row: <strong>{insideWithoutRow}</strong></p>}
         {analysisUnavailable && <p role="alert" className="mt-3 text-sm text-red-700">Parking analysis unavailable.</p>}
-        {analysis?.parking_analysis?.free_space && <section className="mt-4"><h3 className="font-semibold">Row analysis</h3><div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{analysis.parking_analysis.free_space.rows.map((row) => { const fit = analysis.parking_analysis?.virtual_fitting?.rows?.find((item) => item.row_id === row.row_id); const capacity = analysis.parking_analysis?.capacity?.rows?.find((item) => item.row_id === row.row_id); const state = analysis.parking_analysis?.parking_state?.rows?.find((item) => item.row_id === row.row_id); const stateLabel = state?.validation ? state.state : 'Parking State unavailable'; const stateClass = stateLabel === 'AVAILABLE' ? 'text-emerald-700' : stateLabel === 'UNCERTAIN' ? 'text-amber-700' : stateLabel === 'UNAVAILABLE' ? 'text-rose-700' : 'text-slate-500'; return <div key={row.row_id} className="rounded-lg bg-slate-50 p-3 text-sm"><div className="font-semibold">{row.row_id.replace('row_', 'R')}</div><div className={`mt-1 font-bold ${stateClass}`}>Parking State: {stateLabel}</div>{state?.state === 'UNCERTAIN' && <div className="text-xs text-amber-700">Uncertainty evidence: {state.evidence_ids.length} detections</div>}<div className="mt-2">Occupied {row.occupied_union_area_m2.toFixed(2)} m²</div><div>Free {row.free_area_m2.toFixed(2)} m²</div><div>Virtual Fit: {fit?.status ?? 'N/A'}</div><div>Additional Capacity: {capacity?.capacity ?? 'N/A'}</div></div>; })}</div></section>}
         {!mapReady && <button type="button" onClick={onOpenSetup} className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Open Setup</button>}
         {analysis && mapReady && validMetric !== motorcycles && <p className="mt-3 text-sm text-amber-700">Some detections could not be placed on the parking map.</p>}
       </section>
