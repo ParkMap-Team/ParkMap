@@ -1,0 +1,188 @@
+import json
+import os
+from io import BytesIO
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, File, HTTPException, UploadFile, status
+from fastapi.middleware.cors import CORSMiddleware
+from PIL import Image, UnidentifiedImageError
+from starlette.concurrency import run_in_threadpool
+
+from app.models import DetectionResponse, GroundPlaneCalibration, GroundPlaneCalibrationResponse, GroundPlaneHomographyResponse, HealthResponse, MetricCalibration, MetricCalibrationResponse, MotorcycleFittingConfiguration, MotorcycleFittingResponse, ParkingCalibration, PhysicalRowGeometryConfig
+from app.services.calibration_service import calibration_service
+from app.services.cv_service import ModelUnavailableError, cv_service
+from app.services.metric_calibration_service import metric_calibration_service
+from app.services.motorcycle_fitting_service import motorcycle_fitting_service
+from app.services.ground_plane_calibration_service import ground_plane_calibration_service
+from app.services.ground_plane_homography_service import HomographyInputError, ground_plane_homography_service
+from app.services.physical_row_geometry_service import measurement_fingerprint, physical_row_geometry_service
+from app.services.parking_analysis_service import ParkingCalibrationUnavailableError, parking_analysis_service
+
+load_dotenv()
+
+app = FastAPI(title="ParkMap API", version="0.2.0", description="API boundary for ParkMap monitoring and the future CV pipeline.")
+
+allowed_origins = [origin.strip() for origin in os.getenv("PARKMAP_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",") if origin.strip()]
+app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_credentials=True, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
+
+SUPPORTED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_UPLOAD_BYTES = int(float(os.getenv("PARKMAP_MAX_UPLOAD_MB", "25")) * 1024 * 1024)
+MAX_IMAGE_PIXELS = int(os.getenv("PARKMAP_MAX_IMAGE_PIXELS", "40000000"))
+IMAGE_FORMATS = {"image/jpeg": "JPEG", "image/png": "PNG", "image/webp": "WEBP"}
+
+
+@app.get("/api/health", response_model=HealthResponse)
+def health() -> HealthResponse:
+    return HealthResponse()
+
+
+@app.get("/api/parking/status", status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
+def parking_status() -> None:
+    raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Live parking status is not configured.")
+
+
+@app.get("/api/calibration", response_model=ParkingCalibration)
+def get_calibration() -> ParkingCalibration:
+    calibration = calibration_service.load()
+    if calibration is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parking calibration is not configured.")
+    return calibration
+
+
+@app.post("/api/calibration", response_model=ParkingCalibration)
+def save_calibration(calibration: ParkingCalibration) -> ParkingCalibration:
+    return calibration_service.save(calibration)
+
+
+@app.get("/api/metric-calibration", response_model=MetricCalibrationResponse)
+def get_metric_calibration() -> MetricCalibrationResponse:
+    try:
+        return metric_calibration_service.get_response()
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Metric calibration could not be loaded: {error}") from error
+
+
+@app.post("/api/metric-calibration", response_model=MetricCalibrationResponse)
+def save_metric_calibration(calibration: MetricCalibration) -> MetricCalibrationResponse:
+    parking = calibration_service.load()
+    if parking is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Parking calibration is required before saving metric row measurements.")
+    valid_row_ids = {row.id for row in parking.rows}
+    unknown_row_ids = sorted({row.id for row in calibration.rows} - valid_row_ids)
+    if unknown_row_ids:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Metric calibration contains unknown parking rows: {', '.join(unknown_row_ids)}.")
+    return metric_calibration_service.save(calibration)
+
+
+@app.get("/api/ground-plane-calibration", response_model=GroundPlaneCalibrationResponse)
+def get_ground_plane_calibration() -> GroundPlaneCalibrationResponse:
+    return ground_plane_calibration_service.response(ground_plane_calibration_service.load())
+
+
+@app.post("/api/ground-plane-calibration", response_model=GroundPlaneCalibrationResponse)
+def save_ground_plane_calibration(calibration: GroundPlaneCalibration) -> GroundPlaneCalibrationResponse:
+    try:
+        return ground_plane_calibration_service.save(calibration)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Ground-plane calibration could not be persisted and verified: {error}") from error
+
+
+@app.get("/api/ground-plane/homography", response_model=GroundPlaneHomographyResponse)
+def get_ground_plane_homography() -> GroundPlaneHomographyResponse:
+    try:
+        return ground_plane_homography_service.get_response(ground_plane_calibration_service.load())
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Ground-plane homography could not be loaded: {error}") from error
+
+
+@app.post("/api/ground-plane/homography/calculate", response_model=GroundPlaneHomographyResponse)
+def calculate_ground_plane_homography() -> GroundPlaneHomographyResponse:
+    try:
+        calibration = ground_plane_calibration_service.load()
+        parking = calibration_service.load()
+        if parking is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Parking calibration is required for metric geometry diagnostics.")
+        return ground_plane_homography_service.calculate(calibration, parking)
+    except HomographyInputError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+    except HTTPException:
+        raise
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Ground-plane homography could not be calculated and verified: {error}") from error
+
+
+@app.get("/api/physical-row-geometry")
+def get_physical_row_geometry() -> dict:
+    calibration = ground_plane_calibration_service.load()
+    parking = calibration_service.load()
+    if parking is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Parking calibration is required.")
+    homography = ground_plane_homography_service.get_response(calibration)
+    return physical_row_geometry_service.response(physical_row_geometry_service.load(calibration), calibration, parking, homography)
+
+
+@app.post("/api/physical-row-geometry")
+def save_physical_row_geometry(config: PhysicalRowGeometryConfig) -> dict:
+    calibration = ground_plane_calibration_service.load()
+    parking = calibration_service.load()
+    if parking is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Parking calibration is required.")
+    if config.camera_id != calibration.camera_id:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Physical endpoint camera_id does not match ground-plane calibration.")
+    refreshed = config.model_copy(update={"measurement_source_fingerprint": measurement_fingerprint(calibration)})
+    try:
+        verified = physical_row_geometry_service.save(refreshed)
+        return physical_row_geometry_service.response(verified, calibration, parking, ground_plane_homography_service.get_response(calibration))
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Physical row endpoints could not be persisted and verified: {error}") from error
+
+
+@app.get("/api/motorcycle-fitting", response_model=MotorcycleFittingResponse)
+def get_motorcycle_fitting() -> MotorcycleFittingResponse:
+    try:
+        return motorcycle_fitting_service.get_response()
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Motorcycle fitting configuration could not be loaded: {error}") from error
+
+
+@app.post("/api/motorcycle-fitting", response_model=MotorcycleFittingResponse)
+def save_motorcycle_fitting(configuration: MotorcycleFittingConfiguration) -> MotorcycleFittingResponse:
+    return motorcycle_fitting_service.save(configuration)
+
+
+@app.post("/api/detection/analyze", response_model=DetectionResponse)
+async def analyze_detection(image: UploadFile = File(...)) -> DetectionResponse:
+    if image.content_type not in SUPPORTED_IMAGE_TYPES:
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Supported image types are JPEG, PNG, and WebP.")
+
+    image_bytes = await image.read(MAX_UPLOAD_BYTES + 1)
+    await image.close()
+    if not image_bytes:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The uploaded image is empty.")
+    if len(image_bytes) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="The uploaded image exceeds the configured size limit.")
+
+    try:
+        with Image.open(BytesIO(image_bytes)) as decoded:
+            if decoded.format != IMAGE_FORMATS[image.content_type]:
+                raise ValueError("Image format does not match the declared content type.")
+            width, height = decoded.size
+            if width * height > MAX_IMAGE_PIXELS:
+                raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="The uploaded image has too many pixels.")
+            decoded.verify()
+    except HTTPException:
+        raise
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The uploaded file is not a valid supported image.") from None
+
+    if width <= 0 or height <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The uploaded image has invalid dimensions.")
+    try:
+        detection = await run_in_threadpool(cv_service.analyze_image, image_bytes)
+    except ModelUnavailableError as error:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
+    try:
+        analysis = await run_in_threadpool(parking_analysis_service.analyze, detection)
+    except ParkingCalibrationUnavailableError as error:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
+    return {**detection.model_dump(mode="json"), "parking_analysis": analysis}

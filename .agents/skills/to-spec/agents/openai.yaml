@@ -1,0 +1,4 @@
+interface:
+  display_name: 'To Spec'
+  short_description: 'Synthesize discussion into an implementation-ready spec'
+  default_prompt: 'Use $to-spec to turn the settled discussion into an implementation-ready spec.'

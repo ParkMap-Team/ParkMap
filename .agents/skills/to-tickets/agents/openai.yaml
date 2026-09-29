@@ -1,0 +1,4 @@
+interface:
+  display_name: 'To Tickets'
+  short_description: 'Split approved specs into vertical GitHub issue slices'
+  default_prompt: 'Use $to-tickets to split this approved spec into dependency-aware GitHub issues.'

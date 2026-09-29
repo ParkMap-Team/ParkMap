@@ -1,44 +1,60 @@
 # ParkMap
 
-ParkMap is a frontend/backend monorepo for motorcycle parking monitoring.
+ParkMap is a fourth-year Sripatum University project for finding usable motorcycle parking space in an unmarked lot. Read [CONTEXT.md](CONTEXT.md) for the problem, current capabilities, and target LINE LIFF experience.
 
 ```text
 ParkMap/
-├── frontend/  # Next.js dashboard and normalized SVG parking map
-└── backend/   # FastAPI API and future Computer Vision pipeline
+├── apps/web/        # App Router dashboard on vinext/Vite
+├── apps/vision-api/ # FastAPI, YOLO, calibration, and parking geometry
+├── docs/            # API contract, architecture decisions, and agent guidance
+└── .agents/         # repository agent skills
 ```
 
-The frontend visualizes the backend parking-analysis pipeline. YOLO inference, ROI calibration, homography, dynamic physical rows, occupied geometry, free-space calculation, capacity witnesses, and parking-state diagnostics belong in the Python backend.
+The web app visualizes the vision API pipeline. YOLO inference, ROI calibration, homography, dynamic physical rows, occupied geometry, free-space calculation, capacity witnesses, and parking-state diagnostics belong in Python. The present UI analyzes uploaded images; live camera ingestion, LIFF, and 3D navigation are planned work.
 
 ## Frontend
 
-```powershell
-cd frontend
-npm install
-npm run dev
+```sh
+corepack enable
+pnpm install --frozen-lockfile
+pnpm dev
 ```
 
 Open <http://localhost:3000>. The dashboard can analyze an uploaded image through the backend and display the Physical Map and camera overlay.
 
 ## Backend
 
-```powershell
-cd backend
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+```sh
+cd apps/vision-api
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
 Endpoints:
 
 - Health: <http://localhost:8000/api/health>
-- Parking API: <http://localhost:8000/api/parking/status>
+- Live parking status: `GET /api/parking/status` returns `503` until a camera worker and current state store exist; it never returns demo availability.
 - Image analysis: `POST http://localhost:8000/api/detection/analyze` with multipart field `image`
 - Metric calibration: `GET/POST http://localhost:8000/api/metric-calibration`
 - API docs: <http://localhost:8000/docs>
 
-Run the frontend and backend in separate terminals. Local CORS permits `http://localhost:3000`; additional origins can be configured through the backend environment.
+Run the web app and API in separate terminals. Local CORS permits `http://localhost:3000`; additional origins can be configured through the API environment.
+
+## Checks
+
+```sh
+pnpm --filter @parkmap/web lint
+pnpm --filter @parkmap/web typecheck
+pnpm --filter @parkmap/web test
+pnpm --filter @parkmap/web build
+cd apps/vision-api
+uv pip sync --python .venv/bin/python --torch-backend cpu requirements-dev.lock
+.venv/bin/python -m pytest -q tests
+```
+
+CI runs web and Python jobs sequentially. JavaScript versions shared by future packages belong in the pnpm catalog. Python direct dependencies remain in `apps/vision-api/requirements*.txt`; CI installs the compiled CPU-only `requirements-dev.lock`. Regenerate it with `uv pip compile apps/vision-api/requirements-dev.txt --python-version 3.12 --universal --torch-backend cpu -o apps/vision-api/requirements-dev.lock`. CI layout is adapted from Showcase for ParkMap's runtimes.
 
 The detection endpoint runs the configured YOLO model and returns normalized top-left motorcycle bounding boxes. Upload analysis then applies the active parking calibration, homography, physical row dimensions, occupied/free geometry, capacity, and parking-state validation.
 
@@ -70,7 +86,7 @@ Measured physical row dimensions are edited from Setup and saved with the ground
 
 Logo file:
 
-`frontend/public/branding/parkmap-logo.png`
+`apps/web/public/branding/parkmap-logo.png`
 
 Use a PNG with a transparent background and keep the filename exactly `parkmap-logo.png`. Copy or replace that file to update the header logo, then refresh the page; restart or rebuild the frontend if the development or deployed build has cached the previous asset. If the file is missing or cannot load, the header safely keeps the existing ParkMap icon and text without showing a broken image.
 

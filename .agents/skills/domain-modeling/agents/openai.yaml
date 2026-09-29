@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Domain Modeling'
+  short_description: 'Maintain ParkMap terminology and domain decisions'
+  default_prompt: 'Use $domain-modeling to resolve these domain terms and update the canonical docs.'

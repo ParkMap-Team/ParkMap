@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Implement'
+  short_description: 'Deliver a spec end to end with focused verification'
+  default_prompt: 'Use $implement to deliver this approved spec end to end on the current branch.'

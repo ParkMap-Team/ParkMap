@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Codebase Design'
+  short_description: 'Design deep modules with clear, testable seams'
+  default_prompt: 'Use $codebase-design to compare module interfaces and choose the cleanest seam.'

@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm skills:check
+      - run: pnpm skills:test
+      - run: pnpm --filter @parkmap/web lint
+      - run: pnpm --filter @parkmap/web typecheck
+      - run: pnpm --filter @parkmap/web test
+      - run: pnpm --filter @parkmap/web build
+
+  backend:
+    needs: web
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/vision-api
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: apps/vision-api/requirements-dev.lock
+      - run: python -m pip install uv==0.11.7
+      - run: uv pip sync --system --torch-backend cpu requirements-dev.lock
+      - run: ruff check --select F app tests
+      - run: python -m pytest -q tests

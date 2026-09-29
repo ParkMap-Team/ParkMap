@@ -1,0 +1,23 @@
+{
+  "name": "parkmap",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22.13.0",
+    "pnpm": "10.33.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @parkmap/web dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "skills:check": "node tools/validate-skills.mjs",
+    "skills:test": "node --test tools/validate-skills.test.mjs",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "turbo": "2.10.11",
+    "yaml": "2.9.0"
+  }
+}
