@@ -23,6 +23,7 @@ export interface ParkingAnalysisResponse {
   fitting?: VirtualFittingResult | null;
   virtual_fitting?: { rows: Array<{ row_id: string; status: 'FIT' | 'NO_FIT'; feasible_component_count?: number; validation?: { valid: boolean } }> } | null;
   capacity?: { rows: Array<{ row_id: string; capacity: number; placements?: unknown[]; validation?: { valid: boolean } }> } | null;
+  almost_available_placements?: AlmostAvailablePlacement[];
   parking_state?: { rows: ParkingStateRow[]; validation: boolean } | null;
   uncertainty?: { rows: UncertaintyRow[]; validation: boolean } | null;
   witness_uncertainty_experiment?: WitnessUncertaintyExperiment | null;

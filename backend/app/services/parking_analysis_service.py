@@ -10,6 +10,7 @@ from app.models import DetectionResponse
 from app.services.physical_row_geometry_service import derive_row_centerline
 from app.services.virtual_fitting_service import fit_rows
 from app.services.capacity_service import calculate_capacity
+from app.services.almost_available_service import calculate_almost_available_placements
 from app.services.camera_projection_service import project_metric_geometry
 from app.services.uncertainty_service import calculate_uncertainty
 from app.services.parking_state_service import calculate_parking_state
@@ -26,6 +27,18 @@ LENGTH_M = 2.0
 
 def _ring(points: list[tuple[float, float]]) -> list[dict[str, float]]:
     return [{"x_m": float(x), "y_m": float(y)} for x, y in points]
+
+
+def _geometry_to_shapely(value: dict[str, Any]) -> Any:
+    polygons = value.get("polygons", [])
+    shapes = []
+    for rings in polygons:
+        if not rings:
+            continue
+        exterior = [(point["x_m"], point["y_m"]) for point in rings[0]]
+        holes = [[(point["x_m"], point["y_m"]) for point in ring] for ring in rings[1:]]
+        shapes.append(Polygon(exterior, holes))
+    return unary_union(shapes) if shapes else Polygon()
 
 
 def _geometry(geometry: Any) -> dict[str, Any]:
@@ -182,6 +195,8 @@ class ParkingAnalysisService:
                     if projected is not None:
                         placement["footprint_image_normalized"] = projected
         uncertainty = calculate_uncertainty(rows, included)
+        occupied_geometries = {row["row_id"]: _geometry_to_shapely(row["occupied_geometry"]) for row in occupied_rows}
+        almost_available_placements = calculate_almost_available_placements(rows, occupied_geometries, free_geometries, capacity, uncertainty)
         witness_uncertainty_experiment = classify_witness_uncertainty(capacity, uncertainty, enriched)
         witness_safety = {**witness_uncertainty_experiment, "provenance": "PRODUCTION_WITNESS_SAFETY_V1", "rows": [{**row, "safe_capacity": row.get("clear_witness_count", 0), "blocked_capacity": row.get("blocked_witness_count", 0), "invalid_capacity": row.get("invalid_witness_count", 0)} for row in witness_uncertainty_experiment.get("rows", [])]}
         repacking = calculate_repacking(rows, occupied_rows, capacity, uncertainty)
@@ -189,7 +204,7 @@ class ParkingAnalysisService:
         experimental_occupancy_v2 = calculate_experimental_occupancy_v2(rows, free_geometries, included)
         recommendation = calculate_recommendations(capacity, parking_state, repacking)
         rearrangement_plan = build_rearrangement_plan(capacity, parking_state, recommendation, repacking)
-        return {"analysis_version": "parking-analysis-v2", "camera_id": homography["camera_id"], "image": {"width": detection.image_width, "height": detection.image_height}, "detection_summary": {"detected": len(detection.detections), "metric_projected": len(enriched), "parking_included": len(included), "parking_excluded": len(enriched) - len(included)}, "detections": enriched, "physical_map": {"parking_roi": _geometry(roi), "parking_roi_image_normalized": roi_image_normalized, "rows": [{"row_id": row_id, "polygon": _geometry(row)["polygons"][0][0], "measured_length_m": measured.get(row_id, {}).get("length_m"), "measured_width_m": measured.get(row_id, {}).get("width_m"), "area_m2": row.area} for row_id, row in rows]}, "occupied_space": {"rows": occupied_rows}, "free_space": {"rows": free_rows}, "virtual_fitting": fitting, "capacity": capacity, "witness_safety": witness_safety, "uncertainty": uncertainty, "witness_uncertainty_experiment": witness_uncertainty_experiment, "parking_state": parking_state, "repacking": repacking, "experimental_occupancy_v2": experimental_occupancy_v2, "placement_recommendation": recommendation, "rearrangement_plan": rearrangement_plan}
+        return {"analysis_version": "parking-analysis-v2", "camera_id": homography["camera_id"], "image": {"width": detection.image_width, "height": detection.image_height}, "detection_summary": {"detected": len(detection.detections), "metric_projected": len(enriched), "parking_included": len(included), "parking_excluded": len(enriched) - len(included)}, "detections": enriched, "physical_map": {"parking_roi": _geometry(roi), "parking_roi_image_normalized": roi_image_normalized, "rows": [{"row_id": row_id, "polygon": _geometry(row)["polygons"][0][0], "measured_length_m": measured.get(row_id, {}).get("length_m"), "measured_width_m": measured.get(row_id, {}).get("width_m"), "area_m2": row.area} for row_id, row in rows]}, "occupied_space": {"rows": occupied_rows}, "free_space": {"rows": free_rows}, "virtual_fitting": fitting, "capacity": capacity, "almost_available_placements": almost_available_placements, "witness_safety": witness_safety, "uncertainty": uncertainty, "witness_uncertainty_experiment": witness_uncertainty_experiment, "parking_state": parking_state, "repacking": repacking, "experimental_occupancy_v2": experimental_occupancy_v2, "placement_recommendation": recommendation, "rearrangement_plan": rearrangement_plan}
 
 
 parking_analysis_service = ParkingAnalysisService()
