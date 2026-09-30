@@ -1,14 +1,21 @@
+import hmac
 import json
 import os
+from datetime import UTC, datetime
 from io import BytesIO
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile, status
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Path, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, UnidentifiedImageError
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
-from app.models import DetectionResponse, GroundPlaneCalibration, GroundPlaneCalibrationResponse, GroundPlaneHomographyResponse, HealthResponse, MetricCalibration, MetricCalibrationResponse, MotorcycleFittingConfiguration, MotorcycleFittingResponse, ParkingCalibration, PhysicalRowGeometryConfig
+from app.db import repository
+from app.db.session import get_session
+from app.db.tables import ParkingArea, Site
+from app.models import IDENTIFIER_PATTERN, DetectionResponse, GroundPlaneCalibration, GroundPlaneCalibrationResponse, GroundPlaneHomographyResponse, HealthResponse, LotModelDefinition, LotModelResponse, MetricCalibration, MetricCalibrationResponse, MotorcycleFittingConfiguration, MotorcycleFittingResponse, ParkingCalibration, ParkingStatePublish, PhysicalRowGeometryConfig, SiteParkingStateResponse, SiteSummary
 from app.services.calibration_service import calibration_service
 from app.services.cv_service import ModelUnavailableError, cv_service
 from app.services.metric_calibration_service import metric_calibration_service
@@ -17,6 +24,7 @@ from app.services.ground_plane_calibration_service import ground_plane_calibrati
 from app.services.ground_plane_homography_service import HomographyInputError, ground_plane_homography_service
 from app.services.physical_row_geometry_service import measurement_fingerprint, physical_row_geometry_service
 from app.services.parking_analysis_service import ParkingCalibrationUnavailableError, parking_analysis_service
+from app.services.live_state_service import MAX_FUTURE_SKEW_S, evaluate_area_state, unmonitored_polygons
 
 load_dotenv()
 
@@ -36,9 +44,72 @@ def health() -> HealthResponse:
     return HealthResponse()
 
 
-@app.get("/api/parking/status", status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
-def parking_status() -> None:
-    raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Live parking status is not configured.")
+SiteId = Path(pattern=IDENTIFIER_PATTERN)
+
+
+def freshness_limit_s() -> float:
+    return float(os.getenv("PARKMAP_STATE_FRESHNESS_S", "15"))
+
+
+def require_worker_token(authorization: str | None = Header(default=None)) -> None:
+    expected = os.getenv("PARKMAP_WORKER_TOKEN", "")
+    if not expected:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Worker ingestion is not configured.")
+    if authorization is None or not hmac.compare_digest(authorization.encode(), f"Bearer {expected}".encode()):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid worker token.")
+
+
+def _require_site_areas(session: Session, site_id: str) -> list[ParkingArea]:
+    if session.get(Site, site_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Site not found.")
+    return repository.site_areas(session, site_id)
+
+
+@app.get("/api/sites", response_model=list[SiteSummary])
+def list_sites(session: Session = Depends(get_session)) -> list[SiteSummary]:
+    return [SiteSummary(site_id=site.id, name=site.name, latitude=site.latitude, longitude=site.longitude) for site in repository.list_sites(session)]
+
+
+@app.get("/api/sites/{site_id}/lot-model", response_model=LotModelResponse)
+def get_lot_model(site_id: str = SiteId, session: Session = Depends(get_session)) -> LotModelResponse:
+    _require_site_areas(session, site_id)
+    lot_model = repository.active_lot_model(session, site_id)
+    if lot_model is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No lot model is configured for this site.")
+    definition = LotModelDefinition.model_validate(lot_model.payload)
+    return LotModelResponse(**definition.model_dump(), site_id=site_id, version=lot_model.version, unmonitored=unmonitored_polygons(definition))
+
+
+@app.get("/api/sites/{site_id}/parking-state", response_model=SiteParkingStateResponse)
+def get_site_parking_state(site_id: str = SiteId, session: Session = Depends(get_session)) -> SiteParkingStateResponse:
+    area_ids = [area.id for area in _require_site_areas(session, site_id)]
+    calibrations = repository.active_calibration_versions(session, area_ids)
+    states = repository.latest_states(session, area_ids)
+    now = datetime.now(UTC)
+    limit = freshness_limit_s()
+    return SiteParkingStateResponse(
+        site_id=site_id,
+        generated_at=now,
+        freshness_limit_s=limit,
+        areas=[evaluate_area_state(area_id, stored=states.get(area_id), active_calibration_version=calibrations.get(area_id), now=now, freshness_limit_s=limit) for area_id in area_ids],
+    )
+
+
+@app.post("/api/internal/parking-states", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_worker_token)])
+def ingest_parking_state(publish: ParkingStatePublish, session: Session = Depends(get_session)) -> Response:
+    area = session.get(ParkingArea, publish.parking_area_id)
+    if area is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown parking area.")
+    if area.camera_id != publish.camera_id:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="camera_id does not belong to this parking area.")
+    if (publish.observed_at - datetime.now(UTC)).total_seconds() > MAX_FUTURE_SKEW_S:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="observed_at is in the future.")
+    repository.insert_state(session, publish)
+    try:
+        session.commit()
+    except IntegrityError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Parking state could not be stored.") from error
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.get("/api/calibration", response_model=ParkingCalibration)
