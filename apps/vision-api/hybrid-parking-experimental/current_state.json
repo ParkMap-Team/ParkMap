@@ -2,7 +2,7 @@
   "mode": "HYBRID",
   "status": "READY",
   "source_type": "HYBRID_ANALYSIS",
-  "updated_at": "2026-09-30T18:22:23.579444+00:00",
+  "updated_at": "2026-09-30T18:35:50.917481+00:00",
   "roi": {
     "polygon": [
       {
@@ -1329,5 +1329,10 @@
     "detected": 86,
     "inside_roi": 25
   },
-  "availability": "NOT_ESTIMATED"
+  "availability": "NOT_ESTIMATED",
+  "image": {
+    "url": "/api/hybrid-parking/latest/image",
+    "width": 4032,
+    "height": 3024
+  }
 }

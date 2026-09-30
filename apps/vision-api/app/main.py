@@ -7,6 +7,7 @@ from io import BytesIO
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Path, Response, UploadFile, status
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy.exc import IntegrityError
@@ -391,5 +392,15 @@ async def analyze_hybrid_parking(image: UploadFile = File(...)) -> dict[str, obj
     result={"mode":"HYBRID","status":"READY","source_type":"HYBRID_ANALYSIS","updated_at":datetime.now(UTC).isoformat(),"roi":{"polygon":[point.model_dump(mode="json") for point in roi]},"rows":[],"unknown_anchors":[],"detections":detections,"summary":{"detected":len(detections),"inside_roi":sum(1 for item in detections if item["inside_roi"])},"availability":"NOT_ESTIMATED"}
     snapshot=FilePath(__file__).resolve().parent.parent/'hybrid-parking-experimental'/'current_state.json'
     snapshot.parent.mkdir(parents=True,exist_ok=True)
+    image_path=snapshot.parent/'latest_image'
+    image_path.write_bytes(image_bytes)
+    result["image"]={"url":"/api/hybrid-parking/latest/image","width":detection.image_width,"height":detection.image_height}
     snapshot.write_text(json.dumps(result,indent=2),encoding='utf-8')
     return result
+
+@app.get("/api/hybrid-parking/latest/image")
+def get_hybrid_latest_image() -> FileResponse:
+    image_path=FilePath(__file__).resolve().parent.parent/'hybrid-parking-experimental'/'latest_image'
+    if not image_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Hybrid image has been analyzed yet.")
+    return FileResponse(image_path)
