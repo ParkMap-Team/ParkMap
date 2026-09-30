@@ -334,3 +334,62 @@ def get_auto_parking_state() -> dict[str, object]:
     if not snapshot.exists(): return {"mode":"AUTO_EXPERIMENTAL","source_type":"EXPERIMENTAL_SNAPSHOT","status":"UNKNOWN","updated_at":None,"rows":[],"unknown_anchors":[],"summary":{"detection_observations":0,"anchors":0,"logical_rows":0,"unknown_anchors":0}}
     try: return json.loads(snapshot.read_text(encoding='utf-8'))
     except (OSError,json.JSONDecodeError) as error: raise HTTPException(status_code=500,detail="Experimental snapshot unavailable") from error
+
+@app.get("/api/hybrid-parking/state")
+def get_hybrid_parking_state() -> dict[str, object]:
+    """Read-only Hybrid snapshot with backend-owned ROI only.
+
+    Row calibration is intentionally not exposed by this endpoint.
+    """
+    snapshot=FilePath(__file__).resolve().parent.parent/'hybrid-parking-experimental'/'current_state.json'
+    if snapshot.exists():
+        try: state=json.loads(snapshot.read_text(encoding='utf-8'))
+        except (OSError,json.JSONDecodeError) as error: raise HTTPException(status_code=500,detail="Hybrid snapshot unavailable") from error
+    else:
+        state={"status":"WAITING_FOR_HYBRID_ANALYSIS","updated_at":None,"rows":[],"unknown_anchors":[],"detections":[],"summary":{"detected":0,"inside_roi":0},"availability":"NOT_ESTIMATED"}
+    calibration=calibration_service.load()
+    state.update({"mode":"HYBRID","source_type":"HYBRID_SNAPSHOT","roi":{"polygon":[point.model_dump(mode="json") for point in calibration.parking_roi.polygon]} if calibration else None})
+    return state
+
+def _normalized_point_in_polygon(x: float, y: float, polygon: list[object]) -> bool:
+    inside = False
+    for index, point in enumerate(polygon):
+        previous = polygon[index - 1]
+        if ((point.y > y) != (previous.y > y)) and x < (previous.x - point.x) * (y - point.y) / ((previous.y - point.y) or 1e-12) + point.x:
+            inside = not inside
+    return inside
+
+@app.post("/api/hybrid-parking/analyze")
+async def analyze_hybrid_parking(image: UploadFile = File(...)) -> dict[str, object]:
+    """Run YOLO and return detections classified only against backend ROI."""
+    calibration = calibration_service.load()
+    if calibration is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Hybrid ROI is not configured.")
+    if image.content_type not in SUPPORTED_IMAGE_TYPES:
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Supported image types are JPEG, PNG, and WebP.")
+    image_bytes = await image.read(MAX_UPLOAD_BYTES + 1)
+    await image.close()
+    if not image_bytes or len(image_bytes) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="The uploaded image is empty or exceeds the configured size limit.")
+    try:
+        with Image.open(BytesIO(image_bytes)) as decoded:
+            if decoded.format != IMAGE_FORMATS[image.content_type]:
+                raise ValueError("Image format does not match the declared media type.")
+            decoded.verify()
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The uploaded file is not a valid supported image.") from error
+    try:
+        detection = await run_in_threadpool(cv_service.analyze_image, image_bytes)
+    except ModelUnavailableError as error:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
+    roi = calibration.parking_roi.polygon
+    detections = []
+    for index, item in enumerate(detection.detections, 1):
+        bbox = item.bbox
+        point = {"x": bbox.x + bbox.width / 2, "y": bbox.y + bbox.height}
+        detections.append({"detection_id": f"detection_{index}", "confidence": item.confidence, "bbox": bbox.model_dump(mode="json"), "point": point, "inside_roi": _normalized_point_in_polygon(point["x"], point["y"], roi)})
+    result={"mode":"HYBRID","status":"READY","source_type":"HYBRID_ANALYSIS","updated_at":datetime.now(UTC).isoformat(),"roi":{"polygon":[point.model_dump(mode="json") for point in roi]},"rows":[],"unknown_anchors":[],"detections":detections,"summary":{"detected":len(detections),"inside_roi":sum(1 for item in detections if item["inside_roi"])},"availability":"NOT_ESTIMATED"}
+    snapshot=FilePath(__file__).resolve().parent.parent/'hybrid-parking-experimental'/'current_state.json'
+    snapshot.parent.mkdir(parents=True,exist_ok=True)
+    snapshot.write_text(json.dumps(result,indent=2),encoding='utf-8')
+    return result
