@@ -4,10 +4,12 @@ import type { DetectionResponse } from '../types/detection.ts';
 export const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
-export async function analyzeParkingImage(file: File, signal?: AbortSignal): Promise<DetectionResponse> {
+export async function analyzeParkingImage(file: File, signal?: AbortSignal, includeParking = true): Promise<DetectionResponse> {
   const formData = new FormData();
   formData.append('image', file);
-  const response = await fetch(`${PARKMAP_API_URL.replace(/\/$/, '')}/api/detection/analyze`, {
+  const url = new URL(`${PARKMAP_API_URL.replace(/\/$/, '')}/api/detection/analyze`);
+  if (!includeParking) url.searchParams.set('include_parking', 'false');
+  const response = await fetch(url, {
     method: 'POST',
     body: formData,
     signal,

@@ -1,7 +1,7 @@
 import type { CalibrationShape } from '../components/setup/CalibrationCanvas.tsx';
 import type { ParkingCalibration } from '../types/calibration.ts';
 
-export const DEFAULT_PARKING_SHAPES = [{ id: 'parking_roi', label: 'Parking ROI' }, ...Array.from({ length: 5 }, (_, index) => ({ id: `row_${index + 1}`, label: `R${index + 1}` }))];
+export const DEFAULT_PARKING_SHAPES = [{ id: 'parking_roi', label: 'Parking ROI' }, { id: 'row_1', label: 'R1' }];
 
 export const rowNumber = (id: string) => Number(/^row_([1-9][0-9]*)$/.exec(id)?.[1] ?? Number.MAX_SAFE_INTEGER);
 export const sortRowIds = <T extends { id: string }>(rows: T[]) => [...rows].sort((a, b) => rowNumber(a.id) - rowNumber(b.id) || a.id.localeCompare(b.id));

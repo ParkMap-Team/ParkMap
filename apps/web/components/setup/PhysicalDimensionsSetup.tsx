@@ -13,9 +13,13 @@ export function PhysicalDimensionsSetup() {
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    void Promise.all([getGroundPlaneCalibration(controller.signal), getCalibration(controller.signal)]).then(([ground, parking]) => {
-      setCalibration(ground.calibration);
+    void getCalibration(controller.signal).then((parking) => {
       setRowIds(sortRowIds(parking?.rows ?? []).map((row) => row.id));
+      if (!parking) {
+        setMessage('ตั้งค่า Parking Area และบันทึกอย่างน้อยหนึ่งแถวก่อนกรอกขนาดจริง');
+        return null;
+      }
+      return getGroundPlaneCalibration(controller.signal).then((ground) => setCalibration(ground.calibration));
     }).catch((error) => setMessage(error instanceof Error ? error.message : 'Unable to load dimensions.'));
     return () => controller.abort();
   }, []);

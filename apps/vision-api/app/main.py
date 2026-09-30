@@ -76,7 +76,17 @@ def save_metric_calibration(calibration: MetricCalibration) -> MetricCalibration
 
 @app.get("/api/ground-plane-calibration", response_model=GroundPlaneCalibrationResponse)
 def get_ground_plane_calibration() -> GroundPlaneCalibrationResponse:
-    return ground_plane_calibration_service.response(ground_plane_calibration_service.load())
+    try:
+        return ground_plane_calibration_service.response(ground_plane_calibration_service.load())
+    except FileNotFoundError:
+        parking = calibration_service.load()
+        if parking is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parking calibration is required before ground-plane setup.") from None
+        return ground_plane_calibration_service.response(GroundPlaneCalibration(
+            camera_id=parking.camera_id,
+            reference_image=parking.reference_image,
+            coordinate_system={"unit": "meter", "description": "Local ground-plane coordinates."},
+        ))
 
 
 @app.post("/api/ground-plane-calibration", response_model=GroundPlaneCalibrationResponse)
@@ -91,6 +101,14 @@ def save_ground_plane_calibration(calibration: GroundPlaneCalibration) -> Ground
 def get_ground_plane_homography() -> GroundPlaneHomographyResponse:
     try:
         return ground_plane_homography_service.get_response(ground_plane_calibration_service.load())
+    except FileNotFoundError:
+        return GroundPlaneHomographyResponse(
+            status="INPUT_NOT_READY",
+            current=False,
+            row_validation_current=False,
+            message="Add at least four measured ground-control points, then calculate the map.",
+            result=None,
+        )
     except (OSError, ValueError, json.JSONDecodeError) as error:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Ground-plane homography could not be loaded: {error}") from error
 
@@ -118,7 +136,15 @@ def get_physical_row_geometry() -> dict:
     if parking is None:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Parking calibration is required.")
     homography = ground_plane_homography_service.get_response(calibration)
-    return physical_row_geometry_service.response(physical_row_geometry_service.load(calibration), calibration, parking, homography)
+    config = physical_row_geometry_service.load(calibration)
+    current_fingerprint = measurement_fingerprint(calibration)
+    if config.rows and config.measurement_source_fingerprint != current_fingerprint:
+        config = config.model_copy(update={"measurement_source_fingerprint": current_fingerprint})
+        try:
+            config = physical_row_geometry_service.save(config)
+        except (OSError, ValueError, json.JSONDecodeError) as error:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Physical row endpoints could not be refreshed: {error}") from error
+    return physical_row_geometry_service.response(config, calibration, parking, homography)
 
 
 @app.post("/api/physical-row-geometry")
@@ -151,7 +177,7 @@ def save_motorcycle_fitting(configuration: MotorcycleFittingConfiguration) -> Mo
 
 
 @app.post("/api/detection/analyze", response_model=DetectionResponse)
-async def analyze_detection(image: UploadFile = File(...)) -> DetectionResponse:
+async def analyze_detection(image: UploadFile = File(...), include_parking: bool = True) -> DetectionResponse:
     if image.content_type not in SUPPORTED_IMAGE_TYPES:
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Supported image types are JPEG, PNG, and WebP.")
 
@@ -181,6 +207,8 @@ async def analyze_detection(image: UploadFile = File(...)) -> DetectionResponse:
         detection = await run_in_threadpool(cv_service.analyze_image, image_bytes)
     except ModelUnavailableError as error:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
+    if not include_parking:
+        return detection
     try:
         analysis = await run_in_threadpool(parking_analysis_service.analyze, detection)
     except ParkingCalibrationUnavailableError as error:

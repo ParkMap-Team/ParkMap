@@ -13,6 +13,11 @@ void test('ROI and R1-R5 editor load saved canonical geometry', () => {
   assert.deepEqual(shapes.slice(1).map((shape) => shape.points), calibration.rows.map((row) => row.polygon));
 });
 
+void test('new editor starts with one row and lets the user add more', () => {
+  const shapes = shapesFromCalibration(null);
+  assert.deepEqual(shapes.map((shape) => shape.id), ['parking_roi', 'row_1']);
+});
+
 void test('ROI and R1-R5 editor save back to the single canonical format', () => {
   const shapes = shapesFromCalibration(calibration);
   shapes[0] = { ...shapes[0], points: [...polygon, { x: .2, y: .8 }] };

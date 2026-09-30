@@ -28,21 +28,34 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const [calibration, setCalibration] = useState<ParkingCalibration | null>(null);
   const [homography, setHomography] = useState<GroundPlaneHomographyResponse | null>(null);
   const [physical, setPhysical] = useState<PhysicalRowGeometryResponse | null>(null);
+  const [setupRequired, setSetupRequired] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    if (!file) {
+      setSetupRequired(false);
+      return;
+    }
     const controller = new AbortController();
-    void Promise.all([getCalibration(controller.signal), getGroundPlaneHomography(controller.signal), getPhysicalRowGeometry(controller.signal)])
-      .then(([savedCalibration, savedHomography, savedPhysical]) => {
+    void getCalibration(controller.signal)
+      .then((savedCalibration) => {
         setCalibration(savedCalibration);
-        setHomography(savedHomography);
-        setPhysical(savedPhysical);
+        if (!savedCalibration) {
+          setSetupRequired(true);
+          return null;
+        }
+        return Promise.all([getGroundPlaneHomography(controller.signal), getPhysicalRowGeometry(controller.signal)])
+          .then(([savedHomography, savedPhysical]) => {
+            setHomography(savedHomography);
+            setPhysical(savedPhysical);
+            setSetupRequired(false);
+          });
       })
       .catch((reason) => {
-        if (!(reason instanceof DOMException && reason.name === 'AbortError')) setError(reason instanceof Error ? reason.message : 'Map calibration could not be loaded.');
+        if (!(reason instanceof DOMException && reason.name === 'AbortError')) setSetupRequired(true);
       });
     return () => controller.abort();
-  }, []);
+  }, [file]);
   useEffect(() => () => controllerRef.current?.abort(), []);
   useEffect(() => previewUrl ? () => URL.revokeObjectURL(previewUrl) : undefined, [previewUrl]);
 
@@ -77,7 +90,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
     setState('processing');
     setError(null);
     try {
-      const result = await analyzeParkingImage(file, controller.signal);
+      const result = await analyzeParkingImage(file, controller.signal, !setupRequired);
       setAnalysis(result);
       setState('done');
     } catch (reason) {
@@ -104,7 +117,8 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
           </div>
         </div>
         {file && <p className="mt-3 truncate text-sm text-slate-500">{file.name}</p>}
-        {error && <div role="alert" className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"><span className="inline-flex items-center gap-2"><AlertCircle className="size-4" />{error}</span>{file && state === 'error' && <button type="button" onClick={() => void analyze()} className="inline-flex items-center gap-1 font-semibold"><RotateCcw className="size-4" />Retry</button>}</div>}
+        {setupRequired && <div role="status" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900"><span className="inline-flex items-center gap-2"><AlertCircle className="size-4" />กรุณาตั้งค่าพื้นที่จอดในหน้า Setup ก่อน แล้วจึงกลับมาวิเคราะห์รูป</span><button type="button" onClick={onOpenSetup} className="rounded-lg bg-amber-600 px-3 py-2 font-semibold text-white">ไปที่ Setup</button></div>}
+        {error && !setupRequired && <div role="alert" className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"><span className="inline-flex items-center gap-2"><AlertCircle className="size-4" />{error}</span>{file && state === 'error' && <button type="button" onClick={() => void analyze()} className="inline-flex items-center gap-1 font-semibold"><RotateCcw className="size-4" />Retry</button>}</div>}
       </section>
 
       <CameraMonitor imageUrl={previewUrl} analysis={analysis} assignments={assignments} />
@@ -120,7 +134,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
           <div><dt className="text-slate-500">Parking Analysis Excluded</dt><dd className="mt-1 text-2xl font-bold">{excluded}</dd></div>
           <div><dt className="text-slate-500">System status</dt><dd className={`mt-1 text-lg font-bold ${mapReady ? 'text-emerald-700' : 'text-amber-700'}`}>{mapReady ? 'Map ready' : 'Calibration required'}</dd></div>
         </dl>
-        {analysisUnavailable && <p role="alert" className="mt-3 text-sm text-red-700">Parking analysis unavailable.</p>}
+        {analysisUnavailable && <p role="status" className="mt-3 text-sm text-amber-700">วิเคราะห์ YOLO ได้แล้ว แต่ยังหาที่จอดให้ไม่ได้ กรุณาไปตั้งค่าในหน้า Setup ก่อน</p>}
         {!mapReady && <button type="button" onClick={onOpenSetup} className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Open Setup</button>}
         {analysis && mapReady && validMetric !== motorcycles && <p className="mt-3 text-sm text-amber-700">Some detections could not be placed on the parking map.</p>}
       </section>
