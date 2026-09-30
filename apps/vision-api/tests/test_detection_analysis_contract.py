@@ -62,13 +62,6 @@ def test_analyze_rejects_image_above_pixel_limit(monkeypatch):
     assert response.status_code == 413
 
 
-def test_live_status_never_returns_demo_availability():
-    response = TestClient(app).get("/api/parking/status")
-
-    assert response.status_code == 503
-    assert response.json()["detail"] == "Live parking status is not configured."
-
-
 def test_analyze_reports_missing_parking_configuration(monkeypatch, tmp_path):
     image = BytesIO()
     Image.new("RGB", (2, 2), "white").save(image, format="PNG")

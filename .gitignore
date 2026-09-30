@@ -33,6 +33,12 @@ apps/vision-api/config/physical_row_geometry.json
 apps/vision-api/models/*.pt
 apps/vision-api/models/*.onnx
 
+# Raw camera footage stays off Git (see CONTEXT.md, Boundaries and safety)
+*.mp4
+*.mov
+*.mkv
+*.avi
+
 # Local deployment packaging
 .deploy-stage*/
 *.tar.gz
