@@ -1,0 +1,7 @@
+'use client';
+
+import type { GroundControlPoint } from '@/types/groundPlaneCalibration';
+
+export function GroundControlPointCanvas({ points, width, height, imageUrl, onSelect }: { points: GroundControlPoint[]; width: number; height: number; imageUrl: string | null; onSelect: (index: number) => void }) {
+  return <div className="mt-4 rounded-xl border bg-slate-950 p-2">{imageUrl ? <div className="relative mx-auto max-w-full overflow-hidden" style={{ aspectRatio: `${width} / ${height}` }}><img src={imageUrl} alt="Ground calibration reference" className="absolute inset-0 size-full object-contain" draggable={false} /><svg viewBox={`0 0 ${width} ${height}`} className="absolute inset-0 size-full" preserveAspectRatio="none" aria-label="Ground control points">{points.map((point, index) => <g key={`${point.id}-${index}`} onClick={() => onSelect(index)} className="cursor-pointer"><circle cx={point.image_x * width} cy={point.image_y * height} r={Math.max(width, height) * .012} fill="#22d3ee" stroke="#0f172a" strokeWidth={Math.max(width, height) * .004} /><text x={point.image_x * width + Math.max(width, height) * .015} y={point.image_y * height - Math.max(width, height) * .015} fill="white" stroke="#0f172a" strokeWidth={Math.max(width, height) * .003} paintOrder="stroke" fontSize={Math.max(width, height) * .035} fontWeight="700">{point.id || `P${index + 1}`}</text></g>)}</svg></div> : <p className="text-sm text-slate-300">เลือกรูปอ้างอิงใน Parking Area เพื่อแสดง P1–P{points.length}</p>}</div>;
+}

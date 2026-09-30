@@ -32,10 +32,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const controllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (!file) {
-      setSetupRequired(false);
-      return;
-    }
+    if (!file) return;
     const controller = new AbortController();
     void getCalibration(controller.signal)
       .then((savedCalibration) => {
