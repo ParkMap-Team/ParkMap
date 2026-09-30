@@ -1,21 +1,32 @@
 # Roadmap
 
-Plan from 30 Sep 2026 to the final presentation. Names are filled in later; tracks are assigned as Person A to D. GitHub milestones and `track:*` labels mirror this file. Update this file when a date or scope changes.
+Plan from 30 Sep 2026 to the final presentation. Tracks are areas of work, not people: every member takes issues from several tracks so everyone works across ML, platform, app, and site. GitHub milestones, `track:*` labels, and assignees mirror this file. Update this file when a date or scope changes.
 
 ## Before starting any issue
 
-Every assignee runs `/grill-with-docs` on their issue before writing code, reads `CONTEXT.md` and `docs/adr/`, and records resolved terms in `CONTEXT.md` and hard-to-reverse decisions as a new ADR. Change the contract only through `apps/vision-api/app/models.py`, then regenerate `openapi.json` and the LIFF types in the same pull request, with review from Track B and Track C.
+Every assignee runs `/grill-with-docs` on their issue before writing code, reads `CONTEXT.md` and `docs/adr/`, and records resolved terms in `CONTEXT.md` and hard-to-reverse decisions as a new ADR. Change the contract only through `apps/vision-api/app/models.py`, then regenerate `openapi.json` and the LIFF types in the same pull request, with review from the owners of the affected API and LIFF issues.
 
 ## Tracks
 
-| Track | Owner | Scope | Main paths |
-|---|---|---|---|
-| A. Vision/ML | Person A | Dataset, YOLO fine-tuning, footprint and heading, evaluation, false-green rate | `apps/vision-api/app/services/`, `models/` (not in Git) |
-| B. Worker/Platform | Person B | Worker on recorded video and RTSP, ingest, database, deployment on Coolify, operations | `apps/vision-api/app/worker/`, `app/db/`, `migrations/`, `compose.yaml` |
-| C. LIFF/3D | Person C | LIFF app, 3D lot model, motorcycle proxies, LINE OA and rich menu | `apps/liff/` |
-| D. Site/Calibration | Person D | Camera permission and installation, site survey, lot model JSON, calibration in the database, calibration tool | `tools/calibration-ui/`, calibration services, site data |
+| Track | Scope | Main paths |
+|---|---|---|
+| A. Vision/ML | Dataset, YOLO fine-tuning, footprint and heading, evaluation, false-green rate | `apps/vision-api/app/services/`, `models/` (not in Git) |
+| B. Worker/Platform | Worker on recorded video and RTSP, ingest, database, deployment on Coolify, operations | `apps/vision-api/app/worker/`, `app/db/`, `migrations/`, `compose.yaml` |
+| C. LIFF/3D | LIFF app, 3D lot model, motorcycle proxies, LINE OA and rich menu | `apps/liff/` |
+| D. Site/Calibration | Camera permission and installation, site survey, lot model JSON, calibration in the database, calibration tool | `tools/calibration-ui/`, calibration services, site data |
 
 Starting issues: A #4 to #7, B #8 to #11, C #12 to #14, D #15 to #20. Filter by `track:*` label; new issues also get `needs-grill` until grilled.
+
+## Assignments
+
+| Member | A. Vision/ML | B. Worker/Platform | C. LIFF/3D | D. Site/Calibration |
+|---|---|---|---|---|
+| @GoodNightMare | #6 | #11 | #13 | #18 (M1), #19 |
+| @SaGaGro | #4 (M1) | #9 | #14 | #16 (M1) |
+| @Dawinzhii | #5 | #10 | #12 (M1) | #17 (M1) |
+| @Sayhighz | #7 | #8 (M1) | | #15 (M1), #20 |
+
+Hand-offs cross people on purpose: #16 unblocks #4 and #8, #4 feeds #5, #6 feeds #13, #20 unblocks #9, and #15 unblocks #7. Pair on the hand-off instead of waiting for it.
 
 ## Milestones
 
