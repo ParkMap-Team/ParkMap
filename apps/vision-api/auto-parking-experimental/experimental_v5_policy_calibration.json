@@ -1,0 +1,154 @@
+{
+  "policy_parameters": {
+    "orientation_difference_max": 0.2,
+    "normalized_lateral_max": 1.5,
+    "normalized_endpoint_distance_max": 6.0,
+    "local_scale_ratio_min": 0.5,
+    "local_scale_ratio_max": 2.0,
+    "merged_perpendicular_dispersion_max": 1.5,
+    "merged_orientation_dispersion_max": 0.35
+  },
+  "synthetic_cases": [
+    {
+      "name": "collinear",
+      "expected": "PASS",
+      "actual": {
+        "status": "PASS",
+        "gates": {
+          "geometry_availability": "PASS",
+          "orientation_gate": "PASS",
+          "lateral_gate": "PASS",
+          "endpoint_gate": "PASS",
+          "scale_gate": "PASS",
+          "merged_coherence_gate": "PASS"
+        },
+        "reasons": [],
+        "policy": {
+          "orientation_difference_max": 0.2,
+          "normalized_lateral_max": 1.5,
+          "normalized_endpoint_distance_max": 6.0,
+          "local_scale_ratio_min": 0.5,
+          "local_scale_ratio_max": 2.0,
+          "merged_perpendicular_dispersion_max": 1.5,
+          "merged_orientation_dispersion_max": 0.35
+        }
+      }
+    },
+    {
+      "name": "parallel",
+      "expected": "REJECT",
+      "actual": {
+        "status": "REJECT",
+        "gates": {
+          "geometry_availability": "PASS",
+          "orientation_gate": "PASS",
+          "lateral_gate": "REJECT",
+          "endpoint_gate": "PASS",
+          "scale_gate": "PASS",
+          "merged_coherence_gate": "PASS"
+        },
+        "reasons": [],
+        "policy": {
+          "orientation_difference_max": 0.2,
+          "normalized_lateral_max": 1.5,
+          "normalized_endpoint_distance_max": 6.0,
+          "local_scale_ratio_min": 0.5,
+          "local_scale_ratio_max": 2.0,
+          "merged_perpendicular_dispersion_max": 1.5,
+          "merged_orientation_dispersion_max": 0.35
+        }
+      }
+    },
+    {
+      "name": "large_gap",
+      "expected": "REJECT",
+      "actual": {
+        "status": "REJECT",
+        "gates": {
+          "geometry_availability": "PASS",
+          "orientation_gate": "PASS",
+          "lateral_gate": "PASS",
+          "endpoint_gate": "REJECT",
+          "scale_gate": "PASS",
+          "merged_coherence_gate": "PASS"
+        },
+        "reasons": [],
+        "policy": {
+          "orientation_difference_max": 0.2,
+          "normalized_lateral_max": 1.5,
+          "normalized_endpoint_distance_max": 6.0,
+          "local_scale_ratio_min": 0.5,
+          "local_scale_ratio_max": 2.0,
+          "merged_perpendicular_dispersion_max": 1.5,
+          "merged_orientation_dispersion_max": 0.35
+        }
+      }
+    },
+    {
+      "name": "scale_jump",
+      "expected": "REJECT",
+      "actual": {
+        "status": "REJECT",
+        "gates": {
+          "geometry_availability": "PASS",
+          "orientation_gate": "PASS",
+          "lateral_gate": "PASS",
+          "endpoint_gate": "PASS",
+          "scale_gate": "REJECT",
+          "merged_coherence_gate": "PASS"
+        },
+        "reasons": [],
+        "policy": {
+          "orientation_difference_max": 0.2,
+          "normalized_lateral_max": 1.5,
+          "normalized_endpoint_distance_max": 6.0,
+          "local_scale_ratio_min": 0.5,
+          "local_scale_ratio_max": 2.0,
+          "merged_perpendicular_dispersion_max": 1.5,
+          "merged_orientation_dispersion_max": 0.35
+        }
+      }
+    },
+    {
+      "name": "dispersion",
+      "expected": "REJECT",
+      "actual": {
+        "status": "REJECT",
+        "gates": {
+          "geometry_availability": "PASS",
+          "orientation_gate": "PASS",
+          "lateral_gate": "PASS",
+          "endpoint_gate": "PASS",
+          "scale_gate": "PASS",
+          "merged_coherence_gate": "REJECT"
+        },
+        "reasons": [],
+        "policy": {
+          "orientation_difference_max": 0.2,
+          "normalized_lateral_max": 1.5,
+          "normalized_endpoint_distance_max": 6.0,
+          "local_scale_ratio_min": 0.5,
+          "local_scale_ratio_max": 2.0,
+          "merged_perpendicular_dispersion_max": 1.5,
+          "merged_orientation_dispersion_max": 0.35
+        }
+      }
+    }
+  ],
+  "real_data_dry_run": {
+    "pair_count": 465,
+    "status_counts": {
+      "INSUFFICIENT_GEOMETRY": 444,
+      "PASS": 0,
+      "REJECT": 21
+    },
+    "merges_enabled": false
+  },
+  "sensitivity": "NOT_ENOUGH_EVIDENCE",
+  "frozen_counts": {
+    "logical_rows": 7,
+    "accepted_merges": 0,
+    "recovered_fragments": 0,
+    "unknown_anchors": 30
+  }
+}

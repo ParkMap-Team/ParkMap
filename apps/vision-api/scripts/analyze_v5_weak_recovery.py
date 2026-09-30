@@ -1,0 +1,9 @@
+import json
+from pathlib import Path
+from app.services.experimental_v5_weak_recovery import evaluate_weak_fragment
+root=Path(__file__).resolve().parents[1]; out=root/'auto-parking-experimental'; v=json.loads((out/'experimental_v5_diagnostics.json').read_text()); comps=v['v4_input'].get('components',[]); rows=v.get('logical_rows',[]); weak=[c for c in comps if c.get('anchor_count',0)<3]; results=[]
+for c in weak:
+ frag={'component_id':c['component_id'],'anchor_ids':c['anchor_ids'],'anchor_count':c['anchor_count'],'raw_observation_count':c['raw_observation_count'],'distinct_image_count':c['distinct_image_count'],'centroid':c.get('centroid'),'local_scale':c.get('local_scale')}; ev=evaluate_weak_fragment(frag,rows); ev['endpoint_validation']='INSUFFICIENT_GEOMETRY'; ev['coherence_validation']='INSUFFICIENT_GEOMETRY'; ev['final_status']='INSUFFICIENT_EVIDENCE' if ev['status']=='RECOVERABLE_SINGLE_CANDIDATE' else ev['status']; results.append({'component_id':c['component_id'],'anchor_ids':c['anchor_ids'],'evaluation':ev})
+counts={k:sum(r['evaluation'].get('final_status',r['evaluation']['status'])==k for r in results) for k in ['RECOVERABLE_SINGLE_CANDIDATE','AMBIGUOUS_MULTIPLE_ROWS','NO_COMPATIBLE_ROW','INSUFFICIENT_EVIDENCE']}
+data={'before_status_counts':{'RECOVERABLE_SINGLE_CANDIDATE':15,'AMBIGUOUS_MULTIPLE_ROWS':5,'NO_COMPATIBLE_ROW':4,'INSUFFICIENT_EVIDENCE':0},'weak_fragments':results,'candidate_relationship_count':len(results)*len(rows),'status_counts':counts,'recovery_enabled':False,'frozen_counts':{'logical_rows':7,'recovered_fragments':0,'unknown_anchors':30},'unsupported_gap_policy':'never fill unsupported intervals'}
+(out/'experimental_v5_weak_recovery_analysis.json').write_text(json.dumps(data,indent=2)); print(json.dumps({'weak_components':len(results),**counts},indent=2))

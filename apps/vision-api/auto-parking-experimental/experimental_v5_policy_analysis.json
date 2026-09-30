@@ -1,0 +1,246 @@
+{
+  "frozen_counts": {
+    "anchors": 67,
+    "components": 31,
+    "accepted_rows": 7,
+    "assigned_anchors": 37,
+    "unassigned_anchors": 30,
+    "fragments": 31,
+    "pairs": 465,
+    "logical_rows": 7,
+    "accepted_merges": 0,
+    "recovered_fragments": 0,
+    "unknown_anchors": 30
+  },
+  "measurement_completeness": {
+    "fragment_pairs": 465,
+    "all_requested_fields_defined": false,
+    "undefined_policy": "null plus explicit status; current V4 lacks complete segment/axis endpoint evidence for some components"
+  },
+  "distributions": {
+    "normalized_lateral_separation": {
+      "defined": 465,
+      "min": 0.6737427318758067,
+      "q1": 3.5711520965848687,
+      "median": 5.522825831093252,
+      "q3": 8.026421757724414,
+      "max": 16.95186542619236
+    },
+    "normalized_endpoint_distance": {
+      "defined": 465,
+      "min": 0.6737427318758067,
+      "q1": 3.5711520965848687,
+      "median": 5.522825831093252,
+      "q3": 8.026421757724414,
+      "max": 16.95186542619236
+    },
+    "local_scale_ratio": {
+      "defined": 465,
+      "min": 1.0034590941178028,
+      "q1": 1.324367587408763,
+      "median": 1.59287767895375,
+      "q3": 1.802228627864826,
+      "max": 2.506755488137984
+    }
+  },
+  "accepted_row_pair_analysis": {
+    "count": 21,
+    "records": "See fragment_pair_measurements; no merges performed"
+  },
+  "weak_component_row_analysis": {
+    "weak_components": 24,
+    "accepted_row_fragments": 49,
+    "records": "component-level measurements require complete endpoint geometry"
+  },
+  "ambiguity_analysis": [
+    {
+      "component_id": 2,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 3,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 4,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 5,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 6,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 7,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 8,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 9,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 13,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 14,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 15,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 17,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 18,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 19,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 20,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 21,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 22,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 23,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 25,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 26,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 27,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 28,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 29,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    },
+    {
+      "component_id": 31,
+      "classification": "INSUFFICIENT_GEOMETRY"
+    }
+  ],
+  "proposed_gates": [
+    {
+      "gate": "A",
+      "name": "geometry availability"
+    },
+    {
+      "gate": "B",
+      "name": "axial orientation compatibility"
+    },
+    {
+      "gate": "C",
+      "name": "normalized lateral compatibility"
+    },
+    {
+      "gate": "D",
+      "name": "endpoint/longitudinal continuity"
+    },
+    {
+      "gate": "E",
+      "name": "local-scale compatibility"
+    },
+    {
+      "gate": "F",
+      "name": "merged coherence revalidation"
+    },
+    {
+      "gate": "G",
+      "name": "ambiguity check"
+    },
+    {
+      "gate": "H",
+      "name": "post-merge anti-transitive validation"
+    }
+  ],
+  "threshold_proposals": [
+    {
+      "measurement": "orientation_difference",
+      "proposal": "NOT_ENOUGH_EVIDENCE",
+      "reason": "No threshold selected before complete distributions and synthetic calibration"
+    },
+    {
+      "measurement": "normalized_lateral_separation",
+      "proposal": "NOT_ENOUGH_EVIDENCE",
+      "reason": "No threshold selected before complete distributions and synthetic calibration"
+    },
+    {
+      "measurement": "normalized_endpoint_distance",
+      "proposal": "NOT_ENOUGH_EVIDENCE",
+      "reason": "No threshold selected before complete distributions and synthetic calibration"
+    },
+    {
+      "measurement": "local_scale_ratio",
+      "proposal": "NOT_ENOUGH_EVIDENCE",
+      "reason": "No threshold selected before complete distributions and synthetic calibration"
+    },
+    {
+      "measurement": "merged_perpendicular_dispersion",
+      "proposal": "NOT_ENOUGH_EVIDENCE",
+      "reason": "No threshold selected before complete distributions and synthetic calibration"
+    },
+    {
+      "measurement": "merged_orientation_dispersion",
+      "proposal": "NOT_ENOUGH_EVIDENCE",
+      "reason": "No threshold selected before complete distributions and synthetic calibration"
+    }
+  ],
+  "strong_fragment_merge_policy": [
+    "all gates must pass",
+    "recompute merged geometry after every merge",
+    "preserve supported_segments",
+    "reject if any member becomes incoherent"
+  ],
+  "weak_fragment_recovery_policy": [
+    "require one clearly preferred row",
+    "leave ambiguous destinations UNKNOWN",
+    "never use image count as sole hard gate"
+  ],
+  "synthetic_policy_test_plan": [
+    "collinear gap",
+    "parallel rows",
+    "large lateral offset",
+    "large longitudinal gap",
+    "weak endpoint",
+    "between-row ambiguity",
+    "A-B-C bridge",
+    "high merged dispersion",
+    "perspective scale",
+    "one-anchor unknown orientation",
+    "two-anchor uncertain orientation",
+    "unsupported gap preservation",
+    "multiple destinations UNKNOWN",
+    "deterministic ordering"
+  ]
+}

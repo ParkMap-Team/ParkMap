@@ -1,0 +1,5255 @@
+{
+  "graph_summary": {
+    "anchor_count": 67,
+    "candidate_edge_count": 268,
+    "accepted_edge_count": 79,
+    "rejected_edge_count": 189,
+    "component_sizes": [
+      7,
+      2,
+      1,
+      1,
+      1,
+      2,
+      1,
+      1,
+      1,
+      3,
+      3,
+      4,
+      2,
+      1,
+      1,
+      5,
+      1,
+      2,
+      1,
+      1,
+      1,
+      1,
+      2,
+      3,
+      1,
+      1,
+      1,
+      2,
+      1,
+      12,
+      1
+    ],
+    "largest_component": 12,
+    "maximum_degree": 3,
+    "unassigned_anchor_count": 30,
+    "accepted_edges": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        11
+      ],
+      [
+        1,
+        4
+      ],
+      [
+        2,
+        5
+      ],
+      [
+        2,
+        4
+      ],
+      [
+        4,
+        2
+      ],
+      [
+        4,
+        1
+      ],
+      [
+        4,
+        5
+      ],
+      [
+        5,
+        2
+      ],
+      [
+        5,
+        4
+      ],
+      [
+        9,
+        14
+      ],
+      [
+        11,
+        1
+      ],
+      [
+        11,
+        2
+      ],
+      [
+        11,
+        13
+      ],
+      [
+        12,
+        3
+      ],
+      [
+        13,
+        11
+      ],
+      [
+        14,
+        9
+      ],
+      [
+        17,
+        24
+      ],
+      [
+        18,
+        35
+      ],
+      [
+        20,
+        33
+      ],
+      [
+        22,
+        19
+      ],
+      [
+        22,
+        37
+      ],
+      [
+        23,
+        24
+      ],
+      [
+        24,
+        23
+      ],
+      [
+        26,
+        27
+      ],
+      [
+        26,
+        28
+      ],
+      [
+        26,
+        29
+      ],
+      [
+        27,
+        29
+      ],
+      [
+        27,
+        26
+      ],
+      [
+        28,
+        26
+      ],
+      [
+        29,
+        27
+      ],
+      [
+        29,
+        38
+      ],
+      [
+        29,
+        26
+      ],
+      [
+        31,
+        44
+      ],
+      [
+        33,
+        20
+      ],
+      [
+        35,
+        42
+      ],
+      [
+        37,
+        43
+      ],
+      [
+        37,
+        22
+      ],
+      [
+        38,
+        29
+      ],
+      [
+        40,
+        48
+      ],
+      [
+        41,
+        47
+      ],
+      [
+        42,
+        35
+      ],
+      [
+        43,
+        37
+      ],
+      [
+        44,
+        31
+      ],
+      [
+        47,
+        54
+      ],
+      [
+        47,
+        41
+      ],
+      [
+        48,
+        40
+      ],
+      [
+        50,
+        65
+      ],
+      [
+        52,
+        64
+      ],
+      [
+        53,
+        60
+      ],
+      [
+        53,
+        59
+      ],
+      [
+        55,
+        57
+      ],
+      [
+        56,
+        57
+      ],
+      [
+        56,
+        62
+      ],
+      [
+        56,
+        59
+      ],
+      [
+        57,
+        56
+      ],
+      [
+        57,
+        62
+      ],
+      [
+        58,
+        64
+      ],
+      [
+        58,
+        61
+      ],
+      [
+        58,
+        63
+      ],
+      [
+        59,
+        62
+      ],
+      [
+        59,
+        53
+      ],
+      [
+        59,
+        56
+      ],
+      [
+        60,
+        53
+      ],
+      [
+        60,
+        63
+      ],
+      [
+        60,
+        61
+      ],
+      [
+        61,
+        63
+      ],
+      [
+        61,
+        58
+      ],
+      [
+        61,
+        60
+      ],
+      [
+        62,
+        59
+      ],
+      [
+        62,
+        56
+      ],
+      [
+        62,
+        57
+      ],
+      [
+        63,
+        61
+      ],
+      [
+        63,
+        60
+      ],
+      [
+        63,
+        58
+      ],
+      [
+        64,
+        58
+      ],
+      [
+        64,
+        52
+      ],
+      [
+        65,
+        50
+      ]
+    ],
+    "rejected_edges": [
+      [
+        0,
+        11
+      ],
+      [
+        0,
+        4
+      ],
+      [
+        0,
+        39
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        13
+      ],
+      [
+        2,
+        11
+      ],
+      [
+        3,
+        10
+      ],
+      [
+        3,
+        12
+      ],
+      [
+        3,
+        18
+      ],
+      [
+        3,
+        16
+      ],
+      [
+        4,
+        11
+      ],
+      [
+        5,
+        13
+      ],
+      [
+        5,
+        11
+      ],
+      [
+        6,
+        14
+      ],
+      [
+        6,
+        9
+      ],
+      [
+        6,
+        19
+      ],
+      [
+        6,
+        15
+      ],
+      [
+        7,
+        9
+      ],
+      [
+        7,
+        22
+      ],
+      [
+        7,
+        30
+      ],
+      [
+        7,
+        14
+      ],
+      [
+        8,
+        15
+      ],
+      [
+        8,
+        17
+      ],
+      [
+        8,
+        24
+      ],
+      [
+        8,
+        23
+      ],
+      [
+        9,
+        6
+      ],
+      [
+        9,
+        7
+      ],
+      [
+        9,
+        22
+      ],
+      [
+        10,
+        12
+      ],
+      [
+        10,
+        3
+      ],
+      [
+        10,
+        18
+      ],
+      [
+        10,
+        16
+      ],
+      [
+        11,
+        4
+      ],
+      [
+        12,
+        10
+      ],
+      [
+        12,
+        16
+      ],
+      [
+        12,
+        18
+      ],
+      [
+        13,
+        5
+      ],
+      [
+        13,
+        2
+      ],
+      [
+        13,
+        16
+      ],
+      [
+        14,
+        6
+      ],
+      [
+        14,
+        19
+      ],
+      [
+        14,
+        20
+      ],
+      [
+        15,
+        23
+      ],
+      [
+        15,
+        24
+      ],
+      [
+        15,
+        17
+      ],
+      [
+        15,
+        21
+      ],
+      [
+        16,
+        25
+      ],
+      [
+        16,
+        18
+      ],
+      [
+        16,
+        28
+      ],
+      [
+        16,
+        12
+      ],
+      [
+        17,
+        15
+      ],
+      [
+        17,
+        32
+      ],
+      [
+        17,
+        18
+      ],
+      [
+        18,
+        25
+      ],
+      [
+        18,
+        16
+      ],
+      [
+        18,
+        34
+      ],
+      [
+        19,
+        22
+      ],
+      [
+        19,
+        31
+      ],
+      [
+        19,
+        20
+      ],
+      [
+        19,
+        14
+      ],
+      [
+        20,
+        21
+      ],
+      [
+        20,
+        19
+      ],
+      [
+        20,
+        31
+      ],
+      [
+        21,
+        20
+      ],
+      [
+        21,
+        23
+      ],
+      [
+        21,
+        33
+      ],
+      [
+        21,
+        36
+      ],
+      [
+        22,
+        31
+      ],
+      [
+        22,
+        30
+      ],
+      [
+        23,
+        15
+      ],
+      [
+        23,
+        21
+      ],
+      [
+        23,
+        36
+      ],
+      [
+        24,
+        17
+      ],
+      [
+        24,
+        36
+      ],
+      [
+        24,
+        15
+      ],
+      [
+        25,
+        16
+      ],
+      [
+        25,
+        18
+      ],
+      [
+        25,
+        35
+      ],
+      [
+        25,
+        28
+      ],
+      [
+        26,
+        39
+      ],
+      [
+        27,
+        39
+      ],
+      [
+        27,
+        28
+      ],
+      [
+        28,
+        25
+      ],
+      [
+        28,
+        16
+      ],
+      [
+        28,
+        35
+      ],
+      [
+        29,
+        39
+      ],
+      [
+        30,
+        37
+      ],
+      [
+        30,
+        43
+      ],
+      [
+        30,
+        22
+      ],
+      [
+        30,
+        31
+      ],
+      [
+        31,
+        33
+      ],
+      [
+        31,
+        37
+      ],
+      [
+        31,
+        19
+      ],
+      [
+        32,
+        34
+      ],
+      [
+        32,
+        36
+      ],
+      [
+        32,
+        24
+      ],
+      [
+        32,
+        17
+      ],
+      [
+        33,
+        31
+      ],
+      [
+        33,
+        36
+      ],
+      [
+        33,
+        21
+      ],
+      [
+        34,
+        35
+      ],
+      [
+        34,
+        32
+      ],
+      [
+        34,
+        18
+      ],
+      [
+        34,
+        25
+      ],
+      [
+        35,
+        34
+      ],
+      [
+        35,
+        25
+      ],
+      [
+        35,
+        18
+      ],
+      [
+        36,
+        33
+      ],
+      [
+        36,
+        24
+      ],
+      [
+        36,
+        23
+      ],
+      [
+        36,
+        32
+      ],
+      [
+        37,
+        30
+      ],
+      [
+        37,
+        31
+      ],
+      [
+        38,
+        39
+      ],
+      [
+        38,
+        40
+      ],
+      [
+        38,
+        27
+      ],
+      [
+        39,
+        38
+      ],
+      [
+        39,
+        29
+      ],
+      [
+        39,
+        27
+      ],
+      [
+        39,
+        46
+      ],
+      [
+        40,
+        38
+      ],
+      [
+        40,
+        46
+      ],
+      [
+        40,
+        39
+      ],
+      [
+        41,
+        45
+      ],
+      [
+        41,
+        44
+      ],
+      [
+        41,
+        33
+      ],
+      [
+        42,
+        46
+      ],
+      [
+        42,
+        34
+      ],
+      [
+        42,
+        61
+      ],
+      [
+        43,
+        44
+      ],
+      [
+        43,
+        31
+      ],
+      [
+        43,
+        50
+      ],
+      [
+        44,
+        43
+      ],
+      [
+        44,
+        41
+      ],
+      [
+        44,
+        49
+      ],
+      [
+        45,
+        41
+      ],
+      [
+        45,
+        36
+      ],
+      [
+        45,
+        54
+      ],
+      [
+        45,
+        47
+      ],
+      [
+        46,
+        39
+      ],
+      [
+        46,
+        40
+      ],
+      [
+        46,
+        48
+      ],
+      [
+        46,
+        53
+      ],
+      [
+        47,
+        49
+      ],
+      [
+        47,
+        44
+      ],
+      [
+        48,
+        56
+      ],
+      [
+        48,
+        62
+      ],
+      [
+        48,
+        59
+      ],
+      [
+        49,
+        47
+      ],
+      [
+        49,
+        50
+      ],
+      [
+        49,
+        44
+      ],
+      [
+        49,
+        54
+      ],
+      [
+        50,
+        51
+      ],
+      [
+        50,
+        66
+      ],
+      [
+        50,
+        49
+      ],
+      [
+        51,
+        50
+      ],
+      [
+        51,
+        65
+      ],
+      [
+        51,
+        43
+      ],
+      [
+        51,
+        66
+      ],
+      [
+        52,
+        54
+      ],
+      [
+        52,
+        45
+      ],
+      [
+        52,
+        47
+      ],
+      [
+        53,
+        48
+      ],
+      [
+        53,
+        46
+      ],
+      [
+        54,
+        47
+      ],
+      [
+        54,
+        52
+      ],
+      [
+        54,
+        49
+      ],
+      [
+        54,
+        45
+      ],
+      [
+        55,
+        48
+      ],
+      [
+        55,
+        56
+      ],
+      [
+        55,
+        40
+      ],
+      [
+        56,
+        48
+      ],
+      [
+        57,
+        48
+      ],
+      [
+        57,
+        55
+      ],
+      [
+        58,
+        52
+      ],
+      [
+        59,
+        48
+      ],
+      [
+        60,
+        46
+      ],
+      [
+        61,
+        42
+      ],
+      [
+        62,
+        48
+      ],
+      [
+        63,
+        53
+      ],
+      [
+        64,
+        61
+      ],
+      [
+        64,
+        54
+      ],
+      [
+        65,
+        66
+      ],
+      [
+        65,
+        51
+      ],
+      [
+        65,
+        49
+      ],
+      [
+        66,
+        65
+      ],
+      [
+        66,
+        50
+      ],
+      [
+        66,
+        49
+      ],
+      [
+        66,
+        51
+      ]
+    ],
+    "component_ids": {
+      "0": 1,
+      "1": 1,
+      "4": 1,
+      "5": 1,
+      "2": 1,
+      "11": 1,
+      "13": 1,
+      "3": 2,
+      "12": 2,
+      "6": 3,
+      "7": 4,
+      "8": 5,
+      "9": 6,
+      "14": 6,
+      "10": 7,
+      "15": 8,
+      "16": 9,
+      "17": 10,
+      "24": 10,
+      "23": 10,
+      "18": 11,
+      "35": 11,
+      "42": 11,
+      "19": 12,
+      "22": 12,
+      "37": 12,
+      "43": 12,
+      "20": 13,
+      "33": 13,
+      "21": 14,
+      "25": 15,
+      "26": 16,
+      "29": 16,
+      "38": 16,
+      "28": 16,
+      "27": 16,
+      "30": 17,
+      "31": 18,
+      "44": 18,
+      "32": 19,
+      "34": 20,
+      "36": 21,
+      "39": 22,
+      "40": 23,
+      "48": 23,
+      "41": 24,
+      "47": 24,
+      "54": 24,
+      "45": 25,
+      "46": 26,
+      "49": 27,
+      "50": 28,
+      "65": 28,
+      "51": 29,
+      "52": 30,
+      "64": 30,
+      "58": 30,
+      "63": 30,
+      "60": 30,
+      "53": 30,
+      "59": 30,
+      "62": 30,
+      "57": 30,
+      "55": 30,
+      "56": 30,
+      "61": 30,
+      "66": 31
+    },
+    "anchors": [
+      {
+        "anchor_id": 0,
+        "x": 0.8551632815567906,
+        "y": 0.3978363252400931,
+        "local_scale": 0.038054733680038866,
+        "raw_observation_count": 15,
+        "distinct_image_count": 7
+      },
+      {
+        "anchor_id": 1,
+        "x": 0.8271417315044101,
+        "y": 0.3937215048169333,
+        "local_scale": 0.03922725859142487,
+        "raw_observation_count": 2,
+        "distinct_image_count": 2
+      },
+      {
+        "anchor_id": 2,
+        "x": 0.6981347099183097,
+        "y": 0.39827960382693656,
+        "local_scale": 0.04083534523292823,
+        "raw_observation_count": 4,
+        "distinct_image_count": 3
+      },
+      {
+        "anchor_id": 3,
+        "x": 0.5378994974149327,
+        "y": 0.3991998973797419,
+        "local_scale": 0.038317604670448924,
+        "raw_observation_count": 7,
+        "distinct_image_count": 7
+      },
+      {
+        "anchor_id": 4,
+        "x": 0.7550994630843875,
+        "y": 0.3940839414243345,
+        "local_scale": 0.04667897703786378,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 5,
+        "x": 0.6651785714285714,
+        "y": 0.39921563769143725,
+        "local_scale": 0.043328623292307356,
+        "raw_observation_count": 2,
+        "distinct_image_count": 2
+      },
+      {
+        "anchor_id": 6,
+        "x": 0.22590974062628633,
+        "y": 0.4592390828522285,
+        "local_scale": 0.04771873433753929,
+        "raw_observation_count": 18,
+        "distinct_image_count": 7
+      },
+      {
+        "anchor_id": 7,
+        "x": 0.030799756092684608,
+        "y": 0.44285949828132753,
+        "local_scale": 0.05514483981662327,
+        "raw_observation_count": 8,
+        "distinct_image_count": 7
+      },
+      {
+        "anchor_id": 8,
+        "x": 0.3780859771374526,
+        "y": 0.4450982745507892,
+        "local_scale": 0.0559539794921875,
+        "raw_observation_count": 13,
+        "distinct_image_count": 6
+      },
+      {
+        "anchor_id": 9,
+        "x": 0.142028566390749,
+        "y": 0.4419641444292018,
+        "local_scale": 0.05656622831152858,
+        "raw_observation_count": 2,
+        "distinct_image_count": 2
+      },
+      {
+        "anchor_id": 10,
+        "x": 0.5354780166868179,
+        "y": 0.44451597506407076,
+        "local_scale": 0.04308759093915343,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 11,
+        "x": 0.7688400833695024,
+        "y": 0.4462275698491925,
+        "local_scale": 0.06940916354063326,
+        "raw_observation_count": 3,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 12,
+        "x": 0.5720443725585938,
+        "y": 0.4461682435696718,
+        "local_scale": 0.04891975846870866,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 13,
+        "x": 0.6744462270585317,
+        "y": 0.44618180693772735,
+        "local_scale": 0.04600609673394096,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 14,
+        "x": 0.19977024677389063,
+        "y": 0.5064540496849239,
+        "local_scale": 0.04914076870711395,
+        "raw_observation_count": 14,
+        "distinct_image_count": 7
+      },
+      {
+        "anchor_id": 15,
+        "x": 0.3312195142110189,
+        "y": 0.5339051100312087,
+        "local_scale": 0.05312220255533853,
+        "raw_observation_count": 2,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 16,
+        "x": 0.6018970428951202,
+        "y": 0.5271635913344287,
+        "local_scale": 0.05744389125279015,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 17,
+        "x": 0.4204627370077466,
+        "y": 0.5463976582522114,
+        "local_scale": 0.060389907271773735,
+        "raw_observation_count": 2,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 18,
+        "x": 0.5297367156498016,
+        "y": 0.5531101731396226,
+        "local_scale": 0.0625530222736338,
+        "raw_observation_count": 2,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 19,
+        "x": 0.17265667059482673,
+        "y": 0.5811087360312214,
+        "local_scale": 0.055137795746011076,
+        "raw_observation_count": 13,
+        "distinct_image_count": 7
+      },
+      {
+        "anchor_id": 20,
+        "x": 0.23827090275981436,
+        "y": 0.5812434275524537,
+        "local_scale": 0.04869572069279099,
+        "raw_observation_count": 12,
+        "distinct_image_count": 6
+      },
+      {
+        "anchor_id": 21,
+        "x": 0.26242252758571083,
+        "y": 0.5772240653870597,
+        "local_scale": 0.0463140780332858,
+        "raw_observation_count": 2,
+        "distinct_image_count": 2
+      },
+      {
+        "anchor_id": 22,
+        "x": 0.12650917392739364,
+        "y": 0.581571687105832,
+        "local_scale": 0.05522293010085988,
+        "raw_observation_count": 7,
+        "distinct_image_count": 7
+      },
+      {
+        "anchor_id": 23,
+        "x": 0.31065446611434694,
+        "y": 0.57781332510489,
+        "local_scale": 0.04515277519427907,
+        "raw_observation_count": 2,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 24,
+        "x": 0.3714964881775871,
+        "y": 0.5786606319366939,
+        "local_scale": 0.045545123872302806,
+        "raw_observation_count": 2,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 25,
+        "x": 0.592183582366459,
+        "y": 0.5823910021908069,
+        "local_scale": 0.04915937797102343,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 26,
+        "x": 0.7132345532614087,
+        "y": 0.5843341699563216,
+        "local_scale": 0.048126220703125,
+        "raw_observation_count": 3,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 27,
+        "x": 0.7597145807175409,
+        "y": 0.5844217936197916,
+        "local_scale": 0.05053743231233465,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 28,
+        "x": 0.6578202626061818,
+        "y": 0.5866482043392444,
+        "local_scale": 0.0585333607184193,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 29,
+        "x": 0.7969691564166357,
+        "y": 0.5875993758913071,
+        "local_scale": 0.050875507334552816,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 30,
+        "x": 0.0623169444045242,
+        "y": 0.6544890342475966,
+        "local_scale": 0.06816694471571183,
+        "raw_observation_count": 7,
+        "distinct_image_count": 4
+      },
+      {
+        "anchor_id": 31,
+        "x": 0.18002031038677882,
+        "y": 0.6628669456199363,
+        "local_scale": 0.07315200724929738,
+        "raw_observation_count": 5,
+        "distinct_image_count": 3
+      },
+      {
+        "anchor_id": 32,
+        "x": 0.44199937843586334,
+        "y": 0.6632206641065714,
+        "local_scale": 0.0790283364593668,
+        "raw_observation_count": 17,
+        "distinct_image_count": 7
+      },
+      {
+        "anchor_id": 33,
+        "x": 0.2568573035050112,
+        "y": 0.6635635124803081,
+        "local_scale": 0.07550504977110206,
+        "raw_observation_count": 9,
+        "distinct_image_count": 7
+      },
+      {
+        "anchor_id": 34,
+        "x": 0.5090413515259619,
+        "y": 0.6607533957322078,
+        "local_scale": 0.08102348368003887,
+        "raw_observation_count": 7,
+        "distinct_image_count": 5
+      },
+      {
+        "anchor_id": 35,
+        "x": 0.5669431794527707,
+        "y": 0.665323910529381,
+        "local_scale": 0.07827936404596558,
+        "raw_observation_count": 7,
+        "distinct_image_count": 7
+      },
+      {
+        "anchor_id": 36,
+        "x": 0.3414845731523302,
+        "y": 0.6619235952064474,
+        "local_scale": 0.07930170291315314,
+        "raw_observation_count": 4,
+        "distinct_image_count": 2
+      },
+      {
+        "anchor_id": 37,
+        "x": 0.10468459129333496,
+        "y": 0.6583424724599041,
+        "local_scale": 0.06544232242321835,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 38,
+        "x": 0.8688924577501084,
+        "y": 0.6657435772069967,
+        "local_scale": 0.07571096268911204,
+        "raw_observation_count": 3,
+        "distinct_image_count": 3
+      },
+      {
+        "anchor_id": 39,
+        "x": 0.7962443185231042,
+        "y": 0.6667545863560268,
+        "local_scale": 0.08149491163788647,
+        "raw_observation_count": 2,
+        "distinct_image_count": 2
+      },
+      {
+        "anchor_id": 40,
+        "x": 0.8716946556454613,
+        "y": 0.7622757361679481,
+        "local_scale": 0.06999202506252067,
+        "raw_observation_count": 2,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 41,
+        "x": 0.26489960958087255,
+        "y": 0.7574663919115824,
+        "local_scale": 0.07063309603897983,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 42,
+        "x": 0.6123271821037172,
+        "y": 0.7674102898537888,
+        "local_scale": 0.08284319519365901,
+        "raw_observation_count": 7,
+        "distinct_image_count": 7
+      },
+      {
+        "anchor_id": 43,
+        "x": 0.12478348943922254,
+        "y": 0.7635301055100859,
+        "local_scale": 0.08970609796110285,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 44,
+        "x": 0.18811826100425114,
+        "y": 0.766428791025959,
+        "local_scale": 0.0860000691085896,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 45,
+        "x": 0.32267735496399896,
+        "y": 0.7670327645760996,
+        "local_scale": 0.07585902945705192,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 46,
+        "x": 0.7550323728531125,
+        "y": 0.7754095168340773,
+        "local_scale": 0.08200113609354331,
+        "raw_observation_count": 2,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 47,
+        "x": 0.2613554303608243,
+        "y": 0.8616315044423261,
+        "local_scale": 0.07400645906963044,
+        "raw_observation_count": 4,
+        "distinct_image_count": 2
+      },
+      {
+        "anchor_id": 48,
+        "x": 0.85103696490091,
+        "y": 0.8547098068963914,
+        "local_scale": 0.08657425168960814,
+        "raw_observation_count": 2,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 49,
+        "x": 0.1921510060628255,
+        "y": 0.8739056945477843,
+        "local_scale": 0.0846171707072586,
+        "raw_observation_count": 5,
+        "distinct_image_count": 4
+      },
+      {
+        "anchor_id": 50,
+        "x": 0.0893459398910482,
+        "y": 0.8800455190937777,
+        "local_scale": 0.07703754889271253,
+        "raw_observation_count": 6,
+        "distinct_image_count": 4
+      },
+      {
+        "anchor_id": 51,
+        "x": 0.02585885969419328,
+        "y": 0.8678538811900628,
+        "local_scale": 0.08023684869998338,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 52,
+        "x": 0.4053510786995055,
+        "y": 0.8859899208028481,
+        "local_scale": 0.09018275346705518,
+        "raw_observation_count": 4,
+        "distinct_image_count": 2
+      },
+      {
+        "anchor_id": 53,
+        "x": 0.7268265799870566,
+        "y": 0.9046967844483713,
+        "local_scale": 0.043425544859871046,
+        "raw_observation_count": 5,
+        "distinct_image_count": 3
+      },
+      {
+        "anchor_id": 54,
+        "x": 0.3157273928324381,
+        "y": 0.8954455663287451,
+        "local_scale": 0.0953939125020668,
+        "raw_observation_count": 2,
+        "distinct_image_count": 2
+      },
+      {
+        "anchor_id": 55,
+        "x": 0.9849348522367931,
+        "y": 0.9084035076161541,
+        "local_scale": 0.039002433655753954,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1
+      },
+      {
+        "anchor_id": 56,
+        "x": 0.8847619086977034,
+        "y": 0.9170984338831019,
+        "local_scale": 0.0423366001674107,
+        "raw_observation_count": 4,
+        "distinct_image_count": 4
+      },
+      {
+        "anchor_id": 57,
+        "x": 0.9283661191425626,
+        "y": 0.9245624360584077,
+        "local_scale": 0.041618468269469244,
+        "raw_observation_count": 5,
+        "distinct_image_count": 5
+      },
+      {
+        "anchor_id": 58,
+        "x": 0.5591155309525747,
+        "y": 0.9205821203807043,
+        "local_scale": 0.04341622004433282,
+        "raw_observation_count": 2,
+        "distinct_image_count": 2
+      },
+      {
+        "anchor_id": 59,
+        "x": 0.7930325402153863,
+        "y": 0.9279039171006945,
+        "local_scale": 0.05124611829323744,
+        "raw_observation_count": 3,
+        "distinct_image_count": 3
+      },
+      {
+        "anchor_id": 60,
+        "x": 0.6911192848568871,
+        "y": 0.9238929143027654,
+        "local_scale": 0.046197638940558894,
+        "raw_observation_count": 2,
+        "distinct_image_count": 2
+      },
+      {
+        "anchor_id": 61,
+        "x": 0.6069425703987243,
+        "y": 0.9218792789196841,
+        "local_scale": 0.04410407656715032,
+        "raw_observation_count": 2,
+        "distinct_image_count": 2
+      },
+      {
+        "anchor_id": 62,
+        "x": 0.8363018641396174,
+        "y": 0.9256336945495067,
+        "local_scale": 0.04563023804356814,
+        "raw_observation_count": 3,
+        "distinct_image_count": 3
+      },
+      {
+        "anchor_id": 63,
+        "x": 0.6478284048655676,
+        "y": 0.9252421061197917,
+        "local_scale": 0.04778241354321677,
+        "raw_observation_count": 2,
+        "distinct_image_count": 2
+      },
+      {
+        "anchor_id": 64,
+        "x": 0.5113068383837504,
+        "y": 0.9264893304734003,
+        "local_scale": 0.04958985343812006,
+        "raw_observation_count": 2,
+        "distinct_image_count": 2
+      },
+      {
+        "anchor_id": 65,
+        "x": 0.061057345261649486,
+        "y": 0.9353018193858852,
+        "local_scale": 0.04935253486431462,
+        "raw_observation_count": 6,
+        "distinct_image_count": 6
+      },
+      {
+        "anchor_id": 66,
+        "x": 0.1259692800108087,
+        "y": 0.9700322495986966,
+        "local_scale": 0.08300506753265546,
+        "raw_observation_count": 3,
+        "distinct_image_count": 2
+      }
+    ],
+    "components": [
+      {
+        "component_id": 1,
+        "anchor_ids": [
+          0,
+          1,
+          4,
+          5,
+          2,
+          11,
+          13
+        ],
+        "anchor_count": 7,
+        "raw_observation_count": 28,
+        "distinct_image_count": 7,
+        "accepted_as_row": true,
+        "centroid": {
+          "x": 0.7491434382743575,
+          "y": 0.41079234139809356
+        },
+        "local_scale": 0.043328623292307356,
+        "orientation": {
+          "x": 0.9944851113331691,
+          "y": -0.1048778495996857
+        },
+        "orientation_status": "VALID",
+        "orientation_dispersion": 1.907330028601052,
+        "supported_segments": [],
+        "segment_membership": {
+          "0": null,
+          "1": null,
+          "4": null,
+          "5": null,
+          "2": null,
+          "11": null,
+          "13": null
+        },
+        "longitudinal_min": -0.08228767016299947,
+        "longitudinal_max": 0.10679395476428546,
+        "longitudinal_span": 0.18908162492728492,
+        "perpendicular_dispersion": 0.021400847428269185,
+        "normalized_perpendicular_dispersion": 0.4939193955896755,
+        "row_id": "experimental_v4_row_1"
+      },
+      {
+        "component_id": 2,
+        "anchor_ids": [
+          3,
+          12
+        ],
+        "anchor_count": 2,
+        "raw_observation_count": 8,
+        "distinct_image_count": 7,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.5549719349867632,
+          "y": 0.4226840704747068
+        },
+        "local_scale": 0.04361868156957879,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "3": null,
+          "12": null
+        }
+      },
+      {
+        "component_id": 3,
+        "anchor_ids": [
+          6
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 18,
+        "distinct_image_count": 7,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.22590974062628633,
+          "y": 0.4592390828522285
+        },
+        "local_scale": 0.04771873433753929,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "6": null
+        }
+      },
+      {
+        "component_id": 4,
+        "anchor_ids": [
+          7
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 8,
+        "distinct_image_count": 7,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.030799756092684608,
+          "y": 0.44285949828132753
+        },
+        "local_scale": 0.05514483981662327,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "7": null
+        }
+      },
+      {
+        "component_id": 5,
+        "anchor_ids": [
+          8
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 13,
+        "distinct_image_count": 6,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.3780859771374526,
+          "y": 0.4450982745507892
+        },
+        "local_scale": 0.0559539794921875,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "8": null
+        }
+      },
+      {
+        "component_id": 6,
+        "anchor_ids": [
+          9,
+          14
+        ],
+        "anchor_count": 2,
+        "raw_observation_count": 16,
+        "distinct_image_count": 7,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.17089940658231983,
+          "y": 0.4742090970570628
+        },
+        "local_scale": 0.052853498509321264,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "9": null,
+          "14": null
+        }
+      },
+      {
+        "component_id": 7,
+        "anchor_ids": [
+          10
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.5354780166868179,
+          "y": 0.44451597506407076
+        },
+        "local_scale": 0.04308759093915343,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "10": null
+        }
+      },
+      {
+        "component_id": 8,
+        "anchor_ids": [
+          15
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 2,
+        "distinct_image_count": 1,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.3312195142110189,
+          "y": 0.5339051100312087
+        },
+        "local_scale": 0.05312220255533853,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "15": null
+        }
+      },
+      {
+        "component_id": 9,
+        "anchor_ids": [
+          16
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.6018970428951202,
+          "y": 0.5271635913344287
+        },
+        "local_scale": 0.05744389125279015,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "16": null
+        }
+      },
+      {
+        "component_id": 10,
+        "anchor_ids": [
+          17,
+          24,
+          23
+        ],
+        "anchor_count": 3,
+        "raw_observation_count": 6,
+        "distinct_image_count": 1,
+        "accepted_as_row": true,
+        "centroid": {
+          "x": 0.36753789709989354,
+          "y": 0.5676238717645985
+        },
+        "local_scale": 0.045545123872302806,
+        "orientation": {
+          "x": 0.9620132524306606,
+          "y": -0.2730027511725515
+        },
+        "orientation_status": "VALID",
+        "orientation_dispersion": 1.881870719423772,
+        "supported_segments": [],
+        "segment_membership": {
+          "17": null,
+          "24": null,
+          "23": null
+        },
+        "longitudinal_min": -0.057504363246664636,
+        "longitudinal_max": 0.056709212059983416,
+        "longitudinal_span": 0.11421357530664805,
+        "perpendicular_dispersion": 0.008272489096301575,
+        "normalized_perpendicular_dispersion": 0.18163281583107724,
+        "row_id": "experimental_v4_row_2"
+      },
+      {
+        "component_id": 11,
+        "anchor_ids": [
+          18,
+          35,
+          42
+        ],
+        "anchor_count": 3,
+        "raw_observation_count": 16,
+        "distinct_image_count": 7,
+        "accepted_as_row": true,
+        "centroid": {
+          "x": 0.5696690257354299,
+          "y": 0.6619481245075974
+        },
+        "local_scale": 0.07827936404596558,
+        "orientation": {
+          "x": 0.35918080583639367,
+          "y": 0.9332679940503258
+        },
+        "orientation_status": "VALID",
+        "orientation_dispersion": 1.7703216703584335,
+        "supported_segments": [],
+        "segment_membership": {
+          "18": null,
+          "35": null,
+          "42": null
+        },
+        "longitudinal_min": -0.11591789586520146,
+        "longitudinal_max": 0.1137464544807001,
+        "longitudinal_span": 0.22966435034590155,
+        "perpendicular_dispersion": 0.002656576355049937,
+        "normalized_perpendicular_dispersion": 0.03393712234925666,
+        "row_id": "experimental_v4_row_3"
+      },
+      {
+        "component_id": 12,
+        "anchor_ids": [
+          19,
+          22,
+          37,
+          43
+        ],
+        "anchor_count": 4,
+        "raw_observation_count": 22,
+        "distinct_image_count": 7,
+        "accepted_as_row": true,
+        "centroid": {
+          "x": 0.13215848131369448,
+          "y": 0.6461382502767609
+        },
+        "local_scale": 0.06033262626203911,
+        "orientation": {
+          "x": 0.16740140036900053,
+          "y": -0.985888822917928
+        },
+        "orientation_status": "VALID",
+        "orientation_dispersion": 1.859505683762951,
+        "supported_segments": [],
+        "segment_membership": {
+          "19": null,
+          "22": null,
+          "37": null,
+          "43": null
+        },
+        "longitudinal_min": -0.11696990194363127,
+        "longitudinal_max": 0.07089132485252994,
+        "longitudinal_span": 0.1878612267961612,
+        "perpendicular_dispersion": 0.021748827257503323,
+        "normalized_perpendicular_dispersion": 0.3604820244861036,
+        "row_id": "experimental_v4_row_4"
+      },
+      {
+        "component_id": 13,
+        "anchor_ids": [
+          20,
+          33
+        ],
+        "anchor_count": 2,
+        "raw_observation_count": 21,
+        "distinct_image_count": 7,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.24756410313241278,
+          "y": 0.622403470016381
+        },
+        "local_scale": 0.062100385231946525,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "20": null,
+          "33": null
+        }
+      },
+      {
+        "component_id": 14,
+        "anchor_ids": [
+          21
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 2,
+        "distinct_image_count": 2,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.26242252758571083,
+          "y": 0.5772240653870597
+        },
+        "local_scale": 0.0463140780332858,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "21": null
+        }
+      },
+      {
+        "component_id": 15,
+        "anchor_ids": [
+          25
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.592183582366459,
+          "y": 0.5823910021908069
+        },
+        "local_scale": 0.04915937797102343,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "25": null
+        }
+      },
+      {
+        "component_id": 16,
+        "anchor_ids": [
+          26,
+          29,
+          38,
+          28,
+          27
+        ],
+        "anchor_count": 5,
+        "raw_observation_count": 9,
+        "distinct_image_count": 3,
+        "accepted_as_row": true,
+        "centroid": {
+          "x": 0.759326202150375,
+          "y": 0.6017494242027323
+        },
+        "local_scale": 0.050875507334552816,
+        "orientation": {
+          "x": 0.9385938857677321,
+          "y": 0.3450239377194421
+        },
+        "orientation_status": "VALID",
+        "orientation_dispersion": 2.059337081089405,
+        "supported_segments": [],
+        "segment_membership": {
+          "26": null,
+          "29": null,
+          "38": null,
+          "28": null,
+          "27": null
+        },
+        "longitudinal_min": -0.10048313656695652,
+        "longitudinal_max": 0.12491773225292603,
+        "longitudinal_span": 0.22540086881988255,
+        "perpendicular_dispersion": 0.019438875591488852,
+        "normalized_perpendicular_dispersion": 0.38208711047657046,
+        "row_id": "experimental_v4_row_5"
+      },
+      {
+        "component_id": 17,
+        "anchor_ids": [
+          30
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 7,
+        "distinct_image_count": 4,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.0623169444045242,
+          "y": 0.6544890342475966
+        },
+        "local_scale": 0.06816694471571183,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "30": null
+        }
+      },
+      {
+        "component_id": 18,
+        "anchor_ids": [
+          31,
+          44
+        ],
+        "anchor_count": 2,
+        "raw_observation_count": 6,
+        "distinct_image_count": 3,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.18406928569551498,
+          "y": 0.7146478683229476
+        },
+        "local_scale": 0.07957603817894349,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "31": null,
+          "44": null
+        }
+      },
+      {
+        "component_id": 19,
+        "anchor_ids": [
+          32
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 17,
+        "distinct_image_count": 7,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.44199937843586334,
+          "y": 0.6632206641065714
+        },
+        "local_scale": 0.0790283364593668,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "32": null
+        }
+      },
+      {
+        "component_id": 20,
+        "anchor_ids": [
+          34
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 7,
+        "distinct_image_count": 5,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.5090413515259619,
+          "y": 0.6607533957322078
+        },
+        "local_scale": 0.08102348368003887,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "34": null
+        }
+      },
+      {
+        "component_id": 21,
+        "anchor_ids": [
+          36
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 4,
+        "distinct_image_count": 2,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.3414845731523302,
+          "y": 0.6619235952064474
+        },
+        "local_scale": 0.07930170291315314,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "36": null
+        }
+      },
+      {
+        "component_id": 22,
+        "anchor_ids": [
+          39
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 2,
+        "distinct_image_count": 2,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.7962443185231042,
+          "y": 0.6667545863560268
+        },
+        "local_scale": 0.08149491163788647,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "39": null
+        }
+      },
+      {
+        "component_id": 23,
+        "anchor_ids": [
+          40,
+          48
+        ],
+        "anchor_count": 2,
+        "raw_observation_count": 4,
+        "distinct_image_count": 1,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.8613658102731856,
+          "y": 0.8084927715321697
+        },
+        "local_scale": 0.0782831383760644,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "40": null,
+          "48": null
+        }
+      },
+      {
+        "component_id": 24,
+        "anchor_ids": [
+          41,
+          47,
+          54
+        ],
+        "anchor_count": 3,
+        "raw_observation_count": 7,
+        "distinct_image_count": 2,
+        "accepted_as_row": true,
+        "centroid": {
+          "x": 0.2806608109247117,
+          "y": 0.8381811542275512
+        },
+        "local_scale": 0.07400645906963044,
+        "orientation": {
+          "x": 0.28950593840603545,
+          "y": 0.9571762176462811
+        },
+        "orientation_status": "VALID",
+        "orientation_dispersion": 1.682436612016453,
+        "supported_segments": [],
+        "segment_membership": {
+          "41": null,
+          "47": null,
+          "54": null
+        },
+        "longitudinal_min": -0.08182121228727228,
+        "longitudinal_max": 0.06496411708264707,
+        "longitudinal_span": 0.14678532936991934,
+        "perpendicular_dispersion": 0.018216970844047144,
+        "normalized_perpendicular_dispersion": 0.24615379620996794,
+        "row_id": "experimental_v4_row_6"
+      },
+      {
+        "component_id": 25,
+        "anchor_ids": [
+          45
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.32267735496399896,
+          "y": 0.7670327645760996
+        },
+        "local_scale": 0.07585902945705192,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "45": null
+        }
+      },
+      {
+        "component_id": 26,
+        "anchor_ids": [
+          46
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 2,
+        "distinct_image_count": 1,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.7550323728531125,
+          "y": 0.7754095168340773
+        },
+        "local_scale": 0.08200113609354331,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "46": null
+        }
+      },
+      {
+        "component_id": 27,
+        "anchor_ids": [
+          49
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 5,
+        "distinct_image_count": 4,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.1921510060628255,
+          "y": 0.8739056945477843
+        },
+        "local_scale": 0.0846171707072586,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "49": null
+        }
+      },
+      {
+        "component_id": 28,
+        "anchor_ids": [
+          50,
+          65
+        ],
+        "anchor_count": 2,
+        "raw_observation_count": 12,
+        "distinct_image_count": 6,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.07520164257634884,
+          "y": 0.9076736692398315
+        },
+        "local_scale": 0.06319504187851357,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "50": null,
+          "65": null
+        }
+      },
+      {
+        "component_id": 29,
+        "anchor_ids": [
+          51
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 1,
+        "distinct_image_count": 1,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.02585885969419328,
+          "y": 0.8678538811900628
+        },
+        "local_scale": 0.08023684869998338,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "51": null
+        }
+      },
+      {
+        "component_id": 30,
+        "anchor_ids": [
+          52,
+          64,
+          58,
+          63,
+          60,
+          53,
+          59,
+          62,
+          57,
+          55,
+          56,
+          61
+        ],
+        "anchor_count": 12,
+        "raw_observation_count": 35,
+        "distinct_image_count": 6,
+        "accepted_as_row": true,
+        "centroid": {
+          "x": 0.7146572977146773,
+          "y": 0.9176978703879524
+        },
+        "local_scale": 0.04486715730535923,
+        "orientation": {
+          "x": 0.9997983315084655,
+          "y": 0.02008223874194664
+        },
+        "orientation_status": "VALID",
+        "orientation_dispersion": 1.9419493017156007,
+        "supported_segments": [],
+        "segment_membership": {
+          "52": null,
+          "64": null,
+          "58": null,
+          "63": null,
+          "60": null,
+          "53": null,
+          "59": null,
+          "62": null,
+          "57": null,
+          "55": null,
+          "56": null,
+          "61": null
+        },
+        "longitudinal_min": -0.3098806083101465,
+        "longitudinal_max": 0.27003639644326216,
+        "longitudinal_span": 0.5799170047534087,
+        "perpendicular_dispersion": 0.011308565628424886,
+        "normalized_perpendicular_dispersion": 0.252045511853146,
+        "row_id": "experimental_v4_row_7"
+      },
+      {
+        "component_id": 31,
+        "anchor_ids": [
+          66
+        ],
+        "anchor_count": 1,
+        "raw_observation_count": 3,
+        "distinct_image_count": 2,
+        "accepted_as_row": false,
+        "centroid": {
+          "x": 0.1259692800108087,
+          "y": 0.9700322495986966
+        },
+        "local_scale": 0.08300506753265546,
+        "orientation": null,
+        "orientation_status": "INSUFFICIENT_EVIDENCE",
+        "orientation_dispersion": null,
+        "supported_segments": [],
+        "segment_membership": {
+          "66": null
+        }
+      }
+    ]
+  },
+  "components": [
+    {
+      "component_id": 1,
+      "anchor_count": 7,
+      "accepted_as_row": true,
+      "current_assignment_reason": "ASSIGNED",
+      "diagnostic_reason": "ACCEPTED_COMPONENT",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 2,
+      "anchor_count": 2,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 3,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 4,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 5,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 6,
+      "anchor_count": 2,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 7,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 8,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 9,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 10,
+      "anchor_count": 3,
+      "accepted_as_row": true,
+      "current_assignment_reason": "ASSIGNED",
+      "diagnostic_reason": "ACCEPTED_COMPONENT",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 11,
+      "anchor_count": 3,
+      "accepted_as_row": true,
+      "current_assignment_reason": "ASSIGNED",
+      "diagnostic_reason": "ACCEPTED_COMPONENT",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 12,
+      "anchor_count": 4,
+      "accepted_as_row": true,
+      "current_assignment_reason": "ASSIGNED",
+      "diagnostic_reason": "ACCEPTED_COMPONENT",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 13,
+      "anchor_count": 2,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 14,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 15,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 16,
+      "anchor_count": 5,
+      "accepted_as_row": true,
+      "current_assignment_reason": "ASSIGNED",
+      "diagnostic_reason": "ACCEPTED_COMPONENT",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 17,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 18,
+      "anchor_count": 2,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 19,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 20,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 21,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 22,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 23,
+      "anchor_count": 2,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 24,
+      "anchor_count": 3,
+      "accepted_as_row": true,
+      "current_assignment_reason": "ASSIGNED",
+      "diagnostic_reason": "ACCEPTED_COMPONENT",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 25,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 26,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 27,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 28,
+      "anchor_count": 2,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 29,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 30,
+      "anchor_count": 12,
+      "accepted_as_row": true,
+      "current_assignment_reason": "ASSIGNED",
+      "diagnostic_reason": "ACCEPTED_COMPONENT",
+      "source": "V4 component_ids/component_sizes"
+    },
+    {
+      "component_id": 31,
+      "anchor_count": 1,
+      "accepted_as_row": false,
+      "current_assignment_reason": "UNASSIGNED",
+      "diagnostic_reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 component_ids/component_sizes"
+    }
+  ],
+  "unassigned_anchors": [
+    {
+      "anchor_id": 37,
+      "component_id": 12,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 38,
+      "component_id": 16,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 39,
+      "component_id": 22,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 40,
+      "component_id": 23,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 41,
+      "component_id": 24,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 42,
+      "component_id": 11,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 43,
+      "component_id": 12,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 44,
+      "component_id": 18,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 45,
+      "component_id": 25,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 46,
+      "component_id": 26,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 47,
+      "component_id": 24,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 48,
+      "component_id": 23,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 49,
+      "component_id": 27,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 50,
+      "component_id": 28,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 51,
+      "component_id": 29,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 52,
+      "component_id": 30,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 53,
+      "component_id": 30,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 54,
+      "component_id": 24,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 55,
+      "component_id": 30,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 56,
+      "component_id": 30,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 57,
+      "component_id": 30,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 58,
+      "component_id": 30,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 59,
+      "component_id": 30,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 60,
+      "component_id": 30,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 61,
+      "component_id": 30,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 62,
+      "component_id": 30,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 63,
+      "component_id": 30,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 64,
+      "component_id": 30,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 65,
+      "component_id": 28,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    },
+    {
+      "anchor_id": 66,
+      "component_id": 31,
+      "reason": "COMPONENT_TOO_SMALL",
+      "source": "V4 unassigned list"
+    }
+  ],
+  "accepted_rows": [
+    {
+      "row_id": "experimental_v4_row_1",
+      "status": "SUPPORTED",
+      "spatial_anchor_count": 7,
+      "raw_observation_count": 28,
+      "distinct_image_count": 7,
+      "orientation": {
+        "x": 0.994485,
+        "y": -0.104878
+      },
+      "orientation_dispersion": 1.90733,
+      "perpendicular_dispersion": 0.021401,
+      "longitudinal_span": 0.189082,
+      "supported_segments": 1,
+      "centerline": [
+        {
+          "x": 0.66731,
+          "y": 0.419422
+        },
+        {
+          "x": 0.855348,
+          "y": 0.399592
+        }
+      ],
+      "component_ids": [
+        1
+      ],
+      "anchor_ids": [
+        0,
+        1,
+        4,
+        5,
+        2,
+        11,
+        13
+      ]
+    },
+    {
+      "row_id": "experimental_v4_row_2",
+      "status": "SUPPORTED",
+      "spatial_anchor_count": 3,
+      "raw_observation_count": 16,
+      "distinct_image_count": 7,
+      "orientation": {
+        "x": 0.359181,
+        "y": 0.933268
+      },
+      "orientation_dispersion": 1.770322,
+      "perpendicular_dispersion": 0.002657,
+      "longitudinal_span": 0.229664,
+      "supported_segments": 1,
+      "centerline": [
+        {
+          "x": 0.528034,
+          "y": 0.553766
+        },
+        {
+          "x": 0.610525,
+          "y": 0.768104
+        }
+      ],
+      "component_ids": [
+        10
+      ],
+      "anchor_ids": [
+        17,
+        24,
+        23
+      ]
+    },
+    {
+      "row_id": "experimental_v4_row_3",
+      "status": "SUPPORTED",
+      "spatial_anchor_count": 5,
+      "raw_observation_count": 9,
+      "distinct_image_count": 3,
+      "orientation": {
+        "x": 0.938594,
+        "y": 0.345024
+      },
+      "orientation_dispersion": 2.059337,
+      "perpendicular_dispersion": 0.019439,
+      "longitudinal_span": 0.225401,
+      "supported_segments": 1,
+      "centerline": [
+        {
+          "x": 0.665013,
+          "y": 0.56708
+        },
+        {
+          "x": 0.876573,
+          "y": 0.644849
+        }
+      ],
+      "component_ids": [
+        11
+      ],
+      "anchor_ids": [
+        18,
+        35,
+        42
+      ]
+    },
+    {
+      "row_id": "experimental_v4_row_4",
+      "status": "WEAK_EVIDENCE",
+      "spatial_anchor_count": 3,
+      "raw_observation_count": 6,
+      "distinct_image_count": 1,
+      "orientation": {
+        "x": 0.962013,
+        "y": -0.273003
+      },
+      "orientation_dispersion": 1.881871,
+      "perpendicular_dispersion": 0.008272,
+      "longitudinal_span": 0.114214,
+      "supported_segments": 1,
+      "centerline": [
+        {
+          "x": 0.312218,
+          "y": 0.583323
+        },
+        {
+          "x": 0.422093,
+          "y": 0.552142
+        }
+      ],
+      "component_ids": [
+        12
+      ],
+      "anchor_ids": [
+        19,
+        22,
+        37,
+        43
+      ]
+    },
+    {
+      "row_id": "experimental_v4_row_5",
+      "status": "SUPPORTED",
+      "spatial_anchor_count": 3,
+      "raw_observation_count": 7,
+      "distinct_image_count": 2,
+      "orientation": {
+        "x": 0.289506,
+        "y": 0.957176
+      },
+      "orientation_dispersion": 1.682437,
+      "perpendicular_dispersion": 0.018217,
+      "longitudinal_span": 0.146785,
+      "supported_segments": 1,
+      "centerline": [
+        {
+          "x": 0.256973,
+          "y": 0.759864
+        },
+        {
+          "x": 0.299468,
+          "y": 0.900363
+        }
+      ],
+      "component_ids": [
+        16
+      ],
+      "anchor_ids": [
+        26,
+        29,
+        38,
+        28,
+        27
+      ]
+    },
+    {
+      "row_id": "experimental_v4_row_6",
+      "status": "SUPPORTED",
+      "spatial_anchor_count": 4,
+      "raw_observation_count": 22,
+      "distinct_image_count": 7,
+      "orientation": {
+        "x": 0.167401,
+        "y": -0.985889
+      },
+      "orientation_dispersion": 1.859506,
+      "perpendicular_dispersion": 0.021749,
+      "longitudinal_span": 0.187861,
+      "supported_segments": 1,
+      "centerline": [
+        {
+          "x": 0.112578,
+          "y": 0.761458
+        },
+        {
+          "x": 0.144026,
+          "y": 0.576247
+        }
+      ],
+      "component_ids": [
+        24
+      ],
+      "anchor_ids": [
+        41,
+        47,
+        54
+      ]
+    },
+    {
+      "row_id": "experimental_v4_row_7",
+      "status": "SUPPORTED",
+      "spatial_anchor_count": 12,
+      "raw_observation_count": 35,
+      "distinct_image_count": 6,
+      "orientation": {
+        "x": 0.999798,
+        "y": 0.020082
+      },
+      "orientation_dispersion": 1.941949,
+      "perpendicular_dispersion": 0.011309,
+      "longitudinal_span": 0.579917,
+      "supported_segments": 1,
+      "centerline": [
+        {
+          "x": 0.404839,
+          "y": 0.911475
+        },
+        {
+          "x": 0.984639,
+          "y": 0.923121
+        }
+      ],
+      "component_ids": [
+        30
+      ],
+      "anchor_ids": [
+        52,
+        64,
+        58,
+        63,
+        60,
+        53,
+        59,
+        62,
+        57,
+        55,
+        56,
+        61
+      ]
+    }
+  ],
+  "row_local_projection": [
+    {
+      "row_id": "experimental_v4_row_1",
+      "origin": {
+        "x": 0.66731,
+        "y": 0.419422
+      },
+      "axis": {
+        "x": 0.9944853228417465,
+        "y": -0.10487584398872485
+      },
+      "anchors": [
+        {
+          "anchor_id": 0,
+          "longitudinal": -0.6354581228174838,
+          "lateral": -0.043446300992339995,
+          "normalized_lateral": -0.8689260198467998,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 1,
+          "longitudinal": -0.6365506649341703,
+          "lateral": 0.3970444150460222,
+          "normalized_lateral": 7.940888300920444,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 2,
+          "longitudinal": -0.6263095678215246,
+          "lateral": 0.17032155813027997,
+          "normalized_lateral": 3.406431162605599,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 3,
+          "longitudinal": -0.6570126985259799,
+          "lateral": 0.44945364989342435,
+          "normalized_lateral": 8.989072997868487,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 4,
+          "longitudinal": -0.5704760382607438,
+          "lateral": 0.1787926961192207,
+          "normalized_lateral": 3.5758539223844137,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 5,
+          "longitudinal": -0.6041497581668271,
+          "lateral": 0.38123286711699883,
+          "normalized_lateral": 7.624657342339976,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 6,
+          "longitudinal": -0.5975756157744944,
+          "lateral": 0.500635835453396,
+          "normalized_lateral": 10.012716709067918,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 7,
+          "longitudinal": -0.5402915484083001,
+          "lateral": 0.10562207346953428,
+          "normalized_lateral": 2.1124414693906854,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 8,
+          "longitudinal": -0.5756232799939723,
+          "lateral": 0.2853125347193402,
+          "normalized_lateral": 5.706250694386804,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 9,
+          "longitudinal": -0.5931521144150316,
+          "lateral": 0.4711290699066199,
+          "normalized_lateral": 9.422581398132397,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 10,
+          "longitudinal": -0.5247488025079997,
+          "lateral": -0.03267150190115753,
+          "normalized_lateral": -0.6534300380231506,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 11,
+          "longitudinal": -0.4850022875117148,
+          "lateral": 0.19286357346028044,
+          "normalized_lateral": 3.8572714692056085,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 12,
+          "longitudinal": -0.5202030065315831,
+          "lateral": 0.40214466318066844,
+          "normalized_lateral": 8.042893263613369,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 13,
+          "longitudinal": -0.4726212184534006,
+          "lateral": 0.03612169290785443,
+          "normalized_lateral": 0.7224338581570885,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 14,
+          "longitudinal": -0.5129417813369518,
+          "lateral": 0.2948375225421253,
+          "normalized_lateral": 5.8967504508425055,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 15,
+          "longitudinal": -0.4735677525608651,
+          "lateral": 0.11237385039286925,
+          "normalized_lateral": 2.247477007857385,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 16,
+          "longitudinal": -0.4452731781853514,
+          "lateral": -0.002146297450543351,
+          "normalized_lateral": -0.04292594901086702,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 17,
+          "longitudinal": -0.43021923699289233,
+          "lateral": -0.03567453878297157,
+          "normalized_lateral": -0.7134907756594313,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 18,
+          "longitudinal": -0.4268107333737506,
+          "lateral": 0.11758043380393499,
+          "normalized_lateral": 2.3516086760786994,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 19,
+          "longitudinal": -0.4267450426026003,
+          "lateral": 0.4305915998881506,
+          "normalized_lateral": 8.611831997763012,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 20,
+          "longitudinal": -0.44626294315647,
+          "lateral": 0.3697347949600203,
+          "normalized_lateral": 7.394695899200406,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 21,
+          "longitudinal": -0.43564391793822166,
+          "lateral": 0.2939770568999936,
+          "normalized_lateral": 5.879541137999872,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 22,
+          "longitudinal": -0.4057475721767883,
+          "lateral": 0.20454284802061326,
+          "normalized_lateral": 4.090856960412265,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 23,
+          "longitudinal": -0.37130011766043697,
+          "lateral": 0.12011329795276146,
+          "normalized_lateral": 2.402265959055229,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 24,
+          "longitudinal": -0.3462435680508713,
+          "lateral": 0.07860399928561379,
+          "normalized_lateral": 1.5720799857122758,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 25,
+          "longitudinal": -0.37918807957491685,
+          "lateral": 0.3095501639185115,
+          "normalized_lateral": 6.191003278370229,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 26,
+          "longitudinal": -0.2592844685083649,
+          "lateral": 0.2172261796236831,
+          "normalized_lateral": 4.344523592473662,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 27,
+          "longitudinal": -0.3108824817256337,
+          "lateral": 0.1273367905747969,
+          "normalized_lateral": 2.546735811495938,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 28,
+          "longitudinal": -0.29032186671404925,
+          "lateral": -0.004797935313508986,
+          "normalized_lateral": -0.09595870627017972,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 29,
+          "longitudinal": -0.3094460068930612,
+          "lateral": 0.43652178638545747,
+          "normalized_lateral": 8.730435727709148,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 30,
+          "longitudinal": -0.25880265935467717,
+          "lateral": 0.10038711344737444,
+          "normalized_lateral": 2.0077422689474886,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 31,
+          "longitudinal": -0.15220465474627018,
+          "lateral": 0.22928522544468222,
+          "normalized_lateral": 4.585704508893644,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 32,
+          "longitudinal": -0.20832196878677667,
+          "lateral": 0.48791005460892856,
+          "normalized_lateral": 9.75820109217857,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 33,
+          "longitudinal": -0.15083527209073508,
+          "lateral": 0.11852281171835302,
+          "normalized_lateral": 2.3704562343670603,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 34,
+          "longitudinal": -0.12657603536289708,
+          "lateral": -0.03368261993246039,
+          "normalized_lateral": -0.6736523986492078,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 35,
+          "longitudinal": -0.13373672429995398,
+          "lateral": 0.01112959937829767,
+          "normalized_lateral": 0.2225919875659534,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 36,
+          "longitudinal": -0.16015740207873735,
+          "lateral": 0.48704939785595264,
+          "normalized_lateral": 9.740987957119053,
+          "source": "diagnostic_nearest_axis"
+        }
+      ]
+    },
+    {
+      "row_id": "experimental_v4_row_2",
+      "origin": {
+        "x": 0.528034,
+        "y": 0.553766
+      },
+      "axis": {
+        "x": 0.3591812712669237,
+        "y": 0.9332678149229602
+      },
+      "anchors": [
+        {
+          "anchor_id": 0,
+          "longitudinal": -0.28210269636381213,
+          "lateral": 0.42421717803717046,
+          "normalized_lateral": 8.484343560743408,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 1,
+          "longitudinal": 0.1430357675934199,
+          "lateral": 0.5395018302175497,
+          "normalized_lateral": 10.790036604350993,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 2,
+          "longitudinal": -0.07327527799480656,
+          "lateral": 0.4708165663348582,
+          "normalized_lateral": 9.416331326697163,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 3,
+          "longitudinal": 0.18834583197221028,
+          "lateral": 0.5728548028285837,
+          "normalized_lateral": 11.457096056571674,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 4,
+          "longitudinal": -0.05061500019757219,
+          "lateral": 0.4190898323166117,
+          "normalized_lateral": 8.381796646332234,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 5,
+          "longitudinal": 0.13616743203308831,
+          "lateral": 0.5041090375347371,
+          "normalized_lateral": 10.082180750694741,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 6,
+          "longitudinal": 0.25319052244664575,
+          "lateral": 0.5287237588575084,
+          "normalized_lateral": 10.574475177150168,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 7,
+          "longitudinal": -0.11345495842747973,
+          "lateral": 0.3709630923869368,
+          "normalized_lateral": 7.419261847738736,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 8,
+          "longitudinal": 0.05092605737641112,
+          "lateral": 0.45168406094090663,
+          "normalized_lateral": 9.033681218818131,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 9,
+          "longitudinal": 0.22584028290226962,
+          "lateral": 0.5167997924798795,
+          "normalized_lateral": 10.33599584959759,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 10,
+          "longitudinal": -0.24298699581260208,
+          "lateral": 0.32008931495897514,
+          "normalized_lateral": 6.401786299179502,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 11,
+          "longitudinal": -0.014860148294765174,
+          "lateral": 0.34018899441445355,
+          "normalized_lateral": 6.80377988828907,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 12,
+          "longitudinal": 0.17813319244141984,
+          "lateral": 0.42845697029220653,
+          "normalized_lateral": 8.56913940584413,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 13,
+          "longitudinal": -0.163029281423062,
+          "lateral": 0.2875846601999919,
+          "normalized_lateral": 5.751693203999838,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 14,
+          "longitudinal": 0.07637997104008591,
+          "lateral": 0.3936169106223619,
+          "normalized_lateral": 7.8723382124472385,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 15,
+          "longitudinal": -0.08963112407966636,
+          "lateral": 0.3082727714364057,
+          "normalized_lateral": 6.165455428728113,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 16,
+          "longitudinal": -0.19289616338998772,
+          "lateral": 0.25124840070417986,
+          "normalized_lateral": 5.024968014083597,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 17,
+          "longitudinal": -0.2213735861429449,
+          "lateral": 0.22801479345905062,
+          "normalized_lateral": 4.5602958691810125,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 18,
+          "longitudinal": -0.0724774725458373,
+          "lateral": 0.2644654707533398,
+          "normalized_lateral": 5.289309415066796,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 19,
+          "longitudinal": 0.22984279923623685,
+          "lateral": 0.3455731009633923,
+          "normalized_lateral": 6.911462019267845,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 20,
+          "longitudinal": 0.16600642465496757,
+          "lateral": 0.3486417209156057,
+          "normalized_lateral": 6.972834418312114,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 21,
+          "longitudinal": 0.09559407479348393,
+          "lateral": 0.3187402233019169,
+          "normalized_lateral": 6.374804466038338,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 22,
+          "longitudinal": 0.016972175671087192,
+          "lateral": 0.2666742441393632,
+          "normalized_lateral": 5.333484882787263,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 23,
+          "longitudinal": -0.05563606277307741,
+          "lateral": 0.21151067140017843,
+          "normalized_lateral": 4.230213428003569,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 24,
+          "longitudinal": -0.08922760659303133,
+          "lateral": 0.17654696538998543,
+          "normalized_lateral": 3.5309393077997084,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 25,
+          "longitudinal": 0.12527474654448462,
+          "lateral": 0.2682541750120858,
+          "normalized_lateral": 5.365083500241716,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 26,
+          "longitudinal": 0.06720290634900158,
+          "lateral": 0.12851064063864528,
+          "normalized_lateral": 2.5702128127729056,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 27,
+          "longitudinal": -0.032991983746465656,
+          "lateral": 0.1550331071587242,
+          "normalized_lateral": 3.100662143174484,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 28,
+          "longitudinal": -0.15527461215836458,
+          "lateral": 0.10091025187641506,
+          "normalized_lateral": 2.018205037528301,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 29,
+          "longitudinal": 0.26598848499736105,
+          "lateral": 0.23382463210972676,
+          "normalized_lateral": 4.6764926421945345,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 30,
+          "longitudinal": -0.0455142191959104,
+          "lateral": 0.09774622720518357,
+          "normalized_lateral": 1.9549245441036713,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 31,
+          "longitudinal": 0.10661770485458981,
+          "lateral": 0.028221155844865807,
+          "normalized_lateral": 0.5644231168973161,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 32,
+          "longitudinal": 0.34184260502770686,
+          "lateral": 0.14948616124173816,
+          "normalized_lateral": 2.989723224834763,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 33,
+          "longitudinal": -4.785292503227574e-07,
+          "lateral": -0.0018246504393668208,
+          "normalized_lateral": -0.03649300878733641,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 34,
+          "longitudinal": -0.1407080669503903,
+          "lateral": -0.06472440044948047,
+          "normalized_lateral": -1.2944880089896094,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 35,
+          "longitudinal": -0.09928578067533013,
+          "lateral": -0.04618782402998679,
+          "normalized_lateral": -0.9237564805997358,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 36,
+          "longitudinal": 0.35350158294668543,
+          "lateral": 0.10274608796297255,
+          "normalized_lateral": 2.0549217592594506,
+          "source": "diagnostic_nearest_axis"
+        }
+      ]
+    },
+    {
+      "row_id": "experimental_v4_row_3",
+      "origin": {
+        "x": 0.665013,
+        "y": 0.56708
+      },
+      "axis": {
+        "x": 0.9385935128272762,
+        "y": 0.34502495225498386
+      },
+      "anchors": [
+        {
+          "anchor_id": 0,
+          "longitudinal": -0.6381276091551245,
+          "lateral": 0.10222683712530435,
+          "normalized_lateral": 2.0445367425060867,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 1,
+          "longitudinal": -0.4446056573910733,
+          "lateral": 0.4979319277542954,
+          "normalized_lateral": 9.958638555085907,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 2,
+          "longitudinal": -0.5355283101205698,
+          "lateral": 0.2899867303133875,
+          "normalized_lateral": 5.79973460626775,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 3,
+          "longitudinal": -0.43982314391990757,
+          "lateral": 0.5539903818972757,
+          "normalized_lateral": 11.079807637945512,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 4,
+          "longitudinal": -0.48169214315656067,
+          "lateral": 0.27293356847560524,
+          "normalized_lateral": 5.458671369512104,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 5,
+          "longitudinal": -0.4225162207470874,
+          "lateral": 0.4694384092630805,
+          "normalized_lateral": 9.38876818526161,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 6,
+          "longitudinal": -0.3638943448745815,
+          "lateral": 0.5736677902692336,
+          "normalized_lateral": 11.473355805384672,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 7,
+          "longitudinal": -0.48691870870896226,
+          "lateral": 0.19395428980631416,
+          "normalized_lateral": 3.879085796126283,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 8,
+          "longitudinal": -0.4392757257760962,
+          "lateral": 0.3707794557139661,
+          "normalized_lateral": 7.415589114279322,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 9,
+          "longitudinal": -0.3729543843507641,
+          "lateral": 0.5452401230768734,
+          "normalized_lateral": 10.904802461537468,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 10,
+          "longitudinal": -0.5340378887899464,
+          "lateral": 0.06300974884554593,
+          "normalized_lateral": 1.2601949769109184,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 11,
+          "longitudinal": -0.3987891908959727,
+          "lateral": 0.24781679792816086,
+          "normalized_lateral": 4.9563359585632165,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 12,
+          "longitudinal": -0.3379626793600512,
+          "lateral": 0.4511337933526438,
+          "normalized_lateral": 9.022675867052875,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 13,
+          "longitudinal": -0.45689112823113887,
+          "lateral": 0.10171589831409908,
+          "normalized_lateral": 2.0343179662819812,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 14,
+          "longitudinal": -0.37883000121704674,
+          "lateral": 0.3516480665995866,
+          "normalized_lateral": 7.032961331991731,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 15,
+          "longitudinal": -0.42407063653308197,
+          "lateral": 0.17054977640210073,
+          "normalized_lateral": 3.4109955280420143,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 16,
+          "longitudinal": -0.44925111124253125,
+          "lateral": 0.05530485940106619,
+          "normalized_lateral": 1.1060971880213237,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 17,
+          "longitudinal": -0.4505488875533696,
+          "lateral": 0.018575036519399707,
+          "normalized_lateral": 0.37150073038799414,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 18,
+          "longitudinal": -0.37981970169728985,
+          "lateral": 0.15457535559134644,
+          "normalized_lateral": 3.0915071118269286,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 19,
+          "longitudinal": -0.24154816546814328,
+          "lateral": 0.4353901997102242,
+          "normalized_lateral": 8.707803994204482,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 20,
+          "longitudinal": -0.2859320752505825,
+          "lateral": 0.3894057708183097,
+          "normalized_lateral": 7.788115416366193,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 21,
+          "longitudinal": -0.3098557768634279,
+          "lateral": 0.31674453580474177,
+          "normalized_lateral": 6.334890716094835,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 22,
+          "longitudinal": -0.3225221919376047,
+          "lateral": 0.22330026826019694,
+          "normalized_lateral": 4.466005365203938,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 23,
+          "longitudinal": -0.32889535613820653,
+          "lateral": 0.13233676554955942,
+          "normalized_lateral": 2.6467353109911884,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 24,
+          "longitudinal": -0.3247425652130878,
+          "lateral": 0.08402934498390156,
+          "normalized_lateral": 1.680586899678031,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 25,
+          "longitudinal": -0.2523253225892109,
+          "lateral": 0.30578870728673196,
+          "normalized_lateral": 6.115774145734639,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 26,
+          "longitudinal": -0.18551028049634719,
+          "lateral": 0.17000820731343122,
+          "normalized_lateral": 3.400164146268624,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 27,
+          "longitudinal": -0.2714970869231669,
+          "lateral": 0.11214002648779867,
+          "normalized_lateral": 2.242800529755973,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 28,
+          "longitudinal": -0.311394581312725,
+          "lateral": -0.015494273826292093,
+          "normalized_lateral": -0.30988547652584186,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 29,
+          "longitudinal": -0.1336851146622675,
+          "lateral": 0.38891662484095413,
+          "normalized_lateral": 7.778332496819083,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 30,
+          "longitudinal": -0.23666921437878535,
+          "lateral": 0.06496363101829483,
+          "normalized_lateral": 1.2992726203658966,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 31,
+          "longitudinal": -0.0841100025863101,
+          "lateral": 0.13354602497055584,
+          "normalized_lateral": 2.6709204994111166,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 32,
+          "longitudinal": -0.02026241908801213,
+          "lateral": 0.39037172710487156,
+          "normalized_lateral": 7.807434542097431,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 33,
+          "longitudinal": -0.13178938177598626,
+          "lateral": 0.03356170468268834,
+          "normalized_lateral": 0.6712340936537667,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 34,
+          "longitudinal": -0.17723073331021372,
+          "lateral": -0.11371384509177518,
+          "normalized_lateral": -2.2742769018355036,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 35,
+          "longitudinal": -0.16386834187363977,
+          "lateral": -0.07034499727788299,
+          "normalized_lateral": -1.4068999455576596,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 36,
+          "longitudinal": 0.022572374733647427,
+          "lateral": 0.3683320661620274,
+          "normalized_lateral": 7.366641323240548,
+          "source": "diagnostic_nearest_axis"
+        }
+      ]
+    },
+    {
+      "row_id": "experimental_v4_row_4",
+      "origin": {
+        "x": 0.312218,
+        "y": 0.583323
+      },
+      "axis": {
+        "x": 0.9620123968515556,
+        "y": -0.2730057660635119
+      },
+      "anchors": [
+        {
+          "anchor_id": 0,
+          "longitudinal": -0.23238049344836254,
+          "lateral": -0.21195643322070767,
+          "normalized_lateral": -4.239128664414153,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 1,
+          "longitudinal": -0.3086084187336654,
+          "lateral": 0.22188981600932084,
+          "normalized_lateral": 4.437796320186417,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 2,
+          "longitudinal": -0.25983665116660476,
+          "lateral": 0.0002381780580271442,
+          "normalized_lateral": 0.004763561160542884,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 3,
+          "longitudinal": -0.3377119106842207,
+          "lateral": 0.27003968072653955,
+          "normalized_lateral": 5.400793614530791,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 4,
+          "longitudinal": -0.20626694849958147,
+          "lateral": 0.01811078721866642,
+          "normalized_lateral": 0.36221574437332843,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 5,
+          "longitudinal": -0.27398496193285754,
+          "lateral": 0.2118379482017708,
+          "normalized_lateral": 4.236758964035416,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 6,
+          "longitudinal": -0.28787834881966967,
+          "lateral": 0.33061194365763935,
+          "normalized_lateral": 6.612238873152787,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 7,
+          "longitudinal": -0.1640414755698709,
+          "lateral": -0.048837348546695726,
+          "normalized_lateral": -0.9767469709339145,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 8,
+          "longitudinal": -0.22951190164714083,
+          "lateral": 0.12219076735905446,
+          "normalized_lateral": 2.443815347181089,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 9,
+          "longitudinal": -0.278485599734283,
+          "lateral": 0.3022924655210538,
+          "normalized_lateral": 6.045849310421076,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 10,
+          "longitudinal": -0.12513256229027714,
+          "lateral": -0.18245166816226527,
+          "normalized_lateral": -3.649033363245305,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 11,
+          "longitudinal": -0.1244469446996387,
+          "lateral": 0.04655790718592579,
+          "normalized_lateral": 0.9311581437185158,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 12,
+          "longitudinal": -0.19483668775007976,
+          "lateral": 0.24676517280673604,
+          "normalized_lateral": 4.93530345613472,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 13,
+          "longitudinal": -0.08550591947175117,
+          "lateral": -0.10577365403609658,
+          "normalized_lateral": -2.1154730807219315,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 14,
+          "longitudinal": -0.16937442410966005,
+          "lateral": 0.14227009658946652,
+          "normalized_lateral": 2.84540193178933,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 15,
+          "longitudinal": -0.09944783230940414,
+          "lateral": -0.03080092223070362,
+          "normalized_lateral": -0.6160184446140724,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 16,
+          "longitudinal": -0.05202999175163123,
+          "lateral": -0.13881478984966344,
+          "normalized_lateral": -2.776295796993269,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 17,
+          "longitudinal": -0.03147655916058119,
+          "lateral": -0.16928314262753325,
+          "normalized_lateral": -3.3856628525506647,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 18,
+          "longitudinal": -0.05426460824384954,
+          "lateral": -0.01769353434743466,
+          "normalized_lateral": -0.3538706869486932,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 19,
+          "longitudinal": -0.10760220395355186,
+          "lateral": 0.29073975713159184,
+          "normalized_lateral": 5.814795142631836,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 20,
+          "longitudinal": -0.11645127098071725,
+          "lateral": 0.2274452616296923,
+          "normalized_lateral": 4.548905232593846,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 21,
+          "longitudinal": -0.0930630282959824,
+          "lateral": 0.1546099084234549,
+          "normalized_lateral": 3.092198168469098,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 22,
+          "longitudinal": -0.04834677109203881,
+          "lateral": 0.07158746838801287,
+          "normalized_lateral": 1.4317493677602573,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 23,
+          "longitudinal": 3.4034604683803524e-08,
+          "lateral": -0.005727229317936592,
+          "normalized_lateral": -0.11454458635873184,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 24,
+          "longitudinal": 0.03177106113812343,
+          "lateral": -0.04235309983267751,
+          "normalized_lateral": -0.8470619966535501,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 25,
+          "longitudinal": -0.04009179587300762,
+          "lateral": 0.1795865351593653,
+          "normalized_lateral": 3.591730703187306,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 26,
+          "longitudinal": 0.09380514270583289,
+          "lateral": 0.10907267934304443,
+          "normalized_lateral": 2.1814535868608886,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 27,
+          "longitudinal": 0.05829949385825013,
+          "lateral": 0.01169811320042375,
+          "normalized_lateral": 0.233962264008475,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 28,
+          "longitudinal": 0.10110195762194474,
+          "lateral": -0.11499156187607935,
+          "normalized_lateral": -2.299831237521587,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 29,
+          "longitudinal": 0.006965361690010011,
+          "lateral": 0.3165951974254397,
+          "normalized_lateral": 6.331903948508793,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 30,
+          "longitudinal": 0.11421361010640062,
+          "lateral": -0.00597119917020969,
+          "normalized_lateral": -0.1194239834041938,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 31,
+          "longitudinal": 0.197257676570034,
+          "lateral": 0.13922363850712674,
+          "normalized_lateral": 2.7844727701425347,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 32,
+          "longitudinal": 0.09783954366184873,
+          "lateral": 0.3844826649351193,
+          "normalized_lateral": 7.689653298702385,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 33,
+          "longitudinal": 0.21750397694429924,
+          "lateral": 0.030318749615512577,
+          "normalized_lateral": 0.6063749923102515,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 34,
+          "longitudinal": 0.2673750669340218,
+          "lateral": -0.11551635717933537,
+          "normalized_lateral": -2.310327143586707,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 35,
+          "longitudinal": 0.2526740219516344,
+          "lateral": -0.07258280687150978,
+          "normalized_lateral": -1.4516561374301955,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 36,
+          "longitudinal": 0.14544480100697718,
+          "lateral": 0.39185190433438594,
+          "normalized_lateral": 7.837038086687718,
+          "source": "diagnostic_nearest_axis"
+        }
+      ]
+    },
+    {
+      "row_id": "experimental_v4_row_5",
+      "origin": {
+        "x": 0.256973,
+        "y": 0.759864
+      },
+      "axis": {
+        "x": 0.28950534192696215,
+        "y": 0.9571763980561538
+      },
+      "anchors": [
+        {
+          "anchor_id": 0,
+          "longitudinal": -0.36890758943478236,
+          "lateral": 0.12471319427742954,
+          "normalized_lateral": 2.4942638855485906,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 1,
+          "longitudinal": 0.06356394166534493,
+          "lateral": 0.20838899336042233,
+          "normalized_lateral": 4.167779867208446,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 2,
+          "longitudinal": -0.157216398097498,
+          "lateral": 0.1558135666640045,
+          "normalized_lateral": 3.11627133328009,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 3,
+          "longitudinal": 0.11120631142873685,
+          "lateral": 0.23831602661349877,
+          "normalized_lateral": 4.766320532269975,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 4,
+          "longitudinal": -0.1384254040252028,
+          "lateral": 0.1025590669121787,
+          "normalized_lateral": 2.0511813382435737,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 5,
+          "longitudinal": 0.054108842534830594,
+          "lateral": 0.1735978320160519,
+          "normalized_lateral": 3.4719566403210376,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 6,
+          "longitudinal": 0.17262641211061763,
+          "lateral": 0.18953125279081978,
+          "normalized_lateral": 3.7906250558163954,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 7,
+          "longitudinal": -0.204637659334792,
+          "lateral": 0.05918879260577317,
+          "normalized_lateral": 1.1837758521154633,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 8,
+          "longitudinal": -0.034760459787017764,
+          "lateral": 0.12759003670860863,
+          "normalized_lateral": 2.5518007341721725,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 9,
+          "longitudinal": 0.14447260994118155,
+          "lateral": 0.17965299379877908,
+          "normalized_lateral": 3.5930598759755816,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 10,
+          "longitudinal": -0.3375632662524754,
+          "lateral": 0.017988392553151766,
+          "normalized_lateral": 0.3597678510630353,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 11,
+          "longitudinal": -0.10857575328136666,
+          "lateral": 0.021240249860248462,
+          "normalized_lateral": 0.4248049972049692,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 12,
+          "longitudinal": 0.09039170489629916,
+          "lateral": 0.095061762445589,
+          "normalized_lateral": 1.90123524891178,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 13,
+          "longitudinal": -0.2602152830805937,
+          "lateral": -0.020314063903872956,
+          "normalized_lateral": -0.4062812780774591,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 14,
+          "longitudinal": -0.013650151728037239,
+          "lateral": 0.0678066731316968,
+          "normalized_lateral": 1.356133462633936,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 15,
+          "longitudinal": -0.18549333713645258,
+          "lateral": -0.005085201758034841,
+          "normalized_lateral": -0.10170403516069682,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 16,
+          "longitudinal": -0.29267598166747094,
+          "lateral": -0.05435312146757729,
+          "normalized_lateral": -1.0870624293515456,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 17,
+          "longitudinal": -0.32278645463717465,
+          "lateral": -0.07542736000215561,
+          "normalized_lateral": -1.5085472000431122,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 18,
+          "longitudinal": -0.17161104915064623,
+          "lateral": -0.05003639122349521,
+          "normalized_lateral": -1.000727824469904,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 19,
+          "longitudinal": 0.1358596162973665,
+          "lateral": 0.008596230222539407,
+          "normalized_lateral": 0.17192460445078814,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 20,
+          "longitudinal": 0.07242233397599424,
+          "lateral": 0.016355763698835162,
+          "normalized_lateral": 0.3271152739767032,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 21,
+          "longitudinal": -1.3805698982020248e-07,
+          "lateral": -0.00828128395686117,
+          "normalized_lateral": -0.1656256791372234,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 22,
+          "longitudinal": -0.08224149748678819,
+          "lateral": -0.05441834072153265,
+          "normalized_lateral": -1.0883668144306529,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 23,
+          "longitudinal": -0.15871353805721858,
+          "lateral": -0.10408727526124711,
+          "normalized_lateral": -2.081745505224942,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 24,
+          "longitudinal": -0.19478775392554837,
+          "lateral": -0.13648331674257985,
+          "normalized_lateral": -2.729666334851597,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 25,
+          "longitudinal": 0.025883534005406585,
+          "lateral": -0.06081526218124589,
+          "normalized_lateral": -1.2163052436249178,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 26,
+          "longitudinal": -0.04231780201782473,
+          "lateral": -0.19590475765560528,
+          "normalized_lateral": -3.9180951531121053,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 27,
+          "longitudinal": -0.14028842555495802,
+          "lateral": -0.16207852293613395,
+          "normalized_lateral": -3.241570458722679,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 28,
+          "longitudinal": -0.26622346945903724,
+          "lateral": -0.20705284218734632,
+          "normalized_lateral": -4.141056843746926,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 29,
+          "longitudinal": 0.1636810009839519,
+          "lateral": -0.1055098670922037,
+          "normalized_lateral": -2.110197341844074,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 30,
+          "longitudinal": -0.15699379188639542,
+          "lateral": -0.21828816384581406,
+          "normalized_lateral": -4.365763276916281,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 31,
+          "longitudinal": -0.010392634708096926,
+          "lateral": -0.2988236130402418,
+          "normalized_lateral": -5.976472260804836,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 32,
+          "longitudinal": 0.23312083849233,
+          "lateral": -0.1952034240555593,
+          "normalized_lateral": -3.9040684811111857,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 33,
+          "longitudinal": -0.11893333051407717,
+          "lateral": -0.3209393282060115,
+          "normalized_lateral": -6.4187865641202295,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 34,
+          "longitudinal": -0.2638894449637598,
+          "lateral": -0.3733103972640155,
+          "normalized_lateral": -7.46620794528031,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 35,
+          "longitudinal": -0.22121499655800342,
+          "lateral": -0.3578733664979258,
+          "normalized_lateral": -7.157467329958515,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 36,
+          "longitudinal": 0.24130746830246075,
+          "lateral": -0.24267494508208098,
+          "normalized_lateral": -4.853498901641619,
+          "source": "diagnostic_nearest_axis"
+        }
+      ]
+    },
+    {
+      "row_id": "experimental_v4_row_6",
+      "origin": {
+        "x": 0.112578,
+        "y": 0.761458
+      },
+      "axis": {
+        "x": 0.16739956851789614,
+        "y": -0.985889133959809
+      },
+      "anchors": [
+        {
+          "anchor_id": 0,
+          "longitudinal": 0.3004131581960789,
+          "lateral": -0.13395753378069117,
+          "normalized_lateral": -2.679150675613823,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 1,
+          "longitudinal": -0.12402848245579721,
+          "lateral": -0.016133265291515198,
+          "normalized_lateral": -0.32266530583030395,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 2,
+          "longitudinal": 0.09704586198627675,
+          "lateral": -0.06745838728468738,
+          "normalized_lateral": -1.3491677456937474,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 3,
+          "longitudinal": -0.1800152679115752,
+          "lateral": -0.021692273326334475,
+          "normalized_lateral": -0.4338454665266895,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 4,
+          "longitudinal": 0.10395696312089275,
+          "lateral": -0.011410373197216286,
+          "normalized_lateral": -0.22820746394432573,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 5,
+          "longitudinal": -0.10005949511297596,
+          "lateral": 0.010798341660494624,
+          "normalized_lateral": 0.21596683320989246,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 6,
+          "longitudinal": -0.2132579685866062,
+          "lateral": 0.049352119672216865,
+          "normalized_lateral": 0.9870423934443373,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 7,
+          "longitudinal": 0.18255863027991484,
+          "lateral": -0.0020925748297159,
+          "normalized_lateral": -0.041851496594318,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 8,
+          "longitudinal": 3.2735886359254104e-07,
+          "lateral": 0.012380128981102658,
+          "normalized_lateral": 0.24760257962205315,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 9,
+          "longitudinal": -0.18365223824918062,
+          "lateral": 0.04564843117327211,
+          "normalized_lateral": 0.9129686234654422,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 10,
+          "longitudinal": 0.31991553268059353,
+          "lateral": -0.02444814017306924,
+          "normalized_lateral": -0.48896280346138477,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 11,
+          "longitudinal": 0.11347517376566021,
+          "lateral": 0.0746893092782501,
+          "normalized_lateral": 1.4937861855650019,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 12,
+          "longitudinal": -0.09754047331290333,
+          "lateral": 0.09727385758198895,
+          "normalized_lateral": 1.9454771516397789,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 13,
+          "longitudinal": 0.26774262810697025,
+          "lateral": 0.0443106898035349,
+          "normalized_lateral": 0.886213796070698,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 14,
+          "longitudinal": 0.007744758238163,
+          "lateral": 0.07530643077351726,
+          "normalized_lateral": 1.506128615470345,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 15,
+          "longitudinal": 0.1940642794448496,
+          "lateral": 0.06397762617804624,
+          "normalized_lateral": 1.2795525235609246,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 16,
+          "longitudinal": 0.3119712072920831,
+          "lateral": 0.060316537979732035,
+          "normalized_lateral": 1.2063307595946406,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 17,
+          "longitudinal": 0.3483180629710284,
+          "lateral": 0.06576357336840737,
+          "normalized_lateral": 1.3152714673681472,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 18,
+          "longitudinal": 0.20166930810306866,
+          "lateral": 0.11040489072365828,
+          "normalized_lateral": 2.2080978144731653,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 19,
+          "longitudinal": -0.09971019567836134,
+          "lateral": 0.19494120900838616,
+          "normalized_lateral": 3.898824180167723,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 20,
+          "longitudinal": -0.04637875745320458,
+          "lateral": 0.15972392852099565,
+          "normalized_lateral": 3.194478570419913,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 21,
+          "longitudinal": 0.029433854761186484,
+          "lateral": 0.14950402628135695,
+          "normalized_lateral": 2.990080525627139,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 22,
+          "longitudinal": 0.12361790358730067,
+          "lateral": 0.1541552792832848,
+          "normalized_lateral": 3.0831055856656957,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 23,
+          "longitudinal": 0.21421120444976197,
+          "lateral": 0.16453939629724224,
+          "normalized_lateral": 3.2907879259448447,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 24,
+          "longitudinal": 0.2609424167604074,
+          "lateral": 0.17746403749738676,
+          "normalized_lateral": 3.549280749947735,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 25,
+          "longitudinal": 0.029674441546901048,
+          "lateral": 0.2080678842955994,
+          "normalized_lateral": 4.161357685911987,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 26,
+          "longitudinal": 0.15093151776815938,
+          "lateral": 0.2986069117320735,
+          "normalized_lateral": 5.972138234641469,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 27,
+          "longitudinal": 0.22356078209229932,
+          "lateral": 0.22466472353557995,
+          "normalized_lateral": 4.493294470711599,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 28,
+          "longitudinal": 0.3563415365537544,
+          "lateral": 0.208802948102826,
+          "normalized_lateral": 4.17605896205652,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 29,
+          "longitudinal": -0.07376458050271822,
+          "lateral": 0.30948838681490404,
+          "normalized_lateral": 6.18976773629808,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 30,
+          "longitudinal": 0.2635654262031705,
+          "lateral": 0.26753920831411976,
+          "normalized_lateral": 5.350784166282395,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 31,
+          "longitudinal": 0.16821779255166142,
+          "lateral": 0.4049680503379906,
+          "normalized_lateral": 8.099361006759812,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 32,
+          "longitudinal": -0.09595555997557396,
+          "lateral": 0.4207286026721378,
+          "normalized_lateral": 8.414572053442756,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 33,
+          "longitudinal": 0.2752400475890422,
+          "lateral": 0.37639490857770064,
+          "normalized_lateral": 7.527898171554012,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 34,
+          "longitudinal": 0.42834496221085516,
+          "lateral": 0.3586779926701542,
+          "normalized_lateral": 7.173559853403084,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 35,
+          "longitudinal": 0.38326297879913584,
+          "lateral": 0.36387657298349285,
+          "normalized_lateral": 7.277531459669857,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 36,
+          "longitudinal": -0.0821285512257413,
+          "lateral": 0.46687380876390494,
+          "normalized_lateral": 9.337476175278098,
+          "source": "diagnostic_nearest_axis"
+        }
+      ]
+    },
+    {
+      "row_id": "experimental_v4_row_7",
+      "origin": {
+        "x": 0.404839,
+        "y": 0.911475
+      },
+      "axis": {
+        "x": 0.9997983325699913,
+        "y": 0.02008218589360133
+      },
+      "anchors": [
+        {
+          "anchor_id": 0,
+          "longitudinal": -0.38337463599241184,
+          "lateral": -0.4610094716071299,
+          "normalized_lateral": -9.220189432142597,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 1,
+          "longitudinal": -0.32947388019876417,
+          "lateral": -0.02382761803914464,
+          "normalized_lateral": -0.4765523607828928,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 2,
+          "longitudinal": -0.347613819989089,
+          "lateral": -0.250055548460015,
+          "normalized_lateral": -5.001110969200299,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 3,
+          "longitudinal": -0.3432338305593947,
+          "lateral": 0.03072590138971975,
+          "normalized_lateral": 0.6145180277943949,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 4,
+          "longitudinal": -0.29115956564830825,
+          "lateral": -0.24862014995483125,
+          "normalized_lateral": -4.972402999096625,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 5,
+          "longitudinal": -0.2993000872537229,
+          "lateral": -0.04355997792253535,
+          "normalized_lateral": -0.8711995584507071,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 6,
+          "longitudinal": -0.2778727528382722,
+          "lateral": 0.07408847100725616,
+          "normalized_lateral": 1.481769420145123,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 7,
+          "longitudinal": -0.270344765698159,
+          "lateral": -0.32498629133718965,
+          "normalized_lateral": -6.499725826743792,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 8,
+          "longitudinal": -0.2829700893588586,
+          "lateral": -0.14229093199965046,
+          "normalized_lateral": -2.8458186399930088,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 9,
+          "longitudinal": -0.27716706475624014,
+          "lateral": 0.0442603201822309,
+          "normalized_lateral": 0.885206403644618,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 10,
+          "longitudinal": -0.27218623758516214,
+          "lateral": -0.46413836254067514,
+          "normalized_lateral": -9.282767250813503,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 11,
+          "longitudinal": -0.20459792340660893,
+          "lateral": -0.24532868391758367,
+          "normalized_lateral": -4.906573678351673,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 12,
+          "longitudinal": -0.21339957547202837,
+          "lateral": -0.033290489115354455,
+          "normalized_lateral": -0.6658097823070891,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 13,
+          "longitudinal": -0.21187917409296242,
+          "lateral": -0.40239010941277076,
+          "normalized_lateral": -8.047802188255414,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 14,
+          "longitudinal": -0.21958987841306485,
+          "lateral": -0.1406647317103335,
+          "normalized_lateral": -2.81329463420667,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 15,
+          "longitudinal": -0.203300043051241,
+          "lateral": -0.32661619596952124,
+          "normalized_lateral": -6.532323919390424,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 16,
+          "longitudinal": -0.1895218781865093,
+          "lateral": -0.44377254182465975,
+          "normalized_lateral": -8.875450836493194,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 17,
+          "longitudinal": -0.17877088013190198,
+          "lateral": -0.4789176716878626,
+          "normalized_lateral": -9.57835343375725,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 18,
+          "longitudinal": -0.1562588100745657,
+          "lateral": -0.32728683306567213,
+          "normalized_lateral": -6.545736661313442,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 19,
+          "longitudinal": -0.11712165962557909,
+          "lateral": -0.0167320426286042,
+          "normalized_lateral": -0.334640852572084,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 20,
+          "longitudinal": -0.14408342311398592,
+          "lateral": -0.07467651999863886,
+          "normalized_lateral": -1.4935303999727771,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 21,
+          "longitudinal": -0.14300399869875102,
+          "lateral": -0.15116726071599107,
+          "normalized_lateral": -3.0233452143198214,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 22,
+          "longitudinal": -0.12450520973733144,
+          "lateral": -0.24363381691188638,
+          "normalized_lateral": -4.872676338237727,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 23,
+          "longitudinal": -0.10086619571357175,
+          "lateral": -0.3317029548848476,
+          "normalized_lateral": -6.634059097696952,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 24,
+          "longitudinal": -0.08118706785466333,
+          "lateral": -0.376015306220427,
+          "normalized_lateral": -7.52030612440854,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 25,
+          "longitudinal": -0.08504579153087144,
+          "lateral": -0.14276312070056071,
+          "normalized_lateral": -2.855262414011214,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 26,
+          "longitudinal": 0.022395563241790064,
+          "lateral": -0.24933210918917204,
+          "normalized_lateral": -4.986642183783441,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 27,
+          "longitudinal": -0.04001942773125239,
+          "lateral": -0.3320776597244515,
+          "normalized_lateral": -6.64155319448903,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 28,
+          "longitudinal": -0.036113491746101796,
+          "lateral": -0.46574541327523217,
+          "normalized_lateral": -9.314908265504643,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 29,
+          "longitudinal": 1.793319598318013e-07,
+          "lateral": -0.025490223346362292,
+          "normalized_lateral": -0.5098044669272458,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 30,
+          "longitudinal": 0.00828903516633621,
+          "lateral": -0.3653174763294662,
+          "normalized_lateral": -7.306349526589324,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 31,
+          "longitudinal": 0.13014315036357207,
+          "lateral": -0.2507337406927572,
+          "normalized_lateral": -5.0146748138551445,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 32,
+          "longitudinal": 0.1067478878640397,
+          "lateral": 0.012873195649848033,
+          "normalized_lateral": 0.25746391299696064,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 33,
+          "longitudinal": 0.11767577877773422,
+          "lateral": -0.3608007754901044,
+          "normalized_lateral": -7.216015509802088,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 34,
+          "longitudinal": 0.12274605960689962,
+          "lateral": -0.5148439390610371,
+          "normalized_lateral": -10.296878781220741,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 35,
+          "longitudinal": 0.12123511310860569,
+          "lateral": -0.46948837152751305,
+          "normalized_lateral": -9.389767430550261,
+          "source": "diagnostic_nearest_axis"
+        },
+        {
+          "anchor_id": 36,
+          "longitudinal": 0.15442830928550755,
+          "lateral": 0.006007073797532769,
+          "normalized_lateral": 0.12014147595065537,
+          "source": "diagnostic_nearest_axis"
+        }
+      ]
+    }
+  ],
+  "pairwise_rows": [
+    {
+      "row_a": "experimental_v4_row_1",
+      "row_b": "experimental_v4_row_2",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_1",
+      "row_b": "experimental_v4_row_3",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_1",
+      "row_b": "experimental_v4_row_4",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_1",
+      "row_b": "experimental_v4_row_5",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_1",
+      "row_b": "experimental_v4_row_6",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_1",
+      "row_b": "experimental_v4_row_7",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_2",
+      "row_b": "experimental_v4_row_3",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_2",
+      "row_b": "experimental_v4_row_4",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_2",
+      "row_b": "experimental_v4_row_5",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_2",
+      "row_b": "experimental_v4_row_6",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_2",
+      "row_b": "experimental_v4_row_7",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_3",
+      "row_b": "experimental_v4_row_4",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_3",
+      "row_b": "experimental_v4_row_5",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_3",
+      "row_b": "experimental_v4_row_6",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_3",
+      "row_b": "experimental_v4_row_7",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_4",
+      "row_b": "experimental_v4_row_5",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_4",
+      "row_b": "experimental_v4_row_6",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_4",
+      "row_b": "experimental_v4_row_7",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_5",
+      "row_b": "experimental_v4_row_6",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_5",
+      "row_b": "experimental_v4_row_7",
+      "classification": "AMBIGUOUS"
+    },
+    {
+      "row_a": "experimental_v4_row_6",
+      "row_b": "experimental_v4_row_7",
+      "classification": "AMBIGUOUS"
+    }
+  ],
+  "endpoint_fragment_candidates": [],
+  "temporal_support": {
+    "row_4": {
+      "anchors": 3,
+      "raw_observations": 6,
+      "distinct_images": 1,
+      "assessment": "weak temporal support; geometry metric comes from V4 row output"
+    },
+    "row_5": {
+      "anchors": 3,
+      "raw_observations": 7,
+      "distinct_images": 2,
+      "assessment": "weak temporal support; geometry metric comes from V4 row output"
+    }
+  }
+}

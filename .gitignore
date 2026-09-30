@@ -45,6 +45,7 @@ apps/vision-api/config/physical_row_geometry.json
 
 apps/vision-api/models/*.pt
 apps/vision-api/models/*.onnx
+apps/vision-api/auto-parking-debug/
 
 # Local deployment packaging
 .deploy-stage*/

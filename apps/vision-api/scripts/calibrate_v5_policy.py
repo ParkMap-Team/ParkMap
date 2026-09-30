@@ -1,0 +1,7 @@
+import json
+from pathlib import Path
+from app.services.experimental_v5_policy import evaluate_fragment_pair,V5Policy
+root=Path(__file__).resolve().parents[1]; out=root/'auto-parking-experimental'; v5=json.loads((out/'experimental_v5_diagnostics.json').read_text()); cases=[('collinear',{}),('parallel',{'normalized_lateral_separation':2.}),('large_gap',{'normalized_endpoint_distance':8.}),('scale_jump',{'local_scale_ratio':3.}),('dispersion',{'hypothetical_merged_normalized_perpendicular_dispersion':2.})]; synthetic=[{'name':n,'expected':'PASS' if not kw else 'REJECT','actual':evaluate_fragment_pair({'orientation_difference':.1,'normalized_lateral_separation':.5,'normalized_endpoint_distance':2.,'local_scale_ratio':1.,'hypothetical_merged_normalized_perpendicular_dispersion':.5,'hypothetical_merged_orientation_dispersion':.1,**kw})} for n,kw in cases]; dry={'INSUFFICIENT_GEOMETRY':0,'PASS':0,'REJECT':0};
+for p in v5.get('merge_candidates',[]): dry[evaluate_fragment_pair(p)['status']]+=1
+result={'policy_parameters':V5Policy().__dict__,'synthetic_cases':synthetic,'real_data_dry_run':{'pair_count':len(v5.get('merge_candidates',[])),'status_counts':dry,'merges_enabled':False},'sensitivity':'NOT_ENOUGH_EVIDENCE','frozen_counts':{'logical_rows':7,'accepted_merges':0,'recovered_fragments':0,'unknown_anchors':30}}
+(out/'experimental_v5_policy_calibration.json').write_text(json.dumps(result,indent=2)); print(json.dumps(result['real_data_dry_run'],indent=2))

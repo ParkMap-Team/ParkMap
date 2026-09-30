@@ -1,0 +1,2061 @@
+{
+  "before_status_counts": {
+    "RECOVERABLE_SINGLE_CANDIDATE": 15,
+    "AMBIGUOUS_MULTIPLE_ROWS": 5,
+    "NO_COMPATIBLE_ROW": 4,
+    "INSUFFICIENT_EVIDENCE": 0
+  },
+  "weak_fragments": [
+    {
+      "component_id": 2,
+      "anchor_ids": [
+        3,
+        12
+      ],
+      "evaluation": {
+        "status": "RECOVERABLE_SINGLE_CANDIDATE",
+        "destination": "experimental_v4_row_1",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 2.5765431910789918,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.11238541700194095,
+            "normalized_endpoint_distance": 2.5765431910789918,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 3.0679799654378455,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.13382124117428074,
+            "normalized_endpoint_distance": 3.0679799654378455,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 4.162132783620171,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.18154674453903283,
+            "normalized_endpoint_distance": 4.162132783620171,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 6.67355413391378,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.29109163270453137,
+            "normalized_endpoint_distance": 6.67355413391378,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 10.316519219775907,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.44999296675384476,
+            "normalized_endpoint_distance": 10.316519219775907,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 11.722686832920985,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.5113281441050745,
+            "normalized_endpoint_distance": 11.722686832920985,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 12.774514357412107,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.5572074739619711,
+            "normalized_endpoint_distance": 12.774514357412107,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "INSUFFICIENT_EVIDENCE"
+      }
+    },
+    {
+      "component_id": 3,
+      "anchor_ids": [
+        6
+      ],
+      "evaluation": {
+        "status": "NO_COMPATIBLE_ROW",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 3.1674921260704023,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.15114871528020102,
+            "normalized_endpoint_distance": 3.1674921260704023,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 6.333477352824966,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.30222552323227614,
+            "normalized_endpoint_distance": 6.333477352824966,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 6.6340106210006695,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.316566590415945,
+            "normalized_endpoint_distance": 6.6340106210006695,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 6.764006326440604,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3227698209488542,
+            "normalized_endpoint_distance": 6.764006326440604,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 9.287599572257552,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.4431924966220016,
+            "normalized_endpoint_distance": 9.287599572257552,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 9.475353881279595,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.45215189461495275,
+            "normalized_endpoint_distance": 9.475353881279595,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 10.191942341681132,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.48634658898620003,
+            "normalized_endpoint_distance": 10.191942341681132,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "NO_COMPATIBLE_ROW"
+      }
+    },
+    {
+      "component_id": 4,
+      "anchor_ids": [
+        7
+      ],
+      "evaluation": {
+        "status": "NO_COMPATIBLE_ROW",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 5.703623309169572,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3145253937585148,
+            "normalized_endpoint_distance": 5.703623309169572,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 5.9647750920489395,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3289265669932231,
+            "normalized_endpoint_distance": 5.9647750920489395,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 7.061726164293934,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.38941775815884644,
+            "normalized_endpoint_distance": 7.061726164293934,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 9.238448998840106,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.5094527901950813,
+            "normalized_endpoint_distance": 9.238448998840106,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 10.872967702474321,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.5995880622842648,
+            "normalized_endpoint_distance": 10.872967702474321,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 11.550339181918396,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.6369416040145575,
+            "normalized_endpoint_distance": 11.550339181918396,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 11.719392295940944,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.6462640109078321,
+            "normalized_endpoint_distance": 11.719392295940944,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "NO_COMPATIBLE_ROW"
+      }
+    },
+    {
+      "component_id": 5,
+      "anchor_ids": [
+        8
+      ],
+      "evaluation": {
+        "status": "RECOVERABLE_SINGLE_CANDIDATE",
+        "destination": "experimental_v4_row_4",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 2.7364721824439573,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.15311650837741075,
+            "normalized_endpoint_distance": 2.7364721824439573,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 3.309575500770116,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.18518391969793727,
+            "normalized_endpoint_distance": 3.309575500770116,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 5.189291496535019,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.29036150997610344,
+            "normalized_endpoint_distance": 5.189291496535019,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 5.572075935412706,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.31177982261899406,
+            "normalized_endpoint_distance": 5.572075935412706,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 6.027493273010967,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3372622349873538,
+            "normalized_endpoint_distance": 6.027493273010967,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 7.381259621828577,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.41301084950630784,
+            "normalized_endpoint_distance": 7.381259621828577,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 8.34870769912634,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.46714341938318316,
+            "normalized_endpoint_distance": 8.34870769912634,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "INSUFFICIENT_EVIDENCE"
+      }
+    },
+    {
+      "component_id": 6,
+      "anchor_ids": [
+        9,
+        14
+      ],
+      "evaluation": {
+        "status": "NO_COMPATIBLE_ROW",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 3.378030308902666,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.1785407198960291,
+            "normalized_endpoint_distance": 3.378030308902666,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 5.545701734101013,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.29310973833644827,
+            "normalized_endpoint_distance": 5.545701734101013,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 5.644679476294616,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.2983410582859338,
+            "normalized_endpoint_distance": 5.644679476294616,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 6.922692789975702,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.36588853305546987,
+            "normalized_endpoint_distance": 6.922692789975702,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 9.38277520957033,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.4959124955523219,
+            "normalized_endpoint_distance": 9.38277520957033,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 9.449228271735567,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.49942477237441213,
+            "normalized_endpoint_distance": 9.449228271735567,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 9.512437463066998,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.5027655992742234,
+            "normalized_endpoint_distance": 9.512437463066998,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "NO_COMPATIBLE_ROW"
+      }
+    },
+    {
+      "component_id": 7,
+      "anchor_ids": [
+        10
+      ],
+      "evaluation": {
+        "status": "RECOVERABLE_SINGLE_CANDIDATE",
+        "destination": "experimental_v4_row_2",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 2.541412434116128,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.10950333936887395,
+            "normalized_endpoint_distance": 2.541412434116128,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 3.1145632922457964,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.13419902909038986,
+            "normalized_endpoint_distance": 3.1145632922457964,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 4.13875670055187,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.1783290557100593,
+            "normalized_endpoint_distance": 4.13875670055187,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 6.1013488026737335,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.2628924213866994,
+            "normalized_endpoint_distance": 6.1013488026737335,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 9.764409350114017,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.4207248758401578,
+            "normalized_endpoint_distance": 9.764409350114017,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 11.253563472261343,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.48488893950059586,
+            "normalized_endpoint_distance": 11.253563472261343,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 12.265370369070457,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.5284852611797212,
+            "normalized_endpoint_distance": 12.265370369070457,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "INSUFFICIENT_EVIDENCE"
+      }
+    },
+    {
+      "component_id": 8,
+      "anchor_ids": [
+        15
+      ],
+      "evaluation": {
+        "status": "RECOVERABLE_SINGLE_CANDIDATE",
+        "destination": "experimental_v4_row_4",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 0.9966664452385782,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.05294511678407297,
+            "normalized_endpoint_distance": 0.9966664452385782,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 3.7237545962587566,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.19781404592883053,
+            "normalized_endpoint_distance": 3.7237545962587566,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 4.477307069898267,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.237844413069585,
+            "normalized_endpoint_distance": 4.477307069898267,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 5.940454123895803,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.31557000724028894,
+            "normalized_endpoint_distance": 5.940454123895803,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 6.31445991880788,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3354380188344787,
+            "normalized_endpoint_distance": 6.31445991880788,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 6.683717496751676,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.35505379468510273,
+            "normalized_endpoint_distance": 6.683717496751676,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 7.241420234701787,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3846801924961554,
+            "normalized_endpoint_distance": 7.241420234701787,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "INSUFFICIENT_EVIDENCE"
+      }
+    },
+    {
+      "component_id": 9,
+      "anchor_ids": [
+        16
+      ],
+      "evaluation": {
+        "status": "AMBIGUOUS_MULTIPLE_ROWS",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 1.300032709792821,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.07467893760640891,
+            "normalized_endpoint_distance": 1.300032709792821,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 1.366682514740828,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.07850756175386188,
+            "normalized_endpoint_distance": 1.366682514740828,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 2.194211757502348,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.12604406158355844,
+            "normalized_endpoint_distance": 2.194211757502348,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 5.136709455050826,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.2950725793331186,
+            "normalized_endpoint_distance": 5.136709455050826,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 7.2432316315473555,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.41607941016137606,
+            "normalized_endpoint_distance": 7.2432316315473555,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 7.518429884295565,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.43188786866520207,
+            "normalized_endpoint_distance": 7.518429884295565,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 9.444330950882435,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.5425191200978507,
+            "normalized_endpoint_distance": 9.444330950882435,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "AMBIGUOUS_MULTIPLE_ROWS"
+      }
+    },
+    {
+      "component_id": 13,
+      "anchor_ids": [
+        20,
+        33
+      ],
+      "evaluation": {
+        "status": "RECOVERABLE_SINGLE_CANDIDATE",
+        "destination": "experimental_v4_row_4",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 1.2165367228905604,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.07554739914031358,
+            "normalized_endpoint_distance": 1.2165367228905604,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 2.2187006283600743,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.13778216373552243,
+            "normalized_endpoint_distance": 2.2187006283600743,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 3.120710810031742,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.19379734350047106,
+            "normalized_endpoint_distance": 3.120710810031742,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 4.64967113249548,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.2887463685298304,
+            "normalized_endpoint_distance": 4.64967113249548,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 5.299262194185867,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.32908622370403257,
+            "normalized_endpoint_distance": 5.299262194185867,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 6.780938310211968,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.4210988812982277,
+            "normalized_endpoint_distance": 6.780938310211968,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 7.507988249007262,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.46624896258027865,
+            "normalized_endpoint_distance": 7.507988249007262,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "INSUFFICIENT_EVIDENCE"
+      }
+    },
+    {
+      "component_id": 14,
+      "anchor_ids": [
+        21
+      ],
+      "evaluation": {
+        "status": "RECOVERABLE_SINGLE_CANDIDATE",
+        "destination": "experimental_v4_row_4",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 1.0832036837126593,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.05016757993341073,
+            "normalized_endpoint_distance": 1.0832036837126593,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 3.945262964356359,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.18272121679303285,
+            "normalized_endpoint_distance": 3.945262964356359,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 5.127542861609189,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.23747742021158558,
+            "normalized_endpoint_distance": 5.127542861609189,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 5.757327947226278,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.266645335811055,
+            "normalized_endpoint_distance": 5.757327947226278,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 7.844839111807258,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3633264907828138,
+            "normalized_endpoint_distance": 7.844839111807258,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 8.695374477052528,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.4027182520588525,
+            "normalized_endpoint_distance": 8.695374477052528,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 9.382717357761354,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.4345519038716245,
+            "normalized_endpoint_distance": 9.382717357761354,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "INSUFFICIENT_EVIDENCE"
+      }
+    },
+    {
+      "component_id": 15,
+      "anchor_ids": [
+        25
+      ],
+      "evaluation": {
+        "status": "AMBIGUOUS_MULTIPLE_ROWS",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 1.428952601400346,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.0702464210349168,
+            "normalized_endpoint_distance": 1.428952601400346,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 1.5138808491893339,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.07442144086839239,
+            "normalized_endpoint_distance": 1.5138808491893339,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 3.6504040654130705,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.17945159319860168,
+            "normalized_endpoint_distance": 3.6504040654130705,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 5.6950910531224475,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.2799671336598403,
+            "normalized_endpoint_distance": 5.6950910531224475,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 7.702993296879241,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.37867435898954654,
+            "normalized_endpoint_distance": 7.702993296879241,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 7.715567491664347,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3792924985836688,
+            "normalized_endpoint_distance": 7.715567491664347,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 10.41396107816229,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.5119438488169067,
+            "normalized_endpoint_distance": 10.41396107816229,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "AMBIGUOUS_MULTIPLE_ROWS"
+      }
+    },
+    {
+      "component_id": 17,
+      "anchor_ids": [
+        30
+      ],
+      "evaluation": {
+        "status": "RECOVERABLE_SINGLE_CANDIDATE",
+        "destination": "experimental_v4_row_6",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 1.7338102868131913,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.11818854996872728,
+            "normalized_endpoint_distance": 1.7338102868131913,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 3.2471432364385255,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.22134783348230255,
+            "normalized_endpoint_distance": 3.2471432364385255,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 3.8117706670385156,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.2598367603289865,
+            "normalized_endpoint_distance": 3.8117706670385156,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 6.281772380682373,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.4282092305906608,
+            "normalized_endpoint_distance": 6.281772380682373,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 6.989964565203156,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.47648452808098823,
+            "normalized_endpoint_distance": 6.989964565203156,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 8.933971468123739,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.6090015391593377,
+            "normalized_endpoint_distance": 8.933971468123739,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 9.521558482895621,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.6490555507109628,
+            "normalized_endpoint_distance": 9.521558482895621,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "INSUFFICIENT_EVIDENCE"
+      }
+    },
+    {
+      "component_id": 18,
+      "anchor_ids": [
+        31,
+        44
+      ],
+      "evaluation": {
+        "status": "AMBIGUOUS_MULTIPLE_ROWS",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 1.073851730376175,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.08545286629493903,
+            "normalized_endpoint_distance": 1.073851730376175,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 1.0780536389389306,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.0857872375311533,
+            "normalized_endpoint_distance": 1.0780536389389306,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 2.30583576587693,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.18348927493979597,
+            "normalized_endpoint_distance": 2.30583576587693,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 3.7168286224180442,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.2957704963621282,
+            "normalized_endpoint_distance": 3.7168286224180442,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 4.7719110092218235,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3797297726563566,
+            "normalized_endpoint_distance": 4.7719110092218235,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 6.32192423832876,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.5030736845536377,
+            "normalized_endpoint_distance": 6.32192423832876,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 7.116288678746018,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.5662860595922764,
+            "normalized_endpoint_distance": 7.116288678746018,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "AMBIGUOUS_MULTIPLE_ROWS"
+      }
+    },
+    {
+      "component_id": 19,
+      "anchor_ids": [
+        32
+      ],
+      "evaluation": {
+        "status": "AMBIGUOUS_MULTIPLE_ROWS",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 1.7616498329081305,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.13922025571865104,
+            "normalized_endpoint_distance": 1.7616498329081305,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 1.9284671760594914,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.15240355284047444,
+            "normalized_endpoint_distance": 1.9284671760594914,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 2.6414010020363983,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.2087455271130411,
+            "normalized_endpoint_distance": 2.6414010020363983,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 3.0729999876537972,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.24285407696393432,
+            "normalized_endpoint_distance": 3.0729999876537972,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 3.1763307684221416,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.2510201366731041,
+            "normalized_endpoint_distance": 3.1763307684221416,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 4.200618183391602,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3319678671344057,
+            "normalized_endpoint_distance": 4.200618183391602,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 4.34979685000485,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3437572089920771,
+            "normalized_endpoint_distance": 4.34979685000485,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "AMBIGUOUS_MULTIPLE_ROWS"
+      }
+    },
+    {
+      "component_id": 20,
+      "anchor_ids": [
+        34
+      ],
+      "evaluation": {
+        "status": "RECOVERABLE_SINGLE_CANDIDATE",
+        "destination": "experimental_v4_row_2",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 1.3410942561126953,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.10866012857354083,
+            "normalized_endpoint_distance": 1.3410942561126953,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 2.2455115224793483,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.1819391661949447,
+            "normalized_endpoint_distance": 2.2455115224793483,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 2.610431569788442,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.21150625969261205,
+            "normalized_endpoint_distance": 2.610431569788442,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 3.34289543142388,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.27085303343204925,
+            "normalized_endpoint_distance": 3.34289543142388,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 3.351044072309666,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.2715132647038732,
+            "normalized_endpoint_distance": 3.351044072309666,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 3.561927023565919,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.28859973606338263,
+            "normalized_endpoint_distance": 3.561927023565919,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 5.04857711041436,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.4090533051130757,
+            "normalized_endpoint_distance": 5.04857711041436,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "INSUFFICIENT_EVIDENCE"
+      }
+    },
+    {
+      "component_id": 21,
+      "anchor_ids": [
+        36
+      ],
+      "evaluation": {
+        "status": "RECOVERABLE_SINGLE_CANDIDATE",
+        "destination": "experimental_v4_row_4",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 1.0576372890785035,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.08387243808837615,
+            "normalized_endpoint_distance": 1.0576372890785035,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 1.6312639246626097,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.1293620071265385,
+            "normalized_endpoint_distance": 1.6312639246626097,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 2.7191811730263233,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.21563569755037276,
+            "normalized_endpoint_distance": 2.7191811730263233,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 3.1476036590063994,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.24961033025487925,
+            "normalized_endpoint_distance": 3.1476036590063994,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 3.24668736530708,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.2574678368954699,
+            "normalized_endpoint_distance": 3.24668736530708,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 4.25140697420084,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3371438128309823,
+            "normalized_endpoint_distance": 4.25140697420084,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 5.1217569272745385,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.40616404624010954,
+            "normalized_endpoint_distance": 5.1217569272745385,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "INSUFFICIENT_EVIDENCE"
+      }
+    },
+    {
+      "component_id": 22,
+      "anchor_ids": [
+        39
+      ],
+      "evaluation": {
+        "status": "RECOVERABLE_SINGLE_CANDIDATE",
+        "destination": "experimental_v4_row_3",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 2.0221243607787946,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.1647928461024855,
+            "normalized_endpoint_distance": 2.0221243607787946,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 3.4225691756204983,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.27892197254174644,
+            "normalized_endpoint_distance": 3.4225691756204983,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 3.5712430191930213,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.2910381342865542,
+            "normalized_endpoint_distance": 3.5712430191930213,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 5.66431208332607,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.4616126127200707,
+            "normalized_endpoint_distance": 5.66431208332607,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 6.026931326462117,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.49116423589764013,
+            "normalized_endpoint_distance": 6.026931326462117,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 6.715147163268295,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.5472503247059537,
+            "normalized_endpoint_distance": 6.715147163268295,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 8.469172257908948,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.6901944448043291,
+            "normalized_endpoint_distance": 8.469172257908948,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "INSUFFICIENT_EVIDENCE"
+      }
+    },
+    {
+      "component_id": 23,
+      "anchor_ids": [
+        40,
+        48
+      ],
+      "evaluation": {
+        "status": "NO_COMPATIBLE_ROW",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 3.9750898210060472,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3111825065151015,
+            "normalized_endpoint_distance": 3.9750898210060472,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 5.358990080338315,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.4195185620150808,
+            "normalized_endpoint_distance": 5.358990080338315,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 5.553942963138471,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.4347800855161381,
+            "normalized_endpoint_distance": 5.553942963138471,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 5.978272530602487,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.4679979357629792,
+            "normalized_endpoint_distance": 5.978272530602487,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 7.581695904338179,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.5935189496045464,
+            "normalized_endpoint_distance": 7.581695904338179,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 7.745550003716034,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.6063459627396285,
+            "normalized_endpoint_distance": 7.745550003716034,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 9.583974347585952,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.7502635900447227,
+            "normalized_endpoint_distance": 9.583974347585952,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "NO_COMPATIBLE_ROW"
+      }
+    },
+    {
+      "component_id": 25,
+      "anchor_ids": [
+        45
+      ],
+      "evaluation": {
+        "status": "RECOVERABLE_SINGLE_CANDIDATE",
+        "destination": "experimental_v4_row_5",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 0.871277650563613,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.0660942769593761,
+            "normalized_endpoint_distance": 0.871277650563613,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 2.1905750029826905,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.1661748936791455,
+            "normalized_endpoint_distance": 2.1905750029826905,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 2.425647574401169,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.18400727079892482,
+            "normalized_endpoint_distance": 2.425647574401169,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 2.77057726286801,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.21017330219694264,
+            "normalized_endpoint_distance": 2.77057726286801,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 3.9028220283725523,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.2960642912159446,
+            "normalized_endpoint_distance": 3.9028220283725523,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 5.226177776409545,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3964527738884418,
+            "normalized_endpoint_distance": 5.226177776409545,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 6.45268654853015,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.48949453896207135,
+            "normalized_endpoint_distance": 6.45268654853015,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "INSUFFICIENT_EVIDENCE"
+      }
+    },
+    {
+      "component_id": 26,
+      "anchor_ids": [
+        46
+      ],
+      "evaluation": {
+        "status": "RECOVERABLE_SINGLE_CANDIDATE",
+        "destination": "experimental_v4_row_3",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 2.767600857169701,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.2269464145413798,
+            "normalized_endpoint_distance": 2.767600857169701,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 3.8689746731713837,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3172603187171989,
+            "normalized_endpoint_distance": 3.8689746731713837,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 4.471114944543128,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.36663650505735645,
+            "normalized_endpoint_distance": 4.471114944543128,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 4.581623131860767,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.37569830196504095,
+            "normalized_endpoint_distance": 4.581623131860767,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 5.88628285560199,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.4826818815273095,
+            "normalized_endpoint_distance": 5.88628285560199,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 6.07676847222277,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.49830191849969263,
+            "normalized_endpoint_distance": 6.07676847222277,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 7.836548015531691,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.642605840325201,
+            "normalized_endpoint_distance": 7.836548015531691,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "INSUFFICIENT_EVIDENCE"
+      }
+    },
+    {
+      "component_id": 27,
+      "anchor_ids": [
+        49
+      ],
+      "evaluation": {
+        "status": "AMBIGUOUS_MULTIPLE_ROWS",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 1.5502406279272398,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.13117697585064703,
+            "normalized_endpoint_distance": 1.5502406279272398,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 1.627975295101121,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.13775466345277126,
+            "normalized_endpoint_distance": 1.627975295101121,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 2.5524445571214653,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.2159806368107601,
+            "normalized_endpoint_distance": 2.5524445571214653,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 3.7156899703622446,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3144111725173907,
+            "normalized_endpoint_distance": 3.7156899703622446,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 5.483658272852276,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.4640116481742119,
+            "normalized_endpoint_distance": 5.483658272852276,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 6.661587983883999,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.563684727613735,
+            "normalized_endpoint_distance": 6.661587983883999,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 7.770517429525826,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.6575191998179152,
+            "normalized_endpoint_distance": 7.770517429525826,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "AMBIGUOUS_MULTIPLE_ROWS"
+      }
+    },
+    {
+      "component_id": 28,
+      "anchor_ids": [
+        50,
+        65
+      ],
+      "evaluation": {
+        "status": "RECOVERABLE_SINGLE_CANDIDATE",
+        "destination": "experimental_v4_row_6",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 2.388118400127023,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.15091724230687606,
+            "normalized_endpoint_distance": 2.388118400127023,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 3.707300356810784,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.23428300130488583,
+            "normalized_endpoint_distance": 3.707300356810784,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 5.216537011392369,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.3296592748957568,
+            "normalized_endpoint_distance": 5.216537011392369,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 6.3568505027343125,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.4017214337357449,
+            "normalized_endpoint_distance": 6.3568505027343125,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 9.094449109007158,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.5747240923057179,
+            "normalized_endpoint_distance": 9.094449109007158,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 10.777561589269952,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.6810884559821739,
+            "normalized_endpoint_distance": 10.777561589269952,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 12.144174668873502,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.7674516267794447,
+            "normalized_endpoint_distance": 12.144174668873502,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "INSUFFICIENT_EVIDENCE"
+      }
+    },
+    {
+      "component_id": 29,
+      "anchor_ids": [
+        51
+      ],
+      "evaluation": {
+        "status": "RECOVERABLE_SINGLE_CANDIDATE",
+        "destination": "experimental_v4_row_6",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 1.7106846594726253,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.13725994619548762,
+            "normalized_endpoint_distance": 1.7106846594726253,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 3.1793262408796608,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.25509911855734824,
+            "normalized_endpoint_distance": 3.1793262408796608,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 4.754452733619887,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.38148230463868127,
+            "normalized_endpoint_distance": 4.754452733619887,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 5.031133227232035,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.40368227554287583,
+            "normalized_endpoint_distance": 5.031133227232035,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 7.382019018194534,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.5923099430632747,
+            "normalized_endpoint_distance": 7.382019018194534,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 8.803776050668041,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.7063872469659888,
+            "normalized_endpoint_distance": 8.803776050668041,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 9.754323684644389,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.7826561936554761,
+            "normalized_endpoint_distance": 9.754323684644389,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "INSUFFICIENT_EVIDENCE"
+      }
+    },
+    {
+      "component_id": 31,
+      "anchor_ids": [
+        66
+      ],
+      "evaluation": {
+        "status": "RECOVERABLE_SINGLE_CANDIDATE",
+        "destination": "experimental_v4_row_6",
+        "candidates": [
+          {
+            "row_id": "experimental_v4_row_6",
+            "normalized_lateral": 2.5179630581903063,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.20900369368981805,
+            "normalized_endpoint_distance": 2.5179630581903063,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_5",
+            "normalized_lateral": 2.9836049607409674,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.24765433125706984,
+            "normalized_endpoint_distance": 2.9836049607409674,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_7",
+            "normalized_lateral": 3.4329392056156904,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.284951350597631,
+            "normalized_endpoint_distance": 3.4329392056156904,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_4",
+            "normalized_lateral": 5.171049177674319,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.4292232862075393,
+            "normalized_endpoint_distance": 5.171049177674319,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_2",
+            "normalized_lateral": 6.972279214057446,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.5787345070193682,
+            "normalized_endpoint_distance": 6.972279214057446,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_3",
+            "normalized_lateral": 8.108025058141235,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.673007167507476,
+            "normalized_endpoint_distance": 8.108025058141235,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          },
+          {
+            "row_id": "experimental_v4_row_1",
+            "normalized_lateral": 9.302489334920061,
+            "longitudinal_relationship": "UNDEFINED",
+            "endpoint_distance": 0.7721537554668468,
+            "normalized_endpoint_distance": 9.302489334920061,
+            "scale_ratio": 1.0,
+            "orientation_status": "UNAVAILABLE",
+            "status": "GEOMETRY_ONLY"
+          }
+        ],
+        "endpoint_validation": "INSUFFICIENT_GEOMETRY",
+        "coherence_validation": "INSUFFICIENT_GEOMETRY",
+        "final_status": "INSUFFICIENT_EVIDENCE"
+      }
+    }
+  ],
+  "candidate_relationship_count": 168,
+  "status_counts": {
+    "RECOVERABLE_SINGLE_CANDIDATE": 0,
+    "AMBIGUOUS_MULTIPLE_ROWS": 5,
+    "NO_COMPATIBLE_ROW": 4,
+    "INSUFFICIENT_EVIDENCE": 15
+  },
+  "recovery_enabled": false,
+  "frozen_counts": {
+    "logical_rows": 7,
+    "recovered_fragments": 0,
+    "unknown_anchors": 30
+  },
+  "unsupported_gap_policy": "never fill unsupported intervals"
+}
