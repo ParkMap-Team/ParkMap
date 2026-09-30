@@ -385,11 +385,16 @@ async def analyze_hybrid_parking(image: UploadFile = File(...)) -> dict[str, obj
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
     roi = calibration.parking_roi.polygon
     detections = []
+    occupied_regions = []
     for index, item in enumerate(detection.detections, 1):
         bbox = item.bbox
         point = {"x": bbox.x + bbox.width / 2, "y": bbox.y + bbox.height}
-        detections.append({"detection_id": f"detection_{index}", "confidence": item.confidence, "bbox": bbox.model_dump(mode="json"), "point": point, "inside_roi": _normalized_point_in_polygon(point["x"], point["y"], roi)})
-    result={"mode":"HYBRID","status":"READY","source_type":"HYBRID_ANALYSIS","updated_at":datetime.now(UTC).isoformat(),"roi":{"polygon":[point.model_dump(mode="json") for point in roi]},"rows":[],"unknown_anchors":[],"detections":detections,"summary":{"detected":len(detections),"inside_roi":sum(1 for item in detections if item["inside_roi"])},"availability":"NOT_ESTIMATED"}
+        inside_roi = _normalized_point_in_polygon(point["x"], point["y"], roi)
+        detection_id = f"detection_{index}"
+        detections.append({"detection_id": detection_id, "confidence": item.confidence, "bbox": bbox.model_dump(mode="json"), "point": point, "inside_roi": inside_roi})
+        if inside_roi:
+            occupied_regions.append({"region_id": f"occupied_{index}", "detection_id": detection_id, "coordinate_space": "NORMALIZED_IMAGE", "polygon":[{"x":bbox.x,"y":bbox.y},{"x":bbox.x+bbox.width,"y":bbox.y},{"x":bbox.x+bbox.width,"y":bbox.y+bbox.height},{"x":bbox.x,"y":bbox.y+bbox.height}],"status":"OCCUPIED_EVIDENCE"})
+    result={"mode":"HYBRID","status":"READY","source_type":"HYBRID_ANALYSIS","updated_at":datetime.now(UTC).isoformat(),"roi":{"polygon":[point.model_dump(mode="json") for point in roi]},"rows":[],"unknown_anchors":[],"detections":detections,"occupied_regions":occupied_regions,"summary":{"detected":len(detections),"inside_roi":sum(1 for item in detections if item["inside_roi"])},"availability":"NOT_ESTIMATED"}
     snapshot=FilePath(__file__).resolve().parent.parent/'hybrid-parking-experimental'/'current_state.json'
     snapshot.parent.mkdir(parents=True,exist_ok=True)
     image_path=snapshot.parent/'latest_image'
