@@ -167,7 +167,7 @@ importers:
         version: 1.4.0
       vinext:
         specifier: 1.0.0-beta.5
-        version: 1.0.0-beta.5(@vitejs/plugin-react@6.0.2(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)))(@vitejs/plugin-rsc@0.5.26(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)))(next@16.3.7(@types/node@22.19.19)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0))
+        version: 1.0.0-beta.5(@vitejs/plugin-react@6.0.2(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)))(@vitejs/plugin-rsc@0.5.26(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)))(next@16.3.7(@babel/core@7.29.7)(@types/node@22.19.19)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0))
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 1.37.1
@@ -273,7 +273,7 @@ importers:
         version: 1.4.0
       vinext:
         specifier: 1.0.0-beta.5
-        version: 1.0.0-beta.5(@vitejs/plugin-react@6.0.2(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)))(@vitejs/plugin-rsc@0.5.26(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0))
+        version: 1.0.0-beta.5(@vitejs/plugin-react@6.0.2(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)))(@vitejs/plugin-rsc@0.5.26(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)))(next@16.3.7(@babel/core@7.29.7)(@types/node@22.19.19)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0))
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 1.37.1
@@ -379,7 +379,7 @@ importers:
         version: 1.4.0
       vinext:
         specifier: 1.0.0-beta.5
-        version: 1.0.0-beta.5(@vitejs/plugin-react@6.0.2(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)))(@vitejs/plugin-rsc@0.5.26(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0))
+        version: 1.0.0-beta.5(@vitejs/plugin-react@6.0.2(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)))(@vitejs/plugin-rsc@0.5.26(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)))(next@16.3.7(@babel/core@7.29.7)(@types/node@22.19.19)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0))
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 1.37.1
@@ -6535,7 +6535,7 @@ snapshots:
     dependencies:
       unpic: 4.2.2
 
-  '@unpic/react@1.0.2(next@16.3.7(@types/node@22.19.19)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+  '@unpic/react@1.0.2(next@16.3.7(@babel/core@7.29.7)(@types/node@22.19.19)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:
       '@unpic/core': 1.0.3
       react: 19.2.6
@@ -8490,9 +8490,9 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vinext@1.0.0-beta.5(@vitejs/plugin-react@6.0.2(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)))(@vitejs/plugin-rsc@0.5.26(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)))(next@16.3.7(@types/node@22.19.19)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)):
+  vinext@1.0.0-beta.5(@vitejs/plugin-react@6.0.2(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)))(@vitejs/plugin-rsc@0.5.26(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)))(next@16.3.7(@babel/core@7.29.7)(@types/node@22.19.19)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0)):
     dependencies:
-      '@unpic/react': 1.0.2(next@16.3.7(@types/node@22.19.19)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@unpic/react': 1.0.2(next@16.3.7(@babel/core@7.29.7)(@types/node@22.19.19)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@vercel/og': 0.8.6
       '@vinext/types': 1.0.0
       '@vitejs/plugin-react': 6.0.2(vite@8.0.13(@types/node@22.19.19)(esbuild@0.27.3)(jiti@2.7.0)(yaml@2.9.0))
