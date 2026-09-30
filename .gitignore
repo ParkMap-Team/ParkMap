@@ -14,6 +14,19 @@ apps/web/.env.*.local
 apps/web/npm-debug.log*
 apps/web/.turbo/
 
+tools/web/node_modules/
+tools/web/.next/
+tools/web/.vinext/
+tools/web/dist/
+tools/web/.wrangler/
+tools/web/coverage/
+tools/web/*.tsbuildinfo
+tools/web/next-env.d.ts
+tools/web/.env.local
+tools/web/.env.*.local
+tools/web/npm-debug.log*
+tools/web/.turbo/
+
 # Backend environments, caches, and secrets
 apps/vision-api/.venv/
 apps/vision-api/venv/
