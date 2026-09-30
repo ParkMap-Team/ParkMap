@@ -1,6 +1,6 @@
 # ParkMap Backend
 
-FastAPI service for the ParkMap frontend. The upload analysis endpoint runs the custom ParkMap Ultralytics YOLO model and, when calibration is ready, returns the dynamic parking-analysis pipeline.
+One Python project with two entrypoints: the FastAPI API (`uvicorn app.main:app`) and the frame worker (`python -m app.worker`). The API serves live parking state from Postgres and the upload analysis endpoints; the worker runs on the camera network and pushes derived state to the API. See [ADR 0002](../../docs/adr/0002-live-state-pipeline-and-liff-app.md).
 
 ## Run locally
 
@@ -13,7 +13,48 @@ python -m uvicorn app.main:app --reload --port 8000
 
 Use `PARKMAP_ALLOWED_ORIGINS` as a comma-separated list for additional frontend origins.
 
-For tests, install `requirements-dev.txt` and run `python -m pytest -q tests` from this directory. CI uses the pinned `requirements-dev.lock` and CPU-only PyTorch through uv. The service currently handles uploaded images per request; it is not yet a continuously running camera worker.
+For tests, install `requirements-dev.txt` and run `python -m pytest -q tests` from this directory. CI uses the pinned `requirements-dev.lock` and CPU-only PyTorch through uv. Database tests skip unless `PARKMAP_TEST_DATABASE_URL` points at a disposable database (`docker compose up -d postgres-test` from the repository root); they truncate every table.
+
+## Live state
+
+Copy `.env.example` to `.env`, start Postgres (`docker compose up -d postgres` from the repository root), then:
+
+```sh
+python -m alembic upgrade head
+python -m app.manage seed-dev              # synthetic site, lot model, and calibration for development
+python -m uvicorn app.main:app --reload --port 8000
+python -m app.manage publish-dev-state     # pushes the synthetic state every 3 s through the real ingest endpoint
+```
+
+Endpoints:
+
+- `GET /api/sites`, `GET /api/sites/{site_id}/lot-model`, `GET /api/sites/{site_id}/parking-state`
+- `POST /api/internal/parking-states`: worker ingest, requires `Authorization: Bearer $PARKMAP_WORKER_TOKEN`
+
+An area serves regions only when its latest state is younger than `PARKMAP_STATE_FRESHNESS_S` and was produced with the active calibration version. Otherwise it reports `STALE`, `NO_DATA`, `NOT_CALIBRATED`, or `CALIBRATION_MISMATCH` without regions. Live endpoints answer `503` when `DATABASE_URL` is not set.
+
+Real site setup:
+
+```sh
+python -m app.manage create-site --site-id <id> --name <name> --latitude <lat> --longitude <lng>
+python -m app.manage create-parking-area --site-id <id> --parking-area-id <area> --camera-id <camera> --name <name>
+python -m app.manage set-lot-model --site-id <id> --file <lot-model.json>
+python -m app.manage register-calibration --parking-area-id <area>   # after every change to config/*.json
+python -m app.manage purge-states --older-than-days 30               # schedule daily
+```
+
+Run `python -m app.manage <command> --help` for exact arguments.
+
+Worker, on a machine that can reach the camera:
+
+```sh
+PARKMAP_API_URL=https://<api> PARKMAP_WORKER_TOKEN=<token> \
+  python -m app.worker --parking-area-id <area> --source rtsp://<camera>   # or a recorded video file
+```
+
+A file source is published as `RECORDED_REPLAY` and the LIFF app says so. Raw frames never leave the worker.
+
+After changing a Pydantic API model, run `python scripts/export_openapi.py` and regenerate the LIFF types (`pnpm --filter @parkmap/liff api:generate`). Schema changes need an Alembic revision in `migrations/versions/`; `tests/test_live_api.py` fails when tables and migrations drift.
 
 Model weights belong at `models/best.pt` by default. ROI, homography, and row calibration files belong in `config/`. Site-specific values are intentionally not fabricated here.
 
@@ -23,7 +64,6 @@ Model weights belong at `models/best.pt` by default. ROI, homography, and row ca
 
 Configure model path, input size, confidence, NMS IoU, and device with the `PARKMAP_MODEL_*` values shown in `.env.example`. The model loads on the first analysis request and is reused afterward. Health checks and calibration remain available without model weights; analysis returns `503` if weights are missing or invalid. `PARKMAP_MAX_IMAGE_PIXELS` bounds decoded image dimensions, and the image's actual format must match its declared media type.
 
-`GET /api/parking/status` returns `503` until live camera state is implemented. Synthetic availability is never served as current parking information.
 Uploaded-image analysis also returns `503` when the required parking calibration files are missing or unreadable; configure the site before using inference results.
 
 ## Parking calibration

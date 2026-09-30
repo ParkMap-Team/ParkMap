@@ -1,0 +1,39 @@
+# Local development databases only. Credentials here are for localhost and never used in deployment.
+#   docker compose up -d postgres        DATABASE_URL=postgresql://parkmap:parkmap@localhost:5432/parkmap
+#   docker compose up -d postgres-test   PARKMAP_TEST_DATABASE_URL=postgresql://parkmap:parkmap@localhost:5433/parkmap_test
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: parkmap
+      POSTGRES_PASSWORD: parkmap
+      POSTGRES_DB: parkmap
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parkmap -d parkmap"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Disposable: tests truncate every table, and data lives in memory.
+  postgres-test:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: parkmap
+      POSTGRES_PASSWORD: parkmap
+      POSTGRES_DB: parkmap_test
+    ports:
+      - "127.0.0.1:5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parkmap -d parkmap_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:

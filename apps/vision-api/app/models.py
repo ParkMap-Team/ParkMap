@@ -312,3 +312,114 @@ class MotorcycleFittingConfiguration(BaseModel):
 class MotorcycleFittingResponse(BaseModel):
     configured: bool
     configuration: MotorcycleFittingConfiguration | None
+
+
+# Live parking state contract (worker -> API -> LIFF). Geometry uses the
+# parking area's metric ground frame; a polygon is a list of rings where ring
+# zero is the exterior and later rings are holes.
+IDENTIFIER_PATTERN = r"^[a-z0-9][a-z0-9-]{0,62}$"
+MetricRing = list[MetricGroundPoint]
+MetricPolygon = list[MetricRing]
+LiveRegionKind = Literal["AVAILABLE", "ALMOST_AVAILABLE", "UNKNOWN"]
+StateSourceKind = Literal["LIVE_CAMERA", "RECORDED_REPLAY", "SYNTHETIC_FIXTURE"]
+AreaLiveStatus = Literal["LIVE", "STALE", "NO_DATA", "NOT_CALIBRATED", "CALIBRATION_MISMATCH"]
+
+
+def _validate_polygon(polygon: MetricPolygon) -> MetricPolygon:
+    if not polygon or any(len(ring) < 3 for ring in polygon):
+        raise ValueError("Polygons need an exterior ring and every ring needs at least three points.")
+    return polygon
+
+
+class LiveRegion(BaseModel):
+    kind: LiveRegionKind
+    row_id: str | None = None
+    polygon: MetricPolygon
+
+    @model_validator(mode="after")
+    def validate_polygon(self) -> "LiveRegion":
+        _validate_polygon(self.polygon)
+        return self
+
+
+class MotorcycleProxy(BaseModel):
+    detection_id: str = Field(min_length=1)
+    center: MetricGroundPoint
+    heading_rad: float = Field(allow_inf_nan=False)
+    length_m: float = Field(gt=0.0, allow_inf_nan=False)
+    width_m: float = Field(gt=0.0, allow_inf_nan=False)
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class ParkingStatePublish(BaseModel):
+    schema_version: Literal[1] = 1
+    parking_area_id: str = Field(pattern=IDENTIFIER_PATTERN)
+    camera_id: str = Field(min_length=1, max_length=128)
+    source: StateSourceKind
+    observed_at: datetime
+    calibration_version: str = Field(min_length=1, max_length=128)
+    analysis_version: str = Field(min_length=1, max_length=64)
+    regions: list[LiveRegion] = Field(max_length=1000)
+    motorcycles: list[MotorcycleProxy] = Field(max_length=1000)
+
+    @model_validator(mode="after")
+    def validate_timezone(self) -> "ParkingStatePublish":
+        if self.observed_at.tzinfo is None:
+            raise ValueError("observed_at must include a timezone.")
+        return self
+
+
+class ParkingAreaLiveState(BaseModel):
+    parking_area_id: str
+    status: AreaLiveStatus
+    source: StateSourceKind | None = None
+    observed_at: datetime | None = None
+    age_s: float | None = None
+    regions: list[LiveRegion] = Field(default_factory=list)
+    motorcycles: list[MotorcycleProxy] = Field(default_factory=list)
+
+
+class SiteParkingStateResponse(BaseModel):
+    site_id: str
+    generated_at: datetime
+    freshness_limit_s: float
+    areas: list[ParkingAreaLiveState]
+
+
+class SiteSummary(BaseModel):
+    site_id: str
+    name: str
+    latitude: float = Field(ge=-90.0, le=90.0, allow_inf_nan=False)
+    longitude: float = Field(ge=-180.0, le=180.0, allow_inf_nan=False)
+
+
+class LotModelParkingArea(BaseModel):
+    parking_area_id: str = Field(pattern=IDENTIFIER_PATTERN)
+    polygon: MetricPolygon
+
+    @model_validator(mode="after")
+    def validate_polygon(self) -> "LotModelParkingArea":
+        _validate_polygon(self.polygon)
+        return self
+
+
+class LotModelDefinition(BaseModel):
+    """Surveyed static lot geometry stored per site version."""
+
+    schema_version: Literal[1] = 1
+    outline: MetricPolygon
+    parking_areas: list[LotModelParkingArea] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_polygons(self) -> "LotModelDefinition":
+        _validate_polygon(self.outline)
+        ids = [area.parking_area_id for area in self.parking_areas]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Lot model parking areas must be unique.")
+        return self
+
+
+class LotModelResponse(LotModelDefinition):
+    site_id: str
+    version: int = Field(ge=1)
+    unmonitored: list[MetricPolygon]

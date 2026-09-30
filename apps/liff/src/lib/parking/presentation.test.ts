@@ -1,0 +1,52 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import type { ParkingAreaLiveState, SiteParkingState } from "../api/types.ts";
+import { sourceNotice, visibleAreas } from "./presentation.ts";
+
+const square = [[{ x_m: 0, y_m: 0 }, { x_m: 1, y_m: 0 }, { x_m: 1, y_m: 1 }]];
+
+function liveArea(overrides: Partial<ParkingAreaLiveState> = {}): ParkingAreaLiveState {
+  return {
+    parking_area_id: "area-1",
+    status: "LIVE",
+    source: "LIVE_CAMERA",
+    observed_at: "2026-10-01T08:00:00Z",
+    age_s: 5,
+    regions: [{ kind: "AVAILABLE", row_id: "row_1", polygon: square }],
+    motorcycles: [],
+    ...overrides,
+  };
+}
+
+function siteState(...areas: ParkingAreaLiveState[]): SiteParkingState {
+  return { site_id: "site", generated_at: "2026-10-01T08:00:05Z", freshness_limit_s: 15, areas };
+}
+
+test("a live area stays live while its age is within the limit", () => {
+  const [area] = visibleAreas(siteState(liveArea()), 4);
+  assert.equal(area.status, "LIVE");
+  assert.equal(area.age_s, 9);
+  assert.equal(area.regions?.length, 1);
+});
+
+test("a live area becomes stale without regions once the answer ages past the limit", () => {
+  const [area] = visibleAreas(siteState(liveArea()), 11);
+  assert.equal(area.status, "STALE");
+  assert.deepEqual(area.regions, []);
+  assert.deepEqual(area.motorcycles, []);
+});
+
+test("a clock that runs backwards never keeps an area live", () => {
+  assert.equal(visibleAreas(siteState(liveArea()), -1)[0].status, "STALE");
+});
+
+test("areas the API did not mark live are never upgraded", () => {
+  const stale = liveArea({ status: "STALE", regions: [] });
+  assert.equal(visibleAreas(siteState(stale), 0)[0].status, "STALE");
+});
+
+test("recorded and synthetic sources are always announced", () => {
+  assert.equal(sourceNotice([liveArea()]), null);
+  assert.match(sourceNotice([liveArea(), liveArea({ source: "RECORDED_REPLAY" })]) ?? "", /วิดีโอที่บันทึกไว้/);
+  assert.match(sourceNotice([liveArea({ source: "RECORDED_REPLAY" }), liveArea({ source: "SYNTHETIC_FIXTURE" })]) ?? "", /ข้อมูลจำลอง/);
+});

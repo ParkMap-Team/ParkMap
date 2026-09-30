@@ -4,15 +4,40 @@ ParkMap is a fourth-year Sripatum University project for finding usable motorcyc
 
 ```text
 ParkMap/
-├── apps/web/        # App Router dashboard on vinext/Vite
-├── apps/vision-api/ # FastAPI, YOLO, calibration, and parking geometry
-├── docs/            # API contract, architecture decisions, and agent guidance
+├── apps/liff/       # student-facing LIFF app: Next.js, 3D lot model, live regions
+├── apps/web/        # calibration and upload POC on vinext/Vite; moving to tools/calibration-ui
+├── apps/vision-api/ # FastAPI, YOLO, calibration, parking geometry, live state API, frame worker
+├── docs/            # API contract, architecture decisions, roadmap, and agent guidance
 └── .agents/         # repository agent skills
 ```
 
-The web app visualizes the vision API pipeline. YOLO inference, ROI calibration, homography, dynamic physical rows, occupied geometry, free-space calculation, capacity witnesses, and parking-state diagnostics belong in Python. The present UI analyzes uploaded images; live camera ingestion, LIFF, and 3D navigation are planned work.
+YOLO inference, ROI calibration, homography, dynamic physical rows, occupied geometry, free-space calculation, capacity witnesses, and parking-state decisions belong in Python. The worker pushes derived state to the API; the LIFF app only renders it. See [ADR 0002](docs/adr/0002-live-state-pipeline-and-liff-app.md) for the live pipeline and [docs/roadmap.md](docs/roadmap.md) for team tracks and milestones.
 
-## Frontend
+## Quick start without a camera
+
+```sh
+docker compose up -d postgres
+cd apps/vision-api
+cp .env.example .env                      # set PARKMAP_WORKER_TOKEN
+.venv/bin/python -m alembic upgrade head
+.venv/bin/python -m app.manage seed-dev   # fake site, lot model, calibration
+.venv/bin/python -m uvicorn app.main:app --reload --port 8000
+.venv/bin/python -m app.manage publish-dev-state   # second terminal
+cd ../liff && cp .env.example .env.local && pnpm dev   # http://localhost:3001
+```
+
+The seeded data is synthetic, and the LIFF app labels it as such.
+
+## LIFF app
+
+```sh
+pnpm install --frozen-lockfile
+pnpm dev:liff
+```
+
+Open <http://localhost:3001>. After changing a Pydantic API model, run `python scripts/export_openapi.py` in `apps/vision-api`, then `pnpm --filter @parkmap/liff api:generate`. CI fails when either generated file is stale.
+
+## Calibration POC (apps/web)
 
 ```sh
 corepack enable
@@ -35,7 +60,7 @@ python -m uvicorn app.main:app --reload --port 8000
 Endpoints:
 
 - Health: <http://localhost:8000/api/health>
-- Live parking status: `GET /api/parking/status` returns `503` until a camera worker and current state store exist; it never returns demo availability.
+- Live parking state: `GET /api/sites/{site_id}/parking-state`; see [apps/vision-api/README.md](apps/vision-api/README.md) for the worker, database, and management commands.
 - Image analysis: `POST http://localhost:8000/api/detection/analyze` with multipart field `image`
 - Metric calibration: `GET/POST http://localhost:8000/api/metric-calibration`
 - API docs: <http://localhost:8000/docs>
@@ -49,12 +74,17 @@ pnpm --filter @parkmap/web lint
 pnpm --filter @parkmap/web typecheck
 pnpm --filter @parkmap/web test
 pnpm --filter @parkmap/web build
+pnpm --filter @parkmap/liff lint
+pnpm --filter @parkmap/liff typecheck
+pnpm --filter @parkmap/liff test
+pnpm --filter @parkmap/liff build
 cd apps/vision-api
 uv pip sync --python .venv/bin/python --torch-backend cpu requirements-dev.lock
-.venv/bin/python -m pytest -q tests
+docker compose up -d postgres-test
+PARKMAP_TEST_DATABASE_URL=postgresql://parkmap:parkmap@localhost:5433/parkmap_test .venv/bin/python -m pytest -q tests
 ```
 
-CI runs web and Python jobs sequentially. JavaScript versions shared by future packages belong in the pnpm catalog. Python direct dependencies remain in `apps/vision-api/requirements*.txt`; CI installs the compiled CPU-only `requirements-dev.lock`. Regenerate it with `uv pip compile apps/vision-api/requirements-dev.txt --python-version 3.12 --universal --torch-backend cpu -o apps/vision-api/requirements-dev.lock`. CI layout is adapted from Showcase for ParkMap's runtimes.
+Database tests skip without `PARKMAP_TEST_DATABASE_URL`, and they truncate that database. CI runs the web and LIFF jobs, then the Python job against a Postgres 17 service. JavaScript versions shared by future packages belong in the pnpm catalog. Python direct dependencies remain in `apps/vision-api/requirements*.txt`; CI installs the compiled CPU-only `requirements-dev.lock`. Regenerate it with `uv pip compile apps/vision-api/requirements-dev.txt --python-version 3.12 --universal --torch-backend cpu -o apps/vision-api/requirements-dev.lock`. CI layout is adapted from Showcase for ParkMap's runtimes.
 
 The detection endpoint runs the configured YOLO model and returns normalized top-left motorcycle bounding boxes. Upload analysis then applies the active parking calibration, homography, physical row dimensions, occupied/free geometry, capacity, and parking-state validation.
 

@@ -1,6 +1,6 @@
 # 0001: Workspace and service boundaries
 
-Status: accepted for the current repository setup
+Status: accepted; process layout and the vinext note superseded by [0002](0002-live-state-pipeline-and-liff-app.md)
 
 ParkMap keeps `apps/web/` as a pnpm workspace and `apps/vision-api/` as a Python project in one repository. Turborepo coordinates JavaScript tasks; Python checks run through Python tooling and a separate CI job. This avoids pretending that pnpm manages Python dependencies.
 

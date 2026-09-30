@@ -47,6 +47,12 @@ apps/vision-api/models/*.pt
 apps/vision-api/models/*.onnx
 apps/vision-api/auto-parking-debug/
 
+# Raw camera footage stays off Git (see CONTEXT.md, Boundaries and safety)
+*.mp4
+*.mov
+*.mkv
+*.avi
+
 # Local deployment packaging
 .deploy-stage*/
 *.tar.gz

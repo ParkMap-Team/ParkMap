@@ -1,0 +1,87 @@
+{
+  "notice": "Fake development data. Not surveyed, not from a camera. States published from it are labelled SYNTHETIC_FIXTURE.",
+  "site": {
+    "site_id": "dev-site",
+    "name": "Development site (fake data)",
+    "latitude": 13.8,
+    "longitude": 100.6
+  },
+  "parking_area": {
+    "parking_area_id": "dev-area-1",
+    "camera_id": "dev-camera-1",
+    "name": "Development area (fake data)"
+  },
+  "lot_model": {
+    "schema_version": 1,
+    "outline": [[
+      {"x_m": 0.0, "y_m": 0.0},
+      {"x_m": 20.0, "y_m": 0.0},
+      {"x_m": 20.0, "y_m": 12.0},
+      {"x_m": 0.0, "y_m": 12.0}
+    ]],
+    "parking_areas": [
+      {
+        "parking_area_id": "dev-area-1",
+        "polygon": [[
+          {"x_m": 0.0, "y_m": 0.0},
+          {"x_m": 10.0, "y_m": 0.0},
+          {"x_m": 10.0, "y_m": 6.0},
+          {"x_m": 0.0, "y_m": 6.0}
+        ]]
+      }
+    ]
+  },
+  "sample_state": {
+    "analysis_version": "dev-fixture",
+    "regions": [
+      {
+        "kind": "AVAILABLE",
+        "row_id": "row-1",
+        "polygon": [[
+          {"x_m": 6.0, "y_m": 0.5},
+          {"x_m": 6.66, "y_m": 0.5},
+          {"x_m": 6.66, "y_m": 2.5},
+          {"x_m": 6.0, "y_m": 2.5}
+        ]]
+      },
+      {
+        "kind": "ALMOST_AVAILABLE",
+        "row_id": "row-1",
+        "polygon": [[
+          {"x_m": 3.0, "y_m": 0.5},
+          {"x_m": 3.66, "y_m": 0.5},
+          {"x_m": 3.66, "y_m": 2.5},
+          {"x_m": 3.0, "y_m": 2.5}
+        ]]
+      },
+      {
+        "kind": "UNKNOWN",
+        "row_id": "row-2",
+        "polygon": [[
+          {"x_m": 0.0, "y_m": 3.5},
+          {"x_m": 10.0, "y_m": 3.5},
+          {"x_m": 10.0, "y_m": 5.5},
+          {"x_m": 0.0, "y_m": 5.5}
+        ]]
+      }
+    ],
+    "motorcycles": [
+      {
+        "detection_id": "dev-1",
+        "center": {"x_m": 1.33, "y_m": 1.5},
+        "heading_rad": 1.5708,
+        "length_m": 2.0,
+        "width_m": 0.66,
+        "confidence": 0.9
+      },
+      {
+        "detection_id": "dev-2",
+        "center": {"x_m": 2.1, "y_m": 1.5},
+        "heading_rad": 1.5708,
+        "length_m": 2.0,
+        "width_m": 0.66,
+        "confidence": 0.85
+      }
+    ]
+  }
+}
