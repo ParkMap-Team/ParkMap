@@ -1,6 +1,7 @@
 import hmac
 import json
 import os
+from pathlib import Path as FilePath
 from datetime import UTC, datetime
 from io import BytesIO
 
@@ -325,3 +326,11 @@ async def analyze_auto_parking(images: list[UploadFile] = File(...)) -> dict[str
     except ModelUnavailableError as error:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
     return analyze_detections(responses)
+
+@app.get("/api/auto-parking/state")
+def get_auto_parking_state() -> dict[str, object]:
+    """Read-only experimental snapshot; never runs CV inference."""
+    snapshot=FilePath(__file__).resolve().parent.parent/'auto-parking-experimental'/'current_state.json'
+    if not snapshot.exists(): return {"mode":"AUTO_EXPERIMENTAL","source_type":"EXPERIMENTAL_SNAPSHOT","status":"UNKNOWN","updated_at":None,"rows":[],"unknown_anchors":[],"summary":{"detection_observations":0,"anchors":0,"logical_rows":0,"unknown_anchors":0}}
+    try: return json.loads(snapshot.read_text(encoding='utf-8'))
+    except (OSError,json.JSONDecodeError) as error: raise HTTPException(status_code=500,detail="Experimental snapshot unavailable") from error
