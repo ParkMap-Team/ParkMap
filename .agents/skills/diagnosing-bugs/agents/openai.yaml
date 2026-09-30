@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Diagnosing Bugs'
+  short_description: 'Reproduce, isolate, fix, and lock down regressions'
+  default_prompt: 'Use $diagnosing-bugs to reproduce and diagnose this failure before proposing a fix.'

@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Grill With ParkMap Docs'
+  short_description: 'Challenge plans against ParkMap domain docs'
+  default_prompt: 'Use $grill-with-docs to challenge this plan against the ParkMap domain and update its docs.'

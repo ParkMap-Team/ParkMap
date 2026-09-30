@@ -1,29 +1,37 @@
 # Frontend dependencies and build output
-frontend/node_modules/
-frontend/.next/
-frontend/.vinext/
-frontend/dist/
-frontend/.wrangler/
-frontend/coverage/
-frontend/*.tsbuildinfo
-frontend/next-env.d.ts
-frontend/.env.local
-frontend/.env.*.local
-frontend/npm-debug.log*
+node_modules/
+.turbo/
+apps/web/node_modules/
+apps/web/.next/
+apps/web/.vinext/
+apps/web/dist/
+apps/web/.wrangler/
+apps/web/coverage/
+apps/web/*.tsbuildinfo
+apps/web/next-env.d.ts
+apps/web/.env.local
+apps/web/.env.*.local
+apps/web/npm-debug.log*
+apps/web/.turbo/
 
 # Backend environments, caches, and secrets
-backend/.venv/
-backend/venv/
-backend/**/__pycache__/
-backend/**/*.py[cod]
-backend/.pytest_cache/
-backend/.mypy_cache/
-backend/.ruff_cache/
-backend/.env
-backend/config/parking_calibration.json
-backend/config/metric_calibration.json
-backend/models/*.pt
-backend/models/*.onnx
+apps/vision-api/.venv/
+apps/vision-api/venv/
+apps/vision-api/**/__pycache__/
+apps/vision-api/**/*.py[cod]
+apps/vision-api/.pytest_cache/
+apps/vision-api/.mypy_cache/
+apps/vision-api/.ruff_cache/
+apps/vision-api/.coverage
+apps/vision-api/.env
+apps/vision-api/config/parking_calibration.json
+apps/vision-api/config/metric_calibration.json
+apps/vision-api/config/ground_plane_calibration.json
+apps/vision-api/config/ground_plane_homography.json
+apps/vision-api/config/physical_row_geometry.json
+
+apps/vision-api/models/*.pt
+apps/vision-api/models/*.onnx
 
 # Local deployment packaging
 .deploy-stage*/
@@ -35,4 +43,3 @@ Thumbs.db
 .vscode/
 .idea/
 *.pem
-

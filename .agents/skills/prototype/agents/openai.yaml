@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Prototype'
+  short_description: 'Build disposable logic or UI experiments to decide faster'
+  default_prompt: 'Use $prototype to test this product or interface decision with a disposable experiment.'
