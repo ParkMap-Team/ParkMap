@@ -352,6 +352,29 @@ def get_hybrid_parking_state() -> dict[str, object]:
     state.update({"mode":"HYBRID","source_type":"HYBRID_SNAPSHOT","roi":{"polygon":[point.model_dump(mode="json") for point in calibration.parking_roi.polygon]} if calibration else None})
     return state
 
+@app.get("/api/calibrated/state")
+def get_calibrated_state() -> dict[str, object]:
+    """Read-only calibrated geometry state for the unified web viewer."""
+    calibration = calibration_service.load()
+    if calibration is None:
+        return {"mode":"CALIBRATED","status":"NOT_CONFIGURED","source_type":"CALIBRATION_CONFIG","rows":[],"detections":[],"roi":None,"availability":"NOT_ESTIMATED"}
+    rows=[]
+    for row in calibration.rows:
+        points=[point.model_dump(mode="json") for point in row.polygon]
+        rows.append({"row_id":row.id,"display_id":row.id.replace("row_","R"),"status":"CONFIGURED","polygon":points,"centerline":points[:2]})
+    latest_image=FilePath(__file__).resolve().parent.parent/'hybrid-parking-experimental'/'latest_image'
+    updated_at=datetime.fromtimestamp(calibration_service.calibration_path.stat().st_mtime, UTC).isoformat()
+    image_meta={"url":"/api/hybrid-parking/latest/image","width":calibration.reference_image.width,"height":calibration.reference_image.height} if latest_image.exists() else None
+    detections=[]
+    hybrid_snapshot=FilePath(__file__).resolve().parent.parent/'hybrid-parking-experimental'/'current_state.json'
+    if hybrid_snapshot.exists():
+        try:
+            snapshot=json.loads(hybrid_snapshot.read_text(encoding="utf-8"))
+            detections=snapshot.get("detections",[])
+        except (OSError, json.JSONDecodeError):
+            detections=[]
+    return {"mode":"CALIBRATED","status":"READY","source_type":"CALIBRATION_CONFIG","updated_at":updated_at,"rows":rows,"detections":detections,"image":image_meta,"roi":{"polygon":[point.model_dump(mode="json") for point in calibration.parking_roi.polygon]},"availability":"NOT_ESTIMATED"}
+
 def _normalized_point_in_polygon(x: float, y: float, polygon: list[object]) -> bool:
     inside = False
     for index, point in enumerate(polygon):
@@ -390,11 +413,18 @@ async def analyze_hybrid_parking(image: UploadFile = File(...)) -> dict[str, obj
         bbox = item.bbox
         point = {"x": bbox.x + bbox.width / 2, "y": bbox.y + bbox.height}
         inside_roi = _normalized_point_in_polygon(point["x"], point["y"], roi)
+        bbox_corners = [(bbox.x, bbox.y), (bbox.x + bbox.width, bbox.y), (bbox.x + bbox.width, bbox.y + bbox.height), (bbox.x, bbox.y + bbox.height)]
+        bbox_intersects_roi = any(_normalized_point_in_polygon(x, y, roi) for x, y in bbox_corners) or any(bbox.x <= vertex.x <= bbox.x + bbox.width and bbox.y <= vertex.y <= bbox.y + bbox.height for vertex in roi)
         detection_id = f"detection_{index}"
-        detections.append({"detection_id": detection_id, "confidence": item.confidence, "bbox": bbox.model_dump(mode="json"), "point": point, "inside_roi": inside_roi})
+        detections.append({"detection_id": detection_id, "confidence": item.confidence, "bbox": bbox.model_dump(mode="json"), "point": point, "inside_roi": inside_roi, "bbox_intersects_roi": bbox_intersects_roi})
         if inside_roi:
             occupied_regions.append({"region_id": f"occupied_{index}", "detection_id": detection_id, "coordinate_space": "NORMALIZED_IMAGE", "polygon":[{"x":bbox.x,"y":bbox.y},{"x":bbox.x+bbox.width,"y":bbox.y},{"x":bbox.x+bbox.width,"y":bbox.y+bbox.height},{"x":bbox.x,"y":bbox.y+bbox.height}],"status":"OCCUPIED_EVIDENCE"})
-    result={"mode":"HYBRID","status":"READY","source_type":"HYBRID_ANALYSIS","updated_at":datetime.now(UTC).isoformat(),"roi":{"polygon":[point.model_dump(mode="json") for point in roi]},"rows":[],"unknown_anchors":[],"detections":detections,"occupied_regions":occupied_regions,"summary":{"detected":len(detections),"inside_roi":sum(1 for item in detections if item["inside_roi"])},"availability":"NOT_ESTIMATED"}
+    roi_detections=[item for item in detection.detections if _normalized_point_in_polygon(item.bbox.x + item.bbox.width / 2, item.bbox.y + item.bbox.height, roi)]
+    roi_detection=detection.model_copy(update={"detections": roi_detections})
+    auto_analysis = analyze_detections([(image.filename or "hybrid_image", roi_detection)])
+    inferred_rows = auto_analysis["rows"]
+    corridors = [{"corridor_id": f"corridor_{row['row_id']}", "row_id": row["row_id"], "coordinate_space": row["coordinate_space"], "polygon": row["polygon"], "support_status": row["status"]} for row in inferred_rows if row["status"] == "SUPPORTED"]
+    result={"mode":"HYBRID","status":"READY","source_type":"HYBRID_ANALYSIS","updated_at":datetime.now(UTC).isoformat(),"roi":{"polygon":[point.model_dump(mode="json") for point in roi]},"rows":inferred_rows,"rejected_observations":auto_analysis["rejected_observations"],"parking_corridors":corridors,"unknown_anchors":[],"detections":detections,"occupied_regions":occupied_regions,"summary":{"detected":len(detections),"inside_roi":sum(1 for item in detections if item["inside_roi"]),"inferred_rows":len(inferred_rows),"supported_corridors":len(corridors)},"availability":"NOT_ESTIMATED"}
     snapshot=FilePath(__file__).resolve().parent.parent/'hybrid-parking-experimental'/'current_state.json'
     snapshot.parent.mkdir(parents=True,exist_ok=True)
     image_path=snapshot.parent/'latest_image'
