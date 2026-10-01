@@ -60,6 +60,7 @@ apps/vision-api/models/*.pt
 apps/vision-api/models/*.onnx
 apps/vision-api/auto-parking-debug/
 apps/vision-api/hybrid-parking-experimental/latest_image
+apps/vision-api/hybrid-parking-experimental/current_state.json
 
 # Raw camera footage stays off Git (see CONTEXT.md, Boundaries and safety)
 *.mp4
