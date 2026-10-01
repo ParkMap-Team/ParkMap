@@ -1,8 +1,9 @@
 import { Camera, ImageIcon } from 'lucide-react';
+import type { RefObject } from 'react';
 import type { DetectionResponse } from '@/types/detection';
 import type { DetectionRowAssignment } from '@/types/calibration';
 
-export function CameraMonitor({ imageUrl, analysis, assignments: _assignments = [] }: { imageUrl: string | null; analysis: DetectionResponse | null; assignments?: DetectionRowAssignment[] }) {
+export function CameraMonitor({ imageUrl, videoUrl, videoRef, analysis, assignments: _assignments = [] }: { imageUrl: string | null; videoUrl?: string | null; videoRef?: RefObject<HTMLVideoElement | null>; analysis: DetectionResponse | null; assignments?: DetectionRowAssignment[] }) {
   const width = analysis?.image_width ?? 1000;
   const height = analysis?.image_height ?? 562;
   return (
@@ -12,9 +13,9 @@ export function CameraMonitor({ imageUrl, analysis, assignments: _assignments = 
         {analysis && <span className="text-sm font-semibold text-emerald-700">{analysis.detections.length} motorcycles</span>}
       </div>
       <div className="relative grid min-h-64 place-items-center overflow-hidden bg-slate-950">
-        {imageUrl ? (
+        {imageUrl || videoUrl ? (
           <div className="relative inline-block max-h-[620px] max-w-full">
-            <img src={imageUrl} alt="Parking camera analysis" className="block max-h-[620px] max-w-full object-contain" />
+            {videoUrl ? <video ref={videoRef} src={videoUrl} aria-label="Parking camera video" className="block max-h-[620px] max-w-full object-contain" autoPlay controls muted loop playsInline /> : <img src={imageUrl ?? undefined} alt="Parking camera analysis" className="block max-h-[620px] max-w-full object-contain" />}
             {analysis && <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full" aria-label="Motorcycle detection boxes">
               {analysis.detections.map((detection, index) => {
                 const x = detection.bbox.x * width, y = detection.bbox.y * height;
@@ -25,7 +26,7 @@ export function CameraMonitor({ imageUrl, analysis, assignments: _assignments = 
               })}
             </svg>}
           </div>
-        ) : <div className="text-center text-slate-500"><ImageIcon className="mx-auto size-9" /><p className="mt-2 text-sm">Choose an image to begin</p></div>}
+        ) : <div className="text-center text-slate-500"><ImageIcon className="mx-auto size-9" /><p className="mt-2 text-sm">Choose an image or video to begin</p></div>}
       </div>
     </section>
   );
