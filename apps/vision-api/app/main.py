@@ -333,8 +333,19 @@ def get_auto_parking_state() -> dict[str, object]:
     """Read-only experimental snapshot; never runs CV inference."""
     snapshot=FilePath(__file__).resolve().parent.parent/'auto-parking-experimental'/'current_state.json'
     if not snapshot.exists(): return {"mode":"AUTO_EXPERIMENTAL","source_type":"EXPERIMENTAL_SNAPSHOT","status":"UNKNOWN","updated_at":None,"rows":[],"unknown_anchors":[],"summary":{"detection_observations":0,"anchors":0,"logical_rows":0,"unknown_anchors":0}}
-    try: return json.loads(snapshot.read_text(encoding='utf-8'))
+    try:
+        state=json.loads(snapshot.read_text(encoding='utf-8'))
+        image_path=snapshot.parent/'auto_rows_v2.png'
+        if image_path.exists(): state["image"]={"url":"/api/auto-parking/latest/image","width":4032,"height":3024}
+        return state
     except (OSError,json.JSONDecodeError) as error: raise HTTPException(status_code=500,detail="Experimental snapshot unavailable") from error
+
+@app.get("/api/auto-parking/latest/image")
+def get_auto_latest_image() -> FileResponse:
+    image_path=FilePath(__file__).resolve().parent.parent/'auto-parking-experimental'/'auto_rows_v2.png'
+    if not image_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Auto image is available.")
+    return FileResponse(image_path)
 
 @app.get("/api/hybrid-parking/state")
 def get_hybrid_parking_state() -> dict[str, object]:
@@ -353,7 +364,7 @@ def get_hybrid_parking_state() -> dict[str, object]:
     return state
 
 @app.get("/api/calibrated/state")
-def get_calibrated_state() -> dict[str, object]:
+async def get_calibrated_state() -> dict[str, object]:
     """Read-only calibrated geometry state for the unified web viewer."""
     calibration = calibration_service.load()
     if calibration is None:
@@ -365,15 +376,33 @@ def get_calibrated_state() -> dict[str, object]:
     latest_image=FilePath(__file__).resolve().parent.parent/'hybrid-parking-experimental'/'latest_image'
     updated_at=datetime.fromtimestamp(calibration_service.calibration_path.stat().st_mtime, UTC).isoformat()
     image_meta={"url":"/api/hybrid-parking/latest/image","width":calibration.reference_image.width,"height":calibration.reference_image.height} if latest_image.exists() else None
+    parking_analysis=None
     detections=[]
+    if latest_image.exists():
+        try:
+            image_bytes=latest_image.read_bytes()
+            detection=await run_in_threadpool(cv_service.analyze_image, image_bytes)
+            parking_analysis=await run_in_threadpool(parking_analysis_service.analyze, detection)
+            image_meta={"url":"/api/hybrid-parking/latest/image","width":detection.image_width,"height":detection.image_height}
+            detections=[]
+            roi_polygon=calibration.parking_roi.polygon
+            for item in detection.detections:
+                payload=item.model_dump(mode="json")
+                bbox=payload["bbox"]
+                point={"x":bbox["x"] + bbox["width"] / 2, "y":bbox["y"] + bbox["height"]}
+                payload["point"] = point
+                payload["inside_roi"] = _normalized_point_in_polygon(point["x"], point["y"], roi_polygon)
+                detections.append(payload)
+        except (OSError, ModelUnavailableError, ParkingCalibrationUnavailableError, ValueError):
+            parking_analysis=None
     hybrid_snapshot=FilePath(__file__).resolve().parent.parent/'hybrid-parking-experimental'/'current_state.json'
-    if hybrid_snapshot.exists():
+    if not detections and hybrid_snapshot.exists():
         try:
             snapshot=json.loads(hybrid_snapshot.read_text(encoding="utf-8"))
             detections=snapshot.get("detections",[])
         except (OSError, json.JSONDecodeError):
             detections=[]
-    return {"mode":"CALIBRATED","status":"READY","source_type":"CALIBRATION_CONFIG","updated_at":updated_at,"rows":rows,"detections":detections,"image":image_meta,"roi":{"polygon":[point.model_dump(mode="json") for point in calibration.parking_roi.polygon]},"availability":"NOT_ESTIMATED"}
+    return {"mode":"CALIBRATED","status":"READY","source_type":"CALIBRATION_CONFIG","updated_at":updated_at,"rows":rows,"detections":detections,"image":image_meta,"roi":{"polygon":[point.model_dump(mode="json") for point in calibration.parking_roi.polygon]},"parking_analysis":parking_analysis,"availability":"NOT_ESTIMATED"}
 
 def _normalized_point_in_polygon(x: float, y: float, polygon: list[object]) -> bool:
     inside = False

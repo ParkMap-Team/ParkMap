@@ -1,7 +1,91 @@
 "use client";
-import {useEffect,useState} from "react";
-type P={x:number;y:number};type B={x:number;y:number;width:number;height:number};type D={detection_id?:string;point?:P;bbox?:B;inside_roi?:boolean;bbox_intersects_roi?:boolean};type T={status:string;updated_at?:string|null;rows:Array<{row_id:string;polygon?:P[];centerline?:P[]}>;detections?:D[];roi?:{polygon:P[]}|null;image?:{url:string;width:number;height:number}|null};
-const thaiTime=(v?:string|null)=>{if(!v)return"ไม่มีข้อมูลเวลา";const d=new Date(v);return Number.isNaN(d.getTime())?v:new Intl.DateTimeFormat("th-TH",{dateStyle:"medium",timeStyle:"medium",hour12:false,timeZone:"Asia/Bangkok"}).format(d)};
-const nearRoi=(d:D,roi:P[])=>{if(d.inside_roi||d.bbox_intersects_roi)return true;if(!d.point||roi.length<3)return false;const xs=roi.map(p=>p.x),ys=roi.map(p=>p.y);return d.point.x>=Math.min(...xs)-.025&&d.point.x<=Math.max(...xs)+.025&&d.point.y>=Math.min(...ys)-.025&&d.point.y<=Math.max(...ys)+.025};
-const smaller=(b:B):B=>{const s=.86;const dx=b.width*(1-s)/2,dy=b.height*(1-s)/2;return{x:b.x+dx,y:b.y+dy,width:b.width*s,height:b.height*s}};
-export function DashboardClient(){const[mode,setMode]=useState<"AUTO"|"HYBRID"|"CALIBRATED">("HYBRID");const[state,setState]=useState<T|null>(null);useEffect(()=>{let active=true;const endpoint=mode==="AUTO"?"/api/auto-parking/state":mode==="HYBRID"?"/api/hybrid-parking/state":"/api/calibrated/state";const load=()=>fetch(`http://localhost:8000${endpoint}`).then(r=>r.json()).then(v=>active&&setState(v as T));void load();const timer=window.setInterval(load,30000);return()=>{active=false;window.clearInterval(timer)}},[mode]);const roi=state?.roi?.polygon??[];const timeLabel=mode==="CALIBRATED"?"ตั้งค่าเมื่อ":"อัปเดต";const button=(name:"AUTO"|"HYBRID"|"CALIBRATED")=>`rounded px-3 py-2 text-sm ${mode===name?"bg-cyan-400 text-slate-950":"text-slate-300 hover:bg-slate-800"}`;const ratio=state?.image?state.image.width/state.image.height:16/9;return <main className="min-h-screen bg-slate-950 text-slate-100 p-6"><header className="mx-auto flex max-w-6xl justify-between"><h1 className="text-2xl">Motorcycle Parking</h1><div className="flex gap-1"><button onClick={()=>setMode("AUTO")} className={button("AUTO")}>AUTO</button><button onClick={()=>setMode("HYBRID")} className={button("HYBRID")}>HYBRID</button><button onClick={()=>setMode("CALIBRATED")} className={button("CALIBRATED")}>CALIBRATED</button></div></header>{state&&<div className="mx-auto mt-4 max-w-6xl"><p>โหมด: {mode} · สถานะ: {state.status} · {timeLabel}: {thaiTime(state.updated_at)}</p><div className="relative mt-4 overflow-hidden" style={{aspectRatio:state.image?`${state.image.width}/${state.image.height}`:"4/3"}}><img src={state.image?.url?`http://localhost:8000${state.image.url}`:undefined} className="absolute inset-0 size-full object-fill"/><svg viewBox="0 0 1 1" preserveAspectRatio="none" className="absolute inset-0 size-full">{roi.length>1&&<polygon points={roi.map(p=>`${p.x},${p.y}`).join(" ")} fill="#f0abfc" fillOpacity=".10" stroke="#e879f9" strokeWidth=".005"/>}{state.rows.map(r=>{const p=r.polygon??r.centerline??[];return <g key={r.row_id}>{p.length>2&&<polygon points={p.map(q=>`${q.x},${q.y}`).join(" ")} fill="#86efac" fillOpacity=".12" stroke="#22c55e" strokeWidth=".006"/>}{p.length===2&&<line x1={p[0].x} y1={p[0].y} x2={p[1].x} y2={p[1].y} stroke="#22c55e" strokeWidth=".006"/>}</g>})}{state.detections?.filter(d=>nearRoi(d,roi)).map((d,i)=><g key={d.detection_id??i}>{d.bbox&&(()=>{const b=smaller(d.bbox);return <rect x={b.x} y={b.y} width={b.width} height={b.height} fill="#ef4444" fillOpacity=".28" stroke="#dc2626" strokeWidth=".002"/>})()}{d.point&&<ellipse cx={d.point.x} cy={d.point.y} rx={.009/ratio} ry=".009" fill="#b91c1c" stroke="#fee2e2" strokeWidth=".001"/>}</g>)}</svg></div><p className="mt-2 text-sm text-slate-400">เขียว: row · ชมพู: ROI · แดง: รถที่ YOLO ตรวจพบ</p></div>}</main>}
+
+import { useEffect, useState } from "react";
+
+type Point = { x: number; y: number };
+type ParkingState = {
+  status: string;
+  updated_at?: string | null;
+  rows: any[];
+  detections?: any[];
+  roi?: { polygon: Point[] } | null;
+  image?: { url: string; width: number; height: number } | null;
+};
+
+const formatTime = (value?: string | null) =>
+  value
+    ? new Intl.DateTimeFormat("th-TH", {
+        dateStyle: "medium",
+        timeStyle: "medium",
+        hour12: false,
+        timeZone: "Asia/Bangkok",
+      }).format(new Date(value))
+    : "ไม่มีข้อมูลเวลา";
+
+export function DashboardClient() {
+  const [mode, setMode] = useState<"AUTO" | "HYBRID">("HYBRID");
+  const [view, setView] = useState<"2D" | "3D">("2D");
+  const [state, setState] = useState<ParkingState | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const endpoint = mode === "AUTO" ? "auto-parking" : "hybrid-parking";
+    const load = () =>
+      fetch(`http://localhost:8000/api/${endpoint}/state`)
+        .then((response) => response.json())
+        .then((value) => active && setState(value as ParkingState));
+    void load();
+    const timer = window.setInterval(load, 30_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [mode]);
+
+  const buttonClass = (active: boolean) =>
+    `rounded px-3 py-2 text-sm ${active ? "bg-cyan-400 text-slate-950" : "text-slate-300 hover:bg-slate-800"}`;
+  const imageUrl = state?.image?.url
+    ? `http://localhost:8000${state.image.url}?state=${encodeURIComponent(state.updated_at ?? "latest")}`
+    : null;
+
+  return (
+    <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
+      <header className="mx-auto flex max-w-6xl justify-between">
+        <h1 className="text-2xl">Motorcycle Parking</h1>
+        <div className="flex gap-1">
+          <button className={buttonClass(mode === "AUTO")} onClick={() => setMode("AUTO")}>AUTO</button>
+          <button className={buttonClass(mode === "HYBRID")} onClick={() => setMode("HYBRID")}>HYBRID</button>
+          <span className="mx-2 border-l border-slate-700" />
+          <button className={buttonClass(view === "2D")} onClick={() => setView("2D")}>2D</button>
+          <button className={buttonClass(view === "3D")} onClick={() => setView("3D")}>3D</button>
+        </div>
+      </header>
+
+      {state && (
+        <section className="mx-auto mt-4 max-w-6xl">
+          <p>โหมด: {mode} · มุมมอง: {view} · สถานะ: {state.status} · อัปเดต: {formatTime(state.updated_at)}</p>
+          <div
+            className="relative mt-4 overflow-hidden rounded-xl bg-slate-900"
+            style={{ aspectRatio: state.image ? `${state.image.width}/${state.image.height}` : "4/3" }}
+          >
+            {view === "3D" && imageUrl && <img src={imageUrl} className="absolute inset-0 size-full object-fill" />}
+            <svg viewBox="0 0 1 1" preserveAspectRatio="none" className="absolute inset-0 size-full">
+              {state.roi?.polygon && (
+                <polygon points={state.roi.polygon.map((point) => `${point.x},${point.y}`).join(" ")} fill="#f0abfc" fillOpacity=".1" stroke="#e879f9" strokeWidth=".005" />
+              )}
+              {state.rows.map((row: any, index: number) => {
+                const geometry = row.polygon ?? row.row?.polygon ?? row.centerline ?? row.row?.centerline ?? [];
+                if (geometry.length < 2) return null;
+                const rowId = row.row_id ?? row.row?.row_id ?? `row_${index + 1}`;
+                return <polygon key={rowId} points={geometry.map((point: Point) => `${point.x},${point.y}`).join(" ")} fill="#14532d" fillOpacity=".55" stroke="#34d399" strokeWidth=".005" />;
+              })}
+              {state.detections?.map((detection: any, index: number) => detection.bbox && (
+                <rect key={detection.detection_id ?? index} x={detection.bbox.x} y={detection.bbox.y} width={detection.bbox.width} height={detection.bbox.height} fill="#ef4444" fillOpacity=".3" stroke="#f87171" strokeWidth=".002" />
+              ))}
+            </svg>
+          </div>
+        </section>
+      )}
+    </main>
+  );
+}
