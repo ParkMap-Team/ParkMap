@@ -4,6 +4,83 @@
  */
 
 export interface paths {
+    "/api/auto-parking/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Analyze Auto Parking
+         * @description Experimental structure discovery from multiple images of one camera.
+         */
+        post: operations["analyze_auto_parking_api_auto_parking_analyze_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auto-parking/latest/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Auto Latest Image */
+        get: operations["get_auto_latest_image_api_auto_parking_latest_image_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auto-parking/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Auto Parking State
+         * @description Read-only experimental snapshot; never runs CV inference.
+         */
+        get: operations["get_auto_parking_state_api_auto_parking_state_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/calibrated/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Calibrated State
+         * @description Read-only calibrated geometry state for the unified web viewer.
+         */
+        get: operations["get_calibrated_state_api_calibrated_state_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/calibration": {
         parameters: {
             query?: never;
@@ -108,6 +185,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hybrid-parking/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Analyze Hybrid Parking
+         * @description Run YOLO and return detections classified only against backend ROI.
+         */
+        post: operations["analyze_hybrid_parking_api_hybrid_parking_analyze_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hybrid-parking/latest/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Hybrid Latest Image */
+        get: operations["get_hybrid_latest_image_api_hybrid_parking_latest_image_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hybrid-parking/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Hybrid Parking State
+         * @description Read-only Hybrid snapshot with backend-owned ROI only.
+         *
+         *     Row calibration is intentionally not exposed by this endpoint.
+         */
+        get: operations["get_hybrid_parking_state_api_hybrid_parking_state_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/internal/parking-states": {
         parameters: {
             query?: never;
@@ -119,24 +255,6 @@ export interface paths {
         put?: never;
         /** Ingest Parking State */
         post: operations["ingest_parking_state_api_internal_parking_states_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/metric-calibration": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Metric Calibration */
-        get: operations["get_metric_calibration_api_metric_calibration_get"];
-        put?: never;
-        /** Save Metric Calibration */
-        post: operations["save_metric_calibration_api_metric_calibration_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -234,8 +352,18 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Body_analyze_auto_parking_api_auto_parking_analyze_post */
+        Body_analyze_auto_parking_api_auto_parking_analyze_post: {
+            /** Images */
+            images: string[];
+        };
         /** Body_analyze_detection_api_detection_analyze_post */
         Body_analyze_detection_api_detection_analyze_post: {
+            /** Image */
+            image: string;
+        };
+        /** Body_analyze_hybrid_parking_api_hybrid_parking_analyze_post */
+        Body_analyze_hybrid_parking_api_hybrid_parking_analyze_post: {
             /** Image */
             image: string;
         };
@@ -593,88 +721,12 @@ export interface components {
             /** Version */
             version: number;
         };
-        /** MetricCalibration */
-        MetricCalibration: {
-            /** Camera Id */
-            camera_id: string;
-            /** Ground Control Points */
-            ground_control_points?: components["schemas"]["MetricGroundControlPoint"][];
-            /**
-             * Measurement Source
-             * @default ESTIMATED
-             * @enum {string}
-             */
-            measurement_source: "ESTIMATED" | "MEASURED";
-            /** Reference Segments */
-            reference_segments?: components["schemas"]["MetricReferenceSegment"][];
-            /** Rows */
-            rows?: components["schemas"]["MetricRowMeasurement"][];
-            /**
-             * Schema Version
-             * @default 1
-             * @constant
-             */
-            schema_version: 1;
-            /**
-             * Unit
-             * @default meter
-             * @constant
-             */
-            unit: "meter";
-        };
-        /** MetricCalibrationResponse */
-        MetricCalibrationResponse: {
-            calibration: components["schemas"]["MetricCalibration"] | null;
-            /**
-             * Ground Plane Calibration Available
-             * @default false
-             * @constant
-             */
-            ground_plane_calibration_available: false;
-            /**
-             * Measurement Source
-             * @enum {string}
-             */
-            measurement_source: "ESTIMATED" | "MEASURED";
-            /** Row Measurements Complete */
-            row_measurements_complete: boolean;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "NOT_CALIBRATED" | "PARTIALLY_CALIBRATED" | "CALIBRATED";
-        };
-        /** MetricGroundControlPoint */
-        MetricGroundControlPoint: {
-            ground: components["schemas"]["MetricGroundPoint"];
-            /** Id */
-            id: string;
-            image: components["schemas"]["CalibrationPoint"];
-        };
         /** MetricGroundPoint */
         MetricGroundPoint: {
             /** X M */
             x_m: number;
             /** Y M */
             y_m: number;
-        };
-        /** MetricReferenceSegment */
-        MetricReferenceSegment: {
-            /** Distance M */
-            distance_m: number;
-            /** Id */
-            id: string;
-            image_end: components["schemas"]["CalibrationPoint"];
-            image_start: components["schemas"]["CalibrationPoint"];
-            /** Label */
-            label: string;
-        };
-        /** MetricRowMeasurement */
-        MetricRowMeasurement: {
-            /** Id */
-            id: string;
-            /** Length M */
-            length_m: number;
         };
         /** MotorcycleFittingConfiguration */
         MotorcycleFittingConfiguration: {
@@ -863,6 +915,105 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    analyze_auto_parking_api_auto_parking_analyze_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_analyze_auto_parking_api_auto_parking_analyze_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_auto_latest_image_api_auto_parking_latest_image_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_auto_parking_state_api_auto_parking_state_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    get_calibrated_state_api_calibrated_state_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     get_calibration_api_calibration_get: {
         parameters: {
             query?: never;
@@ -1064,6 +1215,83 @@ export interface operations {
             };
         };
     };
+    analyze_hybrid_parking_api_hybrid_parking_analyze_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_analyze_hybrid_parking_api_hybrid_parking_analyze_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_hybrid_latest_image_api_hybrid_parking_latest_image_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_hybrid_parking_state_api_hybrid_parking_state_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     ingest_parking_state_api_internal_parking_states_post: {
         parameters: {
             query?: never;
@@ -1085,59 +1313,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_metric_calibration_api_metric_calibration_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MetricCalibrationResponse"];
-                };
-            };
-        };
-    };
-    save_metric_calibration_api_metric_calibration_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MetricCalibration"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MetricCalibrationResponse"];
-                };
             };
             /** @description Validation Error */
             422: {

@@ -1,6 +1,23 @@
 {
   "components": {
     "schemas": {
+      "Body_analyze_auto_parking_api_auto_parking_analyze_post": {
+        "properties": {
+          "images": {
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Images",
+            "type": "array"
+          }
+        },
+        "required": [
+          "images"
+        ],
+        "title": "Body_analyze_auto_parking_api_auto_parking_analyze_post",
+        "type": "object"
+      },
       "Body_analyze_detection_api_detection_analyze_post": {
         "properties": {
           "image": {
@@ -13,6 +30,20 @@
           "image"
         ],
         "title": "Body_analyze_detection_api_detection_analyze_post",
+        "type": "object"
+      },
+      "Body_analyze_hybrid_parking_api_hybrid_parking_analyze_post": {
+        "properties": {
+          "image": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Image",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "title": "Body_analyze_hybrid_parking_api_hybrid_parking_analyze_post",
         "type": "object"
       },
       "CalibrationPoint": {
@@ -981,133 +1012,6 @@
         "title": "LotModelResponse",
         "type": "object"
       },
-      "MetricCalibration": {
-        "properties": {
-          "camera_id": {
-            "minLength": 1,
-            "title": "Camera Id",
-            "type": "string"
-          },
-          "ground_control_points": {
-            "items": {
-              "$ref": "#/components/schemas/MetricGroundControlPoint"
-            },
-            "title": "Ground Control Points",
-            "type": "array"
-          },
-          "measurement_source": {
-            "default": "ESTIMATED",
-            "enum": [
-              "ESTIMATED",
-              "MEASURED"
-            ],
-            "title": "Measurement Source",
-            "type": "string"
-          },
-          "reference_segments": {
-            "items": {
-              "$ref": "#/components/schemas/MetricReferenceSegment"
-            },
-            "title": "Reference Segments",
-            "type": "array"
-          },
-          "rows": {
-            "items": {
-              "$ref": "#/components/schemas/MetricRowMeasurement"
-            },
-            "title": "Rows",
-            "type": "array"
-          },
-          "schema_version": {
-            "const": 1,
-            "default": 1,
-            "title": "Schema Version",
-            "type": "integer"
-          },
-          "unit": {
-            "const": "meter",
-            "default": "meter",
-            "title": "Unit",
-            "type": "string"
-          }
-        },
-        "required": [
-          "camera_id"
-        ],
-        "title": "MetricCalibration",
-        "type": "object"
-      },
-      "MetricCalibrationResponse": {
-        "properties": {
-          "calibration": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MetricCalibration"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "ground_plane_calibration_available": {
-            "const": false,
-            "default": false,
-            "title": "Ground Plane Calibration Available",
-            "type": "boolean"
-          },
-          "measurement_source": {
-            "enum": [
-              "ESTIMATED",
-              "MEASURED"
-            ],
-            "title": "Measurement Source",
-            "type": "string"
-          },
-          "row_measurements_complete": {
-            "title": "Row Measurements Complete",
-            "type": "boolean"
-          },
-          "status": {
-            "enum": [
-              "NOT_CALIBRATED",
-              "PARTIALLY_CALIBRATED",
-              "CALIBRATED"
-            ],
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "status",
-          "measurement_source",
-          "row_measurements_complete",
-          "calibration"
-        ],
-        "title": "MetricCalibrationResponse",
-        "type": "object"
-      },
-      "MetricGroundControlPoint": {
-        "properties": {
-          "ground": {
-            "$ref": "#/components/schemas/MetricGroundPoint"
-          },
-          "id": {
-            "minLength": 1,
-            "title": "Id",
-            "type": "string"
-          },
-          "image": {
-            "$ref": "#/components/schemas/CalibrationPoint"
-          }
-        },
-        "required": [
-          "id",
-          "image",
-          "ground"
-        ],
-        "title": "MetricGroundControlPoint",
-        "type": "object"
-      },
       "MetricGroundPoint": {
         "properties": {
           "x_m": {
@@ -1124,60 +1028,6 @@
           "y_m"
         ],
         "title": "MetricGroundPoint",
-        "type": "object"
-      },
-      "MetricReferenceSegment": {
-        "properties": {
-          "distance_m": {
-            "exclusiveMinimum": 0.0,
-            "title": "Distance M",
-            "type": "number"
-          },
-          "id": {
-            "minLength": 1,
-            "title": "Id",
-            "type": "string"
-          },
-          "image_end": {
-            "$ref": "#/components/schemas/CalibrationPoint"
-          },
-          "image_start": {
-            "$ref": "#/components/schemas/CalibrationPoint"
-          },
-          "label": {
-            "minLength": 1,
-            "title": "Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "label",
-          "distance_m",
-          "image_start",
-          "image_end"
-        ],
-        "title": "MetricReferenceSegment",
-        "type": "object"
-      },
-      "MetricRowMeasurement": {
-        "properties": {
-          "id": {
-            "pattern": "^row_[1-9][0-9]*$",
-            "title": "Id",
-            "type": "string"
-          },
-          "length_m": {
-            "exclusiveMinimum": 0.0,
-            "title": "Length M",
-            "type": "number"
-          }
-        },
-        "required": [
-          "id",
-          "length_m"
-        ],
-        "title": "MetricRowMeasurement",
         "type": "object"
       },
       "MotorcycleFittingConfiguration": {
@@ -1662,6 +1512,105 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/auto-parking/analyze": {
+      "post": {
+        "description": "Experimental structure discovery from multiple images of one camera.",
+        "operationId": "analyze_auto_parking_api_auto_parking_analyze_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_analyze_auto_parking_api_auto_parking_analyze_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Analyze Auto Parking Api Auto Parking Analyze Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Analyze Auto Parking"
+      }
+    },
+    "/api/auto-parking/latest/image": {
+      "get": {
+        "operationId": "get_auto_latest_image_api_auto_parking_latest_image_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Auto Latest Image"
+      }
+    },
+    "/api/auto-parking/state": {
+      "get": {
+        "description": "Read-only experimental snapshot; never runs CV inference.",
+        "operationId": "get_auto_parking_state_api_auto_parking_state_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Auto Parking State Api Auto Parking State Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Auto Parking State"
+      }
+    },
+    "/api/calibrated/state": {
+      "get": {
+        "description": "Read-only calibrated geometry state for the unified web viewer.",
+        "operationId": "get_calibrated_state_api_calibrated_state_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Calibrated State Api Calibrated State Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Calibrated State"
+      }
+    },
     "/api/calibration": {
       "get": {
         "operationId": "get_calibration_api_calibration_get",
@@ -1874,6 +1823,84 @@
         "summary": "Health"
       }
     },
+    "/api/hybrid-parking/analyze": {
+      "post": {
+        "description": "Run YOLO and return detections classified only against backend ROI.",
+        "operationId": "analyze_hybrid_parking_api_hybrid_parking_analyze_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_analyze_hybrid_parking_api_hybrid_parking_analyze_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Analyze Hybrid Parking Api Hybrid Parking Analyze Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Analyze Hybrid Parking"
+      }
+    },
+    "/api/hybrid-parking/latest/image": {
+      "get": {
+        "operationId": "get_hybrid_latest_image_api_hybrid_parking_latest_image_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Hybrid Latest Image"
+      }
+    },
+    "/api/hybrid-parking/state": {
+      "get": {
+        "description": "Read-only Hybrid snapshot with backend-owned ROI only.\n\nRow calibration is intentionally not exposed by this endpoint.",
+        "operationId": "get_hybrid_parking_state_api_hybrid_parking_state_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Hybrid Parking State Api Hybrid Parking State Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Hybrid Parking State"
+      }
+    },
     "/api/internal/parking-states": {
       "post": {
         "operationId": "ingest_parking_state_api_internal_parking_states_post",
@@ -1921,60 +1948,6 @@
           }
         },
         "summary": "Ingest Parking State"
-      }
-    },
-    "/api/metric-calibration": {
-      "get": {
-        "operationId": "get_metric_calibration_api_metric_calibration_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MetricCalibrationResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Get Metric Calibration"
-      },
-      "post": {
-        "operationId": "save_metric_calibration_api_metric_calibration_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MetricCalibration"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MetricCalibrationResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Save Metric Calibration"
       }
     },
     "/api/motorcycle-fitting": {

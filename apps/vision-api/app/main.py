@@ -17,10 +17,9 @@ from starlette.concurrency import run_in_threadpool
 from app.db import repository
 from app.db.session import get_session
 from app.db.tables import ParkingArea, Site
-from app.models import IDENTIFIER_PATTERN, DetectionResponse, GroundPlaneCalibration, GroundPlaneCalibrationResponse, GroundPlaneHomographyResponse, HealthResponse, LotModelDefinition, LotModelResponse, MetricCalibration, MetricCalibrationResponse, MotorcycleFittingConfiguration, MotorcycleFittingResponse, ParkingCalibration, ParkingStatePublish, PhysicalRowGeometryConfig, SiteParkingStateResponse, SiteSummary
+from app.models import IDENTIFIER_PATTERN, DetectionResponse, GroundPlaneCalibration, GroundPlaneCalibrationResponse, GroundPlaneHomographyResponse, HealthResponse, LotModelDefinition, LotModelResponse, MotorcycleFittingConfiguration, MotorcycleFittingResponse, ParkingCalibration, ParkingStatePublish, PhysicalRowGeometryConfig, SiteParkingStateResponse, SiteSummary
 from app.services.calibration_service import calibration_service
 from app.services.cv_service import ModelUnavailableError, cv_service
-from app.services.metric_calibration_service import metric_calibration_service
 from app.services.motorcycle_fitting_service import motorcycle_fitting_service
 from app.services.ground_plane_calibration_service import ground_plane_calibration_service
 from app.services.ground_plane_homography_service import HomographyInputError, ground_plane_homography_service
@@ -126,26 +125,6 @@ def get_calibration() -> ParkingCalibration:
 @app.post("/api/calibration", response_model=ParkingCalibration)
 def save_calibration(calibration: ParkingCalibration) -> ParkingCalibration:
     return calibration_service.save(calibration)
-
-
-@app.get("/api/metric-calibration", response_model=MetricCalibrationResponse)
-def get_metric_calibration() -> MetricCalibrationResponse:
-    try:
-        return metric_calibration_service.get_response()
-    except (OSError, ValueError, json.JSONDecodeError) as error:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Metric calibration could not be loaded: {error}") from error
-
-
-@app.post("/api/metric-calibration", response_model=MetricCalibrationResponse)
-def save_metric_calibration(calibration: MetricCalibration) -> MetricCalibrationResponse:
-    parking = calibration_service.load()
-    if parking is None:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Parking calibration is required before saving metric row measurements.")
-    valid_row_ids = {row.id for row in parking.rows}
-    unknown_row_ids = sorted({row.id for row in calibration.rows} - valid_row_ids)
-    if unknown_row_ids:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Metric calibration contains unknown parking rows: {', '.join(unknown_row_ids)}.")
-    return metric_calibration_service.save(calibration)
 
 
 @app.get("/api/ground-plane-calibration", response_model=GroundPlaneCalibrationResponse)

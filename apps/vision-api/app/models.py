@@ -87,63 +87,13 @@ class ParkingCalibration(BaseModel):
         return self
 
 
-MetricCalibrationStatus = Literal["NOT_CALIBRATED", "PARTIALLY_CALIBRATED", "CALIBRATED"]
 MetricMeasurementSource = Literal["ESTIMATED", "MEASURED"]
 MetricRowId = str
-
-
-class MetricRowMeasurement(BaseModel):
-    id: MetricRowId = Field(pattern=r"^row_[1-9][0-9]*$")
-    length_m: float = Field(gt=0.0, allow_inf_nan=False)
-
-
-class MetricReferenceSegment(BaseModel):
-    id: str = Field(min_length=1)
-    label: str = Field(min_length=1)
-    distance_m: float = Field(gt=0.0, allow_inf_nan=False)
-    image_start: CalibrationPoint
-    image_end: CalibrationPoint
 
 
 class MetricGroundPoint(BaseModel):
     x_m: float = Field(allow_inf_nan=False)
     y_m: float = Field(allow_inf_nan=False)
-
-
-class MetricGroundControlPoint(BaseModel):
-    id: str = Field(min_length=1)
-    image: CalibrationPoint
-    ground: MetricGroundPoint
-
-
-class MetricCalibration(BaseModel):
-    schema_version: Literal[1] = 1
-    camera_id: str = Field(min_length=1)
-    unit: Literal["meter"] = "meter"
-    measurement_source: MetricMeasurementSource = "ESTIMATED"
-    rows: list[MetricRowMeasurement] = Field(default_factory=list)
-    reference_segments: list[MetricReferenceSegment] = Field(default_factory=list)
-    ground_control_points: list[MetricGroundControlPoint] = Field(default_factory=list)
-
-    @model_validator(mode="after")
-    def validate_unique_ids(self) -> "MetricCalibration":
-        for collection, label in (
-            (self.rows, "row"),
-            (self.reference_segments, "reference segment"),
-            (self.ground_control_points, "ground control point"),
-        ):
-            ids = [item.id for item in collection]
-            if len(ids) != len(set(ids)):
-                raise ValueError(f"Duplicate {label} IDs are not allowed.")
-        return self
-
-
-class MetricCalibrationResponse(BaseModel):
-    status: MetricCalibrationStatus
-    measurement_source: MetricMeasurementSource
-    row_measurements_complete: bool
-    ground_plane_calibration_available: Literal[False] = False
-    calibration: MetricCalibration | None
 
 
 GroundMeasurementSource = Literal["ESTIMATED", "MEASURED"]
