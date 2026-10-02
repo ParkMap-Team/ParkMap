@@ -1,5 +1,5 @@
 import pytest
-from app.services.experimental_v5_policy import V5Policy,evaluate_fragment_pair,axial_difference
+from app.services.experimental_v5_policy import evaluate_fragment_pair,axial_difference
 def m(**k):
  d={'orientation_difference':.1,'normalized_lateral_separation':.5,'normalized_endpoint_distance':2.,'local_scale_ratio':1.,'hypothetical_merged_normalized_perpendicular_dispersion':.5,'hypothetical_merged_orientation_dispersion':.1}; d.update(k); return d
 def test_collinear_pass(): assert evaluate_fragment_pair(m())['status']=='PASS'

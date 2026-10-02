@@ -1,6 +1,23 @@
 {
   "components": {
     "schemas": {
+      "Body_analyze_auto_parking_api_auto_parking_analyze_post": {
+        "properties": {
+          "images": {
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Images",
+            "type": "array"
+          }
+        },
+        "required": [
+          "images"
+        ],
+        "title": "Body_analyze_auto_parking_api_auto_parking_analyze_post",
+        "type": "object"
+      },
       "Body_analyze_detection_api_detection_analyze_post": {
         "properties": {
           "image": {
@@ -1662,6 +1679,47 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/auto-parking/analyze": {
+      "post": {
+        "description": "Experimental structure discovery from multiple images of one camera.",
+        "operationId": "analyze_auto_parking_api_auto_parking_analyze_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_analyze_auto_parking_api_auto_parking_analyze_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Analyze Auto Parking Api Auto Parking Analyze Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Analyze Auto Parking"
+      }
+    },
     "/api/calibration": {
       "get": {
         "operationId": "get_calibration_api_calibration_get",
