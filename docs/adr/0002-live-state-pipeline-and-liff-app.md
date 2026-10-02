@@ -1,6 +1,6 @@
 # 0002: Live state pipeline and LIFF app
 
-Status: accepted, 2026-09-30. Supersedes the process layout and the "vinext stays" note in 0001; the rest of 0001 stands.
+Status: accepted, 2026-09-30. Supersedes the process layout and the "vinext stays" note in 0001; the rest of 0001 stands. The on-premises worker and camera-network frame locality are superseded by [0005](0005-cloud-hosted-video-replay-demo.md); the rest stands.
 
 ## Decision
 
