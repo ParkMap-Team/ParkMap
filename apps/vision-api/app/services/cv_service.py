@@ -10,6 +10,7 @@ from PIL import Image, UnidentifiedImageError
 from ultralytics import YOLO
 
 from app.models import Detection, DetectionAnalysisModel, DetectionBBox, DetectionInference, DetectionResponse
+from app.services.model_version import analysis_version_for_model
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class ComputerVisionService:
 
         self._model: YOLO | None = None
         self._model_lock = Lock()
+        self._published_versions: dict[str, str] = {}
 
     @property
     def is_configured(self) -> bool:
@@ -51,6 +53,25 @@ class ComputerVisionService:
             raise ModelUnavailableError("The detection model is unavailable.") from exc
         logger.info("ParkMap YOLO model loaded from %s", self.model_path)
         return self._model
+
+    def published_analysis_version(self, analysis_revision: str) -> str:
+        """Identify the loaded worker model and settings in a published state."""
+        with self._model_lock:
+            if self._model is None:
+                raise ModelUnavailableError("The detection model is unavailable.")
+            if analysis_revision not in self._published_versions:
+                try:
+                    self._published_versions[analysis_revision] = analysis_version_for_model(
+                        analysis_revision,
+                        self.model_path,
+                        imgsz=self.imgsz,
+                        confidence=self.confidence_threshold,
+                        nms_iou=self.nms_iou,
+                        device=self.device,
+                    )
+                except (OSError, ValueError) as exc:
+                    raise ModelUnavailableError("The detection model version is unavailable.") from exc
+            return self._published_versions[analysis_revision]
 
     def analyze_image(self, image_bytes: bytes) -> DetectionResponse:
         """Decode an image, run YOLO, and return normalized top-left boxes."""

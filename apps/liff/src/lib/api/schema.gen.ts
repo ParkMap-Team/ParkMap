@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/auto-parking/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Analyze Auto Parking
+         * @description Experimental structure discovery from multiple images of one camera.
+         */
+        post: operations["analyze_auto_parking_api_auto_parking_analyze_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/calibration": {
         parameters: {
             query?: never;
@@ -234,6 +254,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Body_analyze_auto_parking_api_auto_parking_analyze_post */
+        Body_analyze_auto_parking_api_auto_parking_analyze_post: {
+            /** Images */
+            images: string[];
+        };
         /** Body_analyze_detection_api_detection_analyze_post */
         Body_analyze_detection_api_detection_analyze_post: {
             /** Image */
@@ -863,6 +888,41 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    analyze_auto_parking_api_auto_parking_analyze_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_analyze_auto_parking_api_auto_parking_analyze_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_calibration_api_calibration_get: {
         parameters: {
             query?: never;

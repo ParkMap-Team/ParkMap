@@ -1,4 +1,3 @@
-import pytest
 from app.services.auto_parking_service import AutoDetection
 from app.services.experimental_auto_rows import infer_rows_experimental_v4
 

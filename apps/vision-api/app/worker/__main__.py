@@ -45,6 +45,7 @@ def analyze_frame(frame: Frame, *, parking_area_id: str, source: StateSourceKind
         raise ValueError("Frame could not be encoded.")
     detection = cv_service.analyze_image(jpeg.tobytes())
     analysis = parking_analysis_service.analyze(detection)
+    analysis["analysis_version"] = cv_service.published_analysis_version(analysis["analysis_version"])
     return build_state_publish(analysis, parking_area_id=parking_area_id, source=source, observed_at=frame.captured_at, calibration_version=version)
 
 
