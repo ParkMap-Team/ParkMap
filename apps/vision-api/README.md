@@ -64,6 +64,8 @@ Model weights belong at `models/best.pt` by default. ROI, homography, and row ca
 
 Configure model path, input size, confidence, NMS IoU, and device with the `PARKMAP_MODEL_*` values shown in `.env.example`. The model loads on the first analysis request and is reused afterward. Health checks and calibration remain available without model weights; analysis returns `503` if weights are missing or invalid. `PARKMAP_MAX_IMAGE_PIXELS` bounds decoded image dimensions, and the image's actual format must match its declared media type.
 
+For the M2 worker release, follow [the model evaluation gate](../../docs/vision-model-evaluation.md) before changing weights. Transfer a versioned weights file privately to the worker machine, compare its SHA-256 with the sender's value, then update `PARKMAP_MODEL_PATH` and the selected inference settings and restart the worker. Keep the previous file and settings for rollback. The worker's published `analysis_version` keeps the parking-analysis revision and adds a compact fingerprint of the loaded weights and inference settings. It remains within the existing 64-character contract; no API schema migration is needed. If the model or its fingerprint cannot be loaded, the worker stops publishing and existing state expires under the freshness rule.
+
 Uploaded-image analysis also returns `503` when the required parking calibration files are missing or unreadable; configure the site before using inference results.
 
 ## Parking calibration
