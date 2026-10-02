@@ -22,9 +22,9 @@ Starting issues: A #4 to #7, B #8 to #11, C #12 to #14, D #15 to #20. Filter by 
 | Member | A. Vision/ML | B. Worker/Platform | C. LIFF/3D | D. Site/Calibration |
 |---|---|---|---|---|
 | @GoodNightMare | #6 | #11 | #13 | #18 (M1), #19 |
-| @SaGaGro | #4 (M1) | #9 | #14 | #16 (M1) |
-| @Dawinzhii | #5 | #10 | #12 (M1) | #17 (M1) |
-| @Sayhighz | #7 | #8 (M1) | | #15 (M1), #20 |
+| @SaGaGro | #4 (M1), #7 | | #14 | #16 (M1) |
+| @Dawinzhii | #5 | #8 (M1), #10 | | #17 (M1) |
+| @Sayhighz | | #9 | #12 (M1) | #15 (M1), #20 |
 
 Hand-offs cross people on purpose: #16 unblocks #4 and #8, #4 feeds #5, #6 feeds #13, #20 unblocks #9, and #15 unblocks #7. Pair on the hand-off instead of waiting for it.
 
