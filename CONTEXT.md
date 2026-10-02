@@ -16,6 +16,8 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 - **Unknown**: stale, occluded, uncalibrated, or low-confidence evidence. Never show as green.
 - **Unmonitored**: part of the lot model outside every parking area. It is permanent, carries no availability claim, and is shown differently from unknown.
 - **Lot model**: static 3D representation of a site's parking lot, including parking areas and unmonitored ground, built from surveyed measurements. It changes only when the site is re-surveyed, never from live frames.
+- **Stand-in data**: public dataset images, simulated scenes, or AI-generated video used while real-angle footage is unavailable. It supports development and demos, never accuracy claims about the real lot (ADR 0004).
+- **Simulated scene**: video not recorded in a real lot. Rendered from the lot model it has exact ground truth for testing geometry and fitting; produced by a generative video model it has no ground truth and may drift in geometry. Its replays publish as `SIMULATED_REPLAY`, never as `RECORDED_REPLAY`.
 - **Motorcycle proxy**: generic 3D motorcycle shown on the lot model at an occupied footprint's position, heading, and estimated size. It represents a detection, not a reconstruction of the actual vehicle. Regions without current evidence show as unknown, not as empty ground.
 
 ## Current implementation
@@ -28,14 +30,14 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 
 ## Target flow
 
-1. A fixed camera observes the hidden parking area. A separate entrance view may estimate incoming motorcycle dimensions.
+1. A recorded video from one fixed viewpoint stands in for the camera on the hidden parking area; the final deliverable is this replay, not an installed camera (ADR 0005). A separate entrance view may estimate incoming motorcycle dimensions.
 2. An inference worker processes frames, applies camera calibration and parking geometry, and publishes a timestamped state with confidence and evidence freshness.
-3. A student opens the web app from the LINE Official Account rich menu via LIFF and sees a surveyed map with green candidate regions, yellow advisory regions, and unknown regions.
+3. A student opens the web app from the LINE Official Account rich menu via LIFF and sees a surveyed map with green candidate regions, yellow advisory regions, and unknown regions. In the demo the video plays separately on the presenter's screen and the LIFF app shows the video time of the analysed frame, never the footage (ADR 0005).
 4. Deferred beyond the first release: a dimension estimate from the entrance view may rank compatible candidate regions. Brand recognition alone cannot establish physical dimensions, and matching an entrance observation to the student viewing LIFF is unresolved. Until then, candidates are ranked for a standard motorcycle footprint.
 
 ## Recommended deployable processes
 
-Three processes: the LIFF app, the FastAPI API with Postgres, and a Python worker on the camera network that analyzes the newest frame and pushes derived state to the API. Monitor camera freshness, inference lag, and unknown-state rate. Use a separate bot process only when webhook or chat interactions become product requirements.
+Three processes, all on Coolify (ADR 0005): the LIFF app, the FastAPI API with Postgres, and a Python worker that replays a recorded video at its real pace, analyzes the newest frame, and pushes derived state to the API. A live camera is future work and would be another source for the same worker. Monitor camera freshness, inference lag, and unknown-state rate. Use a separate bot process only when webhook or chat interactions become product requirements.
 
 The 3D map is a static surveyed lot model with detections drawn as motorcycle proxies. A single camera video does not establish hidden geometry or arbitrary viewpoints; validate the lot model against surveyed reference points before claiming it represents the real lot.
 
@@ -49,4 +51,4 @@ The 3D map is a static surveyed lot model with detections drawn as motorcycle pr
 
 ## Open product inputs
 
-Surveyed dimensions and reference points, camera count/placement, an on-campus machine on the camera network to run the worker, acceptable update delay, acceptable false-green rate, access policy for footage, and whether students need LINE messages in addition to opening LIFF. These are required for the live system, not for the workspace setup.
+The Sripatum demo video (a fixed phone recording, ADR 0005) and surveyed dimensions and reference points of its parking area, acceptable update delay, acceptable false-green rate, access policy for footage including cloud storage, and whether students need LINE messages in addition to opening LIFF. These are required for the demo, not for the workspace setup.

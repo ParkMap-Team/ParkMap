@@ -1,6 +1,6 @@
 # ParkMap Backend
 
-One Python project with two entrypoints: the FastAPI API (`uvicorn app.main:app`) and the frame worker (`python -m app.worker`). The API serves live parking state from Postgres and the upload analysis endpoints; the worker runs on the camera network and pushes derived state to the API. See [ADR 0002](../../docs/adr/0002-live-state-pipeline-and-liff-app.md).
+One Python project with two entrypoints: the FastAPI API (`uvicorn app.main:app`) and the frame worker (`python -m app.worker`). The API serves live parking state from Postgres and the upload analysis endpoints; the worker replays a recorded video and pushes derived state to the API; all of it runs on Coolify. See [ADR 0002](../../docs/adr/0002-live-state-pipeline-and-liff-app.md) and [ADR 0005](../../docs/adr/0005-cloud-hosted-video-replay-demo.md).
 
 ## Run locally
 
