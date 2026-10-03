@@ -16,7 +16,11 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 - **Unknown**: stale, occluded, uncalibrated, or low-confidence evidence. Never show as green.
 - **Unmonitored**: part of the lot model outside every parking area. It is permanent, carries no availability claim, and is shown differently from unknown.
 - **Lot model**: static 3D representation of a site's parking lot, including parking areas and unmonitored ground, built from surveyed measurements. It changes only when the site is re-surveyed, never from live frames.
-- **Motorcycle proxy**: generic 3D motorcycle shown on the lot model at an occupied footprint's position, heading, and estimated size. It represents a detection, not a reconstruction of the actual vehicle. Regions without current evidence show as unknown, not as empty ground.
+- **Motorcycle proxy**: generic 3D motorcycle shown on the lot model at an occupied footprint's position, long-axis heading, and estimated size. It represents a detection, not a reconstruction of the actual vehicle; the MVP does not resolve front versus rear because a single camera view cannot establish that direction reliably. Regions without current evidence show as unknown, not as empty ground.
+- **Proxy alignment tolerance**: the MVP accepts a Motorcycle Proxy ground-position error of at most 0.5 metres against a known reference position; this is an evaluation criterion, not a claim that every live estimate has that accuracy.
+- **Proxy size tolerance**: the MVP evaluates proxy length and width against a reference with an allowed relative error of at most ±30%; this keeps a generic detection proxy from being treated as a measured reconstruction.
+- **Proxy heading tolerance**: the MVP evaluates the undirected long-axis angle within 15 degrees of a reference; headings separated by 180 degrees are equivalent because front versus rear is not resolved.
+- **Proxy reference set**: proxy evaluation uses the existing recorded demo line with manually annotated sample motorcycles containing a ground point, long axis, and reference length and width.
 
 ## Current implementation
 
