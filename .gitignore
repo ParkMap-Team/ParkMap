@@ -1,18 +1,6 @@
 # Frontend dependencies and build output
 node_modules/
 .turbo/
-apps/web/node_modules/
-apps/web/.next/
-apps/web/.vinext/
-apps/web/dist/
-apps/web/.wrangler/
-apps/web/coverage/
-apps/web/*.tsbuildinfo
-apps/web/next-env.d.ts
-apps/web/.env.local
-apps/web/.env.*.local
-apps/web/npm-debug.log*
-apps/web/.turbo/
 
 tools/calibration-ui/node_modules/
 tools/calibration-ui/.next/
