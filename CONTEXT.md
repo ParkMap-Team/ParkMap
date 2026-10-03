@@ -23,6 +23,8 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 - **Proxy size tolerance**: the initial demo evaluates proxy length and width against a reference with an allowed relative error of at most ±30%; this keeps a generic detection proxy from being treated as a measured reconstruction and is not a production accuracy target.
 - **Proxy heading tolerance**: the initial demo evaluates the undirected long-axis angle within 15 degrees of a reference; headings separated by 180 degrees are equivalent because front versus rear is not currently resolved.
 - **Proxy reference set**: proxy evaluation uses the existing recorded demo line with manually annotated sample motorcycles containing a ground point, long axis, and reference length and width.
+- **Vision API Python support**: `apps/vision-api` requires CPython `3.12`; the dependency lock, CI, local setup, and deployment instructions use Python 3.12 consistently.
+- **Vision API dependency workflow**: `apps/vision-api` installs its runtime and development dependency groups with `uv sync --locked --all-groups`; CI and local development use the committed `uv.lock` rather than compiling or installing requirements files.
 
 ## Current implementation
 
