@@ -14,31 +14,18 @@ apps/web/.env.*.local
 apps/web/npm-debug.log*
 apps/web/.turbo/
 
-tools/web_v1/node_modules/
-tools/web_v1/.next/
-tools/web_v1/.vinext/
-tools/web_v1/dist/
-tools/web_v1/.wrangler/
-tools/web_v1/coverage/
-tools/web_v1/*.tsbuildinfo
-tools/web_v1/next-env.d.ts
-tools/web_v1/.env.local
-tools/web_v1/.env.*.local
-tools/web_v1/npm-debug.log*
-tools/web_v1/.turbo/
-
-tools/web_v2/node_modules/
-tools/web_v2/.next/
-tools/web_v2/.vinext/
-tools/web_v2/dist/
-tools/web_v2/.wrangler/
-tools/web_v2/coverage/
-tools/web_v2/*.tsbuildinfo
-tools/web_v2/next-env.d.ts
-tools/web_v2/.env.local
-tools/web_v2/.env.*.local
-tools/web_v2/npm-debug.log*
-tools/web_v2/.turbo/
+tools/calibration-ui/node_modules/
+tools/calibration-ui/.next/
+tools/calibration-ui/.vinext/
+tools/calibration-ui/dist/
+tools/calibration-ui/.wrangler/
+tools/calibration-ui/coverage/
+tools/calibration-ui/*.tsbuildinfo
+tools/calibration-ui/next-env.d.ts
+tools/calibration-ui/.env.local
+tools/calibration-ui/.env.*.local
+tools/calibration-ui/npm-debug.log*
+tools/calibration-ui/.turbo/
 
 # Backend environments, caches, and secrets
 apps/vision-api/.venv/
