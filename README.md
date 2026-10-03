@@ -19,10 +19,11 @@ YOLO inference, ROI calibration, homography, dynamic physical rows, occupied geo
 docker compose up -d postgres
 cd apps/vision-api
 cp .env.example .env                      # set PARKMAP_WORKER_TOKEN
-.venv/bin/python -m alembic upgrade head
-.venv/bin/python -m app.manage seed-dev   # fake site, lot model, calibration
-.venv/bin/python -m uvicorn app.main:app --reload --port 8000
-.venv/bin/python -m app.manage publish-dev-state   # second terminal
+uv sync --locked --all-groups
+uv run python -m alembic upgrade head
+uv run python -m app.manage seed-dev      # fake site, lot model, calibration
+uv run python -m uvicorn app.main:app --reload --port 8000
+uv run python -m app.manage publish-dev-state      # second terminal
 cd ../liff && cp .env.example .env.local && pnpm dev   # http://localhost:3001
 ```
 
@@ -51,10 +52,9 @@ Open <http://localhost:3000>. The dashboard can analyze an uploaded image throug
 
 ```sh
 cd apps/vision-api
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --port 8000
+uv venv --python 3.12 .venv
+uv sync --locked --all-groups
+uv run python -m uvicorn app.main:app --reload --port 8000
 ```
 
 Endpoints:
@@ -79,12 +79,12 @@ pnpm --filter @parkmap/liff typecheck
 pnpm --filter @parkmap/liff test
 pnpm --filter @parkmap/liff build
 cd apps/vision-api
-uv pip sync --python .venv/bin/python --torch-backend cpu requirements-dev.lock
+uv sync --locked --all-groups
 docker compose up -d postgres-test
-PARKMAP_TEST_DATABASE_URL=postgresql://parkmap:parkmap@localhost:5433/parkmap_test .venv/bin/python -m pytest -q tests
+PARKMAP_TEST_DATABASE_URL=postgresql://parkmap:parkmap@localhost:5433/parkmap_test uv run python -m pytest -q tests
 ```
 
-Database tests skip without `PARKMAP_TEST_DATABASE_URL`, and they truncate that database. CI runs the web and LIFF jobs, then the Python job against a Postgres 17 service. JavaScript versions shared by future packages belong in the pnpm catalog. Python direct dependencies remain in `apps/vision-api/requirements*.txt`; CI installs the compiled CPU-only `requirements-dev.lock`. Regenerate it with `uv pip compile apps/vision-api/requirements-dev.txt --python-version 3.12 --universal --torch-backend cpu -o apps/vision-api/requirements-dev.lock`. CI layout is adapted from Showcase for ParkMap's runtimes.
+Database tests skip without `PARKMAP_TEST_DATABASE_URL`, and they truncate that database. CI runs the web and LIFF jobs, then the Python job against a Postgres 17 service. JavaScript versions shared by future packages belong in the pnpm catalog. The Vision API requires CPython 3.12; its direct dependencies and development group are declared in `apps/vision-api/pyproject.toml`, and `apps/vision-api/uv.lock` is authoritative for CI and local development. Regenerate the lock intentionally with `uv lock`, then verify installation with `uv sync --locked --all-groups`. CI layout is adapted from Showcase for ParkMap's runtimes.
 
 The detection endpoint runs the configured YOLO model and returns normalized top-left motorcycle bounding boxes. Upload analysis then applies the active parking calibration, homography, physical row dimensions, occupied/free geometry, capacity, and parking-state validation.
 
