@@ -19,6 +19,7 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 - **Stand-in data**: public dataset images, simulated scenes, or AI-generated video used while real-angle footage is unavailable. It supports development and demos, never accuracy claims about the real lot (ADR 0004).
 - **Simulated scene**: video not recorded in a real lot. Rendered from the lot model it has exact ground truth for testing geometry and fitting; produced by a generative video model it has no ground truth and may drift in geometry. Its replays publish as `SIMULATED_REPLAY`, never as `RECORDED_REPLAY`.
 - **Motorcycle proxy**: generic 3D motorcycle shown on the lot model at an occupied footprint's position, heading, and estimated size. It represents a detection, not a reconstruction of the actual vehicle. Regions without current evidence show as unknown, not as empty ground.
+- **LIFF lot view**: the LIFF app uses a licensed local generic motorcycle GLB for instanced detection proxies, bounded 3D camera presets, and a top-down 2D fallback. Both renderers preserve API status semantics and the browser never computes availability.
 
 ## Current implementation
 
