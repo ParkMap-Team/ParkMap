@@ -23,6 +23,11 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 - **Proxy reference set**: proxy evaluation uses the existing recorded demo line with manually annotated sample motorcycles containing a ground point, long axis, and reference length and width.
 - **Vision API Python support**: `apps/vision-api` requires CPython `3.12`; the dependency lock, CI, local setup, and deployment instructions use Python 3.12 consistently.
 - **Vision API dependency workflow**: `apps/vision-api` installs its runtime and development dependency groups with `uv sync --locked --all-groups`; CI and local development use the committed `uv.lock` rather than compiling or installing requirements files.
+- **LIFF motorcycle proxy asset**: the LIFF app uses a generic motorcycle GLB bundled in the repository with a clearly documented license such as CC0 or Apache-2.0. It visualizes a detection's position, long-axis direction, and approximate size; it is not a reconstruction of the actual vehicle and is not loaded from a runtime-hosted external URL.
+- **LIFF map fallback**: the LIFF app automatically falls back to a top-down 2D map when WebGL is unavailable or the 3D scene exceeds its load/performance threshold; users can switch between 2D and 3D manually after loading.
+- **LIFF camera controls**: the 3D lot view starts in an overview preset and provides an entrance-view preset, bounded orbit and zoom, and a reset control; it does not expose unrestricted free-fly navigation.
+- **LIFF map status colours**: 2D and 3D use the same API-status semantics: `AVAILABLE` is green, `ALMOST_AVAILABLE` is yellow, occupied evidence is red, `UNKNOWN` is a distinct non-availability colour, and `UNMONITORED` is a separate dark treatment. A legend explains the mapping.
+- **LIFF 3D fallback threshold**: when WebGL is unavailable the LIFF app uses 2D immediately; when the 3D scene does not finish loading within 5 seconds it falls back to 2D, with manual switching retained when both renderers are available.
 
 ## Current implementation
 
