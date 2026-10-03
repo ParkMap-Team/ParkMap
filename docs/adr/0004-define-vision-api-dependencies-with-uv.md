@@ -1,0 +1,3 @@
+# Define Vision API dependencies with uv
+
+Status: accepted, 2026-10-03. The Vision API declares runtime and development dependencies in `pyproject.toml` and commits `uv.lock`, replacing the separate requirements files; the project requires CPython `3.12` so the lock, CI, local setup, and deployment instructions use one interpreter version consistently. PyTorch uses an explicit CPU index on Linux and Windows, with the normal PyPI source on macOS, preserving CPU-only CI while retaining macOS support. CI and local development install all groups with `uv sync --locked --all-groups`, so the committed lockfile is authoritative.

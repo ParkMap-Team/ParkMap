@@ -1,0 +1,42 @@
+[project]
+name = "parkmap-vision-api"
+version = "0.1.0"
+description = "ParkMap computer-vision API and worker"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "alembic>=1.13,<2.0",
+  "fastapi>=0.115,<1.0",
+  "httpx>=0.27,<1.0",
+  "numpy>=1.26,<3.0",
+  "opencv-python>=4.6,<6.0",
+  "pillow>=11.0,<12.0",
+  "pi-heif>=0.20,<1.0",
+  "psycopg[binary]>=3.2,<4.0",
+  "pydantic>=2.8,<3.0",
+  "python-dotenv>=1.0,<2.0",
+  "python-multipart>=0.0.12,<1.0",
+  "shapely>=2.0,<3.0",
+  "sqlalchemy>=2.1,<3.0",
+  "torch>=2.0,<3.0",
+  "torchvision>=0.15,<1.0",
+  "ultralytics==8.4.166",
+  "uvicorn[standard]>=0.30,<1.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8,<10",
+  "ruff==0.16.9",
+]
+
+[tool.uv]
+package = false
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
