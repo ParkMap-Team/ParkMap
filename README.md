@@ -5,7 +5,7 @@ ParkMap is a fourth-year Sripatum University project for finding usable motorcyc
 ```text
 ParkMap/
 ├── apps/liff/       # student-facing LIFF app: Next.js, 3D lot model, live regions
-├── apps/web/        # calibration and upload POC on vinext/Vite; moving to tools/calibration-ui
+├── tools/calibration-ui/ # calibration and upload POC on vinext/Vite
 ├── apps/vision-api/ # FastAPI, YOLO, calibration, parking geometry, live state API, frame worker
 ├── docs/            # API contract, architecture decisions, roadmap, and agent guidance
 └── .agents/         # repository agent skills
@@ -37,7 +37,7 @@ pnpm dev:liff
 
 Open <http://localhost:3001>. After changing a Pydantic API model, run `python scripts/export_openapi.py` in `apps/vision-api`, then `pnpm --filter @parkmap/liff api:generate`. CI fails when either generated file is stale.
 
-## Calibration POC (apps/web)
+## Calibration POC (tools/calibration-ui)
 
 ```sh
 corepack enable
@@ -70,10 +70,10 @@ Run the web app and API in separate terminals. Local CORS permits `http://localh
 ## Checks
 
 ```sh
-pnpm --filter @parkmap/web lint
-pnpm --filter @parkmap/web typecheck
-pnpm --filter @parkmap/web test
-pnpm --filter @parkmap/web build
+pnpm --filter @parkmap/calibration-ui lint
+pnpm --filter @parkmap/calibration-ui typecheck
+pnpm --filter @parkmap/calibration-ui test
+pnpm --filter @parkmap/calibration-ui build
 pnpm --filter @parkmap/liff lint
 pnpm --filter @parkmap/liff typecheck
 pnpm --filter @parkmap/liff test
@@ -116,7 +116,7 @@ Measured physical row dimensions are edited from Setup and saved with the ground
 
 Logo file:
 
-`apps/web/public/branding/parkmap-logo.png`
+`tools/calibration-ui/public/branding/parkmap-logo.png`
 
 Use a PNG with a transparent background and keep the filename exactly `parkmap-logo.png`. Copy or replace that file to update the header logo, then refresh the page; restart or rebuild the frontend if the development or deployed build has cached the previous asset. If the file is missing or cannot load, the header safely keeps the existing ParkMap icon and text without showing a broken image.
 

@@ -1,5 +1,5 @@
 {
-  "name": "@parkmap/web",
+  "name": "@parkmap/calibration-ui",
   "version": "0.1.0",
   "private": true,
   "engines": {
