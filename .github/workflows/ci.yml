@@ -26,10 +26,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm skills:check
       - run: pnpm skills:test
-      - run: pnpm --filter @parkmap/web lint
-      - run: pnpm --filter @parkmap/web typecheck
-      - run: pnpm --filter @parkmap/web test
-      - run: pnpm --filter @parkmap/web build
+      - run: pnpm --filter @parkmap/calibration-ui lint
+      - run: pnpm --filter @parkmap/calibration-ui typecheck
+      - run: pnpm --filter @parkmap/calibration-ui test
+      - run: pnpm --filter @parkmap/calibration-ui build
 
   liff:
     runs-on: ubuntu-24.04

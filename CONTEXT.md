@@ -22,7 +22,7 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 
 ## Current implementation
 
-`apps/web/` is the calibration and uploaded-image POC built with vinext/Vite. It is moving to `tools/calibration-ui/` and is not the student app.
+`tools/calibration-ui/` is the calibration and uploaded-image POC built with vinext/Vite. It is not the student app, and it is the repository's only calibration tool.
 
 `apps/liff/` is the student-facing LIFF app: site list, a navigable 3D view of the lot model with live regions and motorcycle proxies, and freshness and source notices.
 
