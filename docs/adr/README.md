@@ -5,4 +5,5 @@
 - [0003: Team-owned camera network](0003-team-owned-camera-network.md) (superseded by 0005)
 - [0004: Stand-in data is not accuracy evidence](0004-stand-in-data-is-not-accuracy-evidence.md)
 - [0005: Cloud-hosted video replay demo](0005-cloud-hosted-video-replay-demo.md)
+- [0007: Define Vision API dependencies with uv](0007-define-vision-api-dependencies-with-uv.md)
 - [0009: Axis-only motorcycle proxy heading](0009-axis-only-motorcycle-proxy-heading.md)

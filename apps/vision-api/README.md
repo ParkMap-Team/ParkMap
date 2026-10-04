@@ -5,25 +5,25 @@ One Python project with two entrypoints: the FastAPI API (`uvicorn app.main:app`
 ## Run locally
 
 ```sh
-python3.12 -m venv .venv
+uv venv --python 3.12 .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --port 8000
+uv sync --locked --all-groups
+uv run uvicorn app.main:app --reload --port 8000
 ```
 
 Use `PARKMAP_ALLOWED_ORIGINS` as a comma-separated list for additional frontend origins.
 
-For tests, install `requirements-dev.txt` and run `python -m pytest -q tests` from this directory. CI uses the pinned `requirements-dev.lock` and CPU-only PyTorch through uv. Database tests skip unless `PARKMAP_TEST_DATABASE_URL` points at a disposable database (`docker compose up -d postgres-test` from the repository root); they truncate every table.
+For tests, run `uv run python -m pytest -q tests` from this directory. CI uses Python 3.12, the committed `uv.lock`, and CPU-only PyTorch wheels on Linux/Windows. Database tests skip unless `PARKMAP_TEST_DATABASE_URL` points at a disposable database (`docker compose up -d postgres-test` from the repository root); they truncate every table.
 
 ## Live state
 
 Copy `.env.example` to `.env`, start Postgres (`docker compose up -d postgres` from the repository root), then:
 
 ```sh
-python -m alembic upgrade head
-python -m app.manage seed-dev              # synthetic site, lot model, and calibration for development
-python -m uvicorn app.main:app --reload --port 8000
-python -m app.manage publish-dev-state     # pushes the synthetic state every 3 s through the real ingest endpoint
+uv run python -m alembic upgrade head
+uv run python -m app.manage seed-dev              # synthetic site, lot model, and calibration for development
+uv run uvicorn app.main:app --reload --port 8000
+uv run python -m app.manage publish-dev-state     # pushes the synthetic state every 3 s through the real ingest endpoint
 ```
 
 Endpoints:
