@@ -47,6 +47,24 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Loading mascot loops (src/components/mascot.tsx). Durations are set inline from the scene's speed. */
+@theme {
+    --animate-mascot-road: mascot-road 1s linear infinite;
+    --animate-mascot-bob: mascot-bob 0.4s ease-in-out infinite;
+
+    @keyframes mascot-road {
+        to {
+            transform: translateX(-50%);
+        }
+    }
+
+    @keyframes mascot-bob {
+        50% {
+            transform: translateY(-1.5px);
+        }
+    }
+}
+
 :root {
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
@@ -54,8 +72,9 @@
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
+    /* Logo pink (#f50f7f) darkened just enough for white text to pass WCAG AA (4.68:1). */
+    --primary: oklch(0.59 0.238 1.4);
+    --primary-foreground: oklch(1 0 0);
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
@@ -89,8 +108,8 @@
     --card-foreground: oklch(0.985 0 0);
     --popover: oklch(0.205 0 0);
     --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
+    --primary: oklch(0.59 0.238 1.4);
+    --primary-foreground: oklch(1 0 0);
     --secondary: oklch(0.269 0 0);
     --secondary-foreground: oklch(0.985 0 0);
     --muted: oklch(0.269 0 0);

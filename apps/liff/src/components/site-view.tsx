@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { MascotLoading } from "@/components/mascot";
 import type { LotModel } from "@/lib/api/types";
 import { COLORS, STATUS_LABELS, sourceNotice, visibleAreas } from "@/lib/parking/presentation";
 import { useParkingState } from "@/lib/parking/use-parking-state";
@@ -8,7 +9,11 @@ import { useNow } from "@/lib/use-now";
 
 const LotScene = dynamic(() => import("./lot-scene"), {
   ssr: false,
-  loading: () => <div className="grid h-full place-items-center text-sm text-muted-foreground">กำลังโหลดแผนที่</div>,
+  loading: () => (
+    <div className="grid h-full place-items-center">
+      <MascotLoading label="กำลังโหลดแผนที่" />
+    </div>
+  ),
 });
 
 const LEGEND = [

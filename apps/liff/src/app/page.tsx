@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Mascot } from "@/components/mascot";
 import { apiClient } from "@/lib/api/server";
 
 // Sites come from the API at request time, never from a build-time snapshot.
@@ -11,7 +12,10 @@ export default async function Home() {
       <h1 className="text-xl font-semibold">ParkMap</h1>
       <p className="text-sm text-muted-foreground">เลือกลานจอดรถเพื่อดูพื้นที่ว่าง</p>
       {!sites ? (
-        <p className="text-sm text-red-700">โหลดรายการลานจอดไม่ได้ ลองใหม่อีกครั้ง</p>
+        <div className="flex flex-col items-center gap-3 py-8 text-center">
+          <Mascot mood="confused" size={120} />
+          <p className="text-sm text-red-700">โหลดรายการลานจอดไม่ได้ ลองใหม่อีกครั้ง</p>
+        </div>
       ) : (
         <ul className="divide-y rounded-lg border">
           {sites.map((site) => (

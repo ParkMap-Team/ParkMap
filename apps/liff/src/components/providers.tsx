@@ -1,6 +1,7 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { domAnimation, LazyMotion, MotionConfig } from "motion/react";
 import { useEffect, useState } from "react";
 
 function useLiffInit() {
@@ -17,5 +18,12 @@ function useLiffInit() {
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
   useLiffInit();
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      {/* Honor the OS reduce-motion setting. LazyMotion keeps `m` components to the small domAnimation bundle. */}
+      <MotionConfig reducedMotion="user">
+        <LazyMotion features={domAnimation}>{children}</LazyMotion>
+      </MotionConfig>
+    </QueryClientProvider>
+  );
 }
