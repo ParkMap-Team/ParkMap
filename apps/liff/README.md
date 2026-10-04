@@ -43,7 +43,7 @@ Open `https://liff.line.me/<your LIFF ID>` in LINE.
 
 ### Rich menu
 
-`scripts/rich-menu/` holds the production menu: `menu.ts` (the five buttons), `rich-menu.png` (the image), and `rich-menu.html` (its source, with the render command). The production LIFF app's endpoint URL is the site root, so `https://liff.line.me/{ID}/parked` opens `/parked`. To create or update the menu, as an Admin of the production channel:
+`scripts/rich-menu/` holds the production menu: `menu.ts` (the five buttons and their tap areas), `rich-menu.jpg` (the image, at most 1 MB), `rich-menu.html` (its source, with the render command), and `logo.webp` (the logo from `tools/calibration-ui/public/branding/`, cropped). The production LIFF app's endpoint URL is the site root, so `https://liff.line.me/{ID}/parked` opens `/parked`. To create or update the menu, as an Admin of the production channel:
 
 ```sh
 read -rs LINE_CHANNEL_ACCESS_TOKEN && export LINE_CHANNEL_ACCESS_TOKEN   # paste; not echoed or kept in history
@@ -51,7 +51,7 @@ PRODUCTION_LIFF_ID=<production LIFF ID> pnpm rich-menu
 unset LINE_CHANNEL_ACCESS_TOKEN
 ```
 
-The script validates the menu with LINE, creates it, uploads the image, makes it the default, and then deletes every older menu created through the API, so running it again leaves exactly one. If the upload or default step fails, it deletes the new menu and the old default stays. It exits non-zero on any failure and never prints the token. When a button changes, update `menu.ts` and `rich-menu.html` together, re-render the PNG, and rerun the script.
+The script validates the menu with LINE, creates it, uploads the image, makes it the default, and then deletes every older menu created through the API, so running it again leaves exactly one. If the upload or default step fails, it deletes the new menu and the old default stays. It exits non-zero on any failure and never prints the token. When a button changes, update `menu.ts` and `rich-menu.html` together, re-render the JPEG (the tests check its size and dimensions), and rerun the script.
 
 ## Layout
 

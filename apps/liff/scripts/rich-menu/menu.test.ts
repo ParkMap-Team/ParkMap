@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import type { messagingApi } from "@line/bot-sdk";
-import { MENU_SIZE, parseLiffId, richMenu } from "./menu.ts";
+import { MAX_IMAGE_BYTES, MENU_IMAGE, MENU_SIZE, parseLiffId, richMenu } from "./menu.ts";
 
 const LIFF_ID = "1234567890-AbCdEfGh";
 
@@ -33,8 +34,10 @@ test("the menu has five URI buttons inside the image that open distinct producti
   assert.equal(new Set(uris).size, uris.length);
 });
 
-test("the buttons do not overlap", () => {
+test("the buttons cover the whole image without overlapping", () => {
   const areas = richMenu(LIFF_ID).areas ?? [];
+  const covered = areas.reduce((sum, { bounds }) => sum + rect(bounds).width * rect(bounds).height, 0);
+  assert.equal(covered, MENU_SIZE.width * MENU_SIZE.height);
   for (const [i, { bounds }] of areas.entries()) {
     const a = rect(bounds);
     for (const other of areas.slice(i + 1)) {
@@ -44,6 +47,26 @@ test("the buttons do not overlap", () => {
       assert.ok(apart);
     }
   }
+});
+
+// Reads the frame size from the first SOF0-SOF2 segment.
+function jpegSize(bytes: Buffer) {
+  assert.equal(bytes.readUInt16BE(0), 0xffd8, "not a JPEG");
+  let offset = 2;
+  while (offset + 9 <= bytes.length) {
+    const marker = bytes.readUInt16BE(offset);
+    if (marker >= 0xffc0 && marker <= 0xffc2) {
+      return { width: bytes.readUInt16BE(offset + 7), height: bytes.readUInt16BE(offset + 5) };
+    }
+    offset += 2 + bytes.readUInt16BE(offset + 2);
+  }
+  throw new Error("JPEG has no frame header");
+}
+
+test("the image matches the menu size and LINE's 1 MB limit", () => {
+  const image = readFileSync(MENU_IMAGE);
+  assert.ok(image.length <= MAX_IMAGE_BYTES, `${image.length} bytes`);
+  assert.deepEqual(jpegSize(image), MENU_SIZE);
 });
 
 test("a production LIFF ID is required and must be an ID, not a URL", () => {
