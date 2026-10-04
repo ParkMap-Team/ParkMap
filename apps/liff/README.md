@@ -31,7 +31,7 @@ The menu is a large rich menu with five buttons, each opening a path of the same
 
 ## UI components
 
-shadcn is configured (`components.json`, style `base-nova`). Add components with `pnpm dlx shadcn@4.21.0 add <name>`. Magic UI, Animate UI, and ReUI are shadcn registries: `pnpm dlx shadcn@4.21.0 add @magicui/<name>`, `@animate-ui/<name>`, `@reui/<name>`. Add only what a screen uses; animations come from `motion`.
+shadcn is configured (`components.json`, style `base-luma`). The primary colour is the logo pink, darkened slightly so white text passes WCAG AA; it is set in `src/app/globals.css`. Keep it distinct from the parking status colours, which only `src/lib/parking/presentation.ts` defines. Add components with `pnpm dlx shadcn@4.21.0 add <name>`. Magic UI, Animate UI, and ReUI are shadcn registries: `pnpm dlx shadcn@4.21.0 add @magicui/<name>`, `@animate-ui/<name>`, `@reui/<name>`. Add only what a screen uses; animations come from `motion`.
 
 ## Checks
 
