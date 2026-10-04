@@ -18,7 +18,13 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 - **Lot model**: static 3D representation of a site's parking lot, including parking areas and unmonitored ground, built from surveyed measurements. It changes only when the site is re-surveyed, never from live frames.
 - **Stand-in data**: public dataset images, simulated scenes, or AI-generated video used while real-angle footage is unavailable. It supports development and demos, never accuracy claims about the real lot (ADR 0004).
 - **Simulated scene**: video not recorded in a real lot. Rendered from the lot model it has exact ground truth for testing geometry and fitting; produced by a generative video model it has no ground truth and may drift in geometry. Its replays publish as `SIMULATED_REPLAY`, never as `RECORDED_REPLAY`.
-- **Motorcycle proxy**: generic 3D motorcycle shown on the lot model at an occupied footprint's position, heading, and estimated size. It represents a detection, not a reconstruction of the actual vehicle. Regions without current evidence show as unknown, not as empty ground.
+- **Motorcycle proxy**: generic 3D motorcycle shown on the lot model at an occupied footprint's position, long-axis heading, and estimated size. It represents a detection, not a reconstruction of the actual vehicle; the MVP does not resolve front versus rear because a single camera view cannot establish that direction reliably. A future directed-heading experiment may attempt that distinction, but it must not replace the axis-only behavior until validated against a locked reference set. Regions without current evidence show as unknown, not as empty ground.
+- **Proxy alignment tolerance**: the initial demo accepts a Motorcycle Proxy ground-position error of at most 0.5 metres against a known reference position; this may be revised after evaluating the locked reference set and is not evidence that a candidate space is `AVAILABLE`.
+- **Proxy size tolerance**: the initial demo evaluates proxy length and width against a reference with an allowed relative error of at most ±30%; this keeps a generic detection proxy from being treated as a measured reconstruction and is not a production accuracy target.
+- **Proxy heading tolerance**: the initial demo evaluates the undirected long-axis angle within 15 degrees of a reference; headings separated by 180 degrees are equivalent because front versus rear is not currently resolved.
+- **Proxy reference set**: proxy evaluation uses the existing recorded demo line with manually annotated sample motorcycles containing a ground point, long axis, and reference length and width.
+- **Vision API Python support**: `apps/vision-api` requires CPython `3.12`; the dependency lock, CI, local setup, and deployment instructions use Python 3.12 consistently.
+- **Vision API dependency workflow**: `apps/vision-api` installs its runtime and development dependency groups with `uv sync --locked --all-groups`; CI and local development use the committed `uv.lock` rather than compiling or installing requirements files.
 - **LIFF motorcycle proxy asset**: the LIFF app uses a generic motorcycle GLB 3D model bundled in the repository with a clearly documented license such as CC0 or Apache-2.0. It visualizes a detection's position, long-axis direction, and approximate size; it is not a reconstruction of the actual vehicle and is not loaded from a runtime-hosted external URL.
 - **LIFF map fallback**: the LIFF app automatically falls back to a top-down 2D map when WebGL is unavailable or the 3D scene exceeds its load/performance threshold; users can switch between 2D and 3D manually after loading.
 - **LIFF camera controls**: the 3D lot view starts in an elevated overview preset that frames the whole lot. It provides zoom, a reset control that returns to the overview, and an optional free-fly mode for arbitrary navigation through the static lot model; it does not provide an entrance-view preset or orbit controls. Changing the virtual viewpoint never creates new observation evidence or changes `UNKNOWN` or `UNMONITORED` ground into available space.
@@ -27,7 +33,7 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 
 ## Current implementation
 
-`apps/web/` is the calibration and uploaded-image POC built with vinext/Vite. It is moving to `tools/calibration-ui/` and is not the student app.
+`tools/calibration-ui/` is the calibration and uploaded-image POC built with vinext/Vite. It is not the student app, and it is the repository's only calibration tool.
 
 `apps/liff/` is the student-facing LIFF app: site list, a navigable 3D view of the lot model with live regions and motorcycle proxies, and freshness and source notices.
 

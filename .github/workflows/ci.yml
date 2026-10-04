@@ -26,10 +26,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm skills:check
       - run: pnpm skills:test
-      - run: pnpm --filter @parkmap/web lint
-      - run: pnpm --filter @parkmap/web typecheck
-      - run: pnpm --filter @parkmap/web test
-      - run: pnpm --filter @parkmap/web build
+      - run: pnpm --filter @parkmap/calibration-ui lint
+      - run: pnpm --filter @parkmap/calibration-ui typecheck
+      - run: pnpm --filter @parkmap/calibration-ui test
+      - run: pnpm --filter @parkmap/calibration-ui build
 
   liff:
     runs-on: ubuntu-24.04
@@ -79,10 +79,12 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-          cache: pip
-          cache-dependency-path: apps/vision-api/requirements-dev.lock
-      - run: python -m pip install uv==0.11.7
-      - run: uv pip sync --system --torch-backend cpu requirements-dev.lock
-      - run: ruff check --select F app tests migrations scripts/export_openapi.py
-      - run: python scripts/export_openapi.py --check
-      - run: python -m pytest -q tests
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.11.7
+          enable-cache: true
+          cache-dependency-glob: apps/vision-api/uv.lock
+      - run: uv sync --locked --all-groups
+      - run: uv run ruff check --select F app tests migrations scripts/export_openapi.py
+      - run: uv run python scripts/export_openapi.py --check
+      - run: uv run python -m pytest -q tests
