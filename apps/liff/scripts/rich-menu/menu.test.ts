@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import type { messagingApi } from "@line/bot-sdk";
-import { MAX_IMAGE_BYTES, MENU_IMAGE, MENU_SIZE, parseLiffId, richMenu } from "./menu.ts";
+import { BUTTONS_HEIGHT, MAX_IMAGE_BYTES, MENU_IMAGE, MENU_SIZE, parseLiffId, richMenu } from "./menu.ts";
 
 const LIFF_ID = "1234567890-AbCdEfGh";
 
@@ -34,10 +34,11 @@ test("the menu has five URI buttons inside the image that open distinct producti
   assert.equal(new Set(uris).size, uris.length);
 });
 
-test("the buttons cover the whole image without overlapping", () => {
+test("the buttons cover the tiles above the logo strip without overlapping", () => {
   const areas = richMenu(LIFF_ID).areas ?? [];
   const covered = areas.reduce((sum, { bounds }) => sum + rect(bounds).width * rect(bounds).height, 0);
-  assert.equal(covered, MENU_SIZE.width * MENU_SIZE.height);
+  assert.equal(covered, MENU_SIZE.width * BUTTONS_HEIGHT);
+  assert.ok(areas.every(({ bounds }) => rect(bounds).y + rect(bounds).height <= BUTTONS_HEIGHT));
   for (const [i, { bounds }] of areas.entries()) {
     const a = rect(bounds);
     for (const other of areas.slice(i + 1)) {
