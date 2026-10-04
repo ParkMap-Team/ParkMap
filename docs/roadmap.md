@@ -45,7 +45,7 @@ Hand-offs cross people on purpose: #16 unblocks #4 and #8, #4 feeds #5, #6 feeds
 **5 to 11 Oct (toward M1).**
 - A: baseline on stand-in data (public datasets, simulated scenes); real-angle footage once the lot is accessible (ADR 0004).
 - B: worker replays the AI-generated M1 video against local Postgres; `publish-dev-state` keeps working.
-- C: LIFF opens from a test rich menu and renders the lot model and proxies from seeded data.
+- C: LIFF opens from a test rich menu and renders the lot model and proxies from seeded data. The LIFF app and an internal-only API with seeded data go on Coolify now (pulled forward from #9); developers test through their own Cloudflare Tunnel (see `apps/liff/README.md`).
 - D: draft lot model JSON and calibration from `ESTIMATED` control points (known object sizes in the real-angle photo); footage policy agreed, including cloud storage. Replace them with `MEASURED` points once someone can safely survey the lot.
 
 **18 Oct to 8 Nov (M2).** Demo video recorded, calibration moved into the database, deployment on Coolify, fine-tuning, worker hardening, 2D fallback and near-me in LIFF.

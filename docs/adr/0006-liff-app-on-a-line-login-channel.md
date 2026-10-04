@@ -1,0 +1,5 @@
+# 0006: LIFF app on a LINE Login channel
+
+Status: accepted, 2026-10-04.
+
+The student app in `apps/liff` is registered as a LIFF app on a LINE Login channel, and the rich menu opens its `https://liff.line.me/{liffId}` URL. The app code is the same either way: it runs only `liff.init` and reads no LINE identity ([0002](0002-live-state-pipeline-and-liff-app.md)). Rejected: a LINE MINI App channel, which LINE recommends for new apps, because a Thailand MINI App channel needs a Business ID, a privacy policy URL, and a "permitted customer" status under the MINI App Policy that a student team has not confirmed, and the features it would add (service messages, Custom Path, home screen shortcut) need a verified MINI App, which in Thailand requires a certified provider; the team chose a channel it can create now over that uncertainty before M1. Accepted cost: a LIFF app on a LINE Login channel cannot be migrated to a LINE MINI App channel, and new LINE features go to MINI Apps, so if LINE retires LIFF on LINE Login channels the team creates a new channel and LIFF ID and updates `NEXT_PUBLIC_LIFF_ID` and the rich menu link.
