@@ -4,9 +4,7 @@
 // Never print the token, and never write it to a file.
 import { readFile } from "node:fs/promises";
 import { HTTPFetchError, messagingApi } from "@line/bot-sdk";
-import { liffUrl, parseLiffId, richMenu } from "./menu.ts";
-
-const IMAGE = new URL("./rich-menu.png", import.meta.url);
+import { liffUrl, MENU_IMAGE, MENU_IMAGE_TYPE, parseLiffId, richMenu } from "./menu.ts";
 
 async function main() {
   const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim();
@@ -15,7 +13,7 @@ async function main() {
   }
   const liffId = parseLiffId(process.env.PRODUCTION_LIFF_ID);
   const menu = richMenu(liffId);
-  const image = new Blob([await readFile(IMAGE)], { type: "image/png" });
+  const image = new Blob([await readFile(MENU_IMAGE)], { type: MENU_IMAGE_TYPE });
 
   const client = new messagingApi.MessagingApiClient({ channelAccessToken });
   const blobClient = new messagingApi.MessagingApiBlobClient({ channelAccessToken });

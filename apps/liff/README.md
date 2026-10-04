@@ -43,7 +43,7 @@ Open `https://liff.line.me/<your LIFF ID>` in LINE.
 
 ### Rich menu
 
-`scripts/rich-menu/` holds the production menu: `menu.ts` (the five buttons), `rich-menu.png` (the image), and `rich-menu.html` (its source, with the render command). The production LIFF app's endpoint URL is the site root, so `https://liff.line.me/{ID}/parked` opens `/parked`. To create or update the menu, as an Admin of the production channel:
+`scripts/rich-menu/` holds the production menu: `menu.ts` (the five buttons and their tap areas) and `rich-menu.jpg` (the image, at most 1 MB). The image was generated whole with Codex at 1536x1024, with the mascot, Thai labels, and the logo strip, so `menu.ts` uses that size and its tap areas meet in the middle of the gutters measured on the image; the logo strip is not a button. The production LIFF app's endpoint URL is the site root, so `https://liff.line.me/{ID}/parked` opens `/parked`. To create or update the menu, as an Admin of the production channel:
 
 ```sh
 read -rs LINE_CHANNEL_ACCESS_TOKEN && export LINE_CHANNEL_ACCESS_TOKEN   # paste; not echoed or kept in history
@@ -51,7 +51,7 @@ PRODUCTION_LIFF_ID=<production LIFF ID> pnpm rich-menu
 unset LINE_CHANNEL_ACCESS_TOKEN
 ```
 
-The script validates the menu with LINE, creates it, uploads the image, makes it the default, and then deletes every older menu created through the API, so running it again leaves exactly one. If the upload or default step fails, it deletes the new menu and the old default stays. It exits non-zero on any failure and never prints the token. When a button changes, update `menu.ts` and `rich-menu.html` together, re-render the PNG, and rerun the script.
+The script validates the menu with LINE, creates it, uploads the image, makes it the default, and then deletes every older menu created through the API, so running it again leaves exactly one. If the upload or default step fails, it deletes the new menu and the old default stays. It exits non-zero on any failure and never prints the token. When a button changes, generate a new image, check every Thai character and that it has no green or yellow (the parking status colours), measure its tiles and update the tap areas in `menu.ts`, save it as JPEG (the tests check its size and dimensions), and rerun the script.
 
 ## Layout
 
@@ -65,6 +65,8 @@ The script validates the menu with LINE, creates it, uploads the image, makes it
 shadcn is configured (`components.json`, style `base-luma`). The primary colour is the logo pink, darkened slightly so white text passes WCAG AA; it is set in `src/app/globals.css`. Keep it distinct from the parking status colours, which only `src/lib/parking/presentation.ts` defines. Add components with `pnpm dlx shadcn@4.21.0 add <name>`. Magic UI, Animate UI, and ReUI are shadcn registries: `pnpm dlx shadcn@4.21.0 add @magicui/<name>`, `@animate-ui/<name>`, `@reui/<name>`. Add only what a screen uses.
 
 Animations use `motion`. `Providers` wraps the app in `MotionConfig reducedMotion="user"`, so the OS reduce-motion setting turns off transform animations, and in `LazyMotion` with `domAnimation`, so app code uses `m.*` from `motion/react` to keep the bundle small on low-end phones. Never animate parking status colours or counts in a way that suggests a state the API did not return.
+
+The mascot is the scooter character from the logo, in `src/assets/mascot/` (WebP with transparency): `happy` for placeholders, `confused` for errors and missing pages, and for loading a riding scene built from `riding-body` (the side view with its wheels cut out) and `wheel`, which spins behind each wheel arch while a dashed road scrolls underneath. The loading loop uses CSS animations so it starts before hydration and stays smooth while the page loads; wheel positions in `src/components/mascot.tsx` are measured on the 1024px source art. It is decoration next to text, never on the live map and never a stand-in for parking status, so its images use no status colours.
 
 The rich-menu placeholder pages are `/parked`, `/nearby`, `/help`, and `/settings` (`src/components/coming-soon.tsx`).
 

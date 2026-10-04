@@ -47,6 +47,24 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Loading mascot loops (src/components/mascot.tsx). Durations are set inline from the scene's speed. */
+@theme {
+    --animate-mascot-road: mascot-road 1s linear infinite;
+    --animate-mascot-bob: mascot-bob 0.4s ease-in-out infinite;
+
+    @keyframes mascot-road {
+        to {
+            transform: translateX(-50%);
+        }
+    }
+
+    @keyframes mascot-bob {
+        50% {
+            transform: translateY(-1.5px);
+        }
+    }
+}
+
 :root {
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);

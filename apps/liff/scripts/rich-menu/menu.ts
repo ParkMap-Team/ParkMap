@@ -1,18 +1,24 @@
 import type { messagingApi } from "@line/bot-sdk";
 
-// Large rich menu. The image in this folder is drawn on the same grid.
-export const MENU_SIZE = { width: 2500, height: 1686 } as const;
+// The menu matches its image, generated with Codex at 1536x1024. LINE accepts widths of 800 to
+// 2500 px and a width/height ratio of at least 1.45.
+export const MENU_SIZE = { width: 1536, height: 1024 } as const;
+export const MENU_IMAGE = new URL("./rich-menu.jpg", import.meta.url);
+// LINE accepts JPEG or PNG up to 1 MB. JPEG keeps the glossy art well under it.
+export const MENU_IMAGE_TYPE = "image/jpeg";
+export const MAX_IMAGE_BYTES = 1_000_000;
 
-const TOP_HEIGHT = 843;
-const BUTTON_WIDTH = MENU_SIZE.width / 4;
+// Buttons cover the tiles; the logo strip below them is not a button.
+export const BUTTONS_HEIGHT = 832;
 
 // The largest button opens the site list; the rest open paths of the same LIFF app.
+// Tap areas meet in the middle of the gutters between the tiles, measured on the image.
 const BUTTONS = [
-  { label: "พื้นที่ว่างตอนนี้", path: "" },
-  { label: "จุดที่จอดรถไว้", path: "/parked" },
-  { label: "ลานจอดใกล้ฉัน", path: "/nearby" },
-  { label: "วิธีใช้งาน", path: "/help" },
-  { label: "ตั้งค่า", path: "/settings" },
+  { label: "พื้นที่ว่างตอนนี้", path: "", bounds: { x: 0, y: 0, width: 896, height: BUTTONS_HEIGHT } },
+  { label: "จุดที่จอดรถไว้", path: "/parked", bounds: { x: 896, y: 0, width: 298, height: 433 } },
+  { label: "ลานจอดใกล้ฉัน", path: "/nearby", bounds: { x: 1194, y: 0, width: 342, height: 433 } },
+  { label: "วิธีใช้งาน", path: "/help", bounds: { x: 896, y: 433, width: 298, height: BUTTONS_HEIGHT - 433 } },
+  { label: "ตั้งค่า", path: "/settings", bounds: { x: 1194, y: 433, width: 342, height: BUTTONS_HEIGHT - 433 } },
 ] as const;
 
 const LIFF_ID = /^\d+-[A-Za-z0-9]+$/;
@@ -30,30 +36,14 @@ export function liffUrl(liffId: string): string {
 }
 
 export function richMenu(liffId: string): messagingApi.RichMenuRequest {
-  const [main, ...rest] = BUTTONS;
   return {
     size: { ...MENU_SIZE },
     selected: true,
     name: "ParkMap main menu",
     chatBarText: "เมนู ParkMap",
-    areas: [
-      area(liffId, main, { x: 0, y: 0, width: MENU_SIZE.width, height: TOP_HEIGHT }),
-      ...rest.map((button, index) =>
-        area(liffId, button, {
-          x: index * BUTTON_WIDTH,
-          y: TOP_HEIGHT,
-          width: BUTTON_WIDTH,
-          height: MENU_SIZE.height - TOP_HEIGHT,
-        }),
-      ),
-    ],
+    areas: BUTTONS.map(({ label, path, bounds }) => ({
+      bounds: { ...bounds },
+      action: { type: "uri", label, uri: `${liffUrl(liffId)}${path}` },
+    })),
   };
-}
-
-function area(
-  liffId: string,
-  button: (typeof BUTTONS)[number],
-  bounds: messagingApi.RichMenuBounds,
-): messagingApi.RichMenuArea {
-  return { bounds, action: { type: "uri", label: button.label, uri: `${liffUrl(liffId)}${button.path}` } };
 }
