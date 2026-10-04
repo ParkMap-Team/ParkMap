@@ -25,6 +25,10 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 - **Proxy reference set**: proxy evaluation uses the existing recorded demo line with manually annotated sample motorcycles containing a ground point, long axis, and reference length and width.
 - **Vision API Python support**: `apps/vision-api` requires CPython `3.12`; the dependency lock, CI, local setup, and deployment instructions use Python 3.12 consistently.
 - **Vision API dependency workflow**: `apps/vision-api` installs its runtime and development dependency groups with `uv sync --locked --all-groups`; CI and local development use the committed `uv.lock` rather than compiling or installing requirements files.
+- **LIFF motorcycle proxy asset**: the LIFF app uses a generic motorcycle GLB 3D model bundled in the repository with a clearly documented license such as CC0 or Apache-2.0. It visualizes a detection's position, long-axis direction, and approximate size; it is not a reconstruction of the actual vehicle and is not loaded from a runtime-hosted external URL.
+- **LIFF camera controls**: the 3D lot view starts in an elevated overview preset that frames the whole lot. It provides zoom, a reset control that returns to the overview, and an optional free-fly mode for arbitrary navigation through the static lot model; it does not provide an entrance-view preset or orbit controls. Changing the virtual viewpoint never creates new observation evidence or changes `UNKNOWN` or `UNMONITORED` ground into available space.
+- **LIFF map status colours**: 2D and 3D use the same API-status semantics: `AVAILABLE` is green, `ALMOST_AVAILABLE` is yellow, occupied evidence is red, `UNKNOWN` is a distinct non-availability colour, and `UNMONITORED` is a separate dark treatment. A legend explains the mapping.
+- **LIFF map fallback**: the LIFF app falls back to a top-down 2D map immediately when WebGL is unavailable, or when the 3D scene does not finish loading within 10 seconds; there is no runtime frame-rate trigger. Users can switch between 2D and 3D manually when both renderers are available.
 
 ## Current implementation
 

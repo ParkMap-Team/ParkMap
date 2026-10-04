@@ -6,4 +6,5 @@
 - [0004: Stand-in data is not accuracy evidence](0004-stand-in-data-is-not-accuracy-evidence.md)
 - [0005: Cloud-hosted video replay demo](0005-cloud-hosted-video-replay-demo.md)
 - [0007: Define Vision API dependencies with uv](0007-define-vision-api-dependencies-with-uv.md)
+- [0008: Build a resilient LIFF lot view](0008-build-a-resilient-liff-lot-view.md)
 - [0009: Axis-only motorcycle proxy heading](0009-axis-only-motorcycle-proxy-heading.md)
