@@ -22,6 +22,37 @@ The production rich menu is created by a script in `apps/liff` that uses `@line/
 
 The menu is a large rich menu with five buttons, each opening a path of the same production LIFF app: the largest for current available space (the site list), then where I parked, nearby parking, help, and settings. Only the available-space screen exists at M1; the other four open a "coming soon" page until their feature is grilled and built, and the script is rerun whenever a button's target changes. A future reply bot would be its own service on Coolify with the token in that service's environment, and would reopen the no-identity rule of ADR 0002. Development LIFF apps have no rich menu; developers open `https://liff.line.me/{their LIFF ID}` directly. Never tunnel the API. A tunnel URL is public in a browser even though the LIFF app is not.
 
+### Development tunnel
+
+Once per developer, with `cloudflared` installed and the team domain on Cloudflare:
+
+```sh
+cloudflared tunnel login
+cloudflared tunnel create parkmap-dev-<name>
+cloudflared tunnel route dns parkmap-dev-<name> dev-<name>.<team domain>
+```
+
+In the `ParkMap Dev` channel, add a LIFF app with endpoint URL `https://dev-<name>.<team domain>`. In `.env.local`, set `NEXT_PUBLIC_LIFF_ID` to its LIFF ID and `DEV_TUNNEL_HOST=dev-<name>.<team domain>`, which `next.config.ts` adds to `allowedDevOrigins` so the dev server accepts requests through the tunnel. Restart `pnpm dev` after changing it. Then, each session:
+
+```sh
+pnpm dev
+cloudflared tunnel run --url http://localhost:3001 parkmap-dev-<name>
+```
+
+Open `https://liff.line.me/<your LIFF ID>` in LINE.
+
+### Rich menu
+
+`scripts/rich-menu/` holds the production menu: `menu.ts` (the five buttons), `rich-menu.png` (the image), and `rich-menu.html` (its source, with the render command). The production LIFF app's endpoint URL is the site root, so `https://liff.line.me/{ID}/parked` opens `/parked`. To create or update the menu, as an Admin of the production channel:
+
+```sh
+read -rs LINE_CHANNEL_ACCESS_TOKEN && export LINE_CHANNEL_ACCESS_TOKEN   # paste; not echoed or kept in history
+PRODUCTION_LIFF_ID=<production LIFF ID> pnpm rich-menu
+unset LINE_CHANNEL_ACCESS_TOKEN
+```
+
+The script validates the menu with LINE, creates it, uploads the image, makes it the default, and then deletes every older menu created through the API, so running it again leaves exactly one. If the upload or default step fails, it deletes the new menu and the old default stays. It exits non-zero on any failure and never prints the token. When a button changes, update `menu.ts` and `rich-menu.html` together, re-render the PNG, and rerun the script.
+
 ## Layout
 
 - `src/app/api/sites/[siteId]/parking-state/route.ts`: server-side proxy to FastAPI; the browser polls it every 4 s.
