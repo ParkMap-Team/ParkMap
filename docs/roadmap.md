@@ -43,7 +43,7 @@ Hand-offs cross people on purpose: #16 unblocks #4 and #8, #4 feeds #5, #6 feeds
 **30 Sep to 4 Oct (M0).** Phase 0 lands. D submits the camera permission request for mounting and power; the camera network is team-owned (ADR 0003).
 
 **5 to 11 Oct (toward M1).**
-- A: baseline on stand-in data (public datasets, simulated scenes); real-angle footage once the lot is accessible (ADR 0004).
+- A: baseline on stand-in data (public datasets, simulated scenes); real-angle footage once the lot is accessible (ADR 0004). #4 runs in two phases and owns both: by M1, a stand-in baseline labelled as such and the annotation and matching protocol agreed with #5; once the lot is accessible, real-angle clips under #16, the locked test set, and the real-angle baseline, which #5 waits for.
 - B: worker replays the AI-generated M1 video against local Postgres; `publish-dev-state` keeps working.
 - C: LIFF opens from a test rich menu and renders the lot model and proxies from seeded data. The LIFF app and an internal-only API with seeded data go on Coolify now (pulled forward from #9); developers test through their own Cloudflare Tunnel (see `apps/liff/README.md`).
 - D: draft lot model JSON and calibration from `ESTIMATED` control points (known object sizes in the real-angle photo); footage policy agreed, including cloud storage. Replace them with `MEASURED` points once someone can safely survey the lot.
