@@ -83,9 +83,30 @@ docker compose up -d postgres-test
 PARKMAP_TEST_DATABASE_URL=postgresql://parkmap:parkmap@localhost:5433/parkmap_test uv run python -m pytest -q tests
 ```
 
-Database tests skip without `PARKMAP_TEST_DATABASE_URL`, and they truncate that database. CI runs the web and LIFF jobs, then the Python job against a Postgres 17 service. JavaScript versions shared by future packages belong in the pnpm catalog. Python direct dependencies and development groups are declared in `apps/vision-api/pyproject.toml`; CI and local development install the committed `uv.lock` with `uv sync --locked --all-groups`. CI layout is adapted from Showcase for ParkMap's runtimes.
+Database tests skip without `PARKMAP_TEST_DATABASE_URL`, and they truncate that database. CI first decides which of `web` (calibration UI and skills), `liff`, and `api` changed, and runs only their jobs; the Python job runs against a Postgres 17 service. Changes to `.github/workflows/` or the workspace toolchain count as changes to every service. JavaScript versions shared by future packages belong in the pnpm catalog. Python direct dependencies and development groups are declared in `apps/vision-api/pyproject.toml`; CI and local development install the committed `uv.lock` with `uv sync --locked --all-groups`. CI layout is adapted from Showcase for ParkMap's runtimes.
 
 The detection endpoint runs the configured YOLO model and returns normalized top-left motorcycle bounding boxes. Upload analysis then applies the active parking calibration, homography, physical row dimensions, occupied/free geometry, capacity, and parking-state validation.
+
+## Production deploy
+
+Production runs on Coolify at <https://coolify.parkmap.dev>, project `ParkMap`, environment `production`, on one VPS. Only the LIFF app is public:
+
+| Coolify resource | Image | Role |
+| --- | --- | --- |
+| `parkmap-postgres` | `postgres:17` | Live state store; no public port. |
+| `parkmap-api` | `ghcr.io/parkmap-team/parkmap-api` | `PARKMAP_PROCESS=api`. Runs `alembic upgrade head`, then uvicorn on port 8000. No domain; other resources reach it at `http://parkmap-api:8000` through its network alias, because Coolify names application containers `<uuid>-<timestamp>`. |
+| `parkmap-dev-publisher` | `ghcr.io/parkmap-team/parkmap-api` | `PARKMAP_PROCESS=dev-publisher`. Publishes the synthetic dev-site state every 3 s until the worker replaces it. |
+| `parkmap-liff` | `ghcr.io/parkmap-team/parkmap-liff` | <https://app.parkmap.dev>, port 3001. Calls the API server-side through `PARKMAP_API_URL`. |
+
+`DATABASE_URL`, `PARKMAP_WORKER_TOKEN`, and `PARKMAP_API_URL` are Coolify environment variables and exist nowhere else. The API has two scheduled tasks: `purge-states` (daily, 30-day retention) and `seed-dev (run once)`, which stays disabled and was executed once by hand; executing it again adds another lot model version. `NEXT_PUBLIC_LIFF_ID` is inlined into the LIFF bundle at build time from the repository variable `PRODUCTION_LIFF_ID`, so changing it needs a new image, not a Coolify restart.
+
+**Pipeline.** Pull requests build both images without pushing them. A push to `main` pushes `sha-<commit>` images of the changed services to GHCR, then [`.github/workflows/deploy-coolify.yml`](.github/workflows/deploy-coolify.yml) pins that tag on each Coolify application, triggers the deployment, and waits for it: the API first (it runs migrations), then the publisher, and the LIFF app once the API deploy succeeded or was not needed. The workflows read repository variables `COOLIFY_URL`, `COOLIFY_APP_API`, `COOLIFY_APP_DEV_PUBLISHER`, `COOLIFY_APP_LIFF` (application UUIDs), and `PRODUCTION_LIFF_ID`, and the secret `COOLIFY_TOKEN`, a Coolify API token with the `read`, `write`, and `deploy` abilities. The private repository's plan has no protected environments, so these are repository-level and readable by every workflow in the repository.
+
+**Pulling private images.** The VPS is logged in to `ghcr.io` as root (`docker login ghcr.io`) with a classic personal access token that has only `read:packages`; Coolify 4.3.23 has no API for registry credentials. When that token expires, deploys fail while pulling; create a new token and log in again.
+
+**Rollback.** Re-run the deploy jobs of an earlier successful `main` CI run; they pin that run's image tag again. Equivalently, set the image tag of the application in Coolify to an earlier `sha-<commit>` and redeploy. Rolling back the API image does not downgrade the database schema.
+
+**Network.** Only ports 22, 80, and 443 are reachable from the internet. Coolify's direct ports (8000 for the dashboard, 6001 and 6002 for realtime and the terminal) are dropped in the `DOCKER-USER` iptables chain by `coolify-port-lockdown.service` on the VPS, because Docker-published ports bypass `ufw`. The dashboard and its realtime traffic go through the proxy at `coolify.parkmap.dev`.
 
 ## Setup workflow
 
