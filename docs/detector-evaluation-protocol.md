@@ -11,8 +11,8 @@ Shared by the #4 baseline and the #5 fine-tune so both are measured the same way
 ## M1 stand-in baseline (#4)
 
 - Evaluate the current weights on about 150 to 300 images from a public dataset of dense, partly occluded parked motorcycles that was not used to train them. Record the dataset, its licence, and the image count.
-- The provenance of the current `models/best.pt` is not recorded. Before evaluating, trace its base model and training data; if that fails, the results note states the weights' SHA-256, that their training data is unknown, and that overlap with the evaluation set cannot be ruled out.
-- The real-angle photos in `apps/vision-api/test-data/auto-parking/` are a qualitative sanity check of failure cases only, with no metrics (ADR 0004).
+- The current `models/best.pt` (SHA-256 `e80f9dacb525398cff8b739a16ecabf0dd32ecc6a916749818d3bec66b620633`) is COCO-pretrained YOLO11n fine-tuned on 27 Sep 2026 for 150 epochs at 960 px on team photos of the Sripatum lot: 5 training and 2 validation images. Its own validation precision (0.79) and recall (0.70) come from 2 images and are not a baseline. The evaluation set must not contain COCO images.
+- The real-angle photos in `apps/vision-api/test-data/auto-parking/` likely overlap those training photos, so they are a qualitative sanity check of failure cases only, with no metrics (ADR 0004).
 
 ## Real-angle split (#4, then #5)
 
