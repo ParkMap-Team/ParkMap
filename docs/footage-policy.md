@@ -7,6 +7,7 @@ Governs real footage of the Sripatum parking area for #4, #5, #7, and the demo v
 - Recording starts only after written approval (email or message kept by the team) from the project advisor. ParkMap is a class project, so the team does not seek separate approval from the university office that manages the lot.
 - Any team member may record. The camera frames the parked motorcycles, not walkways or building entrances, and clips go to the source of truth below rather than staying on the phone.
 - Accepted cost: if the university or a recorded person objects, the team has only the advisor's approval to show, and stops recording and deletes the affected footage on request.
+- Photos and clips of the lot taken before this policy, such as the images used to train the current detector weights, move into the source of truth below and follow this policy from then on. They are covered by the same advisor approval once it is given.
 
 ## Raw and redacted footage
 
