@@ -1,5 +1,5 @@
 # Production image of the LIFF app (Next standalone output). Build context: repository root.
-FROM node:22.18.0-bookworm-slim AS build
+FROM node:22.18.0-trixie-slim AS build
 WORKDIR /repo
 RUN corepack enable
 COPY . .
@@ -10,7 +10,7 @@ ENV NEXT_PUBLIC_LIFF_ID=$NEXT_PUBLIC_LIFF_ID \
   NEXT_TELEMETRY_DISABLED=1
 RUN pnpm --filter @parkmap/liff build
 
-FROM node:22.18.0-bookworm-slim
+FROM node:22.18.0-trixie-slim
 WORKDIR /app
 ENV NODE_ENV=production \
   NEXT_TELEMETRY_DISABLED=1 \
