@@ -1,9 +1,11 @@
 """Detector evaluation per docs/detector-evaluation-protocol.md."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 MATCH_IOU = 0.5
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png"}
 
 
 @dataclass(frozen=True)
@@ -98,3 +100,19 @@ def read_yolo_labels(path: Path, class_id: int = 0) -> list[Box]:
         if label_class == class_id:
             boxes.append(Box(x=centre_x - width / 2, y=centre_y - height / 2, width=width, height=height))
     return boxes
+
+
+def evaluate_dataset(
+    images_dir: Path, labels_dir: Path, detect: Callable[[bytes], list[Prediction]]
+) -> Metrics:
+    """Evaluate every image against `labels_dir/<stem>.txt`; a missing label file is an error, not an empty frame."""
+    images = sorted(path for path in images_dir.iterdir() if path.suffix.lower() in IMAGE_SUFFIXES)
+    missing = [image.name for image in images if not (labels_dir / f"{image.stem}.txt").is_file()]
+    if missing:
+        raise ValueError(f"no label file for: {', '.join(missing)}")
+    return summarize(
+        [
+            evaluate_frame(detect(image.read_bytes()), read_yolo_labels(labels_dir / f"{image.stem}.txt"))
+            for image in images
+        ]
+    )

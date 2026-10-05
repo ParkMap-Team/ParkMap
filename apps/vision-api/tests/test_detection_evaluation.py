@@ -1,6 +1,14 @@
 import pytest
 
-from app.services.detection_evaluation import Box, FrameResult, Prediction, evaluate_frame, read_yolo_labels, summarize
+from app.services.detection_evaluation import (
+    Box,
+    FrameResult,
+    Prediction,
+    evaluate_dataset,
+    evaluate_frame,
+    read_yolo_labels,
+    summarize,
+)
 
 
 def test_prediction_on_annotated_motorcycle_is_true_positive():
@@ -105,3 +113,30 @@ def test_malformed_yolo_label_is_rejected(tmp_path, line):
 
     with pytest.raises(ValueError, match="frame.txt:1"):
         read_yolo_labels(label)
+
+
+def _dataset(tmp_path, labels: dict[str, str]):
+    images, label_dir = tmp_path / "images", tmp_path / "labels"
+    images.mkdir()
+    label_dir.mkdir()
+    for stem, text in labels.items():
+        (images / f"{stem}.jpg").write_bytes(stem.encode())
+        if text is not None:
+            (label_dir / f"{stem}.txt").write_text(text)
+    return images, label_dir
+
+
+def test_dataset_evaluation_pairs_each_image_with_its_label_file(tmp_path):
+    images, labels = _dataset(tmp_path, {"hit": "0 0.5 0.5 0.2 0.2\n", "miss": "0 0.5 0.5 0.2 0.2\n"})
+    on_motorcycle = Prediction(box=Box(x=0.4, y=0.4, width=0.2, height=0.2), confidence=0.9)
+
+    metrics = evaluate_dataset(images, labels, lambda image: [on_motorcycle] if image == b"hit" else [])
+
+    assert (metrics.frames, metrics.true_positives, metrics.false_positives, metrics.false_negatives) == (2, 1, 0, 1)
+
+
+def test_image_without_label_file_is_rejected_rather_than_counted_empty(tmp_path):
+    images, labels = _dataset(tmp_path, {"labelled": "", "unlabelled": None})
+
+    with pytest.raises(ValueError, match="unlabelled"):
+        evaluate_dataset(images, labels, lambda image: [])
