@@ -1,8 +1,9 @@
 """Evaluate the configured detector on labelled images (docs/detector-evaluation-protocol.md).
 
-    python scripts/evaluate_detector.py IMAGES_DIR LABELS_DIR
+    python scripts/evaluate_detector.py IMAGES_DIR LABELS_DIR [--classes CLASSES_TXT]
 
-Labels are YOLO text files named after each image. The model and its settings come from PARKMAP_MODEL_*.
+Labels are YOLO text files named after each image, as exported by Label Studio. The motorcycle class id is read
+from the export's classes.txt (default: next to LABELS_DIR). The model and its settings come from PARKMAP_MODEL_*.
 Prints JSON with the weights' SHA-256, inference settings, and pooled counts, precision, and recall.
 """
 
@@ -17,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from app.models import DetectionResponse  # noqa: E402
-from app.services.detection_evaluation import MATCH_IOU, Box, Prediction, evaluate_dataset  # noqa: E402
+from app.services.detection_evaluation import MATCH_IOU, Box, Prediction, evaluate_dataset, motorcycle_class_id  # noqa: E402
 
 
 def predictions_from_response(response: DetectionResponse) -> list[Prediction]:
@@ -42,7 +43,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("images_dir", type=Path)
     parser.add_argument("labels_dir", type=Path)
+    parser.add_argument("--classes", type=Path, help="Label Studio classes.txt (default: LABELS_DIR/../classes.txt)")
     args = parser.parse_args()
+    classes_file = args.classes or args.labels_dir.parent / "classes.txt"
 
     from app.services.cv_service import ModelUnavailableError, cv_service
 
@@ -50,12 +53,14 @@ def main() -> int:
         print(f"model weights not found: {cv_service.model_path}", file=sys.stderr)
         return 1
     try:
+        class_id = motorcycle_class_id(classes_file)
         metrics = evaluate_dataset(
             args.images_dir,
             args.labels_dir,
             lambda image: predictions_from_response(cv_service.analyze_image(image)),
+            class_id,
         )
-    except (ModelUnavailableError, ValueError) as exc:
+    except (ModelUnavailableError, ValueError, OSError) as exc:
         print(exc, file=sys.stderr)
         return 1
 
@@ -68,6 +73,7 @@ def main() -> int:
             "device": cv_service.device,
         },
         "match_iou": MATCH_IOU,
+        "motorcycle_class_id": class_id,
         "metrics": asdict(metrics),
     }
     print(json.dumps(report, indent=2))

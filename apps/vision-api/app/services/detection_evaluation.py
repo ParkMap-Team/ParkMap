@@ -102,17 +102,32 @@ def read_yolo_labels(path: Path, class_id: int = 0) -> list[Box]:
     return boxes
 
 
+def motorcycle_class_id(classes_file: Path) -> int:
+    """Index of `motorcycle` in a Label Studio YOLO export's classes.txt; ids follow its line order."""
+    names = [line.strip() for line in classes_file.read_text().splitlines()]
+    if "motorcycle" not in names:
+        raise ValueError(f"{classes_file.name} has no 'motorcycle' class")
+    return names.index("motorcycle")
+
+
 def evaluate_dataset(
-    images_dir: Path, labels_dir: Path, detect: Callable[[bytes], list[Prediction]]
+    images_dir: Path, labels_dir: Path, detect: Callable[[bytes], list[Prediction]], class_id: int = 0
 ) -> Metrics:
     """Evaluate every image against `labels_dir/<stem>.txt`; a missing label file is an error, not an empty frame."""
+    for folder in (images_dir, labels_dir):
+        if not folder.is_dir():
+            raise ValueError(f"not a folder: {folder}")
     images = sorted(path for path in images_dir.iterdir() if path.suffix.lower() in IMAGE_SUFFIXES)
+    if not images:
+        raise ValueError(f"no images ({', '.join(sorted(IMAGE_SUFFIXES))}) in {images_dir}")
     missing = [image.name for image in images if not (labels_dir / f"{image.stem}.txt").is_file()]
     if missing:
         raise ValueError(f"no label file for: {', '.join(missing)}")
-    return summarize(
-        [
-            evaluate_frame(detect(image.read_bytes()), read_yolo_labels(labels_dir / f"{image.stem}.txt"))
-            for image in images
-        ]
-    )
+    frames = []
+    for image in images:
+        try:
+            predictions = detect(image.read_bytes())
+        except ValueError as exc:
+            raise ValueError(f"{image.name}: {exc}") from exc
+        frames.append(evaluate_frame(predictions, read_yolo_labels(labels_dir / f"{image.stem}.txt", class_id)))
+    return summarize(frames)

@@ -6,6 +6,7 @@ from app.services.detection_evaluation import (
     Prediction,
     evaluate_dataset,
     evaluate_frame,
+    motorcycle_class_id,
     read_yolo_labels,
     summarize,
 )
@@ -140,3 +141,52 @@ def test_image_without_label_file_is_rejected_rather_than_counted_empty(tmp_path
 
     with pytest.raises(ValueError, match="unlabelled"):
         evaluate_dataset(images, labels, lambda image: [])
+
+
+def test_motorcycle_class_id_comes_from_the_exported_class_list(tmp_path):
+    classes = tmp_path / "classes.txt"
+    classes.write_text("bicycle\nmotorcycle\n")
+
+    assert motorcycle_class_id(classes) == 1
+
+
+def test_class_list_without_motorcycle_is_rejected(tmp_path):
+    classes = tmp_path / "classes.txt"
+    classes.write_text("bicycle\ncar\n")
+
+    with pytest.raises(ValueError, match="motorcycle"):
+        motorcycle_class_id(classes)
+
+
+def test_dataset_evaluation_uses_the_given_motorcycle_class(tmp_path):
+    images, labels = _dataset(tmp_path, {"frame": "1 0.5 0.5 0.2 0.2\n0 0.1 0.1 0.1 0.1\n"})
+
+    metrics = evaluate_dataset(images, labels, lambda image: [], class_id=1)
+
+    assert metrics.false_negatives == 1
+
+
+def test_dataset_without_images_is_rejected(tmp_path):
+    images, labels = _dataset(tmp_path, {})
+
+    with pytest.raises(ValueError, match="no images"):
+        evaluate_dataset(images, labels, lambda image: [])
+
+
+def test_missing_dataset_folder_is_rejected_with_its_path(tmp_path):
+    images, labels = _dataset(tmp_path, {"frame": ""})
+
+    with pytest.raises(ValueError, match="not a folder"):
+        evaluate_dataset(tmp_path / "absent", labels, lambda image: [])
+    with pytest.raises(ValueError, match="not a folder"):
+        evaluate_dataset(images, tmp_path / "absent", lambda image: [])
+
+
+def test_unreadable_image_is_reported_by_name(tmp_path):
+    images, labels = _dataset(tmp_path, {"broken": ""})
+
+    def reject(image):
+        raise ValueError("The uploaded file is not a valid supported image.")
+
+    with pytest.raises(ValueError, match="broken.jpg"):
+        evaluate_dataset(images, labels, reject)
