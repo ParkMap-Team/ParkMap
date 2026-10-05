@@ -5,15 +5,59 @@ on:
   push:
     branches: [main]
 
+# Pull requests cancel superseded runs; main never does, so a deploy is not cut off midway.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 jobs:
+  # Only services whose files changed are tested, built, and deployed. Changes to CI or the
+  # workspace toolchain count as changes to every service.
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      liff: ${{ steps.filter.outputs.liff }}
+      api: ${{ steps.filter.outputs.api }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            shared: &shared
+              - '.github/workflows/**'
+              - '.nvmrc'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+            web:
+              - *shared
+              - 'tools/**'
+              - '.agents/**'
+              - '.claude/**'
+              - 'docs/agents/**'
+              - 'AGENTS.md'
+            liff:
+              - *shared
+              - 'apps/liff/**'
+              - 'apps/vision-api/openapi.json'
+              - '.dockerignore'
+            api:
+              - '.github/workflows/**'
+              - 'apps/vision-api/**'
+
   web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -32,6 +76,8 @@ jobs:
       - run: pnpm --filter @parkmap/calibration-ui build
 
   liff:
+    needs: changes
+    if: needs.changes.outputs.liff == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -52,7 +98,8 @@ jobs:
       - run: pnpm --filter @parkmap/liff build
 
   backend:
-    needs: web
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
@@ -88,3 +135,66 @@ jobs:
       - run: uv run ruff check --select F app tests migrations scripts/export_openapi.py
       - run: uv run python scripts/export_openapi.py --check
       - run: uv run python -m pytest -q tests
+
+  # Pull requests only check that the image builds; main pushes it to GHCR for deployment.
+  api-image:
+    needs: backend
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/image.yml
+    with:
+      image: parkmap-api
+      context: apps/vision-api
+      dockerfile: apps/vision-api/Dockerfile
+      push: ${{ github.event_name == 'push' }}
+
+  liff-image:
+    needs: liff
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/image.yml
+    with:
+      image: parkmap-liff
+      context: .
+      dockerfile: apps/liff/Dockerfile
+      push: ${{ github.event_name == 'push' }}
+      build_args: NEXT_PUBLIC_LIFF_ID=${{ vars.PRODUCTION_LIFF_ID }}
+
+  # The API deploys first: it runs the migrations the publisher and the LIFF app rely on.
+  deploy-api:
+    needs: api-image
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/deploy-coolify.yml
+    with:
+      app: parkmap-api
+      application_uuid: ${{ vars.COOLIFY_APP_API }}
+      image_tag: sha-${{ github.sha }}
+    secrets:
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+
+  deploy-dev-publisher:
+    needs: deploy-api
+    uses: ./.github/workflows/deploy-coolify.yml
+    with:
+      app: parkmap-dev-publisher
+      application_uuid: ${{ vars.COOLIFY_APP_DEV_PUBLISHER }}
+      image_tag: sha-${{ github.sha }}
+    secrets:
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+
+  deploy-liff:
+    needs: [liff-image, deploy-api]
+    # Waits for an API deploy in the same push, but also runs when the API did not change.
+    if: >-
+      !cancelled() && github.event_name == 'push'
+      && needs.liff-image.result == 'success'
+      && contains(fromJSON('["success", "skipped"]'), needs.deploy-api.result)
+    uses: ./.github/workflows/deploy-coolify.yml
+    with:
+      app: parkmap-liff
+      application_uuid: ${{ vars.COOLIFY_APP_LIFF }}
+      image_tag: sha-${{ github.sha }}
+    secrets:
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}

@@ -1,0 +1,98 @@
+name: Deploy to Coolify
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: Application name used in logs
+        required: true
+        type: string
+      application_uuid:
+        description: Coolify application UUID
+        required: true
+        type: string
+      image_tag:
+        description: Immutable GHCR image tag
+        required: true
+        type: string
+      timeout_minutes:
+        required: false
+        type: number
+        default: 10
+    secrets:
+      COOLIFY_TOKEN:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    concurrency:
+      group: deploy-${{ inputs.app }}
+      cancel-in-progress: false
+    steps:
+      - name: Pin image and wait for deployment
+        env:
+          APP_NAME: ${{ inputs.app }}
+          APPLICATION_UUID: ${{ inputs.application_uuid }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_URL: ${{ vars.COOLIFY_URL }}
+          DEPLOY_TIMEOUT_MINUTES: ${{ inputs.timeout_minutes }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "$APPLICATION_UUID" ] || [ -z "$COOLIFY_URL" ]; then
+            echo "Set the Coolify URL and the $APP_NAME application UUID as repository variables." >&2
+            exit 1
+          fi
+
+          api() {
+            curl --fail-with-body --silent --show-error --max-time 15 \
+              --header "Authorization: Bearer $COOLIFY_TOKEN" \
+              --header "Accept: application/json" \
+              --header "Content-Type: application/json" \
+              "$@"
+          }
+
+          # Only idempotent requests retry; a retried POST could queue a second deployment.
+          retry=(--retry 2 --retry-all-errors)
+
+          # Pin the tag on the application so restarts keep running this image.
+          api "${retry[@]}" --request PATCH "$COOLIFY_URL/api/v1/applications/$APPLICATION_UUID" \
+            --data "$(jq -cn --arg tag "$IMAGE_TAG" '{docker_registry_image_tag: $tag}')" >/dev/null
+
+          deployment_uuid=$(api --request POST "$COOLIFY_URL/api/v1/deploy?uuid=$APPLICATION_UUID&force=false" |
+            jq -r '.deployments[0].deployment_uuid // empty')
+          if [ -z "$deployment_uuid" ]; then
+            echo "Coolify returned no deployment for $APP_NAME" >&2
+            exit 1
+          fi
+
+          poll_interval=5
+          max_polls=$((DEPLOY_TIMEOUT_MINUTES * 60 / poll_interval))
+          for poll in $(seq 1 "$max_polls"); do
+            if ! status=$(api "${retry[@]}" "$COOLIFY_URL/api/v1/deployments/$deployment_uuid" | jq -er '.status'); then
+              echo "$APP_NAME: deployment status unavailable ($poll/$max_polls)" >&2
+              sleep "$poll_interval"
+              continue
+            fi
+            case "$status" in
+              finished)
+                echo "$APP_NAME deployed as $IMAGE_TAG"
+                exit 0
+                ;;
+              failed|cancel*)
+                echo "$APP_NAME deployment ended with status: $status" >&2
+                exit 1
+                ;;
+              *)
+                echo "$APP_NAME: $status ($poll/$max_polls)"
+                sleep "$poll_interval"
+                ;;
+            esac
+          done
+
+          echo "$APP_NAME did not deploy within $DEPLOY_TIMEOUT_MINUTES minutes" >&2
+          exit 1
