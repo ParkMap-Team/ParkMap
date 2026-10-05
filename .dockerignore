@@ -1,0 +1,15 @@
+# Build context of apps/liff/Dockerfile. Local env files must never reach the image.
+.git/
+**/node_modules/
+**/.next/
+**/.turbo/
+**/.env
+**/.env.*
+**/*.tsbuildinfo
+apps/vision-api/
+apps/liff/assets-source/
+docs/
+*.mp4
+*.mov
+*.mkv
+*.avi
