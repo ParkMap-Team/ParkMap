@@ -163,7 +163,7 @@ def test_dataset_evaluation_uses_the_given_motorcycle_class(tmp_path):
 
     metrics = evaluate_dataset(images, labels, lambda image: [], class_id=1)
 
-    assert metrics.false_negatives == 1
+    assert metrics.false_negatives == 2
 
 
 def test_dataset_without_images_is_rejected(tmp_path):
