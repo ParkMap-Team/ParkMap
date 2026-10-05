@@ -1,9 +1,10 @@
 """Evaluate the configured detector on labelled images (docs/detector-evaluation-protocol.md).
 
-    python scripts/evaluate_detector.py IMAGES_DIR LABELS_DIR [--classes CLASSES_TXT]
+    python scripts/evaluate_detector.py IMAGES_DIR LABELS_DIR [--classes FILE] [--class-name NAME]
 
-Labels are YOLO text files named after each image, as exported by Label Studio. The motorcycle class id is read
-from the export's classes.txt (default: next to LABELS_DIR). The model and its settings come from PARKMAP_MODEL_*.
+Labels are YOLO text files named after each image, as exported by Label Studio or Roboflow. The label class id of
+NAME (default: motorcycle, case-insensitive) is read from classes.txt or data.yaml next to LABELS_DIR, or --classes.
+The model and its settings come from PARKMAP_MODEL_*.
 Prints JSON with the weights' SHA-256, inference settings, and pooled counts, precision, and recall.
 """
 
@@ -31,6 +32,14 @@ def predictions_from_response(response: DetectionResponse) -> list[Prediction]:
     ]
 
 
+def default_classes_file(labels_dir: Path) -> Path:
+    """Label Studio exports classes.txt next to labels/; Roboflow and Ultralytics use data.yaml."""
+    for name in ("classes.txt", "data.yaml"):
+        if (labels_dir.parent / name).is_file():
+            return labels_dir.parent / name
+    return labels_dir.parent / "classes.txt"
+
+
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as file:
@@ -43,9 +52,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("images_dir", type=Path)
     parser.add_argument("labels_dir", type=Path)
-    parser.add_argument("--classes", type=Path, help="Label Studio classes.txt (default: LABELS_DIR/../classes.txt)")
+    parser.add_argument("--classes", type=Path, help="classes.txt or data.yaml (default: found next to LABELS_DIR)")
+    parser.add_argument("--class-name", default="motorcycle", help="label class to evaluate (default: motorcycle)")
     args = parser.parse_args()
-    classes_file = args.classes or args.labels_dir.parent / "classes.txt"
+    classes_file = args.classes or default_classes_file(args.labels_dir)
 
     from app.services.cv_service import ModelUnavailableError, cv_service
 
@@ -53,7 +63,7 @@ def main() -> int:
         print(f"model weights not found: {cv_service.model_path}", file=sys.stderr)
         return 1
     try:
-        class_id = motorcycle_class_id(classes_file)
+        class_id = motorcycle_class_id(classes_file, args.class_name)
         metrics = evaluate_dataset(
             args.images_dir,
             args.labels_dir,
@@ -71,9 +81,10 @@ def main() -> int:
             "confidence": cv_service.confidence_threshold,
             "nms_iou": cv_service.nms_iou,
             "device": cv_service.device,
+            "model_class_id": cv_service.class_id,
         },
         "match_iou": MATCH_IOU,
-        "motorcycle_class_id": class_id,
+        "label_class": {"name": args.class_name, "id": class_id},
         "metrics": asdict(metrics),
     }
     print(json.dumps(report, indent=2))

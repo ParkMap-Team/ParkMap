@@ -30,6 +30,8 @@ class ComputerVisionService:
         self.confidence_threshold = float(os.getenv("PARKMAP_MODEL_CONF", "0.25"))
         self.nms_iou = float(os.getenv("PARKMAP_MODEL_NMS_IOU", "0.50"))
         self.device = os.getenv("PARKMAP_DEVICE", "cpu")
+        # The weights' motorcycle class: 0 for ParkMap's single-class weights, 3 for COCO-pretrained YOLO.
+        self.class_id = int(os.getenv("PARKMAP_MODEL_CLASS_ID", "0"))
 
         self._model: YOLO | None = None
         self._model_lock = Lock()
@@ -74,7 +76,7 @@ class ComputerVisionService:
                     conf=self.confidence_threshold,
                     iou=self.nms_iou,
                     device=self.device,
-                    classes=[0],
+                    classes=[self.class_id],
                     verbose=False,
                 )
         finally:
@@ -90,7 +92,7 @@ class ComputerVisionService:
             confidence_values = boxes.conf.detach().cpu().tolist()
             class_values = boxes.cls.detach().cpu().tolist()
             for xyxy, confidence, class_id_value in zip(xyxy_values, confidence_values, class_values):
-                if int(class_id_value) != 0:
+                if int(class_id_value) != self.class_id:
                     continue
                 x1, y1, x2, y2 = (float(value) for value in xyxy)
                 left = min(max(x1 / image_width, 0.0), 1.0)

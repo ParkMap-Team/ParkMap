@@ -4,6 +4,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+import yaml
+
 MATCH_IOU = 0.5
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png"}
 
@@ -102,12 +104,18 @@ def read_yolo_labels(path: Path, class_id: int = 0) -> list[Box]:
     return boxes
 
 
-def motorcycle_class_id(classes_file: Path) -> int:
-    """Index of `motorcycle` in a Label Studio YOLO export's classes.txt; ids follow its line order."""
-    names = [line.strip() for line in classes_file.read_text().splitlines()]
-    if "motorcycle" not in names:
-        raise ValueError(f"{classes_file.name} has no 'motorcycle' class")
-    return names.index("motorcycle")
+def motorcycle_class_id(classes_file: Path, class_name: str = "motorcycle") -> int:
+    """Index of `class_name` (case-insensitive) in Label Studio's classes.txt or a YOLO data.yaml `names`."""
+    if classes_file.suffix.lower() in {".yaml", ".yml"}:
+        names = yaml.safe_load(classes_file.read_text()).get("names") or []
+        names = [names[key] for key in sorted(names)] if isinstance(names, dict) else names
+    else:
+        names = classes_file.read_text().splitlines()
+    wanted = class_name.strip().lower()
+    folded = [str(name).strip().lower() for name in names]
+    if wanted not in folded:
+        raise ValueError(f"{classes_file.name} has no '{class_name}' class")
+    return folded.index(wanted)
 
 
 def evaluate_dataset(

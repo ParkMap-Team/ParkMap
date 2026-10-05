@@ -190,3 +190,24 @@ def test_unreadable_image_is_reported_by_name(tmp_path):
 
     with pytest.raises(ValueError, match="broken.jpg"):
         evaluate_dataset(images, labels, reject)
+
+
+def test_motorcycle_class_id_reads_roboflow_data_yaml_case_insensitively(tmp_path):
+    data = tmp_path / "data.yaml"
+    data.write_text("train: ../train/images\nnc: 2\nnames: ['car', 'Motorcycle']\n")
+
+    assert motorcycle_class_id(data) == 1
+
+
+def test_motorcycle_class_id_reads_ultralytics_name_mapping(tmp_path):
+    data = tmp_path / "data.yaml"
+    data.write_text("names:\n  0: car\n  1: motorcycle\n")
+
+    assert motorcycle_class_id(data) == 1
+
+
+def test_dataset_class_name_can_differ_from_motorcycle(tmp_path):
+    data = tmp_path / "data.yaml"
+    data.write_text("names: ['Motor']\n")
+
+    assert motorcycle_class_id(data, class_name="motor") == 0
