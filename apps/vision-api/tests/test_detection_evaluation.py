@@ -1,4 +1,6 @@
-from app.services.detection_evaluation import Box, FrameResult, Prediction, evaluate_frame, summarize
+import pytest
+
+from app.services.detection_evaluation import Box, FrameResult, Prediction, evaluate_frame, read_yolo_labels, summarize
 
 
 def test_prediction_on_annotated_motorcycle_is_true_positive():
@@ -72,3 +74,34 @@ def test_precision_and_recall_are_undefined_without_predictions_or_annotations()
 
     assert metrics.precision is None
     assert metrics.recall is None
+
+
+def test_yolo_label_centre_box_becomes_top_left_box(tmp_path):
+    label = tmp_path / "frame.txt"
+    label.write_text("0 0.5 0.4 0.2 0.1\n")
+
+    [box] = read_yolo_labels(label)
+
+    assert (box.x, box.y, box.width, box.height) == pytest.approx((0.4, 0.35, 0.2, 0.1))
+
+
+def test_yolo_labels_keep_only_the_motorcycle_class_and_allow_empty_frames(tmp_path):
+    mixed = tmp_path / "mixed.txt"
+    mixed.write_text("1 0.5 0.5 0.2 0.2\n\n0 0.5 0.5 0.2 0.2\n")
+    empty = tmp_path / "empty.txt"
+    empty.write_text("")
+
+    assert len(read_yolo_labels(mixed)) == 1
+    assert read_yolo_labels(empty) == []
+
+
+@pytest.mark.parametrize(
+    "line",
+    ["0 0.5 0.5 0.2", "0 0.5 0.5 0.2 0.2 0.9", "x 0.5 0.5 0.2 0.2", "0 0.5 0.5 1.2 0.2", "0 0.5 0.5 0 0.2"],
+)
+def test_malformed_yolo_label_is_rejected(tmp_path, line):
+    label = tmp_path / "frame.txt"
+    label.write_text(line + "\n")
+
+    with pytest.raises(ValueError, match="frame.txt:1"):
+        read_yolo_labels(label)
