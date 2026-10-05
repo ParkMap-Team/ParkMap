@@ -70,14 +70,27 @@ jobs:
             exit 1
           fi
 
-          poll_interval=5
-          max_polls=$((DEPLOY_TIMEOUT_MINUTES * 60 / poll_interval))
-          for poll in $(seq 1 "$max_polls"); do
-            if ! status=$(api "${retry[@]}" "$COOLIFY_URL/api/v1/deployments/$deployment_uuid" | jq -er '.status'); then
-              echo "$APP_NAME: deployment status unavailable ($poll/$max_polls)" >&2
-              sleep "$poll_interval"
-              continue
-            fi
+          body=$(mktemp)
+          deadline=$((SECONDS + DEPLOY_TIMEOUT_MINUTES * 60))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            code=$(curl --silent --show-error --max-time 15 --output "$body" --write-out '%{http_code}' \
+              --header "Authorization: Bearer $COOLIFY_TOKEN" \
+              --header "Accept: application/json" \
+              "$COOLIFY_URL/api/v1/deployments/$deployment_uuid") || code=000
+            case "$code" in
+              200) ;;
+              4??)
+                # Not transient: a missing token ability or a wrong UUID never recovers by waiting.
+                echo "$APP_NAME: reading the deployment returned HTTP $code; the token needs the read ability" >&2
+                exit 1
+                ;;
+              *)
+                echo "$APP_NAME: deployment status unavailable (HTTP $code)" >&2
+                sleep 5
+                continue
+                ;;
+            esac
+            status=$(jq -r '.status // empty' "$body")
             case "$status" in
               finished)
                 echo "$APP_NAME deployed as $IMAGE_TAG"
@@ -88,8 +101,8 @@ jobs:
                 exit 1
                 ;;
               *)
-                echo "$APP_NAME: $status ($poll/$max_polls)"
-                sleep "$poll_interval"
+                echo "$APP_NAME: ${status:-unknown}"
+                sleep 5
                 ;;
             esac
           done
