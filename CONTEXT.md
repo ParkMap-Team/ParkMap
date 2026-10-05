@@ -55,10 +55,10 @@ The 3D map is a static surveyed lot model with detections drawn as motorcycle pr
 
 - The Python service owns detection, calibration, occupancy, and recommendation calculations. The web app renders results and owns LIFF integration.
 - A LINE rich-menu URL can open LIFF without a bot server. Add a webhook service only when message/postback behavior is required; it need not be NestJS solely for a link.
-- Do not expose raw camera credentials, raw private footage, LINE access tokens, or identifiable user data to the browser. Decide retention and access before recording footage.
+- Do not expose raw camera credentials, raw private footage, LINE access tokens, or identifiable user data to the browser. Recording, storage, access, blurring, training use, and deletion of real footage follow `docs/footage-policy.md`.
 - Do not label a candidate green when observation is stale, occluded, uncalibrated, or uncertain. Yellow means movement may be required, never a guaranteed instruction to move another person's vehicle.
 - Current JSON calibration files and synchronous inference are development facilities. Multi-camera production needs durable state, a separate worker, explicit freshness limits, and health/lag monitoring before scale claims.
 
 ## Open product inputs
 
-The Sripatum demo video (a fixed phone recording, ADR 0005) and surveyed dimensions and reference points of its parking area, acceptable update delay, acceptable false-green rate, access policy for footage including cloud storage, and whether students need LINE messages in addition to opening LIFF. These are required for the demo, not for the workspace setup.
+The Sripatum demo video (a fixed phone recording, ADR 0005) and surveyed dimensions and reference points of its parking area, acceptable update delay, acceptable false-green rate, and whether students need LINE messages in addition to opening LIFF. These are required for the demo, not for the workspace setup.
