@@ -159,7 +159,7 @@ def test_class_list_without_motorcycle_is_rejected(tmp_path):
 
 
 def test_dataset_evaluation_uses_the_given_motorcycle_class(tmp_path):
-    images, labels = _dataset(tmp_path, {"frame": "1 0.5 0.5 0.2 0.2\n0 0.1 0.1 0.1 0.1\n"})
+    images, labels = _dataset(tmp_path, {"frame": "1 0.5 0.5 0.2 0.2\n1 0.2 0.2 0.1 0.1\n0 0.1 0.1 0.1 0.1\n"})
 
     metrics = evaluate_dataset(images, labels, lambda image: [], class_id=1)
 
