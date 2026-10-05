@@ -16,7 +16,7 @@ Start the API with seeded development data first (see the root README). Without 
 The app is a LIFF app on a LINE Login channel ([ADR 0006](../../docs/adr/0006-liff-app-on-a-line-login-channel.md)). One team member creates the provider and the LINE Official Account, and every team member is an Admin of the provider, the Official Account, and all its channels, so no single account blocks the team. A LIFF app has one endpoint URL, so each environment has its own LIFF app and LIFF ID. Two LINE Login channels under the same provider keep them apart, because publishing is per channel:
 
 - **Production:** channel `ParkMap`, one LIFF app on Coolify. The API stays on Coolify's internal network; only the LIFF app has a public HTTPS domain. The rich menu opens this LIFF app. The channel is published when people outside the team need to open it.
-- **Development:** channel `ParkMap Dev`, which stays in Developing status so only its admins and testers can open its LIFF apps. Each developer has one LIFF app there pointing at their local `pnpm dev` through their own named Cloudflare Tunnel on `parkmap.dev` (`dev-<name>.parkmap.dev`), so the endpoint URL is set once; put that LIFF ID in `.env.local`. Quick tunnels are not used, because their URL changes on every run.
+- **Development:** most work needs no LINE setup. The app only runs `liff.init`, so `pnpm dev` without `NEXT_PUBLIC_LIFF_ID` at `http://localhost:3001` covers it. Testing inside LINE (the in-app browser, especially on iOS, 3D performance on a phone, and the LIFF consent and redirect) is optional per developer, and at least one developer keeps it working so changes can be checked in LINE before they reach production. That developer has a LIFF app in channel `ParkMap Dev`, which stays in Developing status so only its admins and testers can open its LIFF apps, pointing at their local `pnpm dev` through their own named Cloudflare Tunnel on `parkmap.dev` (`dev-<name>.parkmap.dev`), so the endpoint URL is set once; they put that LIFF ID in `.env.local`. Quick tunnels are not used, because their URL changes on every run.
 
 The production rich menu is created by a script in `apps/liff` that uses `@line/bot-sdk` and links to `https://liff.line.me/{production LIFF ID}`, so the menu definition and image are versioned in Git. It needs Messaging API enabled on the LINE Official Account and reads the channel access token from the environment only. `@line/bot-sdk` is used only by this script, never by the Next app at runtime. The token is not stored anywhere: whoever runs the script, as an Admin, copies it from the LINE Developers Console into `LINE_CHANNEL_ACCESS_TOKEN` for that shell only, never into a `.env` file, Coolify, chat, or logs, and reissues it in the console if it may have leaked. Menu buttons use URI actions only; postback actions wait for a webhook.
 
@@ -24,7 +24,7 @@ The menu is a large rich menu with five buttons, each opening a path of the same
 
 ### Development tunnel
 
-Once per developer, with `cloudflared` installed and `parkmap.dev` on Cloudflare:
+Only for a developer who tests inside LINE. Once, with `cloudflared` installed and `parkmap.dev` on Cloudflare:
 
 ```sh
 cloudflared tunnel login
