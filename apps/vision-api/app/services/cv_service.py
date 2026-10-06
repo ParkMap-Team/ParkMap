@@ -51,6 +51,13 @@ class ComputerVisionService:
         except Exception as exc:
             logger.exception("ParkMap YOLO model could not be loaded from %s", self.model_path)
             raise ModelUnavailableError("The detection model is unavailable.") from exc
+        # A wrong class id would silently detect nothing and turn occupied ground green.
+        names = getattr(self._model, "names", {}) or {}
+        name = names.get(self.class_id) if isinstance(names, dict) else dict(enumerate(names)).get(self.class_id)
+        if str(name).strip().lower() != "motorcycle":
+            logger.error("PARKMAP_MODEL_CLASS_ID=%s is %r in %s, not motorcycle", self.class_id, name, self.model_path)
+            self._model = None
+            raise ModelUnavailableError("The detection model is unavailable.")
         logger.info("ParkMap YOLO model loaded from %s", self.model_path)
         return self._model
 

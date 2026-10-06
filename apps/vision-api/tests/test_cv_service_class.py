@@ -57,3 +57,22 @@ def test_configured_model_class_is_reported_as_motorcycle(monkeypatch):
     assert [(d.class_id, d.class_name, d.confidence) for d in response.detections] == [
         (0, "motorcycle", 0.8999999761581421)
     ]
+
+
+class _NamedModel(_Model):
+    names = {0: "motorcycle"}
+
+
+def test_class_that_is_not_motorcycle_in_the_weights_makes_the_model_unavailable(monkeypatch, tmp_path):
+    import pytest
+
+    import app.services.cv_service as cv
+
+    monkeypatch.setenv("PARKMAP_MODEL_CLASS_ID", "3")  # COCO class id with single-class ParkMap weights
+    weights = tmp_path / "best.pt"
+    weights.write_bytes(b"weights")
+    monkeypatch.setenv("PARKMAP_MODEL_PATH", str(weights))
+    monkeypatch.setattr(cv, "YOLO", lambda *args, **kwargs: _NamedModel([[10, 10, 50, 50, 0.9, 0]]))
+
+    with pytest.raises(cv.ModelUnavailableError):
+        ComputerVisionService().analyze_image(_image())

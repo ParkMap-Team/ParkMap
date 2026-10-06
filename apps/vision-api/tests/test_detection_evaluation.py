@@ -211,3 +211,12 @@ def test_dataset_class_name_can_differ_from_motorcycle(tmp_path):
     data.write_text("names: ['Motor']\n")
 
     assert motorcycle_class_id(data, class_name="motor") == 0
+
+
+@pytest.mark.parametrize("text", ["", "- motorcycle\n", "train: x\n", "names: [unclosed\n"])
+def test_data_yaml_without_class_names_is_rejected(tmp_path, text):
+    data = tmp_path / "data.yaml"
+    data.write_text(text)
+
+    with pytest.raises(ValueError, match="data.yaml"):
+        motorcycle_class_id(data)

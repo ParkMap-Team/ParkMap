@@ -107,7 +107,13 @@ def read_yolo_labels(path: Path, class_id: int = 0) -> list[Box]:
 def motorcycle_class_id(classes_file: Path, class_name: str = "motorcycle") -> int:
     """Index of `class_name` (case-insensitive) in Label Studio's classes.txt or a YOLO data.yaml `names`."""
     if classes_file.suffix.lower() in {".yaml", ".yml"}:
-        names = yaml.safe_load(classes_file.read_text()).get("names") or []
+        try:
+            data = yaml.safe_load(classes_file.read_text())
+        except yaml.YAMLError as exc:
+            raise ValueError(f"{classes_file.name} is not valid YAML") from exc
+        names = data.get("names") if isinstance(data, dict) else None
+        if not isinstance(names, (dict, list)):
+            raise ValueError(f"{classes_file.name} has no 'names' list")
         names = [names[key] for key in sorted(names)] if isinstance(names, dict) else names
     else:
         names = classes_file.read_text().splitlines()
