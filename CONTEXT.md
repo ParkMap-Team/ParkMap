@@ -8,6 +8,7 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 - **Parking area**: surveyed physical ground region observed by exactly one fixed camera. A larger lot is covered by adding cameras for further non-overlapping parking areas, not by fusing overlapping views.
 - **Camera view**: timestamped observation from a known camera. An image alone is not a surveyed map.
 - **Parking ROI**: image region considered for analysis.
+- **Parking ROI miss**: an annotated motorcycle whose ground point (wheel-ground contact nearest the camera) is inside the calibrated Parking ROI but which no detection matches. It is the detector's conservative safety measure; see `docs/detector-evaluation-protocol.md`.
 - **Virtual row**: operator-defined analysis region with an internal ID. It is not a painted or numbered stall.
 - **Occupied footprint**: estimated ground area taken by a detected motorcycle, with calibration and uncertainty.
 - **Candidate space**: ground region where a motorcycle footprint might fit. Candidates are not reserved stalls.
