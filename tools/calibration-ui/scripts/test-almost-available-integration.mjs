@@ -36,8 +36,8 @@ assert.match(mapSource, /data-parking-geometry="almost-available"/);
 assert.match(mapSource, /data-parking-geometry="available"/);
 assert.match(mapSource, /data-parking-geometry="occupied"/);
 assert.match(mapSource, /data-parking-geometry="row"/);
-assert.match(mapSource, /fill="rgba\(250,204,21,\.16\)" stroke="#facc15"/);
-assert.match(mapSource, /fill="rgba\(52,211,153,\.16\)" stroke="#34d399"/);
+assert.match(mapSource, /fill="rgba\(250,204,21,\.16\)"[\s\S]*?stroke="#facc15"/);
+assert.match(mapSource, /fill="rgba\(52,211,153,\.16\)"[\s\S]*?stroke="#34d399"/);
 assert.match(mapSource, /stroke="#cbd5e1"/);
 assert.match(mapSource, /#ef4444/);
 

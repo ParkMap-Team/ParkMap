@@ -41,7 +41,6 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const videoAnalysisBusyRef = useRef(false);
 
   useEffect(() => {
-    if (!file) return;
     const controller = new AbortController();
     void getCalibration(controller.signal)
       .then((savedCalibration) => {
@@ -61,7 +60,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
         if (!(reason instanceof DOMException && reason.name === 'AbortError')) setSetupRequired(true);
       });
     return () => controller.abort();
-  }, [file]);
+  }, []);
   useEffect(() => () => controllerRef.current?.abort(), []);
   useEffect(() => previewUrl ? () => URL.revokeObjectURL(previewUrl) : undefined, [previewUrl]);
   useEffect(() => latestVideoFrameUrl ? () => URL.revokeObjectURL(latestVideoFrameUrl) : undefined, [latestVideoFrameUrl]);
