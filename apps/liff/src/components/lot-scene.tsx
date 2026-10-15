@@ -102,7 +102,7 @@ function hatch(): CanvasTexture {
   });
 }
 
-/** Unmonitored ground is dark with dots. */
+/** Unmonitored ground is asphalt grey with faint dots, so it recedes behind the monitored area. */
 function dots(): CanvasTexture {
   return pattern(COLORS.UNMONITORED, (context) => {
     context.fillStyle = COLORS.UNMONITORED_DOT;
