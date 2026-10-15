@@ -8,9 +8,6 @@ case "${PARKMAP_PROCESS:-api}" in
     python -m alembic upgrade head
     exec uvicorn app.main:app --host 0.0.0.0 --port 8000
     ;;
-  dev-publisher)
-    exec python -m app.manage publish-dev-state
-    ;;
   worker)
     # Still-image loop or camera worker; configured only through environment variables.
     exec python -m app.worker \

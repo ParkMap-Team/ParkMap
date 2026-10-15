@@ -162,7 +162,7 @@ jobs:
       push: ${{ github.event_name == 'push' }}
       build_args: NEXT_PUBLIC_LIFF_ID=${{ vars.PRODUCTION_LIFF_ID }}
 
-  # The API deploys first: it runs the migrations the publisher, the worker, and the LIFF app rely on.
+  # The API deploys first: it runs the migrations the worker and the LIFF app rely on.
   deploy-api:
     needs: api-image
     if: github.event_name == 'push'
@@ -170,16 +170,6 @@ jobs:
     with:
       app: parkmap-api
       application_uuid: ${{ vars.COOLIFY_APP_API }}
-      image_tag: sha-${{ github.sha }}
-    secrets:
-      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
-
-  deploy-dev-publisher:
-    needs: deploy-api
-    uses: ./.github/workflows/deploy-coolify.yml
-    with:
-      app: parkmap-dev-publisher
-      application_uuid: ${{ vars.COOLIFY_APP_DEV_PUBLISHER }}
       image_tag: sha-${{ github.sha }}
     secrets:
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}

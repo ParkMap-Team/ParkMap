@@ -187,6 +187,27 @@ def test_purge_removes_only_old_states(seeded, client):
     assert area_state(client)["status"] == "LIVE"
 
 
+def test_removing_a_site_removes_everything_it_owns(seeded, client):
+    client.post(INGEST_URL, json=state_json(), headers=AUTH)
+    assert manage.main(["create-site", "--site-id", "real-site", "--name", "Real site", "--latitude", "13.8", "--longitude", "100.5"]) == 0
+
+    assert manage.main(["remove-site", "--site-id", "dev-site", "--confirm", "dev-site"]) == 0
+
+    assert [site["site_id"] for site in client.get("/api/sites").json()] == ["real-site"]
+    assert client.get(STATE_URL).status_code == 404
+    assert client.get("/api/sites/dev-site/lot-model").status_code == 404
+    # Nothing is left behind: seeding again starts the development site from its first lot model version.
+    assert manage.main(["seed-dev"]) == 0
+    assert client.get("/api/sites/dev-site/lot-model").json()["version"] == 1
+
+
+@pytest.mark.parametrize(("site_id", "confirm"), [("other-site", "other-site"), ("dev-site", "dev-sit")])
+def test_removing_an_unknown_or_unconfirmed_site_is_refused(seeded, client, site_id, confirm):
+    assert manage.main(["remove-site", "--site-id", site_id, "--confirm", confirm]) == 1
+
+    assert [site["site_id"] for site in client.get("/api/sites").json()] == ["dev-site"]
+
+
 def test_migrations_match_table_definitions(database):
     engine = migration_engine()
     with engine.connect() as connection:
