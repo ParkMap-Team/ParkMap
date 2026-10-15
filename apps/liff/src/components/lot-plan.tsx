@@ -4,12 +4,14 @@ import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, u
 import type { LotLandmark, MetricPolygon, MotorcycleProxy } from "@/lib/api/types";
 import { type Size, type View2D, fromScreen, overview2D, pan2D, toScreen, zoom2D } from "@/lib/map/camera";
 import { axisHeading } from "@/lib/map/geometry";
+import { GROUND_KINDS, landmarkTop } from "@/lib/map/landmark-style";
 import { MOTORCYCLE_MODEL } from "@/lib/map/motorcycle-model";
 import { COLORS } from "@/lib/parking/presentation";
 import { LabelLayer, type LabelLayerHandle, MAP_INSETS, type MapViewProps } from "./map-overlay";
 
 // The 2D plan: the same lot model and API polygons as the 3D scene, drawn top-down in SVG with the
 // far (+y) side at the top. It is the fallback when 3D is unavailable and a choice people can make.
+// Footprints and trees are drawn under the parking areas, so status always shows on top.
 
 const TAP_SLOP_PX = 8;
 
@@ -34,10 +36,27 @@ function MotorcycleIcon({ proxy, view, size }: { proxy: MotorcycleProxy; view: V
   );
 }
 
+/** Footprints and tree canopies lie under the parking areas; lines and markers sit above them. */
+function underAreas(landmark: LotLandmark): boolean {
+  return Boolean(landmark.polygon) || landmark.kind === "TREE";
+}
+
 function LandmarkShape({ landmark, view, size }: { landmark: LotLandmark; view: View2D; size: Size }) {
   if (landmark.polygon) {
-    const fill = landmark.kind === "GUARD_BOOTH" ? COLORS.GUARD_BOOTH : landmark.kind === "AISLE" ? COLORS.AISLE : COLORS.BUILDING;
-    return <path d={pathOf(view, size, landmark.polygon)} fill={fill} fillOpacity={landmark.kind === "AISLE" ? 1 : 0.85} stroke="#ffffff" strokeWidth={1.5} fillRule="evenodd" />;
+    const ground = GROUND_KINDS.has(landmark.kind) && !landmark.height_m;
+    return (
+      <path
+        d={pathOf(view, size, landmark.polygon)}
+        fill={landmarkTop(landmark)}
+        stroke={ground ? "none" : "#ffffff"}
+        strokeWidth={1.5}
+        fillRule="evenodd"
+      />
+    );
+  }
+  if (landmark.kind === "TREE" && landmark.radius_m) {
+    const [x, y] = toScreen(view, size, landmark.position);
+    return <circle cx={x} cy={y} r={landmark.radius_m * view.pxPerM} fill={COLORS.TREE_CANOPY} fillOpacity={0.85} stroke="#ffffff" strokeOpacity={0.6} strokeWidth={1} />;
   }
   if (landmark.line) {
     const points = landmark.line.map((point) => toScreen(view, size, point).join(",")).join(" ");
@@ -169,7 +188,7 @@ export default function LotPlan({ map, labels, selection, onSelect, ref }: MapVi
     <div
       ref={container}
       className="relative size-full touch-none overflow-hidden"
-      style={{ backgroundColor: "#f8fafc" }}
+      style={{ backgroundColor: COLORS.GROUND }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -191,7 +210,7 @@ export default function LotPlan({ map, labels, selection, onSelect, ref }: MapVi
           {map.unmonitored.map((polygon, index) => (
             <path key={index} d={pathOf(view, size, polygon)} fill="url(#plan-dots)" fillRule="evenodd" />
           ))}
-          {map.landmarks.map((landmark) => landmark.polygon && <LandmarkShape key={landmark.landmark_id} landmark={landmark} view={view} size={size} />)}
+          {map.landmarks.map((landmark) => underAreas(landmark) && <LandmarkShape key={landmark.landmark_id} landmark={landmark} view={view} size={size} />)}
           {map.areas.map((area) => (
             <g key={area.parkingAreaId}>
               <path
@@ -221,7 +240,7 @@ export default function LotPlan({ map, labels, selection, onSelect, ref }: MapVi
               ))}
             </g>
           ))}
-          {map.landmarks.map((landmark) => !landmark.polygon && <LandmarkShape key={landmark.landmark_id} landmark={landmark} view={view} size={size} />)}
+          {map.landmarks.map((landmark) => !underAreas(landmark) && <LandmarkShape key={landmark.landmark_id} landmark={landmark} view={view} size={size} />)}
           {selection?.polygon && (
             <g fill="none" strokeLinejoin="round">
               <path d={pathOf(view, size, selection.polygon)} stroke={COLORS.SELECTED_HALO} strokeWidth={6} />

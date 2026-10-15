@@ -86,6 +86,18 @@ export function proxyFootprint(proxy: MotorcycleProxy): MetricPolygon {
   ];
 }
 
+/** Points along a polygon's outer edge, at every corner and no farther apart than `spacingM`. */
+export function edgePoints([outer]: MetricPolygon, spacingM: number): MetricPoint[] {
+  return outer.flatMap((start, index) => {
+    const end = outer[(index + 1) % outer.length];
+    const steps = Math.max(1, Math.ceil(Math.hypot(end.x_m - start.x_m, end.y_m - start.y_m) / spacingM));
+    return Array.from({ length: steps }, (_, step) => ({
+      x_m: start.x_m + ((end.x_m - start.x_m) * step) / steps,
+      y_m: start.y_m + ((end.y_m - start.y_m) * step) / steps,
+    }));
+  });
+}
+
 /** Metric ground (x, y) maps to world (x, height, -y); the world Y axis points up. */
 export function toWorld({ x_m, y_m }: MetricPoint, height = 0): [number, number, number] {
   return [x_m, height, -y_m];

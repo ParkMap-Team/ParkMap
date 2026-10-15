@@ -388,16 +388,40 @@ class LotModelParkingArea(BaseModel):
         return self
 
 
-LandmarkKind = Literal["ENTRANCE", "EXIT", "ENTRANCE_EXIT", "GUARD_BOOTH", "BUILDING", "AISLE", "BARRIER"]
+LandmarkKind = Literal[
+    "ENTRANCE",
+    "EXIT",
+    "ENTRANCE_EXIT",
+    "GUARD_BOOTH",
+    "BUILDING",
+    "AISLE",
+    "BARRIER",
+    "TREE",
+    "ROAD",
+    "WALKWAY",
+    "PLANTING",
+    "SHELTER",
+]
+# Kinds that are ground areas, so they need a footprint.
+_FOOTPRINT_LANDMARKS = ("AISLE", "ROAD", "WALKWAY", "PLANTING", "SHELTER")
+# Kinds that may stand above the ground; a shelter's height is its roof.
+_RAISED_LANDMARKS = ("GUARD_BOOTH", "BUILDING", "BARRIER", "PLANTING", "SHELTER")
+# How a raised building's walls look: white with a window band on every storey, or brick piers
+# between glass. Without one, the walls are plain with windows.
+BuildingFacade = Literal["WINDOW_BANDS", "BRICK_AND_GLASS"]
 
 
 class LotLandmark(BaseModel):
-    """A surveyed static feature that helps students match the map to the real place.
+    """A static feature that helps students match the map to the real place.
 
     `position` anchors the marker and label. A footprint `polygon` or a `line` (a hedge, curb,
-    or fence) is optional, except that an aisle needs its polygon. `direction_rad` is the
-    confirmed direction of travel through an entrance or exit, counter-clockwise from +x;
-    leave it out when the direction is not confirmed. Landmarks carry no availability.
+    or fence) is optional, except that ground areas (aisle, road, walkway, planting, shelter)
+    need their polygon. `height_m` raises a footprint into a block, and a shelter needs it for its
+    roof. A tree is a trunk and a round canopy at `position`, so it needs `height_m` and
+    `radius_m` and has no footprint. `direction_rad` is the confirmed direction of travel through
+    an entrance or exit, counter-clockwise from +x; leave it out when the direction is not
+    confirmed. `facade` describes a raised building's walls. `measurement_source` says whether the geometry was measured on site or estimated
+    from photos or imagery. Landmarks carry no availability.
     """
 
     landmark_id: str = Field(pattern=IDENTIFIER_PATTERN)
@@ -407,6 +431,10 @@ class LotLandmark(BaseModel):
     polygon: MetricPolygon | None = None
     line: MetricRing | None = Field(default=None, min_length=2)
     direction_rad: float | None = Field(default=None, allow_inf_nan=False)
+    height_m: float | None = Field(default=None, gt=0.0, le=300.0, allow_inf_nan=False)
+    radius_m: float | None = Field(default=None, gt=0.0, le=30.0, allow_inf_nan=False)
+    facade: BuildingFacade | None = None
+    measurement_source: MetricMeasurementSource = "ESTIMATED"
 
     @model_validator(mode="after")
     def validate_geometry(self) -> "LotLandmark":
@@ -414,15 +442,31 @@ class LotLandmark(BaseModel):
             _validate_polygon(self.polygon)
             if self.line is not None:
                 raise ValueError("A landmark has a polygon or a line, not both.")
-        if self.kind == "AISLE" and self.polygon is None:
-            raise ValueError("An aisle landmark needs its polygon.")
+        if self.kind in _FOOTPRINT_LANDMARKS and self.polygon is None:
+            raise ValueError(f"{self.kind.capitalize()} landmarks need their polygon.")
         if self.direction_rad is not None and self.kind not in ("ENTRANCE", "EXIT"):
             raise ValueError("Only an entrance or an exit has a direction of travel.")
+        if self.kind == "TREE":
+            if self.height_m is None or self.radius_m is None:
+                raise ValueError("A tree landmark needs its height and canopy radius.")
+            if self.polygon is not None or self.line is not None:
+                raise ValueError("A tree landmark has no polygon or line.")
+            if self.radius_m > self.height_m:
+                raise ValueError("A tree canopy radius cannot exceed the tree height.")
+            return self
+        if self.radius_m is not None:
+            raise ValueError("Only a tree landmark has a canopy radius.")
+        if self.height_m is not None and (self.kind not in _RAISED_LANDMARKS or self.polygon is None):
+            raise ValueError("Only a footprint of a booth, building, barrier, planting, or shelter has a height.")
+        if self.kind == "SHELTER" and self.height_m is None:
+            raise ValueError("A shelter landmark needs its roof height.")
+        if self.facade is not None and (self.kind != "BUILDING" or self.height_m is None):
+            raise ValueError("Only a raised building has a facade.")
         return self
 
 
 class LotModelDefinition(BaseModel):
-    """Surveyed static lot geometry stored per site version."""
+    """Static lot geometry stored per site version, measured or estimated from photos and imagery."""
 
     schema_version: Literal[1] = 1
     outline: MetricPolygon

@@ -1,6 +1,6 @@
 # ParkMap LIFF
 
-Student-facing app opened from the LINE Official Account rich menu. It lists sites and shows each lot as a map, in 3D or top-down 2D, with live regions, motorcycle proxies, and surveyed landmarks. It renders what `apps/vision-api` decides and never computes availability itself. See [ADR 0002](../../docs/adr/0002-live-state-pipeline-and-liff-app.md).
+Student-facing app opened from the LINE Official Account rich menu. It lists sites and shows each lot as a map, in 3D or top-down 2D, with live regions, motorcycle proxies, and landmarks such as buildings, trees, and roads. It renders what `apps/vision-api` decides and never computes availability itself. See [ADR 0002](../../docs/adr/0002-live-state-pipeline-and-liff-app.md).
 
 ## Run
 
@@ -66,9 +66,9 @@ The script validates the menu with LINE, creates it, uploads the image, makes it
 
 ## Map
 
-The static layer (outline, parking areas, unmonitored ground, landmarks) comes from the site's lot model and changes only when the site is re-surveyed. The live layer draws only the polygons the API returns. The browser never decides availability and never counts free spaces; a stale or failed poll hides green and yellow until fresh data arrives. Entrances, exits, the guard booth, buildings, and aisles appear only when the lot model lists them as landmarks, and an entrance or exit arrow only when `direction_rad` is set. Nothing is inferred from the photo. There is no north arrow or scale while the calibration is estimated.
+The static layer (outline, parking areas, unmonitored ground, landmarks) comes from the site's lot model and changes only when the site is re-surveyed or re-estimated. The live layer draws only the polygons the API returns. The browser never decides availability and never counts free spaces; a stale or failed poll hides green and yellow until fresh data arrives. Entrances, exits, the guard booth, buildings, trees, roads, and planting appear only when the lot model lists them as landmarks, and an entrance or exit arrow only when `direction_rad` is set. Nothing is inferred from a live frame; when any landmark is `ESTIMATED`, the panel says the surroundings are drawn from photos and approximate. Buildings, the guard booth, and planting with a height are extruded blocks, and trees are instanced trunks and canopies. Every status layer is drawn over the surroundings without depth testing, so a tree or building never hides or tints a status. The overview frames the lot and its wayfinding landmarks, not distant buildings, roads, or lawns. There is no north arrow or scale while the calibration is estimated.
 
-The 3D view follows [ADR 0008](../../docs/adr/0008-build-a-resilient-liff-lot-view.md): an elevated overview, zoom, pan, and a reset to the whole lot, with no orbit and no entrance preset. It renders on demand with the device pixel ratio capped. Without WebGL the 2D plan shows immediately, and if 3D is not ready within 10 s the page switches to 2D; the 2D/3D switch works both ways when both are usable.
+The 3D view follows [ADR 0008](../../docs/adr/0008-build-a-resilient-liff-lot-view.md): an elevated overview, zoom, pan, rotation and tilt ([ADR 0012](../../docs/adr/0012-rotate-the-3d-lot-view.md)), and a reset to the overview, with no entrance preset. Rotation is a two-finger gesture, the right mouse button, the rotate buttons, or Shift with the left or right arrow key; the 2D plan does not rotate. It renders on demand with the device pixel ratio capped. Without WebGL the 2D plan shows immediately, and if 3D is not ready within 10 s the page switches to 2D; the 2D/3D switch works both ways when both are usable.
 
 The motorcycle proxy is `public/models/motorcycle.glb`, served from the app and never fetched from another origin. It is original work: `scripts/motorcycle-model/build.ts` generates it from three.js primitives, with no third-party model or texture. Regenerate it from `apps/liff`:
 

@@ -710,30 +710,46 @@ export interface components {
         };
         /**
          * LotLandmark
-         * @description A surveyed static feature that helps students match the map to the real place.
+         * @description A static feature that helps students match the map to the real place.
          *
          *     `position` anchors the marker and label. A footprint `polygon` or a `line` (a hedge, curb,
-         *     or fence) is optional, except that an aisle needs its polygon. `direction_rad` is the
-         *     confirmed direction of travel through an entrance or exit, counter-clockwise from +x;
-         *     leave it out when the direction is not confirmed. Landmarks carry no availability.
+         *     or fence) is optional, except that ground areas (aisle, road, walkway, planting, shelter)
+         *     need their polygon. `height_m` raises a footprint into a block, and a shelter needs it for its
+         *     roof. A tree is a trunk and a round canopy at `position`, so it needs `height_m` and
+         *     `radius_m` and has no footprint. `direction_rad` is the confirmed direction of travel through
+         *     an entrance or exit, counter-clockwise from +x; leave it out when the direction is not
+         *     confirmed. `facade` describes a raised building's walls. `measurement_source` says whether the geometry was measured on site or estimated
+         *     from photos or imagery. Landmarks carry no availability.
          */
         LotLandmark: {
             /** Direction Rad */
             direction_rad?: number | null;
+            /** Facade */
+            facade?: ("WINDOW_BANDS" | "BRICK_AND_GLASS") | null;
+            /** Height M */
+            height_m?: number | null;
             /**
              * Kind
              * @enum {string}
              */
-            kind: "ENTRANCE" | "EXIT" | "ENTRANCE_EXIT" | "GUARD_BOOTH" | "BUILDING" | "AISLE" | "BARRIER";
+            kind: "ENTRANCE" | "EXIT" | "ENTRANCE_EXIT" | "GUARD_BOOTH" | "BUILDING" | "AISLE" | "BARRIER" | "TREE" | "ROAD" | "WALKWAY" | "PLANTING" | "SHELTER";
             /** Landmark Id */
             landmark_id: string;
             /** Line */
             line?: components["schemas"]["MetricGroundPoint"][] | null;
+            /**
+             * Measurement Source
+             * @default ESTIMATED
+             * @enum {string}
+             */
+            measurement_source: "ESTIMATED" | "MEASURED";
             /** Name */
             name?: string | null;
             /** Polygon */
             polygon?: components["schemas"]["MetricGroundPoint"][][] | null;
             position: components["schemas"]["MetricGroundPoint"];
+            /** Radius M */
+            radius_m?: number | null;
         };
         /** LotModelParkingArea */
         LotModelParkingArea: {

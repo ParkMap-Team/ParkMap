@@ -60,9 +60,25 @@ Every row spans the ROI width (17.25 m) and is `ESTIMATED` with 1.0 m uncertaint
 
 ## Lot model
 
-The outline is the visible band of the near lot: the full photo width between the near planter tops (`y` 0.96) and the hedge curb (`y` 14.08). The parking area is the Parking ROI. The rest of the outline, mainly under the trees and beside the planters, is `UNMONITORED`. Nothing beyond the hedge or behind the planters is modelled.
+The outline is the whole lot, `x` -8.35 to 37.5, `y` -14.7 to 14.08: from the west planters to the hedge curb, and from the covered walkway to the far end of the lot. The parking area is the Parking ROI. The rest of the outline, including the half of the lot the camera does not see, is `UNMONITORED`.
 
-The only landmarks are the hedge curb (`y` 14.08) and the near planter tops (`y` 0.96), the same traced lines that bound the outline, drawn as barriers. The entrance, exit, guard booth, buildings, and aisles are not in the photos' traced frame, so they are left out until the survey (#17) places them; the map shows nothing rather than a guessed position.
+Every landmark is `ESTIMATED` from a satellite image of the campus and the team's site photos, not surveyed. The team marked the lot, the camera's view, and the shared entrance and exit on the satellite image. Its scale was set from the lot's painted stall grid (about 0.069 m per pixel, uncertain by up to 30 %), and it was aligned to the ground frame by the hedge curb (`y` 14.08) and the near planter tops (`y` 0.96):
+
+```text
+x_m = (row_px - 233) * 0.069
+y_m = 0.96 + (column_px - 770) * 0.069
+```
+
+| Landmarks | Basis |
+| --- | --- |
+| `entrance-exit` | The team's mark on the satellite image. No `direction_rad`: the direction of travel is not confirmed. |
+| `guard-booth` | Roof visible beside the entrance on the satellite image. |
+| `hedge`, `central-planters`, `west-planters-*` | Planting lines on the satellite image; heights from the site photos. |
+| `central-tree-*`, `west-tree-*` | Canopies on the satellite image; heights and canopy radii from the site photos. |
+| `west-sidewalk`, `*-road`, `*-lawn`, `north-covered-walkway` | Surfaces and roof visible on the satellite image. |
+| `building-9-podium`, `building-9` | อาคาร 9: footprints on the satellite image; heights from storey counts in the site photos (about 3.6 m a storey); facades from the site photos, a brick-and-glass podium under a white tower with a window band on every storey. |
+
+Only features visible in the images are modelled, and no raised landmark overlaps the parking area. The map labels the surroundings as estimated from photos. The satellite image and the photos stay off Git.
 
 ## Photos sharing the calibration
 
@@ -95,4 +111,4 @@ uv run python -m app.manage register-calibration --parking-area-id sripatum-near
 - The stall pitch and transverse-line spacing assumptions, which the survey makes unnecessary.
 - `row_1` to `row_3` lengths and widths, measured on the ground.
 - The lot model, recomputed in the measured frame. Keep the parking area id.
-- Landmarks: measure the entrance, exit, and guard booth, and set an entrance or exit `direction_rad` only when the direction of travel is confirmed on site.
+- Landmarks: measure the entrance and exit, the guard booth, and the planting lines bounding the lot, and record them as `MEASURED`. Set an entrance or exit `direction_rad` only when the direction of travel is confirmed on site. Replace the satellite-derived surroundings with the survey or an openly licensed map such as OpenStreetMap.

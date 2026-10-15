@@ -245,10 +245,21 @@ def test_sripatum_lot_model_leaves_ground_outside_the_parking_roi_unmonitored():
 
     assert [area.parking_area_id for area in definition.parking_areas] == ["sripatum-near-lot"]
     assert len(unmonitored_polygons(definition)) == 1
-    # Only features the calibration documents: the hedge curb and planter tops bounding the outline.
-    assert {landmark.landmark_id: landmark.kind for landmark in definition.landmarks} == {"hedge-curb": "BARRIER", "near-planters": "BARRIER"}
-    outline_ys = {point.y_m for point in definition.outline[0]}
-    assert all({point.y_m for point in landmark.line or []} <= outline_ys for landmark in definition.landmarks)
+    # The surroundings are traced from imagery, so none of them may claim a site measurement.
+    assert {landmark.measurement_source for landmark in definition.landmarks} == {"ESTIMATED"}
+    kinds = {landmark.landmark_id: landmark.kind for landmark in definition.landmarks}
+    assert kinds["entrance-exit"] == "ENTRANCE_EXIT"
+    assert kinds["guard-booth"] == "GUARD_BOOTH"
+    # Building 9 is one named building: a brick and glass podium under a banded tower.
+    buildings = {landmark.landmark_id: (landmark.name, landmark.facade) for landmark in definition.landmarks if landmark.kind == "BUILDING"}
+    assert buildings == {"building-9-podium": (None, "BRICK_AND_GLASS"), "building-9": ("อาคาร 9", "WINDOW_BANDS")}
+    # The hedge stands on the far curb, which is also the outline's far edge.
+    hedge = next(landmark for landmark in definition.landmarks if landmark.landmark_id == "hedge")
+    assert min(point.y_m for point in hedge.polygon[0]) == max(point.y_m for point in definition.outline[0])
+    # Nothing raised stands on the monitored area, so no block hides a parking region.
+    monitored = Polygon([(point.x_m, point.y_m) for point in definition.parking_areas[0].polygon[0]])
+    raised = [landmark for landmark in definition.landmarks if landmark.height_m is not None and landmark.polygon is not None]
+    assert all(Polygon([(point.x_m, point.y_m) for point in landmark.polygon[0]]).intersection(monitored).area == 0 for landmark in raised)
 
 
 @pytest.mark.parametrize(
@@ -283,13 +294,51 @@ def test_lot_model_keeps_surveyed_landmarks():
     validate_lot_model(definition)
 
     assert [landmark.kind for landmark in definition.landmarks] == ["ENTRANCE", "GUARD_BOOTH", "BARRIER"]
+    assert {landmark.measurement_source for landmark in definition.landmarks} == {"ESTIMATED"}
+
+
+def test_lot_model_keeps_estimated_surroundings():
+    definition = lot_model_with(
+        {"landmark_id": "tower", "kind": "BUILDING", "name": "อาคาร 9", "position": {"x_m": 5, "y_m": 30}, "polygon": [ring(0, 25, 10, 35)], "height_m": 55.0, "facade": "WINDOW_BANDS"},
+        {"landmark_id": "tree", "kind": "TREE", "position": {"x_m": 2, "y_m": 0}, "height_m": 6.0, "radius_m": 2.0},
+        {"landmark_id": "road", "kind": "ROAD", "position": {"x_m": 10, "y_m": -5}, "polygon": [ring(0, -8, 20, -3)]},
+        {"landmark_id": "canopy", "kind": "SHELTER", "position": {"x_m": -1, "y_m": 5}, "polygon": [ring(-2, 0, -1, 10)], "height_m": 3.0},
+        {"landmark_id": "hedge", "kind": "PLANTING", "position": {"x_m": 10, "y_m": 10.5}, "polygon": [ring(0, 10, 20, 11)], "height_m": 1.0, "measurement_source": "MEASURED"},
+    )
+    validate_lot_model(definition)
+
+    assert [(landmark.kind, landmark.height_m) for landmark in definition.landmarks] == [
+        ("BUILDING", 55.0),
+        ("TREE", 6.0),
+        ("ROAD", None),
+        ("SHELTER", 3.0),
+        ("PLANTING", 1.0),
+    ]
+    assert definition.landmarks[0].facade == "WINDOW_BANDS"
+    assert definition.landmarks[1].radius_m == 2.0
+    assert definition.landmarks[4].measurement_source == "MEASURED"
 
 
 @pytest.mark.parametrize(
     ("landmarks", "message"),
     [
         (({"landmark_id": "a", "kind": "BUILDING", "position": {"x_m": 0, "y_m": 0}},) * 2, "landmarks must be unique"),
-        (({"landmark_id": "a", "kind": "AISLE", "position": {"x_m": 0, "y_m": 0}},), "aisle landmark needs its polygon"),
+        (({"landmark_id": "a", "kind": "AISLE", "position": {"x_m": 0, "y_m": 0}},), "Aisle landmarks need their polygon"),
+        (({"landmark_id": "a", "kind": "ROAD", "position": {"x_m": 0, "y_m": 0}},), "Road landmarks need their polygon"),
+        (({"landmark_id": "a", "kind": "TREE", "position": {"x_m": 0, "y_m": 0}, "height_m": 6.0},), "needs its height and canopy radius"),
+        (({"landmark_id": "a", "kind": "TREE", "position": {"x_m": 0, "y_m": 0}, "height_m": 2.0, "radius_m": 3.0},), "cannot exceed the tree height"),
+        (
+            ({"landmark_id": "a", "kind": "TREE", "position": {"x_m": 0, "y_m": 0}, "height_m": 6.0, "radius_m": 2.0, "polygon": [ring(0, 0, 1, 1)]},),
+            "tree landmark has no polygon",
+        ),
+        (({"landmark_id": "a", "kind": "BUILDING", "position": {"x_m": 0, "y_m": 0}, "polygon": [ring(0, 0, 1, 1)], "radius_m": 1.0},), "Only a tree"),
+        (({"landmark_id": "a", "kind": "BUILDING", "position": {"x_m": 0, "y_m": 0}, "height_m": 10.0},), "Only a footprint"),
+        (({"landmark_id": "a", "kind": "ROAD", "position": {"x_m": 0, "y_m": 0}, "polygon": [ring(0, 0, 1, 1)], "height_m": 1.0},), "Only a footprint"),
+        (({"landmark_id": "a", "kind": "SHELTER", "position": {"x_m": 0, "y_m": 0}, "polygon": [ring(0, 0, 1, 1)]},), "needs its roof height"),
+        (({"landmark_id": "a", "kind": "BUILDING", "position": {"x_m": 0, "y_m": 0}, "polygon": [ring(0, 0, 1, 1)], "height_m": 0.0},), "greater than 0"),
+        (({"landmark_id": "a", "kind": "BUILDING", "position": {"x_m": 0, "y_m": 0}, "polygon": [ring(0, 0, 1, 1)], "facade": "WINDOW_BANDS"},), "Only a raised building"),
+        (({"landmark_id": "a", "kind": "GUARD_BOOTH", "position": {"x_m": 0, "y_m": 0}, "polygon": [ring(0, 0, 1, 1)], "height_m": 2.5, "facade": "BRICK_AND_GLASS"},), "Only a raised building"),
+        (({"landmark_id": "a", "kind": "BUILDING", "position": {"x_m": 0, "y_m": 0}, "polygon": [ring(0, 0, 1, 1)], "height_m": 9.0, "facade": "MARBLE"},), "Input should be"),
         (({"landmark_id": "a", "kind": "GUARD_BOOTH", "position": {"x_m": 0, "y_m": 0}, "direction_rad": 1.0},), "Only an entrance or an exit"),
         (({"landmark_id": "a", "kind": "ENTRANCE_EXIT", "position": {"x_m": 0, "y_m": 0}, "direction_rad": 1.0},), "Only an entrance or an exit"),
         (

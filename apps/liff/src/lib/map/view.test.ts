@@ -1,7 +1,21 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { PerspectiveCamera, Vector3 } from "three";
-import { FOV_DEG, MAX_ZOOM, cameraPosition, fromScreen, overview2D, overview3D, pan2D, toScreen, zoom2D } from "./camera.ts";
+import {
+  ELEVATION_RAD,
+  FOV_DEG,
+  MAX_ZOOM,
+  MIN_ELEVATION_RAD,
+  cameraPosition,
+  fromScreen,
+  overview2D,
+  overview3D,
+  pan2D,
+  pan3D,
+  toScreen,
+  viewFrom,
+  zoom2D,
+} from "./camera.ts";
 import type { Bounds } from "./geometry.ts";
 import { labelRect, placeLabels } from "./labels.ts";
 import { INITIAL_RENDERER, mountsThreeD, rendererReducer, type RendererEvent } from "./renderer.ts";
@@ -29,13 +43,43 @@ test("the 3D overview shows the whole place clear of the controls", () => {
   }
 });
 
-test("the 3D camera looks from the camera side at a fixed elevation", () => {
-  const position = cameraPosition({ target: { x_m: 1, y_m: 2 }, distance: 10 });
-  assert.equal(position[0], 1);
-  assert.ok(position[1] > 0);
+function near(actual: number, expected: number, label: string) {
+  assert.ok(Math.abs(actual - expected) < 1e-9, `${label}: ${actual} is not ${expected}`);
+}
+
+test("the 3D overview looks from the camera side at the default elevation", () => {
+  const view = overview3D(bounds, phone);
+  assert.equal(view.azimuthRad, 0);
+  assert.equal(view.elevationRad, ELEVATION_RAD);
+  const position = cameraPosition({ target: { x_m: 1, y_m: 2 }, distance: 10, azimuthRad: 0, elevationRad: ELEVATION_RAD });
+  near(position[0], 1, "x");
   assert.ok(position[2] > -2, "in front of the target on the metric -y side");
-  const elevation = Math.atan2(position[1], position[2] + 2);
-  assert.ok(Math.abs(elevation - (55 * Math.PI) / 180) < 1e-9);
+  near(Math.atan2(position[1], position[2] + 2), (55 * Math.PI) / 180, "elevation");
+});
+
+test("a turned camera looks from another side and its view round-trips", () => {
+  const view = { target: { x_m: 1, y_m: 2 }, distance: 10, azimuthRad: Math.PI / 2, elevationRad: MIN_ELEVATION_RAD };
+  const position = cameraPosition(view);
+  // A quarter turn puts the camera on the metric +x side of the target.
+  assert.ok(position[0] > 1);
+  near(position[2], -2, "z");
+  const back = viewFrom(position, view.target);
+  near(back.distance, view.distance, "distance");
+  near(back.azimuthRad, view.azimuthRad, "azimuth");
+  near(back.elevationRad, view.elevationRad, "elevation");
+});
+
+test("3D pan drags the ground the way the camera faces", () => {
+  const view = { target: { x_m: 0, y_m: 0 }, distance: 10, azimuthRad: 0, elevationRad: ELEVATION_RAD };
+  const metres = (px: number) => (2 * 10 * Math.tan((FOV_DEG * Math.PI) / 360) * px) / phone.height;
+  // Facing +y, dragging right reveals the -x side and dragging down reveals the far side.
+  const facingFar = pan3D(view, 30, 40, phone.height).target;
+  near(facingFar.x_m, -metres(30), "x");
+  near(facingFar.y_m, metres(40), "y");
+  // Turned a quarter, the camera faces -x: screen right is +y and screen up is -x.
+  const turned = pan3D({ ...view, azimuthRad: Math.PI / 2 }, 30, 40, phone.height).target;
+  near(turned.x_m, -metres(40), "turned x");
+  near(turned.y_m, -metres(30), "turned y");
 });
 
 test("the 2D overview fits the bounds inside the free viewport", () => {

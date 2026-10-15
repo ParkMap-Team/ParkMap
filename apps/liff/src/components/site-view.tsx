@@ -1,12 +1,12 @@
 "use client";
 
-import { ArrowLeft, Minus, Plus, RotateCw, Scan } from "lucide-react";
+import { ArrowLeft, Minus, Plus, RotateCcw, RotateCw, Scan } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { type ComponentProps, type KeyboardEvent, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import type { LotModel, ParkingAreaLiveState, SiteParkingState } from "@/lib/api/types";
-import { ZOOM_STEP } from "@/lib/map/camera";
+import { ROTATE_STEP_RAD, ZOOM_STEP } from "@/lib/map/camera";
 import { STATUS_TEXT, areaLabel, headline, headlineStatus, mapLabels } from "@/lib/map/legend";
 import { type LotMap, type MapStatus, type Selection, buildLotMap, focusPoint, followSelection, selectAt, summarize } from "@/lib/map/lot-map";
 import { FALLBACK_NOTICES, INITIAL_RENDERER, THREE_D_TIMEOUT_MS, detectWebGL, mountsThreeD, rendererReducer } from "@/lib/map/renderer";
@@ -135,8 +135,14 @@ export function SiteView({ siteId, siteName, lotModel }: { siteId: string; siteN
       "0": () => view.current?.reset(),
       Escape: () => setSelection(null),
     };
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.shiftKey && (event.key === "ArrowLeft" || event.key === "ArrowRight") && view.current?.rotateBy) {
+      event.preventDefault();
+      view.current.rotateBy(event.key === "ArrowLeft" ? ROTATE_STEP_RAD : -ROTATE_STEP_RAD);
+      return;
+    }
     const action = actions[event.key];
-    if (!action || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (!action) return;
     event.preventDefault();
     action();
   }
@@ -177,7 +183,11 @@ export function SiteView({ siteId, siteName, lotModel }: { siteId: string; siteN
       )}
 
       <section
-        aria-label={`แผนที่ลานจอดรถ ${renderer.mode === "3d" ? "3 มิติ" : "2 มิติ"} ใช้ลูกศรเพื่อเลื่อน + หรือ - เพื่อซูม 0 เพื่อดูทั้งลาน`}
+        aria-label={
+          renderer.mode === "3d"
+            ? "แผนที่ลานจอดรถ 3 มิติ ใช้ลูกศรเพื่อเลื่อน Shift กับลูกศรซ้ายหรือขวาเพื่อหมุน + หรือ - เพื่อซูม 0 เพื่อดูทั้งลาน"
+            : "แผนที่ลานจอดรถ 2 มิติ ใช้ลูกศรเพื่อเลื่อน + หรือ - เพื่อซูม 0 เพื่อดูทั้งลาน"
+        }
         tabIndex={0}
         onKeyDown={onMapKey}
         className="relative min-h-0 flex-1 outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset lg:col-start-1 lg:row-start-3"
@@ -212,6 +222,16 @@ export function SiteView({ siteId, siteName, lotModel }: { siteId: string; siteN
           <ControlButton aria-label="ซูมออก" onClick={() => view.current?.zoomBy(1 / ZOOM_STEP)}>
             <Minus />
           </ControlButton>
+          {renderer.mode === "3d" && (
+            <>
+              <ControlButton aria-label="หมุนซ้าย" onClick={() => view.current?.rotateBy?.(ROTATE_STEP_RAD)}>
+                <RotateCcw />
+              </ControlButton>
+              <ControlButton aria-label="หมุนขวา" onClick={() => view.current?.rotateBy?.(-ROTATE_STEP_RAD)}>
+                <RotateCw />
+              </ControlButton>
+            </>
+          )}
           <ControlButton aria-label="ดูทั้งลาน" className="h-14 flex-col gap-0.5" onClick={() => view.current?.reset()}>
             <Scan />
             <span aria-hidden className="text-[10px] leading-none">
@@ -244,6 +264,7 @@ export function SiteView({ siteId, siteName, lotModel }: { siteId: string; siteN
           }
           present={summary.present}
           areas={areas ? areaRows(map, areas) : []}
+          estimatedLandmarks={map.landmarks.some((landmark) => landmark.measurement_source === "ESTIMATED")}
           selected={selectedDetails}
           expanded={expanded}
           onToggle={() => setExpanded((value) => !value)}

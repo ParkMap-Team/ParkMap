@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Euler, Vector3 } from "three";
 import type { MotorcycleProxy } from "../api/types.ts";
-import { axisHeading, boundsOf, labelPoint, pointInPolygon, proxyFootprint, toWorld } from "./geometry.ts";
+import { axisHeading, boundsOf, edgePoints, labelPoint, pointInPolygon, proxyFootprint, toWorld } from "./geometry.ts";
 import { motorcycleTransform } from "./motorcycle-model.ts";
 
 const square = [[{ x_m: 0, y_m: 0 }, { x_m: 4, y_m: 0 }, { x_m: 4, y_m: 4 }, { x_m: 0, y_m: 4 }]];
@@ -26,6 +26,18 @@ test("a label point always lies inside its polygon", () => {
 
 test("bounds cover every point", () => {
   assert.deepEqual(boundsOf(square[0]), { minX: 0, minY: 0, maxX: 4, maxY: 4 });
+});
+
+test("edge points mark every corner and split long edges evenly", () => {
+  const strip = [[{ x_m: 0, y_m: 0 }, { x_m: 9, y_m: 0 }, { x_m: 9, y_m: 2 }, { x_m: 0, y_m: 2 }]];
+  assert.deepEqual(edgePoints(strip, 5), [
+    { x_m: 0, y_m: 0 },
+    { x_m: 4.5, y_m: 0 },
+    { x_m: 9, y_m: 0 },
+    { x_m: 9, y_m: 2 },
+    { x_m: 4.5, y_m: 2 },
+    { x_m: 0, y_m: 2 },
+  ]);
 });
 
 test("a heading and its opposite fold onto the same axis", () => {

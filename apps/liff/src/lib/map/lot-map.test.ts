@@ -15,8 +15,24 @@ const lotModel: LotModel = {
   outline: rect(0, 0, 20, 10),
   parking_areas: [{ parking_area_id: "near", polygon: rect(2, 1, 18, 9) }],
   unmonitored: [rect(0, 0, 2, 10)],
-  landmarks: [{ landmark_id: "hedge", kind: "BARRIER", name: "แนวพุ่มไม้", position: { x_m: 10, y_m: 12 }, line: [{ x_m: 0, y_m: 12 }, { x_m: 20, y_m: 12 }] }],
+  landmarks: [
+    {
+      landmark_id: "hedge",
+      kind: "BARRIER",
+      name: "แนวพุ่มไม้",
+      position: { x_m: 10, y_m: 12 },
+      line: [{ x_m: 0, y_m: 12 }, { x_m: 20, y_m: 12 }],
+      measurement_source: "ESTIMATED",
+    },
+  ],
 };
+
+const surroundings: LotModel["landmarks"] = [
+  { landmark_id: "tower", kind: "BUILDING", name: "อาคาร 9", position: { x_m: 10, y_m: 40 }, polygon: rect(0, 30, 20, 50), height_m: 55, measurement_source: "ESTIMATED" },
+  { landmark_id: "tree", kind: "TREE", position: { x_m: -5, y_m: 5 }, height_m: 6, radius_m: 2, measurement_source: "ESTIMATED" },
+  { landmark_id: "road", kind: "ROAD", position: { x_m: 10, y_m: -8 }, polygon: rect(-10, -10, 30, -6), measurement_source: "ESTIMATED" },
+  { landmark_id: "gate", kind: "ENTRANCE_EXIT", position: { x_m: 10, y_m: -2 }, measurement_source: "ESTIMATED" },
+];
 
 function live(overrides: Partial<ParkingAreaLiveState> = {}): ParkingAreaLiveState {
   return {
@@ -38,6 +54,20 @@ function live(overrides: Partial<ParkingAreaLiveState> = {}): ParkingAreaLiveSta
 
 test("the map is framed on the outline and every landmark", () => {
   assert.deepEqual(buildLotMap(lotModel, null).bounds, { minX: 0, minY: 0, maxX: 20, maxY: 12 });
+});
+
+test("surroundings are drawn but stay out of the frame, while ways in and out stay in it", () => {
+  const map = buildLotMap({ ...lotModel, landmarks: [...(lotModel.landmarks ?? []), ...surroundings] }, null);
+  assert.equal(map.landmarks.length, 5);
+  assert.deepEqual(map.bounds, { minX: 0, minY: -2, maxX: 20, maxY: 12 });
+});
+
+test("only named landmarks and ways in and out are labelled", () => {
+  const map = buildLotMap({ ...lotModel, landmarks: surroundings }, null);
+  assert.deepEqual(
+    mapLabels(map).map((label) => label.text),
+    ["อาคาร 9", "ทางเข้า-ออก", "พื้นที่ตรวจสอบ"],
+  );
 });
 
 test("before the first answer every area is unknown and loading, never available", () => {

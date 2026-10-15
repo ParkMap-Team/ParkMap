@@ -60,13 +60,19 @@ export const LANDMARK_LABELS: Record<LandmarkKind, string> = {
   BUILDING: "อาคาร",
   AISLE: "ทางเดินรถ",
   BARRIER: "แนวกั้น",
+  TREE: "ต้นไม้",
+  ROAD: "ถนน",
+  WALKWAY: "ทางเดิน",
+  PLANTING: "แนวต้นไม้",
+  SHELTER: "ทางเดินมีหลังคา",
 };
 
+/** Ways in and out and the booth tell students where to go, so they are labelled even without a name. */
+const WAYFINDING_KINDS: ReadonlySet<LandmarkKind> = new Set(["ENTRANCE", "EXIT", "ENTRANCE_EXIT", "GUARD_BOOTH"]);
+
 /** Entrances, exits, and the booth always say what they are; other landmarks prefer their name. */
-export function landmarkLabel({ kind, name }: LotLandmark): string {
-  if (kind === "ENTRANCE" || kind === "EXIT" || kind === "ENTRANCE_EXIT" || kind === "GUARD_BOOTH") {
-    return name ? `${LANDMARK_LABELS[kind]} ${name}` : LANDMARK_LABELS[kind];
-  }
+export function landmarkLabel({ kind, name }: Pick<LotLandmark, "kind" | "name">): string {
+  if (WAYFINDING_KINDS.has(kind)) return name ? `${LANDMARK_LABELS[kind]} ${name}` : LANDMARK_LABELS[kind];
   return name ?? LANDMARK_LABELS[kind];
 }
 
@@ -97,10 +103,13 @@ export function headlineStatus(summary: MapSummary): "AVAILABLE" | "ALMOST_AVAIL
 
 export type MapLabel = { id: string; text: string; anchor: MetricPoint; kind: LandmarkKind | "AREA"; landmark: LotLandmark | null };
 
-/** Every static label: surveyed landmarks and the monitored areas. Live state never adds a label. */
+/**
+ * Every static label: named landmarks, ways in and out, and the monitored areas. An unnamed tree or
+ * road would only repeat its kind, so it is not labelled. Live state never adds a label.
+ */
 export function mapLabels(map: LotMap): MapLabel[] {
   return [
-    ...map.landmarks.map((landmark) => ({ id: `landmark:${landmark.landmark_id}`, text: landmarkLabel(landmark), anchor: landmark.position, kind: landmark.kind, landmark })),
+    ...map.landmarks.filter((landmark) => landmark.name || WAYFINDING_KINDS.has(landmark.kind)).map((landmark) => ({ id: `landmark:${landmark.landmark_id}`, text: landmarkLabel(landmark), anchor: landmark.position, kind: landmark.kind, landmark })),
     ...map.areas.map((area) => ({ id: `area:${area.parkingAreaId}`, text: areaLabel(map, area.parkingAreaId), anchor: labelPoint(area.polygon), kind: "AREA" as const, landmark: null })),
   ];
 }
