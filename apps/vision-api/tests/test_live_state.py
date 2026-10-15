@@ -1,12 +1,15 @@
+import json
 import math
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from pydantic import ValidationError
 
-from app.models import LotModelDefinition
+from app.models import LotModelDefinition, ParkingStatePublish
 from app.services.live_state_service import (
     CalibrationFilesUnavailableError,
     build_state_publish,
+    calibration_identity,
     calibration_version,
     evaluate_area_state,
     unmonitored_polygons,
@@ -39,8 +42,16 @@ def analysis(*, row_state="AVAILABLE", row_valid=True, capacity_valid=True, over
     }
 
 
-def publish(value=None, **overrides):
-    return build_state_publish(value or analysis(**overrides), parking_area_id="area-1", source="LIVE_CAMERA", observed_at=NOW, calibration_version="v1")
+def publish(value=None, *, source="LIVE_CAMERA", provenance="MEASURED", observed_at=NOW, processed_at=NOW, **overrides):
+    return build_state_publish(
+        value or analysis(**overrides),
+        parking_area_id="area-1",
+        source=source,
+        observed_at=observed_at,
+        processed_at=processed_at,
+        calibration_version="v1",
+        calibration_provenance=provenance,
+    )
 
 
 def test_trusted_row_publishes_available_and_almost_available_regions():
@@ -81,6 +92,35 @@ def test_motorcycle_proxies_come_only_from_detections_inside_the_roi():
     assert math.sin(proxy.heading_rad) == pytest.approx(0.0, abs=1e-9)
 
 
+def test_live_camera_on_estimated_calibration_publishes_only_unknown_regions():
+    state = publish(provenance="ESTIMATED")
+
+    assert [region.kind for region in state.regions] == ["UNKNOWN"]
+    assert [proxy.detection_id for proxy in state.motorcycles] == ["d1"]
+
+
+@pytest.mark.parametrize("source", ["RECORDED_REPLAY", "STILL_IMAGE_LOOP"])
+def test_non_live_source_may_use_an_estimated_calibration(source):
+    state = publish(source=source, provenance="ESTIMATED")
+
+    assert [region.kind for region in state.regions] == ["AVAILABLE", "ALMOST_AVAILABLE"]
+    assert state.calibration_provenance == "ESTIMATED"
+
+
+def test_contract_rejects_candidate_regions_from_a_live_camera_on_estimated_calibration():
+    payload = publish(source="RECORDED_REPLAY", provenance="ESTIMATED").model_dump()
+
+    with pytest.raises(ValidationError, match="UNKNOWN"):
+        ParkingStatePublish.model_validate({**payload, "source": "LIVE_CAMERA"})
+
+
+def test_contract_rejects_processing_before_the_observation():
+    payload = publish().model_dump()
+
+    with pytest.raises(ValidationError, match="processed_at"):
+        ParkingStatePublish.model_validate({**payload, "processed_at": NOW - timedelta(seconds=1)})
+
+
 def evaluate(stored, *, active="v1", now=NOW):
     return evaluate_area_state("area-1", stored=stored, active_calibration_version=active, now=now, freshness_limit_s=15)
 
@@ -116,6 +156,38 @@ def test_state_that_is_not_proven_current_carries_no_regions(active, now, status
     assert result.regions == []
     assert result.motorcycles == []
     assert result.observed_at == NOW
+
+
+PHOTO_TIME = NOW - timedelta(days=30)
+
+
+def still_image_state(processed_at=NOW):
+    return publish(source="STILL_IMAGE_LOOP", provenance="ESTIMATED", observed_at=PHOTO_TIME, processed_at=processed_at)
+
+
+def test_freshly_processed_still_image_is_demo_with_regions_and_its_photo_time():
+    result = evaluate(still_image_state(), now=NOW + timedelta(seconds=4))
+
+    assert result.status == "DEMO"
+    assert result.age_s == 4
+    assert result.observed_at == PHOTO_TIME
+    assert result.processed_at == NOW
+    assert {region.kind for region in result.regions} == {"AVAILABLE", "ALMOST_AVAILABLE"}
+
+
+@pytest.mark.parametrize("now", [NOW + timedelta(seconds=16), NOW - timedelta(seconds=6)])
+def test_stale_still_image_processing_carries_no_regions(now):
+    result = evaluate(still_image_state(), now=now)
+
+    assert result.status == "STALE"
+    assert result.regions == []
+    assert result.motorcycles == []
+
+
+def test_live_freshness_still_uses_the_observation_time():
+    result = evaluate(publish(observed_at=NOW - timedelta(seconds=60), processed_at=NOW), now=NOW)
+
+    assert result.status == "STALE"
 
 
 def write_calibration(directory, content="{}"):
@@ -173,3 +245,31 @@ def test_fully_monitored_lot_has_no_unmonitored_ground():
 def test_invalid_lot_models_are_rejected(areas, message):
     with pytest.raises(ValueError, match=message):
         validate_lot_model(lot_model(*areas))
+
+
+def ground_calibration(provenance):
+    point = {"provenance": "MEASURED"} if provenance == "MEASURED" else {"provenance": "ESTIMATED", "uncertainty_m": 0.5, "estimation_basis": "Paced in the reference photo."}
+    corners = [(0, 0), (1, 0), (1, 1), (0, 1)]
+    return json.dumps(
+        {
+            "camera_id": "camera-1",
+            "reference_image": {"width": 1920, "height": 1080},
+            "coordinate_system": {"unit": "meter"},
+            "control_points": [{"id": f"P{index}", "image_x": x, "image_y": y, "ground_x_m": x * 10, "ground_y_m": y * 10, **point} for index, (x, y) in enumerate(corners)],
+        }
+    )
+
+
+@pytest.mark.parametrize("provenance", ["MEASURED", "ESTIMATED"])
+def test_calibration_identity_reports_the_version_and_provenance_of_the_same_files(tmp_path, provenance):
+    write_calibration(tmp_path)
+    (tmp_path / "ground_plane_calibration.json").write_text(ground_calibration(provenance))
+
+    assert calibration_identity(tmp_path) == (calibration_version(tmp_path), provenance)
+
+
+def test_calibration_identity_rejects_an_invalid_ground_calibration(tmp_path):
+    write_calibration(tmp_path)
+
+    with pytest.raises(CalibrationFilesUnavailableError, match="ground_plane_calibration.json"):
+        calibration_identity(tmp_path)

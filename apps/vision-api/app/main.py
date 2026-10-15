@@ -104,8 +104,8 @@ def ingest_parking_state(publish: ParkingStatePublish, session: Session = Depend
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown parking area.")
     if area.camera_id != publish.camera_id:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="camera_id does not belong to this parking area.")
-    if (publish.observed_at - datetime.now(UTC)).total_seconds() > MAX_FUTURE_SKEW_S:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="observed_at is in the future.")
+    if (publish.processed_at - datetime.now(UTC)).total_seconds() > MAX_FUTURE_SKEW_S:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="processed_at is in the future.")
     repository.insert_state(session, publish)
     try:
         session.commit()
@@ -159,7 +159,7 @@ def get_ground_plane_homography() -> GroundPlaneHomographyResponse:
             status="INPUT_NOT_READY",
             current=False,
             row_validation_current=False,
-            message="Add at least four measured ground-control points, then calculate the map.",
+            message="Add at least four ground-control points, then calculate the map.",
             result=None,
         )
     except (OSError, ValueError, json.JSONDecodeError) as error:

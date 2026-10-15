@@ -5,7 +5,7 @@ import { Canvas } from "@react-three/fiber";
 import { useMemo } from "react";
 import { Path, Shape, Vector2 } from "three";
 import type { LotModel, MetricPolygon, ParkingAreaLiveState } from "@/lib/api/types";
-import { COLORS } from "@/lib/parking/presentation";
+import { COLORS, showsRegions } from "@/lib/parking/presentation";
 
 // Metric ground (x_m, y_m) maps to world (x, 0, -y); the Y axis points up.
 const MOTORCYCLE_HEIGHT_M = 1.1;
@@ -27,8 +27,8 @@ function Surface({ polygon, color, height }: { polygon: MetricPolygon; color: st
 }
 
 function AreaLayer({ area, polygon }: { area: ParkingAreaLiveState | undefined; polygon: MetricPolygon }) {
-  // Anything not proven live is shown as unknown ground, never as free space.
-  if (area?.status !== "LIVE") {
+  // Anything not proven current is shown as unknown ground, never as free space.
+  if (!area || !showsRegions(area.status)) {
     return <Surface polygon={polygon} color={COLORS.UNKNOWN} height={0.01} />;
   }
   return (

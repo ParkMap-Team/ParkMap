@@ -458,6 +458,8 @@ export interface components {
         };
         /** GroundControlPoint */
         GroundControlPoint: {
+            /** Estimation Basis */
+            estimation_basis?: string | null;
             /** Ground X M */
             ground_x_m: number;
             /** Ground Y M */
@@ -473,9 +475,13 @@ export interface components {
              * @enum {string}
              */
             provenance: "ESTIMATED" | "MEASURED";
+            /** Uncertainty M */
+            uncertainty_m?: number | null;
         };
         /** GroundMeasuredRow */
         GroundMeasuredRow: {
+            /** Estimation Basis */
+            estimation_basis?: string | null;
             /** Length M */
             length_m?: number | null;
             /**
@@ -483,6 +489,8 @@ export interface components {
              * @enum {string}
              */
             provenance: "ESTIMATED" | "MEASURED";
+            /** Uncertainty M */
+            uncertainty_m?: number | null;
             /** Width M */
             width_m?: number | null;
         };
@@ -523,6 +531,11 @@ export interface components {
              * @constant
              */
             minimum_required: 4;
+            /**
+             * Provenance
+             * @enum {string}
+             */
+            provenance: "ESTIMATED" | "MEASURED";
             /**
              * Status
              * @enum {string}
@@ -775,15 +788,17 @@ export interface components {
             observed_at?: string | null;
             /** Parking Area Id */
             parking_area_id: string;
+            /** Processed At */
+            processed_at?: string | null;
             /** Regions */
             regions?: components["schemas"]["LiveRegion"][];
             /** Source */
-            source?: ("LIVE_CAMERA" | "RECORDED_REPLAY" | "SYNTHETIC_FIXTURE") | null;
+            source?: ("LIVE_CAMERA" | "RECORDED_REPLAY" | "STILL_IMAGE_LOOP" | "SYNTHETIC_FIXTURE") | null;
             /**
              * Status
              * @enum {string}
              */
-            status: "LIVE" | "STALE" | "NO_DATA" | "NOT_CALIBRATED" | "CALIBRATION_MISMATCH";
+            status: "LIVE" | "DEMO" | "STALE" | "NO_DATA" | "NOT_CALIBRATED" | "CALIBRATION_MISMATCH";
         };
         /** ParkingCalibration */
         ParkingCalibration: {
@@ -800,10 +815,18 @@ export interface components {
              */
             schema_version: 2;
         };
-        /** ParkingStatePublish */
+        /**
+         * ParkingStatePublish
+         * @description One analysed frame. `observed_at` is when the image was captured; `processed_at` is when it was analysed.
+         */
         ParkingStatePublish: {
             /** Analysis Version */
             analysis_version: string;
+            /**
+             * Calibration Provenance
+             * @enum {string}
+             */
+            calibration_provenance: "ESTIMATED" | "MEASURED";
             /** Calibration Version */
             calibration_version: string;
             /** Camera Id */
@@ -817,19 +840,24 @@ export interface components {
             observed_at: string;
             /** Parking Area Id */
             parking_area_id: string;
+            /**
+             * Processed At
+             * Format: date-time
+             */
+            processed_at: string;
             /** Regions */
             regions: components["schemas"]["LiveRegion"][];
             /**
              * Schema Version
-             * @default 1
+             * @default 2
              * @constant
              */
-            schema_version: 1;
+            schema_version: 2;
             /**
              * Source
              * @enum {string}
              */
-            source: "LIVE_CAMERA" | "RECORDED_REPLAY" | "SYNTHETIC_FIXTURE";
+            source: "LIVE_CAMERA" | "RECORDED_REPLAY" | "STILL_IMAGE_LOOP" | "SYNTHETIC_FIXTURE";
         };
         /** PhysicalRowEndpoint */
         PhysicalRowEndpoint: {

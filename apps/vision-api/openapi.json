@@ -304,6 +304,19 @@
       },
       "GroundControlPoint": {
         "properties": {
+          "estimation_basis": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimation Basis"
+          },
           "ground_x_m": {
             "title": "Ground X M",
             "type": "number"
@@ -336,21 +349,46 @@
             ],
             "title": "Provenance",
             "type": "string"
+          },
+          "uncertainty_m": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncertainty M"
           }
         },
         "required": [
+          "provenance",
           "id",
           "image_x",
           "image_y",
           "ground_x_m",
-          "ground_y_m",
-          "provenance"
+          "ground_y_m"
         ],
         "title": "GroundControlPoint",
         "type": "object"
       },
       "GroundMeasuredRow": {
         "properties": {
+          "estimation_basis": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimation Basis"
+          },
           "length_m": {
             "anyOf": [
               {
@@ -370,6 +408,18 @@
             ],
             "title": "Provenance",
             "type": "string"
+          },
+          "uncertainty_m": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncertainty M"
           },
           "width_m": {
             "anyOf": [
@@ -462,6 +512,14 @@
             "title": "Minimum Required",
             "type": "integer"
           },
+          "provenance": {
+            "enum": [
+              "ESTIMATED",
+              "MEASURED"
+            ],
+            "title": "Provenance",
+            "type": "string"
+          },
           "status": {
             "enum": [
               "NOT_READY",
@@ -475,6 +533,7 @@
           "status",
           "control_point_count",
           "measured_point_count",
+          "provenance",
           "calibration"
         ],
         "title": "GroundPlaneCalibrationResponse",
@@ -1161,6 +1220,18 @@
             "title": "Parking Area Id",
             "type": "string"
           },
+          "processed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processed At"
+          },
           "regions": {
             "items": {
               "$ref": "#/components/schemas/LiveRegion"
@@ -1174,6 +1245,7 @@
                 "enum": [
                   "LIVE_CAMERA",
                   "RECORDED_REPLAY",
+                  "STILL_IMAGE_LOOP",
                   "SYNTHETIC_FIXTURE"
                 ],
                 "type": "string"
@@ -1187,6 +1259,7 @@
           "status": {
             "enum": [
               "LIVE",
+              "DEMO",
               "STALE",
               "NO_DATA",
               "NOT_CALIBRATED",
@@ -1241,11 +1314,20 @@
         "type": "object"
       },
       "ParkingStatePublish": {
+        "description": "One analysed frame. `observed_at` is when the image was captured; `processed_at` is when it was analysed.",
         "properties": {
           "analysis_version": {
             "maxLength": 64,
             "minLength": 1,
             "title": "Analysis Version",
+            "type": "string"
+          },
+          "calibration_provenance": {
+            "enum": [
+              "ESTIMATED",
+              "MEASURED"
+            ],
+            "title": "Calibration Provenance",
             "type": "string"
           },
           "calibration_version": {
@@ -1278,6 +1360,11 @@
             "title": "Parking Area Id",
             "type": "string"
           },
+          "processed_at": {
+            "format": "date-time",
+            "title": "Processed At",
+            "type": "string"
+          },
           "regions": {
             "items": {
               "$ref": "#/components/schemas/LiveRegion"
@@ -1287,8 +1374,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": 1,
-            "default": 1,
+            "const": 2,
+            "default": 2,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -1296,6 +1383,7 @@
             "enum": [
               "LIVE_CAMERA",
               "RECORDED_REPLAY",
+              "STILL_IMAGE_LOOP",
               "SYNTHETIC_FIXTURE"
             ],
             "title": "Source",
@@ -1307,7 +1395,9 @@
           "camera_id",
           "source",
           "observed_at",
+          "processed_at",
           "calibration_version",
+          "calibration_provenance",
           "analysis_version",
           "regions",
           "motorcycles"

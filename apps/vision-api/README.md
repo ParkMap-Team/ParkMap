@@ -31,7 +31,7 @@ Endpoints:
 - `GET /api/sites`, `GET /api/sites/{site_id}/lot-model`, `GET /api/sites/{site_id}/parking-state`
 - `POST /api/internal/parking-states`: worker ingest, requires `Authorization: Bearer $PARKMAP_WORKER_TOKEN`
 
-An area serves regions only when its latest state is younger than `PARKMAP_STATE_FRESHNESS_S` and was produced with the active calibration version. Otherwise it reports `STALE`, `NO_DATA`, `NOT_CALIBRATED`, or `CALIBRATION_MISMATCH` without regions. Live endpoints answer `503` when `DATABASE_URL` is not set.
+An area serves regions only when its latest state is younger than `PARKMAP_STATE_FRESHNESS_S` and was produced with the active calibration version. Age counts from `observed_at`, except for a still-image loop, which counts from `processed_at` and reports `DEMO` instead of `LIVE`. Otherwise it reports `STALE`, `NO_DATA`, `NOT_CALIBRATED`, or `CALIBRATION_MISMATCH` without regions. Live endpoints answer `503` when `DATABASE_URL` is not set.
 
 Real site setup:
 
@@ -49,10 +49,10 @@ Worker, on a machine that can reach the camera:
 
 ```sh
 PARKMAP_API_URL=https://<api> PARKMAP_WORKER_TOKEN=<token> \
-  python -m app.worker --parking-area-id <area> --source rtsp://<camera>   # or a recorded video file
+  python -m app.worker --parking-area-id <area> --source rtsp://<camera>   # or a recorded video file or photo directory
 ```
 
-A file source is published as `RECORDED_REPLAY` and the LIFF app says so. Raw frames never leave the worker.
+A file source is published as `RECORDED_REPLAY` and the LIFF app says so. A directory source is a still-image loop published as `STILL_IMAGE_LOOP` ([ADR 0011](../../docs/adr/0011-still-image-loop-demo-on-estimated-calibration.md)): photos are named `YYYYMMDD_HHMM[SS]...` after their local capture time (`--photo-utc-offset`, default `+07:00`), must match the calibration reference size, and each is held for `--hold-s` seconds (default 10). Calibration inputs may be `ESTIMATED`; a live camera on an estimated calibration reports every region `UNKNOWN`. Raw frames never leave the worker.
 
 After changing a Pydantic API model, run `python scripts/export_openapi.py` and regenerate the LIFF types (`pnpm --filter @parkmap/liff api:generate`). Schema changes need an Alembic revision in `migrations/versions/`; `tests/test_live_api.py` fails when tables and migrations drift.
 

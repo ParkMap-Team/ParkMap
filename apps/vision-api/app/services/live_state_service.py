@@ -9,10 +9,13 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from pydantic import ValidationError
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 
 from app.models import (
+    GroundMeasurementSource,
+    GroundPlaneCalibration,
     LiveRegion,
     LotModelDefinition,
     MetricGroundPoint,
@@ -32,19 +35,38 @@ class CalibrationFilesUnavailableError(RuntimeError):
     """The calibration files needed for analysis are missing."""
 
 
-def calibration_version(config_directory: Path) -> str:
-    """Fingerprint the calibration inputs so readers can reject states from another calibration."""
-    digest = hashlib.sha256()
+def _read_calibration(config_directory: Path) -> dict[str, bytes]:
+    contents = {}
     for name in CALIBRATION_FILES:
-        path = config_directory / name
         try:
-            content = path.read_bytes()
+            contents[name] = (config_directory / name).read_bytes()
         except OSError as error:
             raise CalibrationFilesUnavailableError(f"Calibration file is unavailable: {name}") from error
+    return contents
+
+
+def _fingerprint(contents: dict[str, bytes]) -> str:
+    digest = hashlib.sha256()
+    for name in CALIBRATION_FILES:
         digest.update(name.encode())
-        digest.update(len(content).to_bytes(8, "big"))
-        digest.update(content)
+        digest.update(len(contents[name]).to_bytes(8, "big"))
+        digest.update(contents[name])
     return f"files-sha256:{digest.hexdigest()}"
+
+
+def calibration_version(config_directory: Path) -> str:
+    """Fingerprint the calibration inputs so readers can reject states from another calibration."""
+    return _fingerprint(_read_calibration(config_directory))
+
+
+def calibration_identity(config_directory: Path) -> tuple[str, GroundMeasurementSource]:
+    """Version and provenance of one read of the calibration files, so the two always describe the same inputs."""
+    contents = _read_calibration(config_directory)
+    try:
+        ground = GroundPlaneCalibration.model_validate_json(contents["ground_plane_calibration.json"])
+    except ValidationError as error:
+        raise CalibrationFilesUnavailableError(f"Calibration file is invalid: ground_plane_calibration.json ({error.error_count()} errors)") from error
+    return _fingerprint(contents), ground.provenance
 
 
 def _points(ring: list[dict[str, float]]) -> list[MetricGroundPoint]:
@@ -89,17 +111,20 @@ def build_state_publish(
     parking_area_id: str,
     source: StateSourceKind,
     observed_at: datetime,
+    processed_at: datetime,
     calibration_version: str,
+    calibration_provenance: GroundMeasurementSource,
 ) -> ParkingStatePublish:
     """Map one parking analysis to the live contract, marking every unproven row UNKNOWN.
 
     A row is only allowed to show green or yellow when the parking-state decision for
     that row is valid and not UNCERTAIN, and the capacity witness for the row is valid.
+    A live camera on an ESTIMATED calibration proves no row; it publishes diagnostics only.
     """
     parking_state = analysis.get("parking_state") or {}
     state_rows = {row["row_id"]: row for row in parking_state.get("rows", [])}
     capacity_rows = {row.get("row_id"): row for row in (analysis.get("capacity") or {}).get("rows", [])}
-    overall_valid = parking_state.get("validation") is True
+    overall_valid = parking_state.get("validation") is True and not (source == "LIVE_CAMERA" and calibration_provenance == "ESTIMATED")
 
     regions: list[LiveRegion] = []
     for row in analysis["physical_map"]["rows"]:
@@ -128,7 +153,9 @@ def build_state_publish(
         camera_id=analysis["camera_id"],
         source=source,
         observed_at=observed_at,
+        processed_at=processed_at,
         calibration_version=calibration_version,
+        calibration_provenance=calibration_provenance,
         analysis_version=analysis["analysis_version"],
         regions=regions,
         motorcycles=motorcycles,
@@ -143,18 +170,23 @@ def evaluate_area_state(
     now: datetime,
     freshness_limit_s: float,
 ) -> ParkingAreaLiveState:
-    """Decide what a reader may see. Anything not proven current is returned without regions."""
+    """Decide what a reader may see. Anything not proven current is returned without regions.
+
+    A still-image loop shows recorded photos, so its freshness is the age of the processing,
+    and a fresh loop is DEMO rather than LIVE. Every other source ages from its observation.
+    """
     if active_calibration_version is None:
         return ParkingAreaLiveState(parking_area_id=parking_area_id, status="NOT_CALIBRATED")
     if stored is None:
         return ParkingAreaLiveState(parking_area_id=parking_area_id, status="NO_DATA")
-    age_s = (now - stored.observed_at).total_seconds()
-    base = {"parking_area_id": parking_area_id, "source": stored.source, "observed_at": stored.observed_at, "age_s": age_s}
+    still_image = stored.source == "STILL_IMAGE_LOOP"
+    age_s = (now - (stored.processed_at if still_image else stored.observed_at)).total_seconds()
+    base = {"parking_area_id": parking_area_id, "source": stored.source, "observed_at": stored.observed_at, "processed_at": stored.processed_at, "age_s": age_s}
     if stored.calibration_version != active_calibration_version:
         return ParkingAreaLiveState(**base, status="CALIBRATION_MISMATCH")
     if age_s > freshness_limit_s or age_s < -MAX_FUTURE_SKEW_S:
         return ParkingAreaLiveState(**base, status="STALE")
-    return ParkingAreaLiveState(**base, status="LIVE", regions=stored.regions, motorcycles=stored.motorcycles)
+    return ParkingAreaLiveState(**base, status="DEMO" if still_image else "LIVE", regions=stored.regions, motorcycles=stored.motorcycles)
 
 
 def _shape(polygon: MetricPolygon) -> Polygon:

@@ -4,13 +4,19 @@ import unittest
 from pathlib import Path
 
 import numpy as np
+from pydantic import ValidationError
 
 from app.models import GroundPlaneCalibration, ParkingCalibration
+from app.services.ground_plane_calibration_service import GroundPlaneCalibrationService
 from app.services.ground_plane_homography_service import GroundPlaneHomographyService, HomographyInputError, calculate_homography, source_fingerprint, transform_point
 
 
-def calibration(points):
-    return GroundPlaneCalibration.model_validate({"schema_version": 1, "camera_id": "CAM", "reference_image": {"width": 1000, "height": 800}, "coordinate_system": {"unit": "meter", "description": "test"}, "control_points": [{"id": f"P{i + 1}", "image_x": p[0], "image_y": p[1], "ground_x_m": p[2], "ground_y_m": p[3], "provenance": "MEASURED"} for i, p in enumerate(points)], "reference_distances": [], "measured_rows": {"row_1": {"length_m": 10, "width_m": 2, "provenance": "MEASURED"}}})
+MEASURED = {"provenance": "MEASURED"}
+ESTIMATED = {"provenance": "ESTIMATED", "uncertainty_m": 0.5, "estimation_basis": "Paced along the kerb in the reference photo."}
+
+
+def calibration(points, provenance=MEASURED):
+    return GroundPlaneCalibration.model_validate({"schema_version": 1, "camera_id": "CAM", "reference_image": {"width": 1000, "height": 800}, "coordinate_system": {"unit": "meter", "description": "test"}, "control_points": [{"id": f"P{i + 1}", "image_x": p[0], "image_y": p[1], "ground_x_m": p[2], "ground_y_m": p[3], **provenance} for i, p in enumerate(points)], "reference_distances": [], "measured_rows": {"row_1": {"length_m": 10, "width_m": 2, "provenance": "MEASURED"}}})
 
 
 def parking():
@@ -78,6 +84,31 @@ class HomographyTest(unittest.TestCase):
             before = path.read_bytes()
             GroundPlaneHomographyService(Path(directory)).calculate(source, parking())
             self.assertEqual(path.read_bytes(), before)
+
+    def test_estimated_points_calculate_a_homography_for_an_estimated_calibration(self):
+        source = calibration(self.exact + [(.5, .5, 2, 3.5)], ESTIMATED)
+        self.assertEqual(source.provenance, "ESTIMATED")
+        readiness = GroundPlaneCalibrationService.response(source)
+        self.assertEqual((readiness.status, readiness.measured_point_count, readiness.provenance), ("READY_FOR_HOMOGRAPHY", 0, "ESTIMATED"))
+        with tempfile.TemporaryDirectory() as directory:
+            response = GroundPlaneHomographyService(Path(directory)).calculate(source, parking())
+            self.assertEqual(response.result.control_point_count, 5)
+
+    def test_one_estimated_input_makes_the_whole_calibration_estimated(self):
+        self.assertEqual(calibration(self.exact).provenance, "MEASURED")
+        source = calibration(self.exact)
+        source.measured_rows["row_1"] = source.measured_rows["row_1"].model_copy(update=ESTIMATED)
+        self.assertEqual(source.provenance, "ESTIMATED")
+
+    def test_estimated_inputs_must_state_uncertainty_and_basis(self):
+        for provenance in ({"provenance": "ESTIMATED"}, {"provenance": "ESTIMATED", "uncertainty_m": 0.5}, {"provenance": "ESTIMATED", "estimation_basis": "guess"}, {**ESTIMATED, "uncertainty_m": 0}, {"provenance": "MEASURED", "estimation_basis": "guess"}):
+            with self.assertRaises(ValidationError):
+                calibration(self.exact, provenance)
+
+    def test_estimate_details_do_not_make_the_homography_stale(self):
+        source = calibration(self.exact + [(.5, .5, 2, 3.5)], ESTIMATED)
+        refined = calibration(self.exact + [(.5, .5, 2, 3.5)], {**ESTIMATED, "uncertainty_m": 0.2})
+        self.assertEqual(source_fingerprint(source), source_fingerprint(refined))
 
 
 if __name__ == "__main__":

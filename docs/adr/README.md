@@ -10,3 +10,4 @@
 - [0008: Build a resilient LIFF lot view](0008-build-a-resilient-liff-lot-view.md)
 - [0009: Axis-only motorcycle proxy heading](0009-axis-only-motorcycle-proxy-heading.md)
 - [0010: Where I parked by plate handoff](0010-where-i-parked-by-plate-handoff.md) (proposed)
+- [0011: Still-image loop demo on estimated calibration](0011-still-image-loop-demo-on-estimated-calibration.md)

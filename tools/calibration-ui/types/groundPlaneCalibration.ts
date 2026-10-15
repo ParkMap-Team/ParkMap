@@ -1,11 +1,13 @@
 export type MetricMeasurementSource = 'MEASURED' | 'ESTIMATED';
 export type MetricRowId = `row_${number}`;
 
-export interface GroundControlPoint { id: string; image_x: number; image_y: number; ground_x_m: number; ground_y_m: number; provenance: MetricMeasurementSource; }
+/** ESTIMATED inputs need a positive uncertainty and an estimation basis; MEASURED inputs carry no basis. */
+export interface GroundProvenance { provenance: MetricMeasurementSource; uncertainty_m?: number | null; estimation_basis?: string | null; }
+export interface GroundControlPoint extends GroundProvenance { id: string; image_x: number; image_y: number; ground_x_m: number; ground_y_m: number; }
 export interface GroundReferenceDistance { id: string; point_a: string; point_b: string; distance_m: number; provenance: MetricMeasurementSource; }
-export interface GroundMeasuredRow { length_m: number | null; width_m: number | null; provenance: MetricMeasurementSource; }
+export interface GroundMeasuredRow extends GroundProvenance { length_m: number | null; width_m: number | null; }
 export interface GroundPlaneCalibration { schema_version: 1; camera_id: string; reference_image: { width: number; height: number }; coordinate_system: { unit: 'meter'; description: string }; control_points: GroundControlPoint[]; reference_distances: GroundReferenceDistance[]; measured_rows: Partial<Record<MetricRowId, GroundMeasuredRow>>; }
-export interface GroundPlaneCalibrationResponse { status: 'NOT_READY' | 'READY_FOR_HOMOGRAPHY'; control_point_count: number; measured_point_count: number; minimum_required: 4; calibration: GroundPlaneCalibration; }
+export interface GroundPlaneCalibrationResponse { status: 'NOT_READY' | 'READY_FOR_HOMOGRAPHY'; control_point_count: number; measured_point_count: number; minimum_required: 4; provenance: MetricMeasurementSource; calibration: GroundPlaneCalibration; }
 export type GroundPlaneHomographyStatus = 'INPUT_NOT_READY' | 'CALCULATED' | 'VALIDATED' | 'VALIDATION_WARNING' | 'INVALID' | 'STALE';
 export interface GroundPlanePointDiagnostic { id: string; measured_x_m: number; measured_y_m: number; projected_x_m: number; projected_y_m: number; error_x_m: number; error_y_m: number; error_m: number; inlier: boolean; }
 export interface GroundPlaneMetricPoint { x_m: number; y_m: number; }

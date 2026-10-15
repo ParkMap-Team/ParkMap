@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
-from app.models import GroundPlaneCalibration, GroundPlaneHomographyResponse, GroundPlaneHomographyResult, GroundPlaneMetricPoint, GroundPlaneMetricPolygon, GroundPlanePointDiagnostic, ParkingCalibration
+from app.models import ESTIMATE_DETAIL_FIELDS, GroundPlaneCalibration, GroundPlaneHomographyResponse, GroundPlaneHomographyResult, GroundPlaneMetricPoint, GroundPlaneMetricPolygon, GroundPlanePointDiagnostic, ParkingCalibration
 
 
 class HomographyInputError(ValueError):
@@ -19,14 +19,14 @@ def source_fingerprint(calibration: GroundPlaneCalibration) -> str:
     source = {
         "camera_id": calibration.camera_id,
         "reference_image": calibration.reference_image.model_dump(mode="json"),
-        "control_points": [point.model_dump(mode="json") for point in calibration.control_points],
+        "control_points": [point.model_dump(mode="json", exclude=ESTIMATE_DETAIL_FIELDS) for point in calibration.control_points],
     }
     encoded = json.dumps(source, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 
 def row_measurements_fingerprint(calibration: GroundPlaneCalibration) -> str:
-    encoded = json.dumps({key: value.model_dump(mode="json") for key, value in sorted(calibration.measured_rows.items())}, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    encoded = json.dumps({key: value.model_dump(mode="json", exclude=ESTIMATE_DETAIL_FIELDS) for key, value in sorted(calibration.measured_rows.items())}, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 
@@ -45,7 +45,7 @@ def _normalize(points: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 def _validate_points(image: np.ndarray, ground: np.ndarray) -> None:
     if len(image) < 4:
-        raise HomographyInputError("At least four valid MEASURED control points are required.")
+        raise HomographyInputError("At least four valid control points are required.")
     if len(np.unique(image, axis=0)) != len(image) or len(np.unique(ground, axis=0)) != len(ground):
         raise HomographyInputError("Duplicate image or ground coordinates are not allowed.")
     if np.linalg.matrix_rank(np.column_stack((image, np.ones(len(image))))) < 3 or np.linalg.matrix_rank(np.column_stack((ground, np.ones(len(ground))))) < 3:
@@ -113,16 +113,17 @@ class GroundPlaneHomographyService:
     def get_response(self, calibration: GroundPlaneCalibration) -> GroundPlaneHomographyResponse:
         result = self.load()
         if result is None:
-            return GroundPlaneHomographyResponse(status="INPUT_NOT_READY" if sum(p.provenance == "MEASURED" for p in calibration.control_points) < 4 else "CALCULATED", current=False, row_validation_current=False, message="No calculated homography is stored.")
+            return GroundPlaneHomographyResponse(status="INPUT_NOT_READY" if len(calibration.control_points) < 4 else "CALCULATED", current=False, row_validation_current=False, message="No calculated homography is stored.")
         current = result.source_calibration_fingerprint == source_fingerprint(calibration)
         if not current:
             return GroundPlaneHomographyResponse(status="STALE", current=False, row_validation_current=False, message="Source control points or camera identity changed. Recalculate before using metric geometry.", result=result.model_copy(update={"status": "STALE"}))
         row_current = result.row_measurements_fingerprint == row_measurements_fingerprint(calibration)
-        message = "Homography is current for the saved measured inputs." if row_current else "Homography is current, but physical row measurements changed; recalculate to refresh row comparisons."
+        message = "Homography is current for the saved inputs." if row_current else "Homography is current, but physical row measurements changed; recalculate to refresh row comparisons."
         return GroundPlaneHomographyResponse(status=result.status, current=True, row_validation_current=row_current, message=message, result=result)
 
     def calculate(self, calibration: GroundPlaneCalibration, parking: ParkingCalibration) -> GroundPlaneHomographyResponse:
-        points = [point for point in calibration.control_points if point.provenance == "MEASURED"]
+        # ESTIMATED points are accepted; the calibration's provenance tells consumers it supports no accuracy claim.
+        points = calibration.control_points
         image = np.asarray([[point.image_x, point.image_y] for point in points], dtype=float)
         ground = np.asarray([[point.ground_x_m, point.ground_y_m] for point in points], dtype=float)
         matrix = calculate_homography(image, ground)

@@ -70,5 +70,20 @@ class PhysicalRowGeometryTest(unittest.TestCase):
         self.assertEqual([row["row_id"] for row in response["rows"]], [f"row_{index}" for index in range(1, 9)])
         self.assertTrue(all(row["status"] == "PHYSICAL_READY" for row in response["rows"]))
 
+    def test_estimated_row_builds_geometry_without_an_accuracy_claim(self):
+        ground, parking, homography = self.inputs()
+        estimate = {"provenance": "ESTIMATED", "uncertainty_m": 1.0, "estimation_basis": "Counted pavement tiles in the reference photo."}
+        ground = ground.model_copy(update={"measured_rows": {**ground.measured_rows, "row_1": ground.measured_rows["row_1"].model_copy(update=estimate)}})
+        config = PhysicalRowGeometryConfig(camera_id="CAM", measurement_source_fingerprint=measurement_fingerprint(ground), rows={})
+        rows = PhysicalRowGeometryService().response(config, ground, parking, homography)["rows"]
+        self.assertTrue(all(row["status"] == "PHYSICAL_READY" for row in rows))
+        self.assertTrue(all(row["validation_status"] == "NOT_CHECKED" for row in rows))
+        self.assertEqual(rows[0]["provenance"], "ESTIMATED")
+
+    def test_estimate_details_do_not_change_the_measurement_fingerprint(self):
+        ground, _, _ = self.inputs()
+        detailed = ground.model_copy(update={"measured_rows": {**ground.measured_rows, "row_1": ground.measured_rows["row_1"].model_copy(update={"uncertainty_m": 0.05})}})
+        self.assertEqual(measurement_fingerprint(ground), measurement_fingerprint(detailed))
+
 
 if __name__ == "__main__": unittest.main()

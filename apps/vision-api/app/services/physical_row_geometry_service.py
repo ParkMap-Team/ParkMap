@@ -7,12 +7,12 @@ from pathlib import Path
 
 import numpy as np
 
-from app.models import GroundPlaneCalibration, GroundPlaneHomographyResponse, ParkingCalibration, PhysicalRowGeometryConfig
+from app.models import ESTIMATE_DETAIL_FIELDS, GroundPlaneCalibration, GroundPlaneHomographyResponse, ParkingCalibration, PhysicalRowGeometryConfig
 from app.services.ground_plane_homography_service import transform_point
 
 
 def measurement_fingerprint(calibration: GroundPlaneCalibration) -> str:
-    source = {key: value.model_dump(mode="json") for key, value in sorted(calibration.measured_rows.items())}
+    source = {key: value.model_dump(mode="json", exclude=ESTIMATE_DETAIL_FIELDS) for key, value in sorted(calibration.measured_rows.items())}
     return hashlib.sha256(json.dumps(source, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
@@ -111,7 +111,7 @@ class PhysicalRowGeometryService:
             if source_points:
                 diagnostic["source_start_image"] = {"x": source_points[0][0], "y": source_points[0][1]}
                 diagnostic["source_end_image"] = {"x": source_points[1][0], "y": source_points[1][1]}
-            if source_points and measured and measured.provenance == "MEASURED" and measured.length_m and measured.width_m and matrix is not None:
+            if source_points and measured and measured.length_m and measured.width_m and matrix is not None:
                 start = transform_point(source_points[0][0], source_points[0][1], matrix)
                 end = transform_point(source_points[1][0], source_points[1][1], matrix)
                 if start and end:
@@ -126,7 +126,12 @@ class PhysicalRowGeometryService:
                     perpendicular = (-uy * half, ux * half)
                     polygon = [{"x_m": start[0] + perpendicular[0], "y_m": start[1] + perpendicular[1]}, {"x_m": model_end[0] + perpendicular[0], "y_m": model_end[1] + perpendicular[1]}, {"x_m": model_end[0] - perpendicular[0], "y_m": model_end[1] - perpendicular[1]}, {"x_m": start[0] - perpendicular[0], "y_m": start[1] - perpendicular[1]}]
                     relative = abs(difference) / measured.length_m * 100
-                    diagnostic.update(status="PHYSICAL_READY", validation_status="CALIBRATED" if relative <= threshold else "CHECK_MEASUREMENT", homography_distance_m=distance, difference_m=difference, absolute_error_m=abs(difference), relative_error_percent=relative, start_metric={"x_m": start[0], "y_m": start[1]}, clicked_end_metric={"x_m": end[0], "y_m": end[1]}, measured_model_end_metric={"x_m": model_end[0], "y_m": model_end[1]}, endpoint_discrepancy_m=math.dist(end, model_end), physical_polygon=polygon)
+                    # Comparing against an estimated input or homography checks nothing, so make no accuracy claim.
+                    if calibration.provenance == "ESTIMATED":
+                        validation = "NOT_CHECKED"
+                    else:
+                        validation = "CALIBRATED" if relative <= threshold else "CHECK_MEASUREMENT"
+                    diagnostic.update(status="PHYSICAL_READY", validation_status=validation, homography_distance_m=distance, difference_m=difference, absolute_error_m=abs(difference), relative_error_percent=relative, start_metric={"x_m": start[0], "y_m": start[1]}, clicked_end_metric={"x_m": end[0], "y_m": end[1]}, measured_model_end_metric={"x_m": model_end[0], "y_m": model_end[1]}, endpoint_discrepancy_m=math.dist(end, model_end), physical_polygon=polygon)
             rows.append(diagnostic)
         stale = config.camera_id != calibration.camera_id or not measurement_current or not usable_h
         return {"config": config.model_dump(mode="json"), "status": "STALE" if stale else "CURRENT", "homography_current": usable_h, "measurement_source_current": measurement_current, "warning_relative_percent": threshold, "rows": rows}

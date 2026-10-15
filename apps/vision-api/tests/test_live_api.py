@@ -35,6 +35,10 @@ def state_json(observed_at=None, **overrides):
     return {**payload, **overrides}
 
 
+def still_image_json(photo_time, processed_at):
+    return state_json(processed_at, source="STILL_IMAGE_LOOP", observed_at=photo_time.isoformat())
+
+
 def area_state(client):
     response = client.get(STATE_URL)
     assert response.status_code == 200
@@ -77,12 +81,35 @@ def test_published_state_is_served_as_live_with_its_source(seeded, client):
     assert len(area["motorcycles"]) == 2
 
 
-def test_latest_observation_wins(seeded, client):
+def test_latest_processed_state_wins(seeded, client):
     now = datetime.now(UTC)
     client.post(INGEST_URL, json=state_json(now), headers=AUTH)
     client.post(INGEST_URL, json=state_json(now - timedelta(seconds=60)), headers=AUTH)
 
     assert area_state(client)["status"] == "LIVE"
+
+
+def test_still_image_loop_is_demo_with_the_photo_time(seeded, client):
+    now = datetime.now(UTC)
+    first_photo = datetime(2026, 9, 1, 8, 0, tzinfo=UTC)
+    client.post(INGEST_URL, json=still_image_json(first_photo + timedelta(minutes=5), now - timedelta(seconds=10)), headers=AUTH)
+    # The loop wrapped around to an earlier photo; the newest processing is what readers see.
+    assert client.post(INGEST_URL, json=still_image_json(first_photo, now), headers=AUTH).status_code == 204
+    area = area_state(client)
+
+    assert area["status"] == "DEMO"
+    assert area["source"] == "STILL_IMAGE_LOOP"
+    assert datetime.fromisoformat(area["observed_at"]) == first_photo
+    assert area["regions"]
+
+
+def test_still_image_loop_with_stale_processing_is_stale_without_regions(seeded, client):
+    now = datetime.now(UTC)
+    client.post(INGEST_URL, json=still_image_json(now - timedelta(days=30), now - timedelta(seconds=60)), headers=AUTH)
+    area = area_state(client)
+
+    assert area["status"] == "STALE"
+    assert area["regions"] == []
 
 
 def test_old_state_is_stale_without_regions(seeded, client):
@@ -121,7 +148,10 @@ def test_calibration_for_another_camera_is_rejected(seeded, tmp_path):
         {"camera_id": "other-camera"},
         {"parking_area_id": "missing-area"},
         {"observed_at": (datetime.now(UTC) + timedelta(minutes=5)).isoformat()},
+        {"processed_at": (datetime.now(UTC) + timedelta(minutes=5)).isoformat()},
         {"observed_at": "2026-10-01T08:00:00"},
+        {"schema_version": 1},
+        {"source": "LIVE_CAMERA"},
     ],
 )
 def test_ingest_rejects_states_that_do_not_match_the_area(seeded, client, overrides):

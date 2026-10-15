@@ -31,7 +31,7 @@ def latest_states(session: Session, area_ids: list[str]) -> dict[str, ParkingSta
         select(ParkingState)
         .where(ParkingState.parking_area_id.in_(area_ids))
         .ext(distinct_on(ParkingState.parking_area_id))
-        .order_by(ParkingState.parking_area_id, ParkingState.observed_at.desc())
+        .order_by(ParkingState.parking_area_id, ParkingState.processed_at.desc())
     )
     return {row.parking_area_id: ParkingStatePublish.model_validate(row.payload) for row in session.scalars(query)}
 
@@ -41,6 +41,7 @@ def insert_state(session: Session, publish: ParkingStatePublish) -> None:
         ParkingState(
             parking_area_id=publish.parking_area_id,
             observed_at=publish.observed_at,
+            processed_at=publish.processed_at,
             calibration_version=publish.calibration_version,
             payload=publish.model_dump(mode="json"),
         )
@@ -76,5 +77,5 @@ def activate_lot_model(session: Session, site_id: str, definition: LotModelDefin
 
 
 def purge_states(session: Session, older_than: datetime) -> int:
-    result = session.execute(delete(ParkingState).where(ParkingState.observed_at < older_than))
+    result = session.execute(delete(ParkingState).where(ParkingState.processed_at < older_than))
     return result.rowcount or 0
