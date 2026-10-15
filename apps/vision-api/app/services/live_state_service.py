@@ -195,7 +195,7 @@ def _shape(polygon: MetricPolygon) -> Polygon:
 
 
 def validate_lot_model(definition: LotModelDefinition) -> None:
-    """Reject lot models whose areas overlap or leave the outline."""
+    """Reject lot models whose areas overlap or leave the outline, or whose landmark footprints are invalid."""
     outline = _shape(definition.outline)
     if not outline.is_valid or outline.area <= 0.0:
         raise ValueError("Lot model outline must be a valid polygon with positive area.")
@@ -209,6 +209,11 @@ def validate_lot_model(definition: LotModelDefinition) -> None:
         if any(shape.intersection(other).area > 1e-6 for other in areas):
             raise ValueError(f"Parking area {area.parking_area_id} overlaps another parking area.")
         areas.append(shape)
+    for landmark in definition.landmarks:
+        if landmark.polygon is not None:
+            shape = _shape(landmark.polygon)
+            if not shape.is_valid or shape.area <= 0.0:
+                raise ValueError(f"Landmark {landmark.landmark_id} must be a valid polygon with positive area.")
 
 
 def unmonitored_polygons(definition: LotModelDefinition) -> list[MetricPolygon]:

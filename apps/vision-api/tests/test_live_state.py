@@ -245,6 +245,10 @@ def test_sripatum_lot_model_leaves_ground_outside_the_parking_roi_unmonitored():
 
     assert [area.parking_area_id for area in definition.parking_areas] == ["sripatum-near-lot"]
     assert len(unmonitored_polygons(definition)) == 1
+    # Only features the calibration documents: the hedge curb and planter tops bounding the outline.
+    assert {landmark.landmark_id: landmark.kind for landmark in definition.landmarks} == {"hedge-curb": "BARRIER", "near-planters": "BARRIER"}
+    outline_ys = {point.y_m for point in definition.outline[0]}
+    assert all({point.y_m for point in landmark.line or []} <= outline_ys for landmark in definition.landmarks)
 
 
 @pytest.mark.parametrize(
@@ -258,6 +262,52 @@ def test_sripatum_lot_model_leaves_ground_outside_the_parking_roi_unmonitored():
 def test_invalid_lot_models_are_rejected(areas, message):
     with pytest.raises(ValueError, match=message):
         validate_lot_model(lot_model(*areas))
+
+
+def lot_model_with(*landmarks):
+    return LotModelDefinition.model_validate(
+        {"outline": [ring(0, 0, 20, 10)], "parking_areas": [{"parking_area_id": "area-1", "polygon": [ring(0, 0, 10, 10)]}], "landmarks": list(landmarks)}
+    )
+
+
+def test_lot_model_landmarks_default_to_none():
+    assert lot_model(ring(0, 0, 10, 10)).landmarks == []
+
+
+def test_lot_model_keeps_surveyed_landmarks():
+    definition = lot_model_with(
+        {"landmark_id": "gate", "kind": "ENTRANCE", "position": {"x_m": 0, "y_m": 5}, "direction_rad": 0.0},
+        {"landmark_id": "booth", "kind": "GUARD_BOOTH", "position": {"x_m": 1, "y_m": 11}, "polygon": [ring(0, 10.5, 2, 11.5)]},
+        {"landmark_id": "hedge", "kind": "BARRIER", "name": "แนวพุ่มไม้", "position": {"x_m": 10, "y_m": 10}, "line": [{"x_m": 0, "y_m": 10}, {"x_m": 20, "y_m": 10}]},
+    )
+    validate_lot_model(definition)
+
+    assert [landmark.kind for landmark in definition.landmarks] == ["ENTRANCE", "GUARD_BOOTH", "BARRIER"]
+
+
+@pytest.mark.parametrize(
+    ("landmarks", "message"),
+    [
+        (({"landmark_id": "a", "kind": "BUILDING", "position": {"x_m": 0, "y_m": 0}},) * 2, "landmarks must be unique"),
+        (({"landmark_id": "a", "kind": "AISLE", "position": {"x_m": 0, "y_m": 0}},), "aisle landmark needs its polygon"),
+        (({"landmark_id": "a", "kind": "GUARD_BOOTH", "position": {"x_m": 0, "y_m": 0}, "direction_rad": 1.0},), "Only an entrance or an exit"),
+        (({"landmark_id": "a", "kind": "ENTRANCE_EXIT", "position": {"x_m": 0, "y_m": 0}, "direction_rad": 1.0},), "Only an entrance or an exit"),
+        (
+            ({"landmark_id": "a", "kind": "BARRIER", "position": {"x_m": 0, "y_m": 0}, "polygon": [ring(0, 0, 1, 1)], "line": [{"x_m": 0, "y_m": 0}, {"x_m": 1, "y_m": 0}]},),
+            "not both",
+        ),
+    ],
+)
+def test_invalid_landmarks_are_rejected(landmarks, message):
+    with pytest.raises(ValidationError, match=message):
+        lot_model_with(*landmarks)
+
+
+def test_landmark_footprints_must_have_area():
+    definition = lot_model_with({"landmark_id": "a", "kind": "BUILDING", "position": {"x_m": 0, "y_m": 0}, "polygon": [ring(0, 0, 0, 1)]})
+
+    with pytest.raises(ValueError, match="Landmark a must be a valid polygon"):
+        validate_lot_model(definition)
 
 
 def ground_calibration(provenance):

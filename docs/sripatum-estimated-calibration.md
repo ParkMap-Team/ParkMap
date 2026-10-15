@@ -62,6 +62,8 @@ Every row spans the ROI width (17.25 m) and is `ESTIMATED` with 1.0 m uncertaint
 
 The outline is the visible band of the near lot: the full photo width between the near planter tops (`y` 0.96) and the hedge curb (`y` 14.08). The parking area is the Parking ROI. The rest of the outline, mainly under the trees and beside the planters, is `UNMONITORED`. Nothing beyond the hedge or behind the planters is modelled.
 
+The only landmarks are the hedge curb (`y` 14.08) and the near planter tops (`y` 0.96), the same traced lines that bound the outline, drawn as barriers. The entrance, exit, guard booth, buildings, and aisles are not in the photos' traced frame, so they are left out until the survey (#17) places them; the map shows nothing rather than a guessed position.
+
 ## Photos sharing the calibration
 
 Projecting each photo's traced control points through the reference homography gives its viewpoint drift. All seven photos share the calibration because every point's drift stays within that point's uncertainty (worst ratio 0.92, photo `20260925_1100`).
@@ -93,3 +95,4 @@ uv run python -m app.manage register-calibration --parking-area-id sripatum-near
 - The stall pitch and transverse-line spacing assumptions, which the survey makes unnecessary.
 - `row_1` to `row_3` lengths and widths, measured on the ground.
 - The lot model, recomputed in the measured frame. Keep the parking area id.
+- Landmarks: measure the entrance, exit, and guard booth, and set an entrance or exit `direction_rad` only when the direction of travel is confirmed on site.

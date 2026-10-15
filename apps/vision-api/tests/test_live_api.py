@@ -166,6 +166,7 @@ def test_lot_model_includes_unmonitored_ground(seeded, client):
     assert lot_model["version"] == 1
     assert [area["parking_area_id"] for area in lot_model["parking_areas"]] == ["dev-area-1"]
     assert lot_model["unmonitored"]
+    assert lot_model["landmarks"] == []
 
 
 def test_sites_are_listed_and_unknown_sites_are_not_found(seeded, client):
