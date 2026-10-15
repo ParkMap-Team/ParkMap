@@ -30,8 +30,8 @@ def seeded(database):
     assert manage.main(["seed-dev"]) == 0
 
 
-def state_json(observed_at=None, **overrides):
-    payload = json.loads(dev_state(observed_at or datetime.now(UTC)).model_dump_json())
+def state_json(at=None, **overrides):
+    payload = json.loads(dev_state(at or datetime.now(UTC)).model_dump_json())
     return {**payload, **overrides}
 
 
