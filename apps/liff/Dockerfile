@@ -18,6 +18,8 @@ ENV NODE_ENV=production \
   PORT=3001
 COPY --from=build --chown=node:node /repo/apps/liff/.next/standalone ./
 COPY --from=build --chown=node:node /repo/apps/liff/.next/static ./apps/liff/.next/static
+# Standalone output leaves out public/ (the motorcycle model), so it is copied next to server.js.
+COPY --from=build --chown=node:node /repo/apps/liff/public ./apps/liff/public
 USER node
 EXPOSE 3001
 # /help is static, so the check does not depend on the API.
