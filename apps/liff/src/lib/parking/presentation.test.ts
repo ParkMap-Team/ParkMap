@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ParkingAreaLiveState, SiteParkingState } from "../api/types.ts";
-import { photoTimeLabel, showsRegions, sourceNotice, visibleAreas } from "./presentation.ts";
+import { agoLabel, photoTimeLabel, showsRegions, sourceBadge, sourceNotice, timeLines, visibleAreas } from "./presentation.ts";
 
 const square = [[{ x_m: 0, y_m: 0 }, { x_m: 1, y_m: 0 }, { x_m: 1, y_m: 1 }]];
 
@@ -79,4 +79,39 @@ test("a still-image loop is always announced as recorded demo photos", () => {
 
 test("the photo time of a demo is shown in Bangkok time", () => {
   assert.match(photoTimeLabel("2026-09-25T02:31:00Z"), /09:31/);
+});
+
+test("a lost connection drops current regions even within the freshness limit", () => {
+  const [area] = visibleAreas(siteState(liveArea(), demoArea({ parking_area_id: "area-2" })), 1, true).slice(0, 1);
+  assert.equal(area.status, "STALE");
+  assert.deepEqual(area.regions, []);
+  assert.equal(visibleAreas(siteState(demoArea()), 1, true)[0].status, "STALE");
+});
+
+test("the source badge never calls recorded photos live", () => {
+  assert.equal(sourceBadge([demoArea()]), "ข้อมูลสาธิต");
+  assert.equal(sourceBadge([liveArea(), demoArea()]), "ข้อมูลสาธิต");
+  assert.equal(sourceBadge([liveArea({ source: "RECORDED_REPLAY" })]), "วิดีโอบันทึก");
+  assert.equal(sourceBadge([liveArea({ source: "SYNTHETIC_FIXTURE" }), demoArea()]), "ข้อมูลจำลอง");
+  assert.equal(sourceBadge([liveArea()]), "กล้องสด");
+  assert.equal(sourceBadge([liveArea({ status: "NO_DATA", source: null })]), null);
+});
+
+test("photo, processing, and receipt times are kept apart", () => {
+  const received = Date.parse("2026-10-01T08:00:09Z");
+  const lines = timeLines(demoArea({ processed_at: "2026-10-01T08:00:05Z" }), received);
+  assert.deepEqual(lines.map((line) => line.label), ["ภาพถ่าย", "ประมวลผล", "รับข้อมูล"]);
+  assert.match(lines[0].value, /09:31/);
+  assert.match(lines[0].value, /2569|2026/, "a still-image photo shows its date");
+  assert.match(lines[1].value, /15:00:05/);
+  assert.match(lines[2].value, /15:00:09/);
+  assert.equal(timeLines(liveArea({ processed_at: "2026-10-01T08:00:01Z" }), null)[0].label, "ภาพจากกล้อง");
+  assert.deepEqual(timeLines(null, null), []);
+});
+
+test("ages read in seconds, minutes, then hours", () => {
+  assert.equal(agoLabel(4.4), "4 วินาทีที่แล้ว");
+  assert.equal(agoLabel(-2), "0 วินาทีที่แล้ว");
+  assert.equal(agoLabel(125), "2 นาทีที่แล้ว");
+  assert.equal(agoLabel(7300), "2 ชั่วโมงที่แล้ว");
 });
