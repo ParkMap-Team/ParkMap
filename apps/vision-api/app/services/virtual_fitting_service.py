@@ -6,6 +6,11 @@ from typing import Any
 from shapely.affinity import rotate, translate
 from shapely.geometry import Point, Polygon
 
+# The standard motorcycle footprint, the only motorcycle size in the analysis: every
+# detection footprint, Motorcycle Proxy, and fitting witness uses it, whatever the detected
+# box size (ADR 0011). Width is the lateral parking pitch one motorcycle takes in a row.
+# Basis: values carried over from the initial prototype, not measured at the Sripatum lot;
+# they support no distance or accuracy claim (ADR 0004).
 PARKING_PITCH_WIDTH_M = 0.66
 WIDTH_M = PARKING_PITCH_WIDTH_M
 LENGTH_M = 2.0

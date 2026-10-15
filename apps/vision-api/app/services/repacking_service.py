@@ -5,6 +5,7 @@ from typing import Any
 from shapely.geometry import Polygon
 
 from app.services.capacity_service import calculate_row_capacity
+from app.services.virtual_fitting_service import WIDTH_M
 
 
 def calculate_repacking(rows: list[tuple[str, Polygon]], occupied_rows: list[dict[str, Any]], capacity: dict[str, Any], uncertainty: dict[str, Any]) -> dict[str, Any]:
@@ -30,7 +31,7 @@ def calculate_repacking(rows: list[tuple[str, Polygon]], occupied_rows: list[dic
 def _rectangular_upper_bound(row: Polygon) -> int:
     points = list(row.exterior.coords)[:-1]
     lengths = [((points[(i + 1) % len(points)][0] - points[i][0]) ** 2 + (points[(i + 1) % len(points)][1] - points[i][1]) ** 2) ** 0.5 for i in range(len(points))]
-    return int((lengths[0] + 1e-7) // 0.66)
+    return int((lengths[0] + 1e-7) // WIDTH_M)
 
 
 def _rectangular_fixed_orientation(row: Polygon) -> bool:

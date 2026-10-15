@@ -8,7 +8,7 @@ from shapely.ops import unary_union
 
 from app.models import DetectionResponse
 from app.services.physical_row_geometry_service import derive_row_centerline
-from app.services.virtual_fitting_service import fit_rows
+from app.services.virtual_fitting_service import LENGTH_M, WIDTH_M, fit_rows
 from app.services.capacity_service import calculate_capacity
 from app.services.almost_available_service import calculate_almost_available_placements
 from app.services.camera_projection_service import project_metric_geometry
@@ -21,8 +21,6 @@ from app.services.rearrangement_plan_service import build_rearrangement_plan
 from app.services.witness_uncertainty_service import classify_witness_uncertainty
 
 EPSILON = 1e-8
-WIDTH_M = 0.66
-LENGTH_M = 2.0
 
 
 def _ring(points: list[tuple[float, float]]) -> list[dict[str, float]]:
