@@ -708,6 +708,33 @@ export interface components {
             /** Row Id */
             row_id?: string | null;
         };
+        /**
+         * LotLandmark
+         * @description A surveyed static feature that helps students match the map to the real place.
+         *
+         *     `position` anchors the marker and label. A footprint `polygon` or a `line` (a hedge, curb,
+         *     or fence) is optional, except that an aisle needs its polygon. `direction_rad` is the
+         *     confirmed direction of travel through an entrance or exit, counter-clockwise from +x;
+         *     leave it out when the direction is not confirmed. Landmarks carry no availability.
+         */
+        LotLandmark: {
+            /** Direction Rad */
+            direction_rad?: number | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "ENTRANCE" | "EXIT" | "ENTRANCE_EXIT" | "GUARD_BOOTH" | "BUILDING" | "AISLE" | "BARRIER";
+            /** Landmark Id */
+            landmark_id: string;
+            /** Line */
+            line?: components["schemas"]["MetricGroundPoint"][] | null;
+            /** Name */
+            name?: string | null;
+            /** Polygon */
+            polygon?: components["schemas"]["MetricGroundPoint"][][] | null;
+            position: components["schemas"]["MetricGroundPoint"];
+        };
         /** LotModelParkingArea */
         LotModelParkingArea: {
             /** Parking Area Id */
@@ -717,6 +744,8 @@ export interface components {
         };
         /** LotModelResponse */
         LotModelResponse: {
+            /** Landmarks */
+            landmarks?: components["schemas"]["LotLandmark"][];
             /** Outline */
             outline: components["schemas"]["MetricGroundPoint"][][];
             /** Parking Areas */

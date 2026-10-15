@@ -388,12 +388,46 @@ class LotModelParkingArea(BaseModel):
         return self
 
 
+LandmarkKind = Literal["ENTRANCE", "EXIT", "ENTRANCE_EXIT", "GUARD_BOOTH", "BUILDING", "AISLE", "BARRIER"]
+
+
+class LotLandmark(BaseModel):
+    """A surveyed static feature that helps students match the map to the real place.
+
+    `position` anchors the marker and label. A footprint `polygon` or a `line` (a hedge, curb,
+    or fence) is optional, except that an aisle needs its polygon. `direction_rad` is the
+    confirmed direction of travel through an entrance or exit, counter-clockwise from +x;
+    leave it out when the direction is not confirmed. Landmarks carry no availability.
+    """
+
+    landmark_id: str = Field(pattern=IDENTIFIER_PATTERN)
+    kind: LandmarkKind
+    name: str | None = Field(default=None, min_length=1, max_length=40)
+    position: MetricGroundPoint
+    polygon: MetricPolygon | None = None
+    line: MetricRing | None = Field(default=None, min_length=2)
+    direction_rad: float | None = Field(default=None, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def validate_geometry(self) -> "LotLandmark":
+        if self.polygon is not None:
+            _validate_polygon(self.polygon)
+            if self.line is not None:
+                raise ValueError("A landmark has a polygon or a line, not both.")
+        if self.kind == "AISLE" and self.polygon is None:
+            raise ValueError("An aisle landmark needs its polygon.")
+        if self.direction_rad is not None and self.kind not in ("ENTRANCE", "EXIT"):
+            raise ValueError("Only an entrance or an exit has a direction of travel.")
+        return self
+
+
 class LotModelDefinition(BaseModel):
     """Surveyed static lot geometry stored per site version."""
 
     schema_version: Literal[1] = 1
     outline: MetricPolygon
     parking_areas: list[LotModelParkingArea] = Field(min_length=1)
+    landmarks: list[LotLandmark] = Field(default_factory=list, max_length=100)
 
     @model_validator(mode="after")
     def validate_polygons(self) -> "LotModelDefinition":
@@ -401,6 +435,9 @@ class LotModelDefinition(BaseModel):
         ids = [area.parking_area_id for area in self.parking_areas]
         if len(ids) != len(set(ids)):
             raise ValueError("Lot model parking areas must be unique.")
+        landmark_ids = [landmark.landmark_id for landmark in self.landmarks]
+        if len(landmark_ids) != len(set(landmark_ids)):
+            raise ValueError("Lot model landmarks must be unique.")
         return self
 
 

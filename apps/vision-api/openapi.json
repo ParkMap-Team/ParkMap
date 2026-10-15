@@ -987,6 +987,95 @@
         "title": "LiveRegion",
         "type": "object"
       },
+      "LotLandmark": {
+        "description": "A surveyed static feature that helps students match the map to the real place.\n\n`position` anchors the marker and label. A footprint `polygon` or a `line` (a hedge, curb,\nor fence) is optional, except that an aisle needs its polygon. `direction_rad` is the\nconfirmed direction of travel through an entrance or exit, counter-clockwise from +x;\nleave it out when the direction is not confirmed. Landmarks carry no availability.",
+        "properties": {
+          "direction_rad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction Rad"
+          },
+          "kind": {
+            "enum": [
+              "ENTRANCE",
+              "EXIT",
+              "ENTRANCE_EXIT",
+              "GUARD_BOOTH",
+              "BUILDING",
+              "AISLE",
+              "BARRIER"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "landmark_id": {
+            "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+            "title": "Landmark Id",
+            "type": "string"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MetricGroundPoint"
+                },
+                "minItems": 2,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "polygon": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "$ref": "#/components/schemas/MetricGroundPoint"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polygon"
+          },
+          "position": {
+            "$ref": "#/components/schemas/MetricGroundPoint"
+          }
+        },
+        "required": [
+          "landmark_id",
+          "kind",
+          "position"
+        ],
+        "title": "LotLandmark",
+        "type": "object"
+      },
       "LotModelParkingArea": {
         "properties": {
           "parking_area_id": {
@@ -1014,6 +1103,14 @@
       },
       "LotModelResponse": {
         "properties": {
+          "landmarks": {
+            "items": {
+              "$ref": "#/components/schemas/LotLandmark"
+            },
+            "maxItems": 100,
+            "title": "Landmarks",
+            "type": "array"
+          },
           "outline": {
             "items": {
               "items": {

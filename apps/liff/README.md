@@ -1,6 +1,6 @@
 # ParkMap LIFF
 
-Student-facing app opened from the LINE Official Account rich menu. It lists sites and shows a navigable 3D lot model with live regions and motorcycle proxies. It renders what `apps/vision-api` decides and never computes availability itself. See [ADR 0002](../../docs/adr/0002-live-state-pipeline-and-liff-app.md).
+Student-facing app opened from the LINE Official Account rich menu. It lists sites and shows each lot as a map, in 3D or top-down 2D, with live regions, motorcycle proxies, and surveyed landmarks. It renders what `apps/vision-api` decides and never computes availability itself. See [ADR 0002](../../docs/adr/0002-live-state-pipeline-and-liff-app.md).
 
 ## Run
 
@@ -61,6 +61,22 @@ The script validates the menu with LINE, creates it, uploads the image, makes it
 - `src/lib/api/`: `openapi-fetch` client and types generated from `apps/vision-api/openapi.json`. Do not edit `schema.gen.ts`; run `pnpm api:generate`.
 - `src/lib/parking/`: presentation only (labels, colours, client-side staleness downgrade). A region is never shown green unless the API returned it as `AVAILABLE` for a `LIVE` area.
 - `src/components/lot-scene.tsx`: react-three-fiber scene. Metric lot coordinates `(x, y)` map to world `(x, 0, -y)`.
+- `src/lib/map/`: renderer-independent map model. `lot-map.ts` turns the lot model and visible live state into layers (ground, parking areas, live regions, motorcycle footprints, landmarks) and hit-tests a tap; `legend.ts` holds the Thai status text; `labels.ts` places labels without overlap; `camera.ts` holds the overview framing and zoom limits; `renderer.ts` chooses 3D or 2D.
+- `src/components/site-view.tsx`: the site page (header, alerts, map controls, keyboard map, selection). `lot-plan.tsx` is the 2D canvas renderer, `map-overlay.tsx` the DOM labels and selection outline shared by both renderers, `map-panel.tsx` the bottom sheet on phones and side panel on desktop with the legend and a text summary that never depends on the canvas.
+
+## Map
+
+The static layer (outline, parking areas, unmonitored ground, landmarks) comes from the site's lot model and changes only when the site is re-surveyed. The live layer draws only the polygons the API returns. The browser never decides availability and never counts free spaces; a stale or failed poll hides green and yellow until fresh data arrives. Entrances, exits, the guard booth, buildings, and aisles appear only when the lot model lists them as landmarks, and an entrance or exit arrow only when `direction_rad` is set. Nothing is inferred from the photo. There is no north arrow or scale while the calibration is estimated.
+
+The 3D view follows [ADR 0008](../../docs/adr/0008-build-a-resilient-liff-lot-view.md): an elevated overview, zoom, pan, and a reset to the whole lot, with no orbit and no entrance preset. It renders on demand with the device pixel ratio capped. Without WebGL the 2D plan shows immediately, and if 3D is not ready within 10 s the page switches to 2D; the 2D/3D switch works both ways when both are usable.
+
+The motorcycle proxy is `public/models/motorcycle.glb`, served from the app and never fetched from another origin. It is original work: `scripts/motorcycle-model/build.ts` generates it from three.js primitives, with no third-party model or texture. Regenerate it from `apps/liff`:
+
+```sh
+node --experimental-strip-types scripts/motorcycle-model/build.ts
+```
+
+The map scales it onto the API's standard motorcycle footprint and draws it in neutral greys on the red occupied footprint, so the status colour stays on the ground.
 
 ## UI components
 

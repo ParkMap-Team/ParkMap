@@ -44,5 +44,45 @@
         ]
       ]
     }
+  ],
+  "landmarks": [
+    {
+      "landmark_id": "hedge-curb",
+      "kind": "BARRIER",
+      "name": "แนวพุ่มไม้",
+      "position": {
+        "x_m": 12.92,
+        "y_m": 14.08
+      },
+      "line": [
+        {
+          "x_m": -3.09,
+          "y_m": 14.08
+        },
+        {
+          "x_m": 28.92,
+          "y_m": 14.08
+        }
+      ]
+    },
+    {
+      "landmark_id": "near-planters",
+      "kind": "BARRIER",
+      "name": "แนวกระถางต้นไม้",
+      "position": {
+        "x_m": 13.35,
+        "y_m": 0.96
+      },
+      "line": [
+        {
+          "x_m": 1.92,
+          "y_m": 0.96
+        },
+        {
+          "x_m": 24.77,
+          "y_m": 0.96
+        }
+      ]
+    }
   ]
 }
