@@ -60,6 +60,48 @@ Model weights belong at `models/best.pt` by default. ROI, homography, and row ca
 
 ## YOLO detection
 
+### Train and evaluate a detector (Windows PowerShell)
+
+The local public dataset is `D:\Parkmap Dataset\Kepadatan Parkir Motor.v9i.yolo26`.
+It has separate `train` (1,240 images), `valid` (100), and `test` (100) folders.
+Edit [detector-experiment.yaml](detector-experiment.yaml) to select a model and set
+all training, evaluation, and export parameters. A `.yaml` model starts from random
+weights without a download; a local `.pt` path fine-tunes existing weights. The
+included five-epoch run is an initial pipeline baseline, not a tuned model.
+
+From `D:\ParkMap\apps\vision-api`:
+
+```powershell
+# Use the project environment after uv sync --locked --all-groups.
+.\.venv\Scripts\python.exe scripts\train_detector.py
+```
+
+Ultralytics prints per-epoch and batch progress in the terminal. The script checks
+the dataset and labels, trains on `train`, selects `best.pt` using `valid`, then
+evaluates the selected model on `valid` and the held-out `test` using the project
+IoU 0.5 matching protocol. The `test` split is never passed to the trainer. It
+exports the model, a three-sheet Excel report (`Summary`, per-image `Frames`, and
+per-epoch `Training`), and JSON metrics to the paths in the same YAML file.
+Results from this public dataset are stand-in evidence only, never real-lot accuracy.
+
+Run names and export paths must be changed for another experiment, so earlier
+results are not overwritten. Pass `--config path\to\another.yaml` to use another
+configuration file. Training does not change the model currently served by the API.
+For inference, `apps/vision-api/.env` is the one active backend settings file;
+`.env.example` is only a template. Set `PARKMAP_MODEL_PATH` in `.env` to the selected
+exported `.pt`, and set `PARKMAP_MODEL_IMGSZ`, `PARKMAP_MODEL_CONF`,
+`PARKMAP_MODEL_NMS_IOU`, `PARKMAP_MODEL_CLASS_ID=0`, and `PARKMAP_DEVICE` to the
+values used for that run. Use `PARKMAP_DEVICE=cpu` if the API runs without a CUDA
+GPU. Start the API:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
+```
+
+The detector endpoint is `POST http://localhost:8000/api/detection/analyze`.
+For the whole app, start Postgres and seed it as described in **Live state** below,
+then start the LIFF app from the repository root with `pnpm --filter @parkmap/liff dev`.
+
 `POST /api/detection/analyze` accepts a JPEG, PNG, or WebP as multipart field `image` and returns real class-0 motorcycle detections. Bounding boxes use normalized top-left coordinates (`x=left`, `y=top`). The endpoint validates file type, size, image decoding, and real dimensions.
 
 Configure model path, input size, confidence, NMS IoU, and device with the `PARKMAP_MODEL_*` values shown in `.env.example`. The model loads on the first analysis request and is reused afterward. Health checks and calibration remain available without model weights; analysis returns `503` if weights are missing or invalid. `PARKMAP_MAX_IMAGE_PIXELS` bounds decoded image dimensions, and the image's actual format must match its declared media type.

@@ -1,0 +1,25 @@
+# One place to configure the local detector experiment.
+# A .yaml model starts from random weights; use a .pt path for fine-tuning.
+dataset: D:/Parkmap Dataset/Kepadatan Parkir Motor.v9i.yolo26
+model: yolo26s.yaml
+name: kepadatan-yolo26s-epochs100-imgsz960-batch16
+train:
+  epochs: 100
+  imgsz: 960
+  batch: 16
+  device: 0
+  workers: 0
+  seed: 42
+  patience: 0
+  optimizer: SGD
+  lr0: 0.01
+  verbose: true
+evaluate:
+  confidence: 0.25
+  nms_iou: 0.50
+  match_iou: 0.50
+  batch: 8
+export:
+  runs_dir: runs/detector
+  model_path: models/yolo26s-epochs100-imgsz960-batch16.pt
+  excel_path: runs/detector/yolo26s-baseline-results-epochs100-imgsz960-batch16.xlsx
