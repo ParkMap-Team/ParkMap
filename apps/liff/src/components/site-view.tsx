@@ -244,6 +244,7 @@ export function SiteView({ siteId, siteName, lotModel }: { siteId: string; siteN
           }
           present={summary.present}
           areas={areas ? areaRows(map, areas) : []}
+          estimatedLandmarks={map.landmarks.some((landmark) => landmark.measurement_source === "ESTIMATED")}
           selected={selectedDetails}
           expanded={expanded}
           onToggle={() => setExpanded((value) => !value)}

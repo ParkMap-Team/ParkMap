@@ -1,4 +1,4 @@
-import type { AreaLiveStatus, LiveRegion, LotLandmark, LotModel, MetricPoint, MetricPolygon, MotorcycleProxy, ParkingAreaLiveState } from "../api/types.ts";
+import type { AreaLiveStatus, LandmarkKind, LiveRegion, LotLandmark, LotModel, MetricPoint, MetricPolygon, MotorcycleProxy, ParkingAreaLiveState } from "../api/types.ts";
 import { showsRegions } from "../parking/presentation.ts";
 import { type Bounds, boundsOf, labelPoint, pointInPolygon, proxyFootprint } from "./geometry.ts";
 
@@ -31,9 +31,12 @@ export type LotMap = {
   unmonitored: MetricPolygon[];
   areas: MapArea[];
   landmarks: LotLandmark[];
-  /** The outline and every landmark, so the overview frames the whole place. */
+  /** The outline and the lot's own landmarks, so the overview frames the lot and not its surroundings. */
   bounds: Bounds;
 };
+
+/** Context around the lot: drawn, but left out of the overview so a tall building does not shrink the lot. */
+export const SURROUNDING_KINDS: ReadonlySet<LandmarkKind> = new Set(["BUILDING", "TREE", "ROAD", "WALKWAY", "PLANTING", "SHELTER"]);
 
 function landmarkPoints(landmark: LotLandmark): MetricPoint[] {
   return [landmark.position, ...(landmark.line ?? []), ...(landmark.polygon?.[0] ?? [])];
@@ -63,7 +66,7 @@ export function buildLotMap(lotModel: LotModel, states: ParkingAreaLiveState[] |
     unmonitored: lotModel.unmonitored,
     areas,
     landmarks,
-    bounds: boundsOf([...lotModel.outline[0], ...landmarks.flatMap(landmarkPoints)]),
+    bounds: boundsOf([...lotModel.outline[0], ...landmarks.filter((landmark) => !SURROUNDING_KINDS.has(landmark.kind)).flatMap(landmarkPoints)]),
   };
 }
 

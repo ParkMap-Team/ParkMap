@@ -134,6 +134,7 @@ export function MapPanel({
   notices,
   present,
   areas,
+  estimatedLandmarks,
   selected,
   expanded,
   onToggle,
@@ -145,6 +146,8 @@ export function MapPanel({
   notices: ReactNode;
   present: Set<MapStatus>;
   areas: AreaRow[];
+  /** Some landmarks were estimated from photos or imagery rather than measured on site. */
+  estimatedLandmarks: boolean;
   selected: SelectedDetails | null;
   expanded: boolean;
   onToggle(): void;
@@ -175,6 +178,7 @@ export function MapPanel({
           <StatusList present={present} areas={areas} onShow={onShow} />
           <p className="text-xs text-muted-foreground">
             ตำแหน่งบนแผนที่คำนวณจากภาพกล้องหนึ่งตัว จึงเป็นค่าโดยประมาณ ระบบไม่มีการจองที่จอด และไม่ได้แบ่งช่องจอดตายตัว
+            {estimatedLandmarks && " อาคาร ต้นไม้ และสิ่งรอบลานวาดจากภาพถ่าย ตำแหน่งและขนาดเป็นค่าโดยประมาณ"}
           </p>
         </div>
       </div>

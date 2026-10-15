@@ -988,7 +988,7 @@
         "type": "object"
       },
       "LotLandmark": {
-        "description": "A surveyed static feature that helps students match the map to the real place.\n\n`position` anchors the marker and label. A footprint `polygon` or a `line` (a hedge, curb,\nor fence) is optional, except that an aisle needs its polygon. `direction_rad` is the\nconfirmed direction of travel through an entrance or exit, counter-clockwise from +x;\nleave it out when the direction is not confirmed. Landmarks carry no availability.",
+        "description": "A static feature that helps students match the map to the real place.\n\n`position` anchors the marker and label. A footprint `polygon` or a `line` (a hedge, curb,\nor fence) is optional, except that ground areas (aisle, road, walkway, planting, shelter)\nneed their polygon. `height_m` raises a footprint into a block, and a shelter needs it for its\nroof. A tree is a trunk and a round canopy at `position`, so it needs `height_m` and\n`radius_m` and has no footprint. `direction_rad` is the confirmed direction of travel through\nan entrance or exit, counter-clockwise from +x; leave it out when the direction is not\nconfirmed. `measurement_source` says whether the geometry was measured on site or estimated\nfrom photos or imagery. Landmarks carry no availability.",
         "properties": {
           "direction_rad": {
             "anyOf": [
@@ -1001,6 +1001,19 @@
             ],
             "title": "Direction Rad"
           },
+          "height_m": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 300.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height M"
+          },
           "kind": {
             "enum": [
               "ENTRANCE",
@@ -1009,7 +1022,12 @@
               "GUARD_BOOTH",
               "BUILDING",
               "AISLE",
-              "BARRIER"
+              "BARRIER",
+              "TREE",
+              "ROAD",
+              "WALKWAY",
+              "PLANTING",
+              "SHELTER"
             ],
             "title": "Kind",
             "type": "string"
@@ -1033,6 +1051,15 @@
               }
             ],
             "title": "Line"
+          },
+          "measurement_source": {
+            "default": "ESTIMATED",
+            "enum": [
+              "ESTIMATED",
+              "MEASURED"
+            ],
+            "title": "Measurement Source",
+            "type": "string"
           },
           "name": {
             "anyOf": [
@@ -1066,6 +1093,19 @@
           },
           "position": {
             "$ref": "#/components/schemas/MetricGroundPoint"
+          },
+          "radius_m": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 30.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Radius M"
           }
         },
         "required": [

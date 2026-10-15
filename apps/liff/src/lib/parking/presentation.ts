@@ -96,7 +96,8 @@ export function timeLines(area: ParkingAreaLiveState | null, receivedAt: number 
 
 /**
  * Every map colour. Status colours are never the only cue: each status also has its own
- * stroke or pattern (see `src/lib/map/legend.ts`). Landmarks avoid green, yellow, and red.
+ * stroke or pattern (see `src/lib/map/legend.ts`). Landmarks avoid status green, yellow, and
+ * red: planting is a muted sage, and every status layer is drawn over the surroundings.
  */
 export const COLORS = {
   AVAILABLE: "#16a34a",
@@ -117,7 +118,18 @@ export const COLORS = {
   ENTRANCE: "#1d4ed8",
   EXIT: "#334155",
   GUARD_BOOTH: "#7c3aed",
-  BUILDING: "#94a3b8",
+  BUILDING: "#bdb4a6",
   BARRIER: "#78716c",
   AISLE: "#e2e8f0",
+  GROUND: "#e4e7e1",
+  ROAD: "#8b929c",
+  WALKWAY: "#ece8e1",
+  PLANTING: "#c9d8bd",
+  PLANTING_RAISED: "#8fae7e",
+  TREE_CANOPY: "#7ea36c",
+  TREE_TRUNK: "#8a6a4f",
+  SHELTER: "#f1f5f9",
+  FACADE: "#efe6d8",
+  FACADE_WINDOW: "#7f9cb8",
+  ROOF: "#cfd6de",
 } as const;
