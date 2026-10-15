@@ -16,6 +16,7 @@ scripts/
 test-data/
 tests/
 models/*.pt
+config/*.json
 models/*.onnx
 *.mp4
 *.mov

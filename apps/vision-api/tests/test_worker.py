@@ -6,6 +6,7 @@ import httpx
 import numpy as np
 import pytest
 
+import app.worker.__main__ as worker
 from app.manage import dev_state
 from app.services.live_state_service import CalibrationFilesUnavailableError
 from app.worker.__main__ import reference_size, source_kind, utc_offset
@@ -78,3 +79,31 @@ def test_reference_size_comes_from_the_parking_calibration(tmp_path):
     assert reference_size(tmp_path) == (4032, 3024)
     with pytest.raises(CalibrationFilesUnavailableError):
         reference_size(tmp_path / "missing")
+
+
+@pytest.fixture
+def worker_env(tmp_path, monkeypatch):
+    test_reference_size_comes_from_the_parking_calibration(tmp_path)
+    monkeypatch.setattr(worker, "CONFIG_DIRECTORY", tmp_path)
+    monkeypatch.setenv("PARKMAP_API_URL", "http://api.test")
+    monkeypatch.setenv("PARKMAP_WORKER_TOKEN", "worker-token")
+
+    def no_publisher(*_args, **_kwargs):
+        raise AssertionError("a worker that cannot start must not publish")
+
+    monkeypatch.setattr(worker, "StatePublisher", no_publisher)
+    return tmp_path
+
+
+def worker_args(source):
+    return argparse.Namespace(parking_area_id="area-1", source=str(source), min_interval_s=2.0, hold_s=10.0, photo_utc_offset=utc_offset("+07:00"))
+
+
+@pytest.mark.parametrize("source", ["missing", "empty"])
+def test_worker_without_photos_stops_with_a_clear_log_and_publishes_nothing(worker_env, source, caplog):
+    photos = worker_env / source
+    if source == "empty":
+        photos.mkdir()
+
+    assert worker.run(worker_args(photos)) == 2
+    assert "cannot start" in caplog.text
