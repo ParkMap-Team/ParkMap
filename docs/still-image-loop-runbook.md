@@ -17,18 +17,22 @@ Root owns it, and containers run as uid 10001, so both containers can read it an
 
 ## Copy files from the team Drive
 
-1. Download the three calibration files, `best.pt`, and the photo folder from the team Drive to your laptop.
-2. Copy them to the VPS:
+1. Download the three calibration files, `best.pt`, and the photo folder from the team Drive to your laptop, laid out as `<drive-download>/config/`, `<drive-download>/models/best.pt`, and `<drive-download>/photos/`.
+2. The VPS login user is not root, so stage the files in its home directory, readable only by that user:
 
    ```sh
-   ssh root@<vps> 'mkdir -p /srv/parkmap-demo/config /srv/parkmap-demo/models /srv/parkmap-demo/photos'
-   scp <drive-download>/config/*.json root@<vps>:/srv/parkmap-demo/config/
-   scp <drive-download>/best.pt root@<vps>:/srv/parkmap-demo/models/
-   scp <drive-download>/photos/* root@<vps>:/srv/parkmap-demo/photos/
-   ssh root@<vps> 'chown -R root:root /srv/parkmap-demo && chmod -R u=rwX,go=rX /srv/parkmap-demo'
+   cd <drive-download>
+   COPYFILE_DISABLE=1 tar -cf - config models photos \
+   | ssh <user>@<vps> 'umask 077 && rm -rf ~/parkmap-demo-staging && mkdir ~/parkmap-demo-staging && tar -xf - -C ~/parkmap-demo-staging'
    ```
 
-3. Delete the laptop copy.
+3. Move them into place with `sudo` and remove the staging copy:
+
+   ```sh
+   ssh -t <user>@<vps> 'sudo mkdir -p /srv/parkmap-demo && sudo cp -R ~/parkmap-demo-staging/. /srv/parkmap-demo/ && sudo chown -R root:root /srv/parkmap-demo && sudo chmod -R u=rwX,go=rX /srv/parkmap-demo && rm -rf ~/parkmap-demo-staging && sudo ls -lR /srv/parkmap-demo'
+   ```
+
+4. Delete the laptop copy.
 
 Every photo must be 4032 x 3024, the calibration reference size. The worker refuses to start on any photo it cannot describe.
 
@@ -101,3 +105,6 @@ Production lists only real sites. Once the Sripatum area shows `DEMO` in the LIF
 
 | Date | Step | By |
 | --- | --- | --- |
+| 2026-10-15 | Copied the calibration files, `best.pt`, and the seven photos to `/srv/parkmap-demo`; created `parkmap-worker` with its mounts and variables; added the config mount to `parkmap-api` | Sayhigh, Claude Code |
+| 2026-10-15 | Registered `sripatum` and `sripatum-near-lot` (lot model version 1, calibration `files-sha256:5cd7805c…`); the area reports `DEMO` | Sayhigh, Claude Code |
+| 2026-10-15 | Deleted `parkmap-dev-publisher`, the `seed-dev (run once)` task, and `COOLIFY_APP_DEV_PUBLISHER`; removed `dev-site`. `GET /api/sites` lists only `sripatum` | Sayhigh, Claude Code |
