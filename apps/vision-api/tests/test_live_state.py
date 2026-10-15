@@ -1,6 +1,7 @@
 import json
 import math
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -235,6 +236,15 @@ def test_unmonitored_ground_is_the_outline_minus_parking_areas():
 
 def test_fully_monitored_lot_has_no_unmonitored_ground():
     assert unmonitored_polygons(lot_model(ring(0, 0, 20, 10))) == []
+
+
+def test_sripatum_lot_model_leaves_ground_outside_the_parking_roi_unmonitored():
+    path = Path(__file__).resolve().parents[1] / "fixtures" / "sripatum-lot-model.json"
+    definition = LotModelDefinition.model_validate(json.loads(path.read_text(encoding="utf-8")))
+    validate_lot_model(definition)
+
+    assert [area.parking_area_id for area in definition.parking_areas] == ["sripatum-near-lot"]
+    assert len(unmonitored_polygons(definition)) == 1
 
 
 @pytest.mark.parametrize(

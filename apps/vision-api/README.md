@@ -43,7 +43,7 @@ python -m app.manage register-calibration --parking-area-id <area>   # after eve
 python -m app.manage purge-states --older-than-days 30               # schedule daily
 ```
 
-Run `python -m app.manage <command> --help` for exact arguments.
+Run `python -m app.manage <command> --help` for exact arguments. The Sripatum demo site and its estimated calibration are described in [docs/sripatum-estimated-calibration.md](../../docs/sripatum-estimated-calibration.md).
 
 Worker, on a machine that can reach the camera:
 
