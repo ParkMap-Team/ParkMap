@@ -40,5 +40,14 @@ export function landmarkWall(kind: LandmarkKind): string {
   return RAISED_WALL[kind] ?? FLAT[kind];
 }
 
+export type Facade = NonNullable<LotLandmark["facade"]> | "PLAIN";
+
+/** Wall and window colours of a raised building's facade; a building without one is plain with windows. */
+export const FACADES: Record<Facade, { wall: string; window: string }> = {
+  PLAIN: { wall: COLORS.FACADE, window: COLORS.FACADE_WINDOW },
+  WINDOW_BANDS: { wall: COLORS.BANDED_WALL, window: COLORS.BANDED_WINDOW },
+  BRICK_AND_GLASS: { wall: COLORS.BRICK, window: COLORS.GLASS },
+};
+
 /** Kinds drawn as plain ground with no outline; the others keep a white edge so they read as features. */
 export const GROUND_KINDS: ReadonlySet<LandmarkKind> = new Set(["ROAD", "WALKWAY", "PLANTING"]);

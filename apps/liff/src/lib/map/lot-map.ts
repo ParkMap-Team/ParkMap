@@ -38,7 +38,8 @@ export type LotMap = {
 /** Context around the lot: drawn, but left out of the overview so a tall building does not shrink the lot. */
 export const SURROUNDING_KINDS: ReadonlySet<LandmarkKind> = new Set(["BUILDING", "TREE", "ROAD", "WALKWAY", "PLANTING", "SHELTER"]);
 
-function landmarkPoints(landmark: LotLandmark): MetricPoint[] {
+/** Every point that places a landmark on the ground. */
+export function landmarkPoints(landmark: LotLandmark): MetricPoint[] {
   return [landmark.position, ...(landmark.line ?? []), ...(landmark.polygon?.[0] ?? [])];
 }
 

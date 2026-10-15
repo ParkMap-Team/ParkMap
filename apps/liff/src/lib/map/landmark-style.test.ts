@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { COLORS } from "../parking/presentation.ts";
-import { landmarkTop, landmarkWall } from "./landmark-style.ts";
+import { FACADES, landmarkTop, landmarkWall } from "./landmark-style.ts";
 
 const STATUS_COLORS = new Set<string>([COLORS.AVAILABLE, COLORS.ALMOST_AVAILABLE, COLORS.OCCUPIED, COLORS.UNKNOWN, COLORS.UNMONITORED]);
 
@@ -18,5 +18,8 @@ test("no landmark is drawn in a status colour", () => {
   for (const kind of kinds) {
     for (const height_m of [null, 3]) assert.ok(!STATUS_COLORS.has(landmarkTop({ kind, height_m })), `${kind} top`);
     assert.ok(!STATUS_COLORS.has(landmarkWall(kind)), `${kind} wall`);
+  }
+  for (const [facade, { wall, window }] of Object.entries(FACADES)) {
+    assert.ok(!STATUS_COLORS.has(wall) && !STATUS_COLORS.has(window), `${facade} facade`);
   }
 });

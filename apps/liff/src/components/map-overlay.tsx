@@ -21,6 +21,8 @@ export type MapViewHandle = {
   reset(): void;
   focus(point: MetricPoint): void;
   panBy(dx: number, dy: number): void;
+  /** Turns the map counter-clockwise on screen by `rad`; only the 3D view turns. */
+  rotateBy?(rad: number): void;
 };
 
 export type MapViewProps = {
@@ -34,7 +36,7 @@ export type MapViewProps = {
 
 /** The control column, in screen pixels, so labels never hide under it. */
 export function blockedRects({ width }: Size): ScreenRect[] {
-  return [{ x0: width - MAP_INSETS.right, y0: 0, x1: width, y1: 320 }];
+  return [{ x0: width - MAP_INSETS.right, y0: 0, x1: width, y1: 380 }];
 }
 
 export type LabelLayerHandle = {

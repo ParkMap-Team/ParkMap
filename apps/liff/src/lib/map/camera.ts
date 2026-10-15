@@ -2,11 +2,15 @@ import { PerspectiveCamera, Plane, Raycaster, Vector2, Vector3 } from "three";
 import type { MetricPoint } from "../api/types.ts";
 import { type Bounds, boundsCenter, toWorld } from "./geometry.ts";
 
-// Framing for both map views. The 3D camera keeps one elevated angle from the camera side of the
-// lot (metric -y, so the far edge is at the top of the screen, as in the 2D plan); people pan and
-// zoom but never orbit (ADR 0008). Insets keep the overview clear of the map's own controls.
+// Framing for both map views. The 3D overview looks from the camera side of the lot (metric -y, so
+// the far edge is at the top of the screen, as in the 2D plan); people pan, zoom, turn, and tilt
+// from there (ADR 0012), and reset returns to it. Insets keep the overview clear of the map's own controls.
 
 export const ELEVATION_RAD = (55 * Math.PI) / 180;
+/** Tilt limits: low enough to look across the lot, never level with the ground or straight down. */
+export const MIN_ELEVATION_RAD = (25 * Math.PI) / 180;
+export const MAX_ELEVATION_RAD = (85 * Math.PI) / 180;
+export const ROTATE_STEP_RAD = Math.PI / 8;
 export const FOV_DEG = 40;
 /** Zoom relative to the overview. */
 export const MIN_ZOOM = 0.8;
@@ -31,12 +35,36 @@ export function clampToBounds({ x_m, y_m }: MetricPoint, bounds: Bounds): Metric
 
 // ---- 3D -------------------------------------------------------------------------------------
 
-export type View3D = { target: MetricPoint; distance: number };
+/**
+ * Where the camera looks from. `azimuthRad` turns it around the target, 0 on the metric -y side
+ * and growing toward +x; `elevationRad` is its angle above the ground.
+ */
+export type View3D = { target: MetricPoint; distance: number; azimuthRad: number; elevationRad: number };
 
-/** World camera position for a view: above and in front of the target at the fixed elevation. */
-export function cameraPosition({ target, distance }: View3D): [number, number, number] {
+/** World camera position for a view. */
+export function cameraPosition({ target, distance, azimuthRad, elevationRad }: View3D): [number, number, number] {
   const [x, , z] = toWorld(target);
-  return [x, distance * Math.sin(ELEVATION_RAD), z + distance * Math.cos(ELEVATION_RAD)];
+  const across = distance * Math.cos(elevationRad);
+  return [x + across * Math.sin(azimuthRad), distance * Math.sin(elevationRad), z + across * Math.cos(azimuthRad)];
+}
+
+/** The view of a camera at a world position looking at a ground target. */
+export function viewFrom([x, y, z]: [number, number, number], target: MetricPoint): View3D {
+  const [targetX, , targetZ] = toWorld(target);
+  const across = Math.hypot(x - targetX, z - targetZ);
+  return { target, distance: Math.hypot(across, y), azimuthRad: Math.atan2(x - targetX, z - targetZ), elevationRad: Math.atan2(y, across) };
+}
+
+/** Drags the ground under the pointer by a screen offset, whichever way the camera faces. */
+export function pan3D(view: View3D, dx: number, dy: number, screenHeight: number): View3D {
+  const metresPerPixel = (2 * view.distance * Math.tan((FOV_DEG * Math.PI) / 360)) / screenHeight;
+  const cos = Math.cos(view.azimuthRad);
+  const sin = Math.sin(view.azimuthRad);
+  // Screen right is metric (cos, sin) and screen up is metric (-sin, cos).
+  return {
+    ...view,
+    target: { x_m: view.target.x_m - (dx * cos + dy * sin) * metresPerPixel, y_m: view.target.y_m + (dy * cos - dx * sin) * metresPerPixel },
+  };
 }
 
 function poseCamera(camera: PerspectiveCamera, view: View3D): void {
@@ -88,19 +116,19 @@ export function overview3D(bounds: Bounds, viewport: Viewport): View3D {
     { x_m: bounds.minX, y_m: bounds.maxY },
   ].map((point) => new Vector3(...toWorld(point)));
   const rect = freeRect(viewport);
-  let view: View3D = { target: boundsCenter(bounds), distance: 1 };
+  let view: View3D = { target: boundsCenter(bounds), distance: 1, azimuthRad: 0, elevationRad: ELEVATION_RAD };
   for (let pass = 0; pass < 4; pass++) {
     let near = 0.5;
     let far = 2000;
     for (let step = 0; step < 40; step++) {
       const distance = (near + far) / 2;
-      poseCamera(camera, { target: view.target, distance });
+      poseCamera(camera, { ...view, distance });
       const box = projectedBox(camera, corners);
       const fits = box.x1 - box.x0 <= (rect.x1 - rect.x0) * FILL && box.y1 - box.y0 <= (rect.y1 - rect.y0) * FILL && box.y1 < 1;
       if (fits) far = distance;
       else near = distance;
     }
-    view = { target: view.target, distance: far };
+    view = { ...view, distance: far };
     poseCamera(camera, view);
     const box = projectedBox(camera, corners);
     const shown = groundAt(camera, (box.x0 + box.x1) / 2, (box.y0 + box.y1) / 2);

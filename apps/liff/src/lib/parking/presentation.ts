@@ -131,5 +131,9 @@ export const COLORS = {
   SHELTER: "#f1f5f9",
   FACADE: "#efe6d8",
   FACADE_WINDOW: "#7f9cb8",
+  BANDED_WALL: "#f5f5f2",
+  BANDED_WINDOW: "#5d7184",
+  BRICK: "#9a5b45",
+  GLASS: "#4e6676",
   ROOF: "#cfd6de",
 } as const;

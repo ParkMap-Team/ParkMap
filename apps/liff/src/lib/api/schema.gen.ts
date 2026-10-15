@@ -718,12 +718,14 @@ export interface components {
          *     roof. A tree is a trunk and a round canopy at `position`, so it needs `height_m` and
          *     `radius_m` and has no footprint. `direction_rad` is the confirmed direction of travel through
          *     an entrance or exit, counter-clockwise from +x; leave it out when the direction is not
-         *     confirmed. `measurement_source` says whether the geometry was measured on site or estimated
+         *     confirmed. `facade` describes a raised building's walls. `measurement_source` says whether the geometry was measured on site or estimated
          *     from photos or imagery. Landmarks carry no availability.
          */
         LotLandmark: {
             /** Direction Rad */
             direction_rad?: number | null;
+            /** Facade */
+            facade?: ("WINDOW_BANDS" | "BRICK_AND_GLASS") | null;
             /** Height M */
             height_m?: number | null;
             /**

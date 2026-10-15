@@ -406,6 +406,9 @@ LandmarkKind = Literal[
 _FOOTPRINT_LANDMARKS = ("AISLE", "ROAD", "WALKWAY", "PLANTING", "SHELTER")
 # Kinds that may stand above the ground; a shelter's height is its roof.
 _RAISED_LANDMARKS = ("GUARD_BOOTH", "BUILDING", "BARRIER", "PLANTING", "SHELTER")
+# How a raised building's walls look: white with a window band on every storey, or brick piers
+# between glass. Without one, the walls are plain with windows.
+BuildingFacade = Literal["WINDOW_BANDS", "BRICK_AND_GLASS"]
 
 
 class LotLandmark(BaseModel):
@@ -417,7 +420,7 @@ class LotLandmark(BaseModel):
     roof. A tree is a trunk and a round canopy at `position`, so it needs `height_m` and
     `radius_m` and has no footprint. `direction_rad` is the confirmed direction of travel through
     an entrance or exit, counter-clockwise from +x; leave it out when the direction is not
-    confirmed. `measurement_source` says whether the geometry was measured on site or estimated
+    confirmed. `facade` describes a raised building's walls. `measurement_source` says whether the geometry was measured on site or estimated
     from photos or imagery. Landmarks carry no availability.
     """
 
@@ -430,6 +433,7 @@ class LotLandmark(BaseModel):
     direction_rad: float | None = Field(default=None, allow_inf_nan=False)
     height_m: float | None = Field(default=None, gt=0.0, le=300.0, allow_inf_nan=False)
     radius_m: float | None = Field(default=None, gt=0.0, le=30.0, allow_inf_nan=False)
+    facade: BuildingFacade | None = None
     measurement_source: MetricMeasurementSource = "ESTIMATED"
 
     @model_validator(mode="after")
@@ -456,6 +460,8 @@ class LotLandmark(BaseModel):
             raise ValueError("Only a footprint of a booth, building, barrier, planting, or shelter has a height.")
         if self.kind == "SHELTER" and self.height_m is None:
             raise ValueError("A shelter landmark needs its roof height.")
+        if self.facade is not None and (self.kind != "BUILDING" or self.height_m is None):
+            raise ValueError("Only a raised building has a facade.")
         return self
 
 

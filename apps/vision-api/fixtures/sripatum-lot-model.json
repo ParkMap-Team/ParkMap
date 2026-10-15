@@ -566,9 +566,8 @@
       "measurement_source": "ESTIMATED"
     },
     {
-      "landmark_id": "it-faculty",
+      "landmark_id": "building-9-podium",
       "kind": "BUILDING",
-      "name": "คณะเทคโนโลยีสารสนเทศ",
       "position": {
         "x_m": 21.7,
         "y_m": 28.9
@@ -594,6 +593,7 @@
         ]
       ],
       "height_m": 16.0,
+      "facade": "BRICK_AND_GLASS",
       "measurement_source": "ESTIMATED"
     },
     {
@@ -625,6 +625,7 @@
         ]
       ],
       "height_m": 55.0,
+      "facade": "WINDOW_BANDS",
       "measurement_source": "ESTIMATED"
     }
   ]

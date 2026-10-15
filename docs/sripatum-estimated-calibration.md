@@ -76,7 +76,7 @@ y_m = 0.96 + (column_px - 770) * 0.069
 | `hedge`, `central-planters`, `west-planters-*` | Planting lines on the satellite image; heights from the site photos. |
 | `central-tree-*`, `west-tree-*` | Canopies on the satellite image; heights and canopy radii from the site photos. |
 | `west-sidewalk`, `*-road`, `*-lawn`, `north-covered-walkway` | Surfaces and roof visible on the satellite image. |
-| `it-faculty`, `building-9` | Footprints on the satellite image; heights from storey counts in the site photos (about 3.6 m a storey). |
+| `building-9-podium`, `building-9` | อาคาร 9: footprints on the satellite image; heights from storey counts in the site photos (about 3.6 m a storey); facades from the site photos, a brick-and-glass podium under a white tower with a window band on every storey. |
 
 Only features visible in the images are modelled, and no raised landmark overlaps the parking area. The map labels the surroundings as estimated from photos. The satellite image and the photos stay off Git.
 

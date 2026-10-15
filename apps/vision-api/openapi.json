@@ -988,7 +988,7 @@
         "type": "object"
       },
       "LotLandmark": {
-        "description": "A static feature that helps students match the map to the real place.\n\n`position` anchors the marker and label. A footprint `polygon` or a `line` (a hedge, curb,\nor fence) is optional, except that ground areas (aisle, road, walkway, planting, shelter)\nneed their polygon. `height_m` raises a footprint into a block, and a shelter needs it for its\nroof. A tree is a trunk and a round canopy at `position`, so it needs `height_m` and\n`radius_m` and has no footprint. `direction_rad` is the confirmed direction of travel through\nan entrance or exit, counter-clockwise from +x; leave it out when the direction is not\nconfirmed. `measurement_source` says whether the geometry was measured on site or estimated\nfrom photos or imagery. Landmarks carry no availability.",
+        "description": "A static feature that helps students match the map to the real place.\n\n`position` anchors the marker and label. A footprint `polygon` or a `line` (a hedge, curb,\nor fence) is optional, except that ground areas (aisle, road, walkway, planting, shelter)\nneed their polygon. `height_m` raises a footprint into a block, and a shelter needs it for its\nroof. A tree is a trunk and a round canopy at `position`, so it needs `height_m` and\n`radius_m` and has no footprint. `direction_rad` is the confirmed direction of travel through\nan entrance or exit, counter-clockwise from +x; leave it out when the direction is not\nconfirmed. `facade` describes a raised building's walls. `measurement_source` says whether the geometry was measured on site or estimated\nfrom photos or imagery. Landmarks carry no availability.",
         "properties": {
           "direction_rad": {
             "anyOf": [
@@ -1000,6 +1000,21 @@
               }
             ],
             "title": "Direction Rad"
+          },
+          "facade": {
+            "anyOf": [
+              {
+                "enum": [
+                  "WINDOW_BANDS",
+                  "BRICK_AND_GLASS"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Facade"
           },
           "height_m": {
             "anyOf": [
