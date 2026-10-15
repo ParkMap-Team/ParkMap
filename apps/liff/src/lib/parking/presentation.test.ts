@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ParkingAreaLiveState, SiteParkingState } from "../api/types.ts";
-import { sourceNotice, visibleAreas } from "./presentation.ts";
+import { photoTimeLabel, showsRegions, sourceNotice, visibleAreas } from "./presentation.ts";
 
 const square = [[{ x_m: 0, y_m: 0 }, { x_m: 1, y_m: 0 }, { x_m: 1, y_m: 1 }]];
 
@@ -49,4 +49,34 @@ test("recorded and synthetic sources are always announced", () => {
   assert.equal(sourceNotice([liveArea()]), null);
   assert.match(sourceNotice([liveArea(), liveArea({ source: "RECORDED_REPLAY" })]) ?? "", /วิดีโอที่บันทึกไว้/);
   assert.match(sourceNotice([liveArea({ source: "RECORDED_REPLAY" }), liveArea({ source: "SYNTHETIC_FIXTURE" })]) ?? "", /ข้อมูลจำลอง/);
+});
+
+function demoArea(overrides: Partial<ParkingAreaLiveState> = {}): ParkingAreaLiveState {
+  return liveArea({ status: "DEMO", source: "STILL_IMAGE_LOOP", observed_at: "2026-09-25T02:31:00Z", ...overrides });
+}
+
+test("a demo area stays a demo while its processing is fresh and becomes stale without regions after", () => {
+  assert.equal(visibleAreas(siteState(demoArea()), 4)[0].status, "DEMO");
+  const [stale] = visibleAreas(siteState(demoArea()), 11);
+  assert.equal(stale.status, "STALE");
+  assert.deepEqual(stale.regions, []);
+});
+
+test("only live and demo areas show their regions", () => {
+  assert.equal(showsRegions("LIVE"), true);
+  assert.equal(showsRegions("DEMO"), true);
+  for (const status of ["STALE", "NO_DATA", "NOT_CALIBRATED", "CALIBRATION_MISMATCH"] as const) {
+    assert.equal(showsRegions(status), false);
+  }
+});
+
+test("a still-image loop is always announced as recorded demo photos", () => {
+  assert.match(sourceNotice([liveArea(), demoArea()]) ?? "", /ภาพถ่ายที่บันทึกไว้/);
+  assert.match(sourceNotice([demoArea({ status: "STALE", regions: [] })]) ?? "", /ภาพถ่ายที่บันทึกไว้/);
+  assert.match(sourceNotice([liveArea({ source: "RECORDED_REPLAY" }), demoArea()]) ?? "", /ภาพถ่ายที่บันทึกไว้/);
+  assert.match(sourceNotice([demoArea(), liveArea({ source: "SYNTHETIC_FIXTURE" })]) ?? "", /ข้อมูลจำลอง/);
+});
+
+test("the photo time of a demo is shown in Bangkok time", () => {
+  assert.match(photoTimeLabel("2026-09-25T02:31:00Z"), /09:31/);
 });

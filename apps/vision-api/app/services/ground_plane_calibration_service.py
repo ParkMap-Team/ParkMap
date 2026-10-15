@@ -34,8 +34,8 @@ class GroundPlaneCalibrationService:
     @staticmethod
     def response(calibration: GroundPlaneCalibration) -> GroundPlaneCalibrationResponse:
         measured = sum(point.provenance == "MEASURED" for point in calibration.control_points)
-        ready = len(calibration.control_points) >= 4 and measured >= 4 and _non_collinear(calibration)
-        return GroundPlaneCalibrationResponse(status="READY_FOR_HOMOGRAPHY" if ready else "NOT_READY", control_point_count=len(calibration.control_points), measured_point_count=measured, calibration=calibration)
+        ready = _non_collinear(calibration)
+        return GroundPlaneCalibrationResponse(status="READY_FOR_HOMOGRAPHY" if ready else "NOT_READY", control_point_count=len(calibration.control_points), measured_point_count=measured, provenance=calibration.provenance, calibration=calibration)
 
     def save(self, calibration: GroundPlaneCalibration) -> GroundPlaneCalibrationResponse:
         self.config_directory.mkdir(parents=True, exist_ok=True)
