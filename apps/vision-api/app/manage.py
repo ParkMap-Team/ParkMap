@@ -128,6 +128,16 @@ def seed_dev(session: Session, args: argparse.Namespace) -> str:
     return f"Seeded {site['site_id']} with lot model version {version} and calibration {DEV_CALIBRATION_VERSION}."
 
 
+def remove_site(session: Session, args: argparse.Namespace) -> str:
+    """Delete a site and everything it owns. The site ID is typed twice so a typo cannot remove another site."""
+    if args.confirm != args.site_id:
+        raise CommandError("--confirm must repeat --site-id exactly.")
+    _require_site(session, args.site_id)
+    areas = [area.id for area in repository.site_areas(session, args.site_id)]
+    repository.remove_site(session, args.site_id)
+    return f"Removed site {args.site_id} with parking areas {', '.join(areas) or 'none'}, their calibrations, lot models, and states."
+
+
 def purge_states(session: Session, args: argparse.Namespace) -> str:
     if args.older_than_days < 1:
         raise CommandError("--older-than-days must be at least 1.")
@@ -224,6 +234,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     command = commands.add_parser("seed-dev", help="create the fake development site (never in production)")
     command.set_defaults(handler=seed_dev)
+
+    command = commands.add_parser("remove-site", help="delete a site with its parking areas, calibrations, lot models, and states")
+    command.add_argument("--site-id", type=identifier, required=True)
+    command.add_argument("--confirm", required=True, help="the site ID again")
+    command.set_defaults(handler=remove_site)
 
     command = commands.add_parser("purge-states", help="delete parking states older than the retention window")
     command.add_argument("--older-than-days", type=int, default=30)

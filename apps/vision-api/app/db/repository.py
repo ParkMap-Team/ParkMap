@@ -79,3 +79,13 @@ def activate_lot_model(session: Session, site_id: str, definition: LotModelDefin
 def purge_states(session: Session, older_than: datetime) -> int:
     result = session.execute(delete(ParkingState).where(ParkingState.processed_at < older_than))
     return result.rowcount or 0
+
+
+def remove_site(session: Session, site_id: str) -> None:
+    """Delete the site with its parking areas, calibrations, lot models, and stored states."""
+    area_ids = select(ParkingArea.id).where(ParkingArea.site_id == site_id).scalar_subquery()
+    session.execute(delete(ParkingState).where(ParkingState.parking_area_id.in_(area_ids)))
+    session.execute(delete(Calibration).where(Calibration.parking_area_id.in_(area_ids)))
+    session.execute(delete(ParkingArea).where(ParkingArea.site_id == site_id))
+    session.execute(delete(LotModel).where(LotModel.site_id == site_id))
+    session.execute(delete(Site).where(Site.id == site_id))

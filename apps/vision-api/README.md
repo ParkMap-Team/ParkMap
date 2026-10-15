@@ -41,6 +41,7 @@ python -m app.manage create-parking-area --site-id <id> --parking-area-id <area>
 python -m app.manage set-lot-model --site-id <id> --file <lot-model.json>
 python -m app.manage register-calibration --parking-area-id <area>   # after every change to config/*.json
 python -m app.manage purge-states --older-than-days 30               # schedule daily
+python -m app.manage remove-site --site-id <id> --confirm <id>       # deletes the site and everything it owns
 ```
 
 Run `python -m app.manage <command> --help` for exact arguments. The Sripatum demo site and its estimated calibration are described in [docs/sripatum-estimated-calibration.md](../../docs/sripatum-estimated-calibration.md).

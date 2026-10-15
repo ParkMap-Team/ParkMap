@@ -36,7 +36,7 @@ Every photo must be 4032 x 3024, the calibration reference size. The worker refu
 
 **`parkmap-api`.** Add a Directory Mount with source `/srv/parkmap-demo/config` and destination `/app/config`. The calibration editing endpoints cannot save there; production calibration changes go through the Drive and this runbook.
 
-**`parkmap-worker`.** Create it in project `ParkMap`, environment `production`, with the same image, registry login, and network settings as `parkmap-dev-publisher`: image `ghcr.io/parkmap-team/parkmap-api`, no domain, and no HTTP health check, because the worker serves no port.
+**`parkmap-worker`.** Create it in project `ParkMap`, environment `production`, with the same image, registry login, and network settings as `parkmap-api`: image `ghcr.io/parkmap-team/parkmap-api`, no domain, and no HTTP health check, because the worker serves no port.
 
 | Directory Mount source | Destination |
 | --- | --- |
@@ -67,6 +67,20 @@ python -m app.manage register-calibration --parking-area-id sripatum-near-lot
 ```
 
 After any change to `/srv/parkmap-demo/config`, run `register-calibration` again, then restart `parkmap-worker`. Until both happen, the area reports `CALIBRATION_MISMATCH`. The values and their basis are in [sripatum-estimated-calibration.md](sripatum-estimated-calibration.md).
+
+## Remove the development site
+
+Production lists only real sites. Once the Sripatum area shows `DEMO` in the LIFF app:
+
+1. Stop and delete `parkmap-dev-publisher` in Coolify, delete the API scheduled task `seed-dev (run once)`, and delete the repository variable `COOLIFY_APP_DEV_PUBLISHER`.
+2. In the `parkmap-api` terminal:
+
+   ```sh
+   python -m app.manage remove-site --site-id dev-site --confirm dev-site
+   ```
+
+   It deletes the site with its parking areas, calibrations, lot models, and stored states.
+3. Check that `GET /api/sites` lists only `sripatum`, and record the date below.
 
 ## Start, stop, and check
 
