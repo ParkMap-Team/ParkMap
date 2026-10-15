@@ -1,7 +1,9 @@
 """Parking states record when they were processed; the latest state is the most recently processed.
 
 Existing states are deleted: they use state schema version 1, which has no processing time or
-calibration provenance, and they are older than any freshness window readers accept.
+calibration provenance, and they are older than any freshness window readers accept. The table is
+locked first, because the previous API keeps inserting states during a rolling deploy, and a row
+inserted after the delete would make the NOT NULL column fail.
 
 Revision ID: 0002_processed_at
 Revises: 0001_live_state
@@ -21,6 +23,7 @@ SCHEMA = "parkmap"
 
 
 def upgrade() -> None:
+    op.execute(f"LOCK TABLE {SCHEMA}.parking_states IN ACCESS EXCLUSIVE MODE")
     op.execute(f"DELETE FROM {SCHEMA}.parking_states")
     op.add_column("parking_states", sa.Column("processed_at", sa.DateTime(timezone=True), nullable=False), schema=SCHEMA)
     op.drop_index("parking_states_latest", table_name="parking_states", schema=SCHEMA)
@@ -28,6 +31,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute(f"LOCK TABLE {SCHEMA}.parking_states IN ACCESS EXCLUSIVE MODE")
     op.execute(f"DELETE FROM {SCHEMA}.parking_states")
     op.drop_index("parking_states_latest", table_name="parking_states", schema=SCHEMA)
     op.create_index("parking_states_latest", "parking_states", ["parking_area_id", sa.text("observed_at DESC")], schema=SCHEMA)
