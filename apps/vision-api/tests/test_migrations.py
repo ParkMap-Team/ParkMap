@@ -12,7 +12,8 @@ from app.db.session import get_engine
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
-WAITING_ON_LOCK = text("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'")
+# pg_locks is read live on every query; pg_stat_activity is cached for the whole transaction.
+WAITING_ON_LOCK = text("SELECT count(*) FROM pg_locks WHERE NOT granted AND relation = 'parkmap.parking_states'::regclass")
 
 
 def wait_until_blocked(connection, timeout_s=10.0):
