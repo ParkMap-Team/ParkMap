@@ -4,8 +4,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
+from shapely.geometry import Polygon
 
-from app.models import LotModelDefinition, ParkingStatePublish
+from app.models import DetectionResponse, LotModelDefinition, ParkingStatePublish
 from app.services.live_state_service import (
     CalibrationFilesUnavailableError,
     build_state_publish,
@@ -15,6 +16,8 @@ from app.services.live_state_service import (
     unmonitored_polygons,
     validate_lot_model,
 )
+from app.services.parking_analysis_service import ParkingAnalysisService
+from app.services.virtual_fitting_service import LENGTH_M, WIDTH_M
 
 NOW = datetime(2026, 10, 1, 8, 0, tzinfo=UTC)
 
@@ -273,3 +276,76 @@ def test_calibration_identity_rejects_an_invalid_ground_calibration(tmp_path):
 
     with pytest.raises(CalibrationFilesUnavailableError, match="ground_plane_calibration.json"):
         calibration_identity(tmp_path)
+
+
+# The standard motorcycle footprint through the whole analysis -> publish path.
+def write_analysis_config(root):
+    config = root / "config"
+    config.mkdir()
+    scale = 20.0  # normalized image coordinates -> metres
+    (config / "ground_plane_homography.json").write_text(json.dumps({
+        "camera_id": "camera-1",
+        "matrix": [[scale, 0.0, 0.0], [0.0, scale, 0.0], [0.0, 0.0, 1.0]],
+        "inverse_matrix": [[1 / scale, 0.0, 0.0], [0.0, 1 / scale, 0.0], [0.0, 0.0, 1.0]],
+        "roi_metric": {"points": [{"x_m": 0.0, "y_m": 0.0}, {"x_m": 20.0, "y_m": 0.0}, {"x_m": 20.0, "y_m": 20.0}, {"x_m": 0.0, "y_m": 20.0}]},
+    }))
+    (config / "ground_plane_calibration.json").write_text(json.dumps({"measured_rows": {"row_1": {"length_m": 10.0, "width_m": 3.0}}}))
+    row = [{"x": 0.1, "y": 0.1}, {"x": 0.6, "y": 0.1}, {"x": 0.6, "y": 0.25}, {"x": 0.1, "y": 0.25}]
+    (config / "parking_calibration.json").write_text(json.dumps({"rows": [{"id": "row_1", "polygon": row}]}))
+
+
+def analyzed(root, boxes, source):
+    service = ParkingAnalysisService()
+    service.root = root
+    detection = DetectionResponse.model_validate({
+        "image_width": 1920,
+        "image_height": 1080,
+        "model": {"name": "test"},
+        "inference": {"imgsz": 640, "confidence_threshold": 0.25, "nms_iou": 0.7, "processing_time_ms": 1.0},
+        "detections": [{"class_id": 0, "class_name": "motorcycle", "confidence": 0.9, "bbox": box} for box in boxes],
+    })
+    return publish(service.analyze(detection), source=source, provenance="ESTIMATED")
+
+
+def box(ground_x, ground_y, width, height):
+    """A normalized box whose bottom-centre ground point stays fixed while its size varies."""
+    return {"x": ground_x - width / 2, "y": ground_y - height, "width": width, "height": height}
+
+
+SMALL_BOXES = [box(0.2, 0.12, 0.02, 0.03), box(0.35, 0.12, 0.03, 0.04)]
+LARGE_BOXES = [box(0.2, 0.12, 0.12, 0.11), box(0.35, 0.12, 0.2, 0.1)]
+
+
+def test_still_image_loop_proxies_use_the_standard_footprint_whatever_the_detection_size(tmp_path):
+    write_analysis_config(tmp_path)
+
+    for boxes in (SMALL_BOXES, LARGE_BOXES):
+        motorcycles = analyzed(tmp_path, boxes, "STILL_IMAGE_LOOP").motorcycles
+        assert len(motorcycles) == 2
+        for proxy in motorcycles:
+            assert proxy.length_m == pytest.approx(LENGTH_M)
+            assert proxy.width_m == pytest.approx(WIDTH_M)
+
+
+def test_still_image_loop_candidate_regions_do_not_depend_on_detection_size(tmp_path):
+    write_analysis_config(tmp_path)
+
+    small = analyzed(tmp_path, SMALL_BOXES, "STILL_IMAGE_LOOP")
+    large = analyzed(tmp_path, LARGE_BOXES, "STILL_IMAGE_LOOP")
+
+    assert {region.kind for region in small.regions} & {"AVAILABLE", "ALMOST_AVAILABLE"}
+    assert small.regions == large.regions
+    for region in small.regions:
+        if region.kind != "UNKNOWN":
+            area = Polygon([(point.x_m, point.y_m) for point in region.polygon[0]]).area
+            assert area == pytest.approx(LENGTH_M * WIDTH_M)
+
+
+def test_other_sources_publish_the_same_footprints_as_a_still_image_loop(tmp_path):
+    write_analysis_config(tmp_path)
+    still = analyzed(tmp_path, SMALL_BOXES, "STILL_IMAGE_LOOP")
+
+    for source in ("RECORDED_REPLAY", "SYNTHETIC_FIXTURE"):
+        state = analyzed(tmp_path, SMALL_BOXES, source)
+        assert state.regions == still.regions
+        assert state.motorcycles == still.motorcycles

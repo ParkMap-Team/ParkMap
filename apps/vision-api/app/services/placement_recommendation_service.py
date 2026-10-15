@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.services.virtual_fitting_service import LENGTH_M, WIDTH_M
+
 
 def calculate_recommendations(capacity: dict[str, Any], parking_state: dict[str, Any], repacking: dict[str, Any] | None = None) -> dict[str, Any]:
     states = {item["row_id"]: item for item in parking_state.get("rows", [])}
@@ -29,6 +31,6 @@ def calculate_recommendations(capacity: dict[str, Any], parking_state: dict[str,
             results.append({"row_id": row_id, "status": "NOT_RECOMMENDED", "reason": "PARKING_STATE_NOT_AVAILABLE", "parking_state": state.get("state"), "current_capacity": row.get("capacity", 0), "recommended_placement": None, "validation": True})
             continue
         witness = row["placements"][0]
-        results.append({"row_id": row_id, "status": "PARK_HERE", "reason": "VALID_CURRENT_CAPACITY_WITNESS", "parking_state": state.get("state"), "current_capacity": row["capacity"], "recommended_placement": {"source": "CURRENT_CAPACITY_WITNESS", "witness_index": 0, "geometry": witness["footprint_metric"], "anchor_metric": witness.get("anchor_metric"), "width_m": 0.66, "length_m": 2.0}, "selection_policy": "FIRST_DETERMINISTIC_CAPACITY_WITNESS", "validation": True})
+        results.append({"row_id": row_id, "status": "PARK_HERE", "reason": "VALID_CURRENT_CAPACITY_WITNESS", "parking_state": state.get("state"), "current_capacity": row["capacity"], "recommended_placement": {"source": "CURRENT_CAPACITY_WITNESS", "witness_index": 0, "geometry": witness["footprint_metric"], "anchor_metric": witness.get("anchor_metric"), "width_m": WIDTH_M, "length_m": LENGTH_M}, "selection_policy": "FIRST_DETERMINISTIC_CAPACITY_WITNESS", "validation": True})
     return {"rows": results, "validation": all(item["validation"] for item in results)}
 
