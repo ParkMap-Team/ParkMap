@@ -67,14 +67,19 @@ class LotModel(Base):
 
 
 class ParkingState(Base):
-    """Append-only published states. Old rows are purged by `python -m app.manage purge-states`."""
+    """Append-only published states. Old rows are purged by `python -m app.manage purge-states`.
+
+    The latest state is the most recently processed one: a still-image loop revisits older photos,
+    so the newest observation is not the state being shown.
+    """
 
     __tablename__ = "parking_states"
-    __table_args__ = (Index("parking_states_latest", "parking_area_id", text("observed_at DESC")),)
+    __table_args__ = (Index("parking_states_latest", "parking_area_id", text("processed_at DESC")),)
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     parking_area_id: Mapped[str] = mapped_column(ForeignKey("parking_areas.id"))
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     calibration_version: Mapped[str] = mapped_column(Text)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB)

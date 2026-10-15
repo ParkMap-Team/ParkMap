@@ -99,18 +99,37 @@ class MetricGroundPoint(BaseModel):
 GroundMeasurementSource = Literal["ESTIMATED", "MEASURED"]
 
 
+# Estimate details describe an input without changing computed geometry, so geometry fingerprints skip them.
+ESTIMATE_DETAIL_FIELDS = {"uncertainty_m", "estimation_basis"}
+
+
+class GroundProvenance(BaseModel):
+    """Where a geometry input came from. An ESTIMATED input states its numeric uncertainty and basis."""
+
+    provenance: GroundMeasurementSource
+    uncertainty_m: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
+    estimation_basis: str | None = Field(default=None, min_length=1, max_length=500)
+
+    @model_validator(mode="after")
+    def validate_estimate(self) -> "GroundProvenance":
+        if self.provenance == "ESTIMATED" and (self.uncertainty_m is None or self.estimation_basis is None):
+            raise ValueError("ESTIMATED inputs need uncertainty_m and estimation_basis.")
+        if self.provenance == "MEASURED" and self.estimation_basis is not None:
+            raise ValueError("MEASURED inputs must not carry an estimation_basis.")
+        return self
+
+
 class GroundCoordinate(BaseModel):
     x_m: float = Field(allow_inf_nan=False)
     y_m: float = Field(allow_inf_nan=False)
 
 
-class GroundControlPoint(BaseModel):
+class GroundControlPoint(GroundProvenance):
     id: str = Field(min_length=1)
     image_x: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
     image_y: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
     ground_x_m: float = Field(allow_inf_nan=False)
     ground_y_m: float = Field(allow_inf_nan=False)
-    provenance: GroundMeasurementSource
 
 
 class GroundReferenceDistance(BaseModel):
@@ -121,10 +140,9 @@ class GroundReferenceDistance(BaseModel):
     provenance: GroundMeasurementSource
 
 
-class GroundMeasuredRow(BaseModel):
+class GroundMeasuredRow(GroundProvenance):
     length_m: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
     width_m: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
-    provenance: GroundMeasurementSource
 
 
 class GroundPlaneCalibration(BaseModel):
@@ -156,12 +174,19 @@ class GroundPlaneCalibration(BaseModel):
                 raise ValueError("Reference distances must connect two existing, distinct control points.")
         return self
 
+    @property
+    def provenance(self) -> GroundMeasurementSource:
+        """The calibration is ESTIMATED as a whole when any geometry input was estimated."""
+        inputs = [*self.control_points, *self.measured_rows.values()]
+        return "ESTIMATED" if any(item.provenance == "ESTIMATED" for item in inputs) else "MEASURED"
+
 
 class GroundPlaneCalibrationResponse(BaseModel):
     status: Literal["NOT_READY", "READY_FOR_HOMOGRAPHY"]
     control_point_count: int
     measured_point_count: int
     minimum_required: Literal[4] = 4
+    provenance: GroundMeasurementSource
     calibration: GroundPlaneCalibration
 
 
@@ -271,8 +296,9 @@ IDENTIFIER_PATTERN = r"^[a-z0-9][a-z0-9-]{0,62}$"
 MetricRing = list[MetricGroundPoint]
 MetricPolygon = list[MetricRing]
 LiveRegionKind = Literal["AVAILABLE", "ALMOST_AVAILABLE", "UNKNOWN"]
-StateSourceKind = Literal["LIVE_CAMERA", "RECORDED_REPLAY", "SYNTHETIC_FIXTURE"]
-AreaLiveStatus = Literal["LIVE", "STALE", "NO_DATA", "NOT_CALIBRATED", "CALIBRATION_MISMATCH"]
+StateSourceKind = Literal["LIVE_CAMERA", "RECORDED_REPLAY", "STILL_IMAGE_LOOP", "SYNTHETIC_FIXTURE"]
+# DEMO is a fresh STILL_IMAGE_LOOP state: current processing of recorded photos, never the lot right now.
+AreaLiveStatus = Literal["LIVE", "DEMO", "STALE", "NO_DATA", "NOT_CALIBRATED", "CALIBRATION_MISMATCH"]
 
 
 def _validate_polygon(polygon: MetricPolygon) -> MetricPolygon:
@@ -302,20 +328,28 @@ class MotorcycleProxy(BaseModel):
 
 
 class ParkingStatePublish(BaseModel):
-    schema_version: Literal[1] = 1
+    """One analysed frame. `observed_at` is when the image was captured; `processed_at` is when it was analysed."""
+
+    schema_version: Literal[2] = 2
     parking_area_id: str = Field(pattern=IDENTIFIER_PATTERN)
     camera_id: str = Field(min_length=1, max_length=128)
     source: StateSourceKind
     observed_at: datetime
+    processed_at: datetime
     calibration_version: str = Field(min_length=1, max_length=128)
+    calibration_provenance: GroundMeasurementSource
     analysis_version: str = Field(min_length=1, max_length=64)
     regions: list[LiveRegion] = Field(max_length=1000)
     motorcycles: list[MotorcycleProxy] = Field(max_length=1000)
 
     @model_validator(mode="after")
-    def validate_timezone(self) -> "ParkingStatePublish":
-        if self.observed_at.tzinfo is None:
-            raise ValueError("observed_at must include a timezone.")
+    def validate_state(self) -> "ParkingStatePublish":
+        if self.observed_at.tzinfo is None or self.processed_at.tzinfo is None:
+            raise ValueError("observed_at and processed_at must include a timezone.")
+        if self.processed_at < self.observed_at:
+            raise ValueError("processed_at must not be earlier than observed_at.")
+        if self.source == "LIVE_CAMERA" and self.calibration_provenance == "ESTIMATED" and any(region.kind != "UNKNOWN" for region in self.regions):
+            raise ValueError("A LIVE_CAMERA state on an ESTIMATED calibration may only publish UNKNOWN regions.")
         return self
 
 
@@ -324,6 +358,7 @@ class ParkingAreaLiveState(BaseModel):
     status: AreaLiveStatus
     source: StateSourceKind | None = None
     observed_at: datetime | None = None
+    processed_at: datetime | None = None
     age_s: float | None = None
     regions: list[LiveRegion] = Field(default_factory=list)
     motorcycles: list[MotorcycleProxy] = Field(default_factory=list)

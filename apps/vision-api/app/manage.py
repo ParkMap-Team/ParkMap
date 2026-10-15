@@ -136,7 +136,7 @@ def purge_states(session: Session, args: argparse.Namespace) -> str:
 
 
 def dev_state(now: datetime) -> ParkingStatePublish:
-    """The fixture's sample state, labelled SYNTHETIC_FIXTURE and stamped with `now`."""
+    """The fixture's sample state, labelled SYNTHETIC_FIXTURE and stamped with `now`. The fixture has no surveyed calibration."""
     fixture = _load_dev_fixture()
     sample = fixture["sample_state"]
     return ParkingStatePublish(
@@ -144,7 +144,9 @@ def dev_state(now: datetime) -> ParkingStatePublish:
         camera_id=fixture["parking_area"]["camera_id"],
         source="SYNTHETIC_FIXTURE",
         observed_at=now,
+        processed_at=now,
         calibration_version=DEV_CALIBRATION_VERSION,
+        calibration_provenance="ESTIMATED",
         analysis_version=sample["analysis_version"],
         regions=[LiveRegion.model_validate(region) for region in sample["regions"]],
         motorcycles=[MotorcycleProxy.model_validate(proxy) for proxy in sample["motorcycles"]],

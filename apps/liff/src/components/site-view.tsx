@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { MascotLoading } from "@/components/mascot";
 import type { LotModel } from "@/lib/api/types";
-import { COLORS, STATUS_LABELS, sourceNotice, visibleAreas } from "@/lib/parking/presentation";
+import { COLORS, STATUS_LABELS, photoTimeLabel, sourceNotice, visibleAreas } from "@/lib/parking/presentation";
 import { useParkingState } from "@/lib/parking/use-parking-state";
 import { useNow } from "@/lib/use-now";
 
@@ -58,7 +58,9 @@ export function SiteView({ siteId, siteName, lotModel }: { siteId: string; siteN
                 <span>{area.parking_area_id}</span>
                 <span className="text-muted-foreground">
                   {STATUS_LABELS[area.status]}
-                  {area.age_s != null && ` · ${Math.round(area.age_s)} วินาทีที่แล้ว`}
+                  {area.source === "STILL_IMAGE_LOOP" && area.observed_at != null
+                    ? ` · ${photoTimeLabel(area.observed_at)}`
+                    : area.age_s != null && ` · ${Math.round(area.age_s)} วินาทีที่แล้ว`}
                 </span>
               </li>
             ))}
