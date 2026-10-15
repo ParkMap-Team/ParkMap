@@ -11,6 +11,13 @@ case "${PARKMAP_PROCESS:-api}" in
   dev-publisher)
     exec python -m app.manage publish-dev-state
     ;;
+  worker)
+    # Still-image loop or camera worker; configured only through environment variables.
+    exec python -m app.worker \
+      --parking-area-id "${PARKMAP_WORKER_PARKING_AREA_ID:?PARKMAP_WORKER_PARKING_AREA_ID is required}" \
+      --source "${PARKMAP_WORKER_SOURCE:?PARKMAP_WORKER_SOURCE is required}" \
+      --hold-s "${PARKMAP_WORKER_HOLD_S:-10}"
+    ;;
   *)
     echo "Unknown PARKMAP_PROCESS: ${PARKMAP_PROCESS}" >&2
     exit 64

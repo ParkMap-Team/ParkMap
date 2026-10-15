@@ -97,7 +97,11 @@ def run(args: argparse.Namespace) -> int:
     if not api_url or not token:
         logger.error("PARKMAP_API_URL and PARKMAP_WORKER_TOKEN are required.")
         return 2
-    kind = source_kind(args.source)
+    try:
+        kind = source_kind(args.source)
+    except ValueError as error:
+        logger.error("Worker cannot start: %s", error)
+        return 2
     stop = threading.Event()
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
     slot = LatestFrameSlot()
@@ -126,8 +130,16 @@ def run(args: argparse.Namespace) -> int:
                 continue
             started = time.monotonic()
             try:
-                publisher.publish(analyze_frame(frame, parking_area_id=args.parking_area_id, source=kind))
-                logger.info("Published state observed at %s (dropped frames so far: %d)", frame.captured_at.isoformat(), slot.dropped)
+                state = analyze_frame(frame, parking_area_id=args.parking_area_id, source=kind)
+                analysed = time.monotonic()
+                publisher.publish(state)
+                logger.info(
+                    "Published state observed at %s (analysis %.2f s, publish %.2f s, dropped frames so far: %d)",
+                    frame.captured_at.isoformat(),
+                    analysed - started,
+                    time.monotonic() - analysed,
+                    slot.dropped,
+                )
             except FATAL_ERRORS as error:
                 logger.error("Worker cannot analyze frames: %s", error)
                 return 1
