@@ -30,6 +30,8 @@ apps/vision-api/config/metric_calibration.json
 apps/vision-api/config/ground_plane_calibration.json
 apps/vision-api/config/ground_plane_homography.json
 apps/vision-api/config/physical_row_geometry.json
+apps/vision-api/photos
+apps/vision-api/single-photo
 
 apps/vision-api/models/*.pt
 apps/vision-api/models/*.onnx
