@@ -262,6 +262,19 @@ def test_sripatum_lot_model_leaves_ground_outside_the_parking_roi_unmonitored():
     assert all(Polygon([(point.x_m, point.y_m) for point in landmark.polygon[0]]).intersection(monitored).area == 0 for landmark in raised)
 
 
+def test_spu_cam_01_lot_model_uses_only_the_calibrated_parking_roi():
+    root = Path(__file__).resolve().parents[1]
+    definition = LotModelDefinition.model_validate(json.loads((root / "fixtures" / "spu-cam-01-lot-model.json").read_text(encoding="utf-8")))
+
+    validate_lot_model(definition)
+
+    assert [area.parking_area_id for area in definition.parking_areas] == ["sripatum-near-lot"]
+    assert len(definition.parking_areas[0].polygon[0]) == 6
+    assert definition.outline == definition.parking_areas[0].polygon
+    assert definition.landmarks == []
+    assert unmonitored_polygons(definition) == []
+
+
 @pytest.mark.parametrize(
     ("areas", "message"),
     [
