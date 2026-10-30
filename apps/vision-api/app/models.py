@@ -489,3 +489,23 @@ class LotModelResponse(LotModelDefinition):
     site_id: str
     version: int = Field(ge=1)
     unmonitored: list[MetricPolygon]
+
+
+class LotModelDraftWrite(BaseModel):
+    definition: LotModelDefinition
+    expected_revision: int = Field(ge=0)
+    base_version: int = Field(ge=0)
+
+
+class LotModelDraftActivate(BaseModel):
+    expected_revision: int = Field(ge=1)
+    base_version: int = Field(ge=0)
+
+
+class LotModelDraftState(BaseModel):
+    site_id: str
+    revision: int = Field(ge=0)
+    base_version: int = Field(ge=0)
+    active_version: int = Field(ge=0)
+    is_published: bool
+    definition: LotModelDefinition

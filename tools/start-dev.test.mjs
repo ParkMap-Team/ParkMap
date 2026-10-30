@@ -84,6 +84,7 @@ test("Windows launcher works outside the repository and keeps existing site data
   }
   assert.match(result.output, /up -d --wait postgres/);
   assert.match(result.output, /alembic upgrade head/);
+  assert.match(result.output, /Calibration UI: http:\/\/127\.0\.0\.1:3000/);
   assert.doesNotMatch(result.output, /seed-dev|publish-dev-state/);
 });
 

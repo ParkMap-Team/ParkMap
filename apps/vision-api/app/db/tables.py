@@ -36,6 +36,15 @@ class ParkingArea(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class LotModelDraft(Base):
+    __tablename__ = "lot_model_drafts"
+
+    site_id: Mapped[str] = mapped_column(ForeignKey("parkmap.sites.id", ondelete="CASCADE"), primary_key=True)
+    revision: Mapped[int] = mapped_column(Integer)
+    base_version: Mapped[int] = mapped_column(Integer)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+
+
 class Calibration(Base):
     __tablename__ = "calibrations"
     __table_args__ = (

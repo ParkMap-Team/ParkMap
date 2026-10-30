@@ -30,13 +30,19 @@ function Invoke-Tool([string] $command, [string[]] $arguments, [switch] $Quiet, 
     }
 }
 
-function Open-Terminal([string] $title, [string] $directory, [string] $command) {
+function Open-Terminal([string] $title, [string] $directory, [string] $command, [switch] $EditorAccess) {
     # Encode rather than interpolate paths into cmd.exe; the repo path may contain spaces.
     $script = '$Host.UI.RawUI.WindowTitle = ' + (Quote-Literal "ParkMap - $title") + "`n" +
         'Set-Location -LiteralPath ' + (Quote-Literal $directory) + "`n" + $command
     $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
-    Start-Process -FilePath 'powershell.exe' -WorkingDirectory $directory -WindowStyle Normal `
-        -ArgumentList @('-NoProfile', '-NoExit', '-EncodedCommand', $encoded) | Out-Null
+    $serverEditorToken = $env:PARKMAP_EDITOR_TOKEN
+    try {
+        if (-not $EditorAccess) { $env:PARKMAP_EDITOR_TOKEN = $null }
+        Start-Process -FilePath 'powershell.exe' -WorkingDirectory $directory -WindowStyle Normal `
+            -ArgumentList @('-NoProfile', '-NoExit', '-EncodedCommand', $encoded) | Out-Null
+    } finally {
+        $env:PARKMAP_EDITOR_TOKEN = $serverEditorToken
+    }
 }
 
 function Wait-ForUrl([string] $name, [string] $url) {
@@ -76,7 +82,7 @@ try {
     Write-Host 'Migrations: uv run --no-sync python -m alembic upgrade head'
     Write-Host 'Vision API: http://localhost:8000 (uv run --no-sync uvicorn app.main:app --reload --host 127.0.0.1 --port 8000)'
     Write-Host 'LIFF: http://localhost:3001 (package dev script)'
-    Write-Host 'Calibration UI: http://localhost:3000 (package dev script)'
+    Write-Host 'Calibration UI: http://127.0.0.1:3000 (package dev script)'
     Write-Host 'Database log terminal: docker compose logs --follow --tail 50 postgres'
     if ($demo) {
         Write-Host 'Synthetic demo: uv run --no-sync python -m app.manage seed-dev'
@@ -94,6 +100,13 @@ try {
     $env:NEXT_PUBLIC_PARKMAP_API_URL = 'http://127.0.0.1:8000'
     $env:PGCONNECT_TIMEOUT = '10'
     $env:PYTHONUNBUFFERED = '1'
+    # Shared only by these local server processes; never written to disk or printed.
+    if ([string]::IsNullOrWhiteSpace($env:PARKMAP_EDITOR_TOKEN)) {
+        $editorTokenBytes = New-Object byte[] 32
+        $editorRandom = [Security.Cryptography.RandomNumberGenerator]::Create()
+        try { $editorRandom.GetBytes($editorTokenBytes) } finally { $editorRandom.Dispose() }
+        $env:PARKMAP_EDITOR_TOKEN = [Convert]::ToBase64String($editorTokenBytes)
+    }
 
     $docker = (Get-Command docker.exe -ErrorAction Stop).Source
     $uv = (Get-Command uv.exe -ErrorAction Stop).Source
@@ -161,7 +174,7 @@ try {
     Open-Terminal 'Database logs' $repoRoot ('& ' + (Quote-Literal $docker) + ' compose -f ' +
         (Quote-Literal $composeFile) + ' logs --follow --tail 50 postgres')
     Write-Host '[3/5] Starting Vision API...'
-    Open-Terminal 'Vision API :8000' $apiRoot "$uvCommand run --no-sync uvicorn app.main:app --reload --host 127.0.0.1 --port 8000"
+    Open-Terminal 'Vision API :8000' $apiRoot "$uvCommand run --no-sync uvicorn app.main:app --reload --host 127.0.0.1 --port 8000" -EditorAccess
     # /api/sites verifies the database as well as the API process before starting consumers.
     Wait-ForUrl 'Vision API and database' 'http://127.0.0.1:8000/api/sites'
     if ($demo) {
@@ -169,13 +182,13 @@ try {
     }
     Write-Host '[4/5] Starting LIFF and Calibration UI...'
     Open-Terminal 'LIFF :3001' $repoRoot $liffDevCommand
-    Open-Terminal 'Calibration UI :3000' $repoRoot $calibrationDevCommand
+    Open-Terminal 'Calibration UI :3000' $repoRoot $calibrationDevCommand -EditorAccess
     Wait-ForUrl 'LIFF' 'http://localhost:3001'
-    Wait-ForUrl 'Calibration UI' 'http://localhost:3000'
+    Wait-ForUrl 'Calibration UI' 'http://127.0.0.1:3000'
 
     Write-Host '[5/5] Web apps ready.'
     if (-not $noBrowser) {
-        foreach ($url in @('http://localhost:3001', 'http://localhost:3000', 'http://localhost:8000/docs')) {
+        foreach ($url in @('http://localhost:3001', 'http://127.0.0.1:3000', 'http://localhost:8000/docs')) {
             Start-Process $url | Out-Null
         }
     }

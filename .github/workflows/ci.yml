@@ -42,6 +42,7 @@ jobs:
             web:
               - *shared
               - 'tools/**'
+              - 'apps/vision-api/openapi.json'
               - '.agents/**'
               - '.claude/**'
               - 'docs/agents/**'
@@ -70,6 +71,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm skills:check
       - run: pnpm skills:test
+      - name: Calibration API types match openapi.json
+        run: |
+          pnpm --filter @parkmap/calibration-ui api:generate
+          git diff --exit-code -- tools/calibration-ui/types/api.gen.ts
       - run: pnpm --filter @parkmap/calibration-ui lint
       - run: pnpm --filter @parkmap/calibration-ui typecheck
       - run: pnpm --filter @parkmap/calibration-ui test

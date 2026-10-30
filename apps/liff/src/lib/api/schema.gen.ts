@@ -279,6 +279,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operator/lot-model/sites/{site_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Activate */
+        post: operations["post_activate_api_operator_lot_model_sites__site_id__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/lot-model/sites/{site_id}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Draft */
+        get: operations["get_draft_api_operator_lot_model_sites__site_id__draft_get"];
+        /** Put Draft */
+        put: operations["put_draft_api_operator_lot_model_sites__site_id__draft_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/lot-model/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Template */
+        get: operations["get_template_api_operator_lot_model_template_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/lot-model/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate Definition */
+        post: operations["validate_definition_api_operator_lot_model_validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/physical-row-geometry": {
         parameters: {
             query?: never;
@@ -750,6 +819,53 @@ export interface components {
             position: components["schemas"]["MetricGroundPoint"];
             /** Radius M */
             radius_m?: number | null;
+        };
+        /**
+         * LotModelDefinition
+         * @description Static lot geometry stored per site version, measured or estimated from photos and imagery.
+         */
+        LotModelDefinition: {
+            /** Landmarks */
+            landmarks?: components["schemas"]["LotLandmark"][];
+            /** Outline */
+            outline: components["schemas"]["MetricGroundPoint"][][];
+            /** Parking Areas */
+            parking_areas: components["schemas"]["LotModelParkingArea"][];
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+        };
+        /** LotModelDraftActivate */
+        LotModelDraftActivate: {
+            /** Base Version */
+            base_version: number;
+            /** Expected Revision */
+            expected_revision: number;
+        };
+        /** LotModelDraftState */
+        LotModelDraftState: {
+            /** Active Version */
+            active_version: number;
+            /** Base Version */
+            base_version: number;
+            definition: components["schemas"]["LotModelDefinition"];
+            /** Is Published */
+            is_published: boolean;
+            /** Revision */
+            revision: number;
+            /** Site Id */
+            site_id: string;
+        };
+        /** LotModelDraftWrite */
+        LotModelDraftWrite: {
+            /** Base Version */
+            base_version: number;
+            definition: components["schemas"]["LotModelDefinition"];
+            /** Expected Revision */
+            expected_revision: number;
         };
         /** LotModelParkingArea */
         LotModelParkingArea: {
@@ -1438,6 +1554,179 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MotorcycleFittingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_activate_api_operator_lot_model_sites__site_id__activate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LotModelDraftActivate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LotModelDraftState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_draft_api_operator_lot_model_sites__site_id__draft_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LotModelDraftState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_draft_api_operator_lot_model_sites__site_id__draft_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LotModelDraftWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LotModelDraftState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_template_api_operator_lot_model_template_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LotModelDefinition"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    validate_definition_api_operator_lot_model_validate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LotModelDefinition"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LotModelDefinition"];
                 };
             };
             /** @description Validation Error */

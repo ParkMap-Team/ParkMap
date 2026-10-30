@@ -9,7 +9,7 @@ from sqlalchemy import text
 from app.db.session import get_engine, reset_engine
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
-TABLES = "parkmap.parking_states, parkmap.calibrations, parkmap.lot_models, parkmap.parking_areas, parkmap.sites"
+TABLES = "parkmap.parking_states, parkmap.calibrations, parkmap.lot_models, parkmap.lot_model_drafts, parkmap.parking_areas, parkmap.sites"
 
 
 @pytest.fixture

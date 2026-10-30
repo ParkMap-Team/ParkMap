@@ -46,7 +46,7 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 
 ## Current implementation
 
-`tools/calibration-ui/` is the calibration and uploaded-image POC built with vinext/Vite. It is not the student app, and it is the repository's only calibration tool.
+`tools/calibration-ui/` is the calibration, lot-model authoring, and uploaded-image POC built with vinext/Vite. It is not the student app, and it is the repository's only calibration tool. Its local operator lot-model editor starts from the SPU camera fixture, saves drafts separately, and explicitly activates validated versions for LIFF. A separate ROI edit mode moves, rotates, and reshapes metric parking-area polygons; rigid moves/rotations also place motorcycles, headings and analysis regions through a Python camera-ground-to-lot transform, while reshaping/resizing deactivates calibration until reviewed (ADR 0013). For a single ROI the operator may explicitly replace the lot outline with that ROI after moving or rotating it; other outline edits stay locked.
 
 `apps/liff/` is the student-facing LIFF app: site list, a navigable 3D view of the lot model with live regions and motorcycle proxies, and freshness and source notices.
 

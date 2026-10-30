@@ -27,7 +27,8 @@ from app.db import repository
 from app.db.session import DatabaseNotConfiguredError, open_session
 from app.db.tables import ParkingArea, Site
 from app.models import IDENTIFIER_PATTERN, LiveRegion, LotModelDefinition, MotorcycleProxy, ParkingStatePublish, SiteSummary
-from app.services.live_state_service import CALIBRATION_FILES, CalibrationFilesUnavailableError, calibration_version, validate_lot_model
+from app.services.live_state_service import CALIBRATION_FILES, CalibrationFilesUnavailableError, calibration_version
+from app.services.lot_model_editor_service import validate_site_definition
 from app.worker.publisher import StatePublisher
 
 logger = logging.getLogger("app.manage")
@@ -60,15 +61,10 @@ def _require_area(session: Session, area_id: str) -> ParkingArea:
 
 
 def _set_lot_model(session: Session, site_id: str, definition: LotModelDefinition) -> int:
-    _require_site(session, site_id)
     try:
-        validate_lot_model(definition)
+        validate_site_definition(session, site_id, definition)
     except ValueError as error:
         raise CommandError(str(error)) from error
-    site_area_ids = {area.id for area in repository.site_areas(session, site_id)}
-    unknown = sorted({area.parking_area_id for area in definition.parking_areas} - site_area_ids)
-    if unknown:
-        raise CommandError(f"Lot model references parking areas not registered for {site_id}: {', '.join(unknown)}.")
     return repository.activate_lot_model(session, site_id, definition)
 
 

@@ -89,7 +89,40 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open <http://localhost:3000>. The dashboard can analyze an uploaded image through the backend and display the Physical Map and camera overlay.
+Open <http://127.0.0.1:3000>. The dashboard can analyze an uploaded image through the backend and display the Physical Map and camera overlay.
+
+The **แผนผังสถานที่** link opens <http://127.0.0.1:3000/lot-model>. It starts from
+`apps/vision-api/fixtures/spu-cam-01-lot-model.json`, or resumes a saved site draft.
+Select a landmark to drag it, edit polygon vertices, or enter metric dimensions,
+rotation, height and tree radius. The 3D tab previews static shapes. Irregular
+polygons and holes stay intact. Enable **แก้ขอบเขต ROI**, select a blue parking-area
+polygon, then drag the polygon or its corners, or enter its angle in degrees.
+Positive angles turn counterclockwise. If the ROI extends past the grey lot outline,
+select **ใช้ ROI นี้เป็นขอบลาน** before saving (available for a single ROI). This
+explicitly replaces the lot boundary with that ROI, including holes; ground outside
+it is no longer part of the lot. Other outline edits stay locked. Moving or rotating
+the whole ROI places motorcycles, headings and analysis regions in the new lot frame
+on the backend, preserving dimensions and state freshness. Resizing or reshaping
+deactivates camera calibration until reviewed; an incompatible registered calibration
+returns `CALIBRATION_MISMATCH` without geometry. Draft saves
+do not change availability. These are metric ground polygons, not image-pixel ROIs.
+Undo/redo
+and JSON import/export are available, and estimated values keep their provenance.
+
+Choose a registered site, **บันทึกฉบับร่าง**, review the preview, then **เปิดใช้ใน LIFF**.
+Saving alone does not change LIFF. Activation creates a normal model version; reload
+LIFF to see it. Concurrent edits are rejected instead of silently overwriting data.
+The initial fixture references `sripatum-near-lot`, so that area must be registered
+under the chosen site before saving it. Site registration is described in the
+[backend README](apps/vision-api/README.md#live-state).
+
+For Windows, restart `start-dev.bat` after updating: it runs the draft migration and
+creates a temporary private editor token shared by both servers. Manual startup
+requires the same `PARKMAP_EDITOR_TOKEN` in the API's `.env` and Calibration UI's
+`.env.local`, plus server-side `PARKMAP_API_URL`. Never use a `NEXT_PUBLIC_` token.
+The editor is local-only; see [ADR 0013](docs/adr/0013-local-lot-model-editor.md).
+After API changes, generate calibration types with
+`pnpm --filter @parkmap/calibration-ui api:generate` as well as the LIFF types.
 
 ## Backend
 
