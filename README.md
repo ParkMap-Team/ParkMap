@@ -29,6 +29,49 @@ cd ../liff && cp .env.example .env.local && pnpm dev   # http://localhost:3001
 
 The seeded data is synthetic, and the LIFF app labels it as such.
 
+## Windows launcher
+
+Double-click `start-dev.bat` at the repository root, or run it from a terminal:
+
+```bat
+start-dev.bat
+start-dev.bat --demo
+start-dev.bat --no-browser
+start-dev.bat --dry-run
+```
+
+Before the first run, open Docker Desktop, install frontend dependencies with
+`corepack pnpm install --frozen-lockfile`, and run `uv sync --locked --all-groups`
+in `apps/vision-api`. Copy that package's `.env.example` to `.env`; set
+`PARKMAP_WORKER_TOKEN` if using `--demo`. The launcher uses pnpm when available,
+otherwise npm runs each package's already-installed `dev` script. It does not
+download a package manager, install dependencies, or change the pnpm lockfile.
+
+The launcher starts only the development Postgres service, waits for its healthcheck,
+runs migrations, and opens separate terminals for database logs, Vision API (8000),
+LIFF (3001), and Calibration UI (3000). It then opens the two web apps and API docs
+in the browser, unless `--no-browser` is supplied. Progress messages identify each
+startup step. It works from any directory,
+checks for occupied app ports, and uses the compose database on `127.0.0.1:5432` and
+the API on `127.0.0.1:8000` even when existing environment files point elsewhere.
+The explicit IPv4 addresses avoid slow IPv6 attempts through `localhost` on Windows;
+database connection attempts time out after 10 seconds. It preserves
+existing environment files and does not import lot models or seed sites by default.
+
+`--demo` additionally seeds the **synthetic development site** and starts
+`publish-dev-state`; it does not publish observations for Sripatum. For photo/video
+observations, configure a real frame worker separately as described in the
+[backend README](apps/vision-api/README.md#live-state), using
+`PARKMAP_API_URL=http://127.0.0.1:8000`. Uploaded-image analysis needs no worker.
+
+Stop app processes with Ctrl+C in their terminals. Closing the database log window
+does not stop Postgres; run `docker compose stop postgres` from the repository root
+to stop it while keeping its data. If startup fails after opening some terminals,
+those processes stay running; stop them before retrying. To check the launcher
+without starting services, use `--dry-run`. Its focused Windows tests are
+`node --test tools/start-dev.test.mjs`. The two native integration cases require
+free app ports and explicitly skip when development servers are already running.
+
 ## LIFF app
 
 ```sh
