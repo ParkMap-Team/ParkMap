@@ -1,6 +1,113 @@
 {
   "components": {
     "schemas": {
+      "AnnotationSample": {
+        "properties": {
+          "annotations": {
+            "items": {
+              "$ref": "#/components/schemas/MotorcycleLabel"
+            },
+            "title": "Annotations",
+            "type": "array"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "reviewed": {
+            "title": "Reviewed",
+            "type": "boolean"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "session": {
+            "title": "Session",
+            "type": "string"
+          },
+          "split": {
+            "enum": [
+              "unassigned",
+              "train",
+              "val",
+              "test"
+            ],
+            "title": "Split",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "width",
+          "height",
+          "revision",
+          "session",
+          "split",
+          "reviewed",
+          "annotations"
+        ],
+        "title": "AnnotationSample",
+        "type": "object"
+      },
+      "AnnotationWrite": {
+        "properties": {
+          "annotations": {
+            "items": {
+              "$ref": "#/components/schemas/MotorcycleLabel"
+            },
+            "maxItems": 1000,
+            "title": "Annotations",
+            "type": "array"
+          },
+          "expected_revision": {
+            "minimum": 0.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "reviewed": {
+            "default": false,
+            "title": "Reviewed",
+            "type": "boolean"
+          },
+          "session": {
+            "default": "",
+            "maxLength": 100,
+            "title": "Session",
+            "type": "string"
+          },
+          "split": {
+            "default": "unassigned",
+            "enum": [
+              "unassigned",
+              "train",
+              "val",
+              "test"
+            ],
+            "title": "Split",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "annotations"
+        ],
+        "title": "AnnotationWrite",
+        "type": "object"
+      },
       "Body_analyze_auto_parking_api_auto_parking_analyze_post": {
         "properties": {
           "images": {
@@ -44,6 +151,20 @@
           "image"
         ],
         "title": "Body_analyze_hybrid_parking_api_hybrid_parking_analyze_post",
+        "type": "object"
+      },
+      "Body_upload_image_api_operator_annotations__dataset__images_post": {
+        "properties": {
+          "image": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Image",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "title": "Body_upload_image_api_operator_annotations__dataset__images_post",
         "type": "object"
       },
       "CalibrationPoint": {
@@ -947,6 +1068,64 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "LabelBox": {
+        "properties": {
+          "height": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1.0,
+            "title": "Height",
+            "type": "number"
+          },
+          "width": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1.0,
+            "title": "Width",
+            "type": "number"
+          },
+          "x": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "title": "LabelBox",
+        "type": "object"
+      },
+      "LabelPoint": {
+        "properties": {
+          "x": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "LabelPoint",
+        "type": "object"
+      },
       "LiveRegion": {
         "properties": {
           "kind": {
@@ -1419,6 +1598,41 @@
           "configuration"
         ],
         "title": "MotorcycleFittingResponse",
+        "type": "object"
+      },
+      "MotorcycleLabel": {
+        "properties": {
+          "bbox": {
+            "$ref": "#/components/schemas/LabelBox"
+          },
+          "ground_point": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LabelPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "occluded": {
+            "title": "Occluded",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "bbox",
+          "occluded"
+        ],
+        "title": "MotorcycleLabel",
         "type": "object"
       },
       "MotorcycleProxy": {
@@ -2371,6 +2585,414 @@
           }
         },
         "summary": "Save Motorcycle Fitting"
+      }
+    },
+    "/api/operator/annotations/{dataset}": {
+      "get": {
+        "operationId": "list_samples_api_operator_annotations__dataset__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Dataset",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AnnotationSample"
+                  },
+                  "title": "Response List Samples Api Operator Annotations  Dataset  Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Samples",
+        "tags": [
+          "Annotations"
+        ]
+      }
+    },
+    "/api/operator/annotations/{dataset}/export": {
+      "post": {
+        "operationId": "export_dataset_api_operator_annotations__dataset__export_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Dataset",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Dataset",
+        "tags": [
+          "Annotations"
+        ]
+      }
+    },
+    "/api/operator/annotations/{dataset}/images": {
+      "post": {
+        "operationId": "upload_image_api_operator_annotations__dataset__images_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Dataset",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_image_api_operator_annotations__dataset__images_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnotationSample"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Image",
+        "tags": [
+          "Annotations"
+        ]
+      }
+    },
+    "/api/operator/annotations/{dataset}/images/{sample_id}": {
+      "get": {
+        "operationId": "get_image_api_operator_annotations__dataset__images__sample_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Dataset",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sample_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Sample Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Image",
+        "tags": [
+          "Annotations"
+        ]
+      }
+    },
+    "/api/operator/annotations/{dataset}/samples/{sample_id}": {
+      "put": {
+        "operationId": "save_sample_api_operator_annotations__dataset__samples__sample_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Dataset",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sample_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Sample Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnotationWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnotationSample"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Sample",
+        "tags": [
+          "Annotations"
+        ]
+      }
+    },
+    "/api/operator/annotations/{dataset}/samples/{sample_id}/detect": {
+      "post": {
+        "operationId": "propose_boxes_api_operator_annotations__dataset__samples__sample_id__detect_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Dataset",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sample_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Sample Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MotorcycleLabel"
+                  },
+                  "title": "Response Propose Boxes Api Operator Annotations  Dataset  Samples  Sample Id  Detect Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Propose Boxes",
+        "tags": [
+          "Annotations"
+        ]
       }
     },
     "/api/operator/lot-model/sites/{site_id}/activate": {
