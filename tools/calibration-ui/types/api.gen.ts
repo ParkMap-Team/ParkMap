@@ -559,11 +559,6 @@ export interface components {
              */
             reviewed: boolean;
             /**
-             * Session
-             * @default
-             */
-            session: string;
-            /**
              * Split
              * @default unassigned
              * @enum {string}

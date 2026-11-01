@@ -91,7 +91,7 @@ export function AnnotationWorkspace() {
     setBusy(true); setError('');
     try {
       const saved = await annotationRequest<AnnotationSample>(dataset, 'save', 'PUT', current.id, {
-        expected_revision: current.revision, session: current.session, split: current.split, reviewed: current.reviewed, annotations: current.annotations,
+        expected_revision: current.revision, split: current.split, reviewed: current.reviewed, annotations: current.annotations,
       });
       setSamples((items) => items.map((item) => item.id === saved.id ? saved : item)); setCurrent(saved); setDirty(false); setHistory([]); setNotice('บันทึก label แล้ว เปิดกลับมาแก้ต่อได้');
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'บันทึกไม่ได้'); }
@@ -151,7 +151,7 @@ export function AnnotationWorkspace() {
       </> : <div className="rounded-2xl border bg-white p-12 text-center text-sm text-slate-500">เพิ่มหรือเลือกภาพเพื่อเริ่ม label</div>}</div>
       <aside className="space-y-4">{current && <>
         <fieldset disabled={busy} className="space-y-3 rounded-2xl border bg-white p-4">
-          <label className="block text-xs text-slate-600">รอบถ่ายจริง (วัน/ช่วงเวลา)<input className={input} maxLength={100} value={current.session} placeholder="2026-11-01-morning" onChange={(e) => metadata({ session: e.target.value })} /></label>
+          <p className="text-xs leading-relaxed text-slate-500">กลุ่มจากชื่อไฟล์: {current.session === 'undated' ? 'ไม่พบวันที่ — รูปที่ไม่ทราบวันจะรวมกลุ่มเดียวกัน' : current.session.replace('date:', '')}<br />ใช้ได้ทั้ง 20261028_1103 และ 2026-10-28_1103 ไม่ต้องกรอกรอบถ่าย</p>
           <label className="block text-xs text-slate-600">แบ่งชุดด้วยคน<select className={input} value={current.split} onChange={(e) => metadata({ split: e.target.value as AnnotationSample['split'] })}>
             <option value="unassigned">ยังไม่แบ่ง</option><option value="train">train</option><option value="val">val</option><option value="test">test</option>
           </select></label>

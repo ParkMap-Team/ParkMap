@@ -26,7 +26,14 @@ override for private storage and tests. SQLite transactions serialize saves,
 revision checks reject stale tabs, and repeated canonical images reuse their ID.
 
 Export requires all images reviewed and explicitly assigned to train/val/test.
-One capture session cannot cross splits. Each export is a new immutable directory
+Capture groups are derived server-side from the stored original filename's calendar
+date; the UI no longer requires manual capture-session entry. All images on one
+day form one conservative group, not one group per timestamp. Invalid or absent
+dates share a single undated group. Grouping is recalculated when reading older
+annotations without changing their boxes/review status. Export also checks grouping
+so older assignments cannot bypass the rule. A real session spanning midnight must
+still be assigned to the same split by the operator; a filename is not independent
+evidence of a recording session. Each export is a new immutable directory
 containing split image/YOLO label pairs, sessions.json and extra JSON annotations.
 YOLO receives only class-0 boxes. Ground points and occlusion support separate
 evaluation; they are not added to YOLO txt. Exports may be partial, but readiness

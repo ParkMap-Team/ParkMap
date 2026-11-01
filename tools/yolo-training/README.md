@@ -6,8 +6,13 @@ Run `start-dev.bat`, open Calibration UI and choose **Label** (or `/label`).
 Open a dataset name, add images, draw/edit boxes or request YOLO proposals. Select
 **จุดสัมผัสพื้น** and click the wheel-ground contact nearest the camera; leave null
 if it is not visible. Mark occluded motorcycles and review the whole image before
-checking its review box. Assign the real capture session and train/val/test split
-manually, then save. Export requires all workspace images reviewed and assigned.
+checking its review box. Capture groups come from the original filename date;
+there is no manual session field. Formats include `20261028_1103`,
+`2026-10-28_1103`, and `28-10-2026_1103`. All images from the same day must stay in
+one split, even when their times differ. Unreadable/invalid dates share one
+`undated` group. Choose train/val/test manually, then save. Export requires all
+workspace images reviewed and assigned. A session spanning midnight still needs
+the same split on both days; filename dates alone do not prove independence.
 
 Exports go to `datasets/<dataset>/exports/<export-id>/` with `train/val/test` image
 and label directories, `sessions.json`, and JSON annotations with normalized 0..1

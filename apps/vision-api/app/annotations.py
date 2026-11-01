@@ -4,11 +4,13 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import sqlite3
 import uuid
 import warnings
 from contextlib import contextmanager
+from datetime import date
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -53,16 +55,12 @@ class MotorcycleLabel(BaseModel):
 
 class AnnotationWrite(BaseModel):
     expected_revision: int = Field(ge=0)
-    session: str = Field(default="", max_length=100)
     split: Literal["unassigned", "train", "val", "test"] = "unassigned"
     reviewed: bool = False
     annotations: list[MotorcycleLabel] = Field(max_length=1000)
 
     @model_validator(mode="after")
     def valid_review(self):
-        self.session = self.session.strip()
-        if self.reviewed and not self.session:
-            raise ValueError("Reviewed images need a real capture session")
         if len({item.id for item in self.annotations}) != len(self.annotations):
             raise ValueError("Annotation IDs must be unique")
         return self
@@ -78,6 +76,29 @@ class AnnotationSample(BaseModel):
     split: Literal["unassigned", "train", "val", "test"]
     reviewed: bool
     annotations: list[MotorcycleLabel]
+
+
+def capture_group(filename: str) -> str:
+    """Group a capture day conservatively; never treat each unique time as an independent session."""
+    name = Path(filename).stem
+    match = re.match(r"^(?:IMG[_ -]?)?((?:19|20)\d{2})[-_]?(\d{2})[-_]?(\d{2})", name, re.IGNORECASE)
+    if match:
+        year, month, day = map(int, match.groups())
+    else:
+        match = re.match(r"^(\d{2})[-_](\d{2})[-_]((?:19|20)\d{2})", name)
+        if not match:
+            return "undated"
+        day, month, year = map(int, match.groups())
+    try:
+        return "date:" + date(year, month, day).isoformat()
+    except ValueError:
+        return "undated"
+
+
+def decode_sample(payload: str) -> AnnotationSample:
+    sample = AnnotationSample.model_validate_json(payload)
+    # Existing labels remain intact; grouping is recalculated from the stored original filename.
+    return sample.model_copy(update={"session": capture_group(sample.filename)})
 
 
 def workspace(dataset: str) -> Path:
@@ -107,13 +128,13 @@ def read_sample(db, sample_id: str) -> AnnotationSample:
     row = db.execute("SELECT payload FROM samples WHERE id=?", (sample_id,)).fetchone()
     if row is None:
         raise HTTPException(404, "Image not found")
-    return AnnotationSample.model_validate_json(row["payload"])
+    return decode_sample(row["payload"])
 
 
 @router.get("/{dataset}", response_model=list[AnnotationSample])
 def list_samples(dataset: str = Dataset):
     with database(workspace(dataset)) as db:
-        return [AnnotationSample.model_validate_json(row["payload"]) for row in db.execute("SELECT payload FROM samples ORDER BY id")]
+        return [decode_sample(row["payload"]) for row in db.execute("SELECT payload FROM samples ORDER BY id")]
 
 
 @router.post("/{dataset}/images", response_model=AnnotationSample)
@@ -156,7 +177,7 @@ def store_image(dataset: str, data: bytes, expected_format: str, filename: str |
         (folder / "images").mkdir(exist_ok=True)
         (folder / "images" / f"{sample_id}.png").write_bytes(canonical)
         sample = AnnotationSample(id=sample_id, filename=(filename or "image").replace("\\", "/").split("/")[-1][:180],
-            width=normalized.width, height=normalized.height, revision=0, session="", split="unassigned", reviewed=False, annotations=[])
+            width=normalized.width, height=normalized.height, revision=0, session=capture_group(filename or "image"), split="unassigned", reviewed=False, annotations=[])
         db.execute("INSERT INTO samples VALUES (?,?)", (sample_id, sample.model_dump_json()))
         return sample
 
@@ -176,11 +197,11 @@ def save_sample(request: AnnotationWrite, dataset: str = Dataset, sample_id: str
         current = read_sample(db, sample_id)
         if current.revision != request.expected_revision:
             raise HTTPException(409, "Labels changed in another tab. Reload before saving")
-        if request.session and request.split != "unassigned":
+        if request.split != "unassigned":
             for row in db.execute("SELECT payload FROM samples WHERE id != ?", (sample_id,)):
-                other = AnnotationSample.model_validate_json(row["payload"])
-                if other.session == request.session and other.split not in ("unassigned", request.split):
-                    raise HTTPException(422, "One capture session must stay in a single split")
+                other = decode_sample(row["payload"])
+                if other.session == current.session and other.split not in ("unassigned", request.split):
+                    raise HTTPException(422, "Images from the same filename date must stay in one split; undated images also form one group")
         updated = AnnotationSample.model_validate({**current.model_dump(), **request.model_dump(exclude={"expected_revision"}), "revision": current.revision + 1})
         db.execute("UPDATE samples SET payload=? WHERE id=?", (updated.model_dump_json(), sample_id))
         return updated
@@ -209,9 +230,14 @@ async def propose_boxes(dataset: str = Dataset, sample_id: str = SampleId):
 def export_dataset(dataset: str = Dataset):
     folder = workspace(dataset)
     with database(folder) as db:
-        samples = [AnnotationSample.model_validate_json(row["payload"]) for row in db.execute("SELECT payload FROM samples ORDER BY id")]
+        samples = [decode_sample(row["payload"]) for row in db.execute("SELECT payload FROM samples ORDER BY id")]
     if not samples or any(not s.reviewed or s.split == "unassigned" for s in samples):
         raise HTTPException(422, "Review every image and choose its split before exporting")
+    assigned = {}
+    for sample in samples:
+        if sample.session in assigned and assigned[sample.session] != sample.split:
+            raise HTTPException(422, "Images from the same filename date cross splits; correct the assignments before exporting")
+        assigned[sample.session] = sample.split
     export_id = uuid.uuid4().hex
     staging = folder / "exports" / (".pending-" + export_id)
     destination = folder / "exports" / export_id

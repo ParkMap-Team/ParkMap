@@ -2,19 +2,54 @@ import io
 import json
 from types import SimpleNamespace
 
+import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
+from app.annotations import capture_group
 from app.main import app
 from app.services.cv_service import cv_service
 
 
-def upload(client, headers, color="blue"):
+def upload(client, headers, color="blue", filename="sample.png"):
     data = io.BytesIO()
     Image.new("RGB", (100, 80), color).save(data, format="PNG")
-    response = client.post("/api/operator/annotations/demo/images", headers=headers, files={"image": ("sample.png", data.getvalue(), "image/png")})
+    response = client.post("/api/operator/annotations/demo/images", headers=headers, files={"image": (filename, data.getvalue(), "image/png")})
     assert response.status_code == 200
     return response.json()
+
+
+def test_reviewed_image_uses_filename_date_without_manual_capture_session(tmp_path, monkeypatch):
+    monkeypatch.setenv("PARKMAP_EDITOR_TOKEN", "test")
+    monkeypatch.setenv("PARKMAP_DATASET_ROOT", str(tmp_path))
+    client, headers = TestClient(app), {"Authorization": "Bearer test"}
+    sample = upload(client, headers, filename="20261028_1103.png")
+    response = client.put("/api/operator/annotations/demo/samples/" + sample["id"], headers=headers, json={
+        "expected_revision": 0, "split": "train", "reviewed": True, "annotations": [],
+    })
+    assert response.status_code == 200, response.text
+    assert response.json()["session"] == "date:2026-10-28"
+    other = upload(client, headers, color="red", filename="20261028_1521.png")
+    different_time = client.put("/api/operator/annotations/demo/samples/" + other["id"], headers=headers, json={
+        "expected_revision": 0, "split": "test", "reviewed": True, "annotations": [],
+    })
+    assert different_time.status_code == 422
+    next_day = upload(client, headers, color="green", filename="20261029_0931.png")
+    independent_day = client.put("/api/operator/annotations/demo/samples/" + next_day["id"], headers=headers, json={
+        "expected_revision": 0, "split": "test", "reviewed": True, "annotations": [],
+    })
+    assert independent_day.status_code == 200
+
+
+@pytest.mark.parametrize(("filename", "expected"), [
+    ("2026-10-28_11-03.jpg", "date:2026-10-28"),
+    ("IMG_20261028_110300.jpg", "date:2026-10-28"),
+    ("28-10-2026_1103.png", "date:2026-10-28"),
+    ("20260230_1103.png", "undated"),
+    ("photo.png", "undated"),
+])
+def test_capture_group_uses_valid_calendar_dates(filename, expected):
+    assert capture_group(filename) == expected
 
 
 def test_image_and_reviewed_labels_survive_reload_and_export(tmp_path, monkeypatch):
