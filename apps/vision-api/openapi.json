@@ -83,12 +83,6 @@
             "title": "Reviewed",
             "type": "boolean"
           },
-          "session": {
-            "default": "",
-            "maxLength": 100,
-            "title": "Session",
-            "type": "string"
-          },
           "split": {
             "default": "unassigned",
             "enum": [

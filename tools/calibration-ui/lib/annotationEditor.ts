@@ -21,6 +21,11 @@ export async function annotationRequest<T>(dataset: string, op: string, method =
   const data = await response.json();
   if (!response.ok) {
     const detail = data && typeof data === 'object' && 'detail' in data ? data.detail : undefined;
+    if (Array.isArray(detail)) {
+      const messages = detail.slice(0, 3).map((item: unknown) => item && typeof item === 'object' && 'msg' in item ? String(item.msg) : 'ข้อมูล label ไม่ถูกต้อง');
+      throw new Error(messages.join(' · '));
+    }
+    if (typeof detail === 'string' && detail.includes('filename date')) throw new Error('รูปที่มีวันที่เดียวกันในชื่อไฟล์ต้องอยู่ split เดียวกัน รูปที่อ่านวันที่ไม่ได้ก็รวมเป็นกลุ่มเดียว กรุณาตรวจ split ของภาพอื่นในชุด');
     throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail) ?? `Request failed (${response.status})`);
   }
   return data as T;
