@@ -86,7 +86,7 @@ Open <http://localhost:3001>. After changing a Pydantic API model, run `uv run p
 The operator navigation is **Parking / Setup / Label**. Setup contains camera
 calibration and the site lot model in separate tabs/save actions. `/lot-model`
 continues to open the lot-model tab, and `/setup` opens camera setup.
-`/label` provides manual motorcycle boxes, ground points and occlusion flags,
+`/label` provides manual motorcycle boxes and occlusion flags,
 optional YOLO proposals, reviewed saves and private local YOLO+JSON exports. See
 [local labelling and terminal training](tools/yolo-training/README.md).
 

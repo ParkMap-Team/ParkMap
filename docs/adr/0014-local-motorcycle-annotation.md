@@ -11,9 +11,11 @@ pretend that selecting a lot also selects that camera's calibration.
 
 Label accepts JPEG/PNG/WebP, validates type/decoding/dimensions/size on the Python
 boundary, normalizes EXIF orientation, and stores metadata-free PNG. Normalized
-top-left boxes, manually confirmed wheel-ground points (or null when unobservable)
-and occlusion flags are stored separately. YOLO supplies optional box proposals;
-it never writes reviewed ground truth, infers a confirmed ground point or certifies
+top-left boxes and occlusion flags are edited in the UI. The manual ground-point
+tool and markers have been removed for the current box-training workflow; optional
+ground-point metadata remains in the API solely for compatibility with saved work.
+Existing points are preserved but are not displayed or edited. YOLO supplies
+optional box proposals; it never writes reviewed ground truth or certifies
 occlusion. A human must review the entire image, including detector misses and
 negative images. Any UI geometry/metadata edit clears review confirmation.
 

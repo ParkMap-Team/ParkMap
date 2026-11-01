@@ -3,9 +3,9 @@
 ## Local Label and VS Code Terminal
 
 Run `start-dev.bat`, open Calibration UI and choose **Label** (or `/label`).
-Open a dataset name, add images, draw/edit boxes or request YOLO proposals. Select
-**จุดสัมผัสพื้น** and click the wheel-ground contact nearest the camera; leave null
-if it is not visible. Mark occluded motorcycles and review the whole image before
+Open a dataset name, add images, draw/edit boxes or request YOLO proposals.
+The current Label UI edits boxes and occlusion only; it has no ground-point tool.
+Mark occluded motorcycles and review the whole image before
 checking its review box. Capture groups come from the original filename date;
 there is no manual session field. Formats include `20261028_1103`,
 `2026-10-28_1103`, and `28-10-2026_1103`. All images from the same day must stay in
@@ -16,7 +16,9 @@ the same split on both days; filename dates alone do not prove independence.
 
 Exports go to `datasets/<dataset>/exports/<export-id>/` with `train/val/test` image
 and label directories, `sessions.json`, and JSON annotations with normalized 0..1
-box/ground coordinates and occlusion. Filenames use canonical image IDs; original
+box coordinates and occlusion. Optional ground-point metadata from older labels
+is preserved for compatibility, but is not displayed or edited by the current UI.
+Filenames use canonical image IDs; original
 names remain in JSON. Uploaded images are converted to metadata-free PNG with
 normalized EXIF orientation; label coordinates refer to these saved PNGs.
 Each export is new. A partial export is not ready to train until every split has
