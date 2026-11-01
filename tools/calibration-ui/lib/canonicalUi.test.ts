@@ -6,9 +6,13 @@ const dashboard = readFileSync(new URL('../components/dashboard/DashboardClient.
 const analyzer = readFileSync(new URL('../components/camera/ImageAnalyzer.tsx', import.meta.url), 'utf8');
 const camera = readFileSync(new URL('../components/camera/CameraMonitor.tsx', import.meta.url), 'utf8');
 
-void test('product exposes only Parking and Setup areas', () => {
+void test('product exposes Parking, combined Setup and Label areas', () => {
   assert.match(dashboard, />Parking</);
   assert.match(dashboard, />Setup</);
+  assert.match(dashboard, />Label</);
+  const setup = readFileSync(new URL('../components/setup/SetupWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(setup, /LotModelEditor/);
+  assert.match(setup, /SetupPage/);
   assert.doesNotMatch(dashboard, /Advanced|Hybrid|ROI Spatial|mapView|rowDisplayOrder/);
 });
 
