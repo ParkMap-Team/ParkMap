@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
-import { annotationUrl, boxFromPoints, clamp, moveBox, type AnnotationSample, type LabelPoint, type MotorcycleLabel } from '../../lib/annotationEditor';
+import { annotationUrl, boxFromPoints, moveBox, type AnnotationSample, type LabelPoint, type MotorcycleLabel } from '../../lib/annotationEditor';
 
-type Mode = 'draw' | 'select' | 'point' | 'pan';
+type Mode = 'draw' | 'select' | 'pan';
 interface View { x: number; y: number; width: number; height: number }
 type Drag = { start: LabelPoint; before: MotorcycleLabel[]; id: string | null; corner?: LabelPoint; view?: View };
 
@@ -57,11 +57,7 @@ export function AnnotationCanvas({ sample, dataset, disabled, selectedId, onSele
     const p = point(event); if (!p) return;
     event.preventDefault();
     if (mode === 'pan') { drag.current = { start: p, before: sample.annotations, id, view }; }
-    else if (mode === 'point') {
-      const target = id ?? selectedId;
-      if (target) { onSelect(target); onChange(sample.annotations.map((label) => label.id === target ? { ...label, ground_point: { x: clamp(p.x), y: clamp(p.y) } } : label)); }
-      return;
-    } else if (id && (mode === 'select' || corner)) { onSelect(id); drag.current = { start: p, before: sample.annotations, id, corner }; }
+    else if (id && (mode === 'select' || corner)) { onSelect(id); drag.current = { start: p, before: sample.annotations, id, corner }; }
     else if (mode === 'draw') {
       const newId = crypto.randomUUID();
       onSelect(newId); drag.current = { start: p, before: sample.annotations, id: newId };
@@ -81,7 +77,7 @@ export function AnnotationCanvas({ sample, dataset, disabled, selectedId, onSele
       if (bbox.width * sample.width >= 2 && bbox.height * sample.height >= 2) onChange(d.before.map((label) => label.id === d.id ? { ...label, bbox } : label));
     } else {
       const bbox = boxFromPoints(d.start, p);
-      if (bbox.width * sample.width >= 2 && bbox.height * sample.height >= 2) onChange([...d.before, { id: d.id!, bbox, ground_point: null, occluded: false }]);
+      if (bbox.width * sample.width >= 2 && bbox.height * sample.height >= 2) onChange([...d.before, { id: d.id!, bbox, occluded: false }]);
     }
   }
   function finish(event: PointerEvent) {
@@ -90,7 +86,7 @@ export function AnnotationCanvas({ sample, dataset, disabled, selectedId, onSele
   }
   return <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
     <div className="flex flex-wrap items-center gap-2 border-b p-3">
-      {([['draw', 'วาดกรอบ'], ['select', 'เลือก/ย้าย'], ['point', 'จุดสัมผัสพื้น'], ['pan', 'เลื่อนภาพ']] as const).map(([value, name]) =>
+      {([['draw', 'วาดกรอบ'], ['select', 'เลือก/ย้าย'], ['pan', 'เลื่อนภาพ']] as const).map(([value, name]) =>
         <button type="button" key={value} disabled={disabled} aria-pressed={mode === value} onClick={() => setMode(value)} className={`${button} ${mode === value ? 'border-blue-500 bg-blue-50 text-blue-700' : ''}`}>{name}</button>)}
       <button type="button" className={button} onClick={() => setView(initial)}>พอดีภาพ</button>
       <span className="text-xs text-slate-500">ล้อเมาส์เพื่อซูม · ลากมุมกรอบเพื่อปรับขนาด</span>
@@ -115,7 +111,6 @@ export function AnnotationCanvas({ sample, dataset, disabled, selectedId, onSele
         <rect x={label.bbox.x * sample.width} y={label.bbox.y * sample.height} width={label.bbox.width * sample.width} height={label.bbox.height * sample.height}
           fill={selectedId === label.id ? '#3b82f622' : 'transparent'} stroke={label.occluded ? '#fbbf24' : '#34d399'} strokeWidth={selectedId === label.id ? 3 : 1.5} vectorEffect="non-scaling-stroke" />
         <text x={label.bbox.x * sample.width} y={label.bbox.y * sample.height - radius / 2} fontSize={radius * 1.5} fill="white" stroke="black" strokeWidth={radius / 10} paintOrder="stroke">{index + 1}</text>
-        {label.ground_point && <circle cx={label.ground_point.x * sample.width} cy={label.ground_point.y * sample.height} r={radius / 2} fill="#ef4444" stroke="white" strokeWidth={1} vectorEffect="non-scaling-stroke" />}
       </g>)}
       {selected && <CornerHandles label={selected} width={sample.width} height={sample.height} radius={radius} onStart={start} />}
     </svg>
