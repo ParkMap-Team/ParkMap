@@ -236,5 +236,35 @@ class ClassifierTests(unittest.TestCase):
         self.assertEqual(sha256(output / "last.pt"), digest)
 
 
+    def test_60_yolo_classifier_roundtrip_keeps_logits_and_backbone_statistics(self):
+        import torch
+        from classifier_data import validate_run
+        from classifier_engine import build_model, fit, load_checkpoint, seed_everything
+
+        snapshot = self.dataset()
+        summary, samples = validate_run(snapshot, True)
+        options = json.loads((ROOT / "training.json").read_text())
+        options.update(architecture="yolo11n_cls", epochs=1, image_size=64, batch_size=2, threads=1, seed=42, device="cpu")
+        seed_everything(42, 1)
+        model = build_model(summary["classes"], None, pretrained=False, architecture="yolo11n_cls")
+        self.assertFalse(model.network.model[0].conv.weight.requires_grad)
+        self.assertTrue(model.classifier.weight.requires_grad)
+        before = model.network.model[0].bn.running_mean.clone()
+        output = fit(model, samples, summary, options, self.root / "yolo")
+        checkpoint = load_checkpoint(output / "best.pt", summary)
+        self.assertEqual(checkpoint["preprocessing"]["mean"], [0., 0., 0.])
+        self.assertEqual(checkpoint["architecture"], "yolo11n_cls")
+        self.assertTrue(torch.equal(before, model.network.model[0].bn.running_mean))
+        restored = build_model(summary["classes"], None, pretrained=False, architecture="yolo11n_cls")
+        restored.load_state_dict(checkpoint["state_dict"], strict=True)
+        model.eval()
+        restored.eval()
+        inputs = torch.zeros(2, 3, 64, 64)
+        with torch.inference_mode():
+            expected, actual = model(inputs), restored(inputs)
+        self.assertEqual(actual.shape, (2, 2))
+        self.assertTrue(torch.equal(expected, actual))
+
+
 if __name__ == "__main__":
     unittest.main()

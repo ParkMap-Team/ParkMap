@@ -30,8 +30,8 @@ def read_options(config_path, args):
     if args.patience < 0:
         raise ValueError("patience must be nonnegative; zero disables early stopping")
     options["patience"] = args.patience
-    if options["architecture"] not in {"resnet18", "efficientnet_b0"}:
-        raise ValueError("Use architecture=resnet18 or efficientnet_b0")
+    if options["architecture"] not in {"resnet18", "efficientnet_b0", "yolo11n_cls"}:
+        raise ValueError("Use architecture=resnet18, efficientnet_b0 or yolo11n_cls")
     if not isinstance(options["device"], str):
         raise TypeError("device must be auto, cpu, cuda[:N] or mps")
     for name in ("epochs", "batch_size", "threads"):
@@ -63,7 +63,7 @@ def main(argv=None):
     parser.add_argument("--image-size", type=int)
     parser.add_argument("--learning-rate", type=float)
     parser.add_argument("--device", help="auto, cpu, cuda[:N] or mps")
-    parser.add_argument("--architecture", choices=("resnet18", "efficientnet_b0"))
+    parser.add_argument("--architecture", choices=("resnet18", "efficientnet_b0", "yolo11n_cls"))
     parser.add_argument("--fine-tune", action="store_true", help="Update the whole network instead of just its classifier head")
     parser.add_argument("--no-augment", action="store_true")
     parser.add_argument("--patience", type=int, default=0, help="Stop after this many epochs without better validation Macro F1; 0 disables")

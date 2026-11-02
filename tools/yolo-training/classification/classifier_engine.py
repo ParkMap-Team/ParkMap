@@ -63,6 +63,11 @@ def classifier_head(model):
 
 
 def build_model(classes, weights_dir, fine_tune=False, initial_weights=None, pretrained=True, architecture="resnet18"):
+    if architecture == "yolo11n_cls":
+        from yolo_classifier import YoloClassifier, prepare_pretrained
+
+        weights = initial_weights or (prepare_pretrained(weights_dir) if pretrained else None)
+        return YoloClassifier(classes, fine_tune, weights)
     builder, weights = model_spec(architecture)
     if initial_weights:
         model = builder(weights=None)
@@ -82,24 +87,37 @@ def build_model(classes, weights_dir, fine_tune=False, initial_weights=None, pre
 
 
 def initial_weights_metadata(weights_dir, initial_weights=None, architecture="resnet18"):
+    if architecture == "yolo11n_cls":
+        from yolo_classifier import OFFICIAL_URL, initial_weights_path
+
+        path = Path(initial_weights) if initial_weights else initial_weights_path(weights_dir)
+        return {"initial_weights": str(path.resolve()), "initial_weights_source": "local state_dict" if initial_weights else OFFICIAL_URL,
+                "initial_weights_sha256": sha256(path), "ultralytics": importlib.metadata.version("ultralytics")}
     url = model_spec(architecture)[1].url
     path = Path(initial_weights).resolve() if initial_weights else Path(weights_dir) / "checkpoints" / Path(urlparse(url).path).name
     return {"initial_weights": str(path), "initial_weights_source": "local state_dict" if initial_weights else url,
             "initial_weights_sha256": sha256(path)}
 
 
-def image_transform(size, augment=False):
+def preprocessing_for(architecture):
+    if architecture == "yolo11n_cls":
+        return {**PREPROCESSING, "mean": [0., 0., 0.], "std": [1., 1., 1.]}
+    return PREPROCESSING
+
+
+def image_transform(size, augment=False, architecture="resnet18"):
     steps = [PadResize(size)]
     if augment:
         steps += [transforms.RandomHorizontalFlip(0.5), transforms.ColorJitter(brightness=.1, contrast=.1, saturation=.05)]
-    return transforms.Compose([*steps, transforms.ToTensor(), transforms.Normalize(PREPROCESSING["mean"], PREPROCESSING["std"])])
+    preprocessing = preprocessing_for(architecture)
+    return transforms.Compose([*steps, transforms.ToTensor(), transforms.Normalize(preprocessing["mean"], preprocessing["std"])])
 
 
 class CropDataset(Dataset):
-    def __init__(self, root, rows, classes, size, augment=False):
+    def __init__(self, root, rows, classes, size, augment=False, architecture="resnet18"):
         self.root, self.rows = Path(root), rows
         self.indices = {name: index for index, name in enumerate(classes)}
-        self.transform = image_transform(size, augment)
+        self.transform = image_transform(size, augment, architecture)
 
     def __len__(self):
         return len(self.rows)
@@ -112,7 +130,7 @@ class CropDataset(Dataset):
 
 
 def loader(root, rows, classes, options, training=False):
-    dataset = CropDataset(root, rows, classes, options["image_size"], training and options["augment"])
+    dataset = CropDataset(root, rows, classes, options["image_size"], training and options["augment"], options["architecture"])
     return DataLoader(dataset, batch_size=options["batch_size"], shuffle=training, num_workers=options["workers"],
                       generator=torch.Generator().manual_seed(options["seed"]))
 
@@ -163,7 +181,7 @@ def evaluate(model, batches, device, classes):
 
 def save_checkpoint(path, model, options, summary, epoch, metrics):
     checkpoint = {"format_version": 1, "architecture": options["architecture"], "classes": summary["classes"],
-                  "preprocessing": PREPROCESSING, "image_size": options["image_size"],
+                  "preprocessing": preprocessing_for(options["architecture"]), "image_size": options["image_size"],
                   "dataset_fingerprint": summary["fingerprint"], "manifest_sha256": summary["manifest_sha256"],
                   "epoch": epoch, "val": metrics,
                   "state_dict": {name: tensor.detach().cpu() for name, tensor in model.state_dict().items()}}
@@ -174,20 +192,20 @@ def save_checkpoint(path, model, options, summary, epoch, metrics):
 
 def load_checkpoint(path, summary):
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
-    if checkpoint.get("format_version") != 1 or checkpoint.get("architecture") not in {"resnet18", "efficientnet_b0"}:
+    if checkpoint.get("format_version") != 1 or checkpoint.get("architecture") not in {"resnet18", "efficientnet_b0", "yolo11n_cls"}:
         raise ValueError("Expected a supported ParkMap classifier checkpoint, not detector weights")
     if checkpoint["classes"] != summary["classes"]:
         raise ValueError("Checkpoint classes differ from dataset class order")
     if checkpoint["dataset_fingerprint"] != summary["fingerprint"] or checkpoint["manifest_sha256"] != summary["manifest_sha256"]:
         raise ValueError("Checkpoint belongs to a different dataset snapshot")
-    if checkpoint["preprocessing"] != PREPROCESSING or not 64 <= checkpoint["image_size"] <= 1024:
+    if checkpoint["preprocessing"] != preprocessing_for(checkpoint["architecture"]) or not 64 <= checkpoint["image_size"] <= 1024:
         raise ValueError("Checkpoint preprocessing is incompatible")
     return checkpoint
 
 
 def run_metadata(summary, options, device):
     return {"dataset": summary, "options": options, "device": str(device), "status": summary["status"],
-            "preprocessing": PREPROCESSING, "torch": str(torch.__version__),
+            "preprocessing": preprocessing_for(options["architecture"]), "torch": str(torch.__version__),
             "torchvision": importlib.metadata.version("torchvision"), "python": sys.version,
             "pillow": importlib.metadata.version("pillow"), "test_evaluated": False,
             "selection": "highest val macro_f1 over supported classes; tie: lowest val loss",
