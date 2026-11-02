@@ -35,6 +35,7 @@ Double-click `start-dev.bat` at the repository root, or run it from a terminal:
 
 ```bat
 start-dev.bat
+start-dev.bat --no-worker
 start-dev.bat --demo
 start-dev.bat --no-browser
 start-dev.bat --dry-run
@@ -43,13 +44,15 @@ start-dev.bat --dry-run
 Before the first run, open Docker Desktop, install frontend dependencies with
 `corepack pnpm install --frozen-lockfile`, and run `uv sync --locked --all-groups`
 in `apps/vision-api`. Copy that package's `.env.example` to `.env`; set
-`PARKMAP_WORKER_TOKEN` if using `--demo`. The launcher uses pnpm when available,
+`PARKMAP_WORKER_TOKEN` for the photo worker (or `--demo`). The launcher uses pnpm when available,
 otherwise npm runs each package's already-installed `dev` script. It does not
 download a package manager, install dependencies, or change the pnpm lockfile.
 
 The launcher starts only the development Postgres service, waits for its healthcheck,
 runs migrations, and opens separate terminals for database logs, Vision API (8000),
-LIFF (3001), and Calibration UI (3000). It then opens the two web apps and API docs
+the recorded-photo worker, LIFF (3001), and Calibration UI (3000). The worker starts
+after the API/database readiness check, reads `apps/vision-api/single-photo`, and
+publishes for `sripatum-near-lot`, holding each photo for 10 seconds. It then opens the two web apps and API docs
 in the browser, unless `--no-browser` is supplied. Progress messages identify each
 startup step. It works from any directory,
 checks for occupied app ports, and uses the compose database on `127.0.0.1:5432` and
@@ -58,11 +61,18 @@ The explicit IPv4 addresses avoid slow IPv6 attempts through `localhost` on Wind
 database connection attempts time out after 10 seconds. It preserves
 existing environment files and does not import lot models or seed sites by default.
 
+The photo worker requires the existing Sripatum parking area, its registered
+calibration, matching local calibration files, YOLO weights and correctly named
+photos. It does not create sites, replace lot models or register calibration.
+See the [still-image runbook](docs/still-image-loop-runbook.md) for prerequisites.
+LIFF labels these states as recorded demo data, never the live parking state.
+Use `--no-worker` when photos/configuration are unavailable or when only testing
+uploads; uploaded-image analysis needs no worker.
+
 `--demo` additionally seeds the **synthetic development site** and starts
-`publish-dev-state`; it does not publish observations for Sripatum. For photo/video
-observations, configure a real frame worker separately as described in the
-[backend README](apps/vision-api/README.md#live-state), using
-`PARKMAP_API_URL=http://127.0.0.1:8000`. Uploaded-image analysis needs no worker.
+`publish-dev-state`; it does not publish observations for Sripatum. It can be
+combined with `--no-worker` to run only the synthetic publisher. Other photo/video
+sources can still use the [backend worker command](apps/vision-api/README.md#live-state).
 
 Stop app processes with Ctrl+C in their terminals. Closing the database log window
 does not stop Postgres; run `docker compose stop postgres` from the repository root

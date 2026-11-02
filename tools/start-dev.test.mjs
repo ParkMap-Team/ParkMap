@@ -25,6 +25,25 @@ function runAt(script, args, env = process.env) {
 
 const run = (...args) => runAt(launcher, args);
 
+test("default startup includes the recorded-photo worker after API readiness", {
+  skip: process.platform !== "win32",
+}, () => {
+  const result = run("--dry-run", "--no-browser");
+  assert.equal(result.status, 0, result.output);
+  assert.match(result.output, /Photo worker:.*app\.worker --parking-area-id sripatum-near-lot --source single-photo --hold-s 10/);
+  assert.match(result.output, /recorded.*demo/i);
+  assert.doesNotMatch(result.output, /seed-dev|publish-dev-state/);
+});
+
+test("no-worker leaves the basic development stack available", {
+  skip: process.platform !== "win32",
+}, () => {
+  const result = run("--no-worker", "--dry-run");
+  assert.equal(result.status, 0, result.output);
+  assert.doesNotMatch(result.output, /Photo worker:/);
+  assert.match(result.output, /Vision API:/);
+});
+
 function withNativeTools(callback) {
   const fixture = mkdtempSync(join(tmpdir(), "ParkMap native tools test "));
   try {
@@ -141,7 +160,7 @@ test("Docker stderr warnings with exit zero allow startup to reach migrations", 
   skip: process.platform !== "win32",
 }, (t) => {
   withNativeTools((script, env) => {
-    const result = runAt(script, ["--no-browser"], env);
+    const result = runAt(script, ["--no-browser", "--no-worker"], env);
     if (/ERROR: Port \d+ is already in use/.test(result.output)) {
       t.skip('Native integration test requires free app ports (3000, 3001, 8000).');
       return;
@@ -161,7 +180,7 @@ test("a real Docker failure still stops startup before compose", {
   skip: process.platform !== "win32",
 }, (t) => {
   withNativeTools((script, env) => {
-    const result = runAt(script, ["--no-browser"], { ...env, TEST_DOCKER_INFO_EXIT: "9" });
+    const result = runAt(script, ["--no-browser", "--no-worker"], { ...env, TEST_DOCKER_INFO_EXIT: "9" });
     if (/ERROR: Port \d+ is already in use/.test(result.output)) {
       t.skip('Native integration test requires free app ports (3000, 3001, 8000).');
       return;
