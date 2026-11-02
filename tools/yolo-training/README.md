@@ -4,6 +4,9 @@ The separate [motorcycle model-family classification preparation pipeline](class
 audits detection ZIP datasets, crops annotation boxes, provides offline human
 review, and rebuilds grouped classification splits. It does not train a model or
 change the existing detector/Label exports below.
+The [separate ResNet18 classifier training command](classification/TRAINING.md)
+uses the reviewed model-family crops, logs progress in Terminal, and keeps held-out
+test evaluation explicit.
 
 ## Local Label and VS Code Terminal
 
