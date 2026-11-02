@@ -5,16 +5,22 @@ Start local development with `start-dev.bat`, open Calibration UI at
 restart the Calibration UI terminal if it was already running.
 
 1. Choose a JPEG, PNG or WebP with the existing **Choose file** button.
-2. Under the camera preview, enable **จำแนกรุ่นรถ · ทดลอง**.
+2. Under **จำแนกรุ่นรถ · ทดลอง**, choose the classifier model. The most recent
+   completed run is selected initially.
 3. Choose a completed model run. The menu shows chronological run number, architecture, run ID
    and best epoch. Incomplete training runs are not listed.
-4. Choose full image with YOLO, or an already cropped single motorcycle without YOLO.
-5. Press **ทดสอบจำแนกรุ่น**. Click a detection box or crop thumbnail to see the
+4. Press the main **Analyze** button once. Python runs YOLO once, computes parking
+   analysis when configured, then classifies native crops from those same boxes.
+5. Click a detection box or crop thumbnail to see the
    corresponding native crop and top-three family scores.
 6. Select another model and run the same image again for a visual comparison.
 
-This panel does not require parking calibration or the main Analyze action. It
-does not automatically classify video frames. A YOLO miss is not evidence that
+Detection and classification do not require parking calibration. Calibration
+failures are reported separately, as are missing or unavailable classifiers;
+successful detection results remain visible. Analyze also starts the existing
+five-second video-frame workflow with classification for each analyzed frame.
+The standalone operator `/predict` API still supports pre-cropped images, while
+the Parking UI uses detection followed by classification. A YOLO miss is not evidence that
 the image contains no motorcycles. The classifier always ranks known families;
 it has no trained unknown class and its softmax scores are not calibrated
 certainty. It predicts neither dimensions nor parking availability. Different
@@ -26,8 +32,8 @@ if used to assess generalization. Human-confirmed truth is needed to count corre
 predictions. No truth labels or evaluation scores are saved by this panel. Use
 Label/review as a separate explicit workflow if an image should later join a dataset.
 
-The operator API is `/api/operator/classifier/models` and
-`/api/operator/classifier/predict`. Browser requests pass through `/api/classifier`
+The operator API is `/api/operator/classifier/models`, `/api/operator/classifier/analyze`
+and `/api/operator/classifier/predict`. Browser requests pass through `/api/classifier`
 on the existing same-origin loopback proxy. It forwards the server-only editor
 token; built/public deployments fail closed. The API validates upload size, image
 format, dimensions and decoding, normalizes EXIF, and creates metadata-free

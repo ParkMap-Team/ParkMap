@@ -1,5 +1,15 @@
 import { PARKMAP_API_URL, ParkingApiError } from './api.ts';
 import type { DetectionResponse } from '../types/detection.ts';
+import type { components } from '../types/api.gen.ts';
+
+export async function analyzeParkingWithClassifier(file: File, model: string, signal?: AbortSignal, includeParking = true): Promise<components['schemas']['ParkingClassifierResult']> {
+  const body = new FormData();
+  body.set('image', file); body.set('model_id', model); body.set('include_parking', String(includeParking));
+  const response = await fetch('/api/classifier?op=analyze', { method: 'POST', body, signal });
+  const data = await response.json();
+  if (!response.ok) throw new ParkingApiError(data && typeof data === 'object' && 'detail' in data && typeof data.detail === 'string' ? data.detail : `Image analysis failed (${response.status}).`);
+  return data as components['schemas']['ParkingClassifierResult'];
+}
 
 export const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;

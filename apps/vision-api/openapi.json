@@ -102,6 +102,30 @@
         "title": "AnnotationWrite",
         "type": "object"
       },
+      "Body_analyze_api_operator_classifier_analyze_post": {
+        "properties": {
+          "image": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Image",
+            "type": "string"
+          },
+          "include_parking": {
+            "default": true,
+            "title": "Include Parking",
+            "type": "boolean"
+          },
+          "model_id": {
+            "default": "",
+            "title": "Model Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "title": "Body_analyze_api_operator_classifier_analyze_post",
+        "type": "object"
+      },
       "Body_analyze_auto_parking_api_auto_parking_analyze_post": {
         "properties": {
           "images": {
@@ -1932,6 +1956,50 @@
         "title": "ParkingCalibration",
         "type": "object"
       },
+      "ParkingClassifierResult": {
+        "properties": {
+          "classification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClassifierResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "classification_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classification Error"
+          },
+          "detection": {
+            "$ref": "#/components/schemas/DetectionResponse"
+          },
+          "parking_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parking Error"
+          }
+        },
+        "required": [
+          "detection"
+        ],
+        "title": "ParkingClassifierResult",
+        "type": "object"
+      },
       "ParkingStatePublish": {
         "description": "One analysed frame. `observed_at` is when the image was captured; `processed_at` is when it was analysed.",
         "properties": {
@@ -3136,6 +3204,65 @@
         "summary": "Propose Boxes",
         "tags": [
           "Annotations"
+        ]
+      }
+    },
+    "/api/operator/classifier/analyze": {
+      "post": {
+        "operationId": "analyze_api_operator_classifier_analyze_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_analyze_api_operator_classifier_analyze_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParkingClassifierResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Analyze",
+        "tags": [
+          "Classifier experiment"
         ]
       }
     },

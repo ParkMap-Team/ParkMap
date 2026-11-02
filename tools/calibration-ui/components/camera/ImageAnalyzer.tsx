@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircle, ImagePlus, LoaderCircle, RotateCcw, ScanSearch } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CameraMonitor } from '@/components/camera/CameraMonitor';
 import { PhysicalMeasuredMap } from '@/components/parking/PhysicalMeasuredMap';
 import { ParkingStateSummary } from '@/components/parking/ParkingStateSummary';
@@ -9,7 +9,8 @@ import { CameraParkingOverlay } from '@/components/parking/CameraParkingOverlay'
 import { ClassifierExperiment } from '@/components/parking/ClassifierExperiment';
 import { adaptBackendParkingGeometry } from '@/lib/legacyParkingAnalysis';
 import { getCalibration } from '@/lib/calibration';
-import { analyzeParkingImage, MAX_UPLOAD_BYTES, SUPPORTED_IMAGE_TYPES } from '@/lib/detection';
+import { analyzeParkingWithClassifier, MAX_UPLOAD_BYTES, SUPPORTED_IMAGE_TYPES } from '@/lib/detection';
+import type { components } from '@/types/api.gen';
 import { getGroundPlaneHomography } from '@/lib/groundPlaneHomography';
 import { buildMetricMotorcycleMapping } from '@/lib/metricMotorcycle';
 import { getPhysicalRowGeometry } from '@/lib/physicalRowGeometry';
@@ -24,6 +25,9 @@ const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
 
 export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const [file, setFile] = useState<File | null>(null);
+  const [classifierModel, setClassifierModel] = useState('');
+  const [classification, setClassification] = useState<components['schemas']['ClassifierResult'] | null>(null);
+  const [classificationError, setClassificationError] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [latestVideoFrameUrl, setLatestVideoFrameUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -40,6 +44,10 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const controllerRef = useRef<AbortController | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const videoAnalysisBusyRef = useRef(false);
+  const changeClassifierModel = useCallback((model: string) => {
+    controllerRef.current?.abort(); setVideoAnalysisActive(false); setVideoProgress(null);
+    setClassifierModel(model); setClassification(null); setClassificationError(''); setState('idle');
+  }, []);
 
   useEffect(() => {
     if (!file) return;
@@ -77,14 +85,20 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
       const video = videoRef.current;
       if (!video || video.paused || video.ended || videoAnalysisBusyRef.current || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
       videoAnalysisBusyRef.current = true;
+      setState('processing');
+      setClassificationError('');
       try {
         const frameTime = video.currentTime;
         const frame = await captureVideoFrame(video);
         setLatestVideoFrameUrl(URL.createObjectURL(frame));
-        const result = await analyzeParkingImage(frame, controller.signal, !setupRequired);
-        setAnalysis(result);
+        setClassification(null);
+        const result = await analyzeParkingWithClassifier(frame, classifierModel, controller.signal, !setupRequired);
+        if (controller.signal.aborted) return;
+        setAnalysis(result.detection as DetectionResponse);
+        setClassification(result.classification ?? null);
+        setClassificationError(result.classification_error ?? '');
         setState('done');
-        setError(null);
+        setError(result.parking_error ?? null);
         setVideoProgress(`Latest analysis: ${frameTime.toFixed(1)}s · refreshes every ${VIDEO_FRAME_INTERVAL_SECONDS} seconds`);
       } catch (reason) {
         if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
@@ -107,7 +121,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
       controller.abort();
       videoAnalysisBusyRef.current = false;
     };
-  }, [setupRequired, videoAnalysisActive, videoUrl]);
+  }, [setupRequired, videoAnalysisActive, videoUrl, classifierModel]);
 
   const assignments = useMemo(() => analysis && calibration ? assignDetectionsToParkingRows(analysis.detections, calibration) : [], [analysis, calibration]);
   const mapping = useMemo(() => analysis ? buildMetricMotorcycleMapping(analysis.detections, assignments, homography, physical, analysis.image_width, analysis.image_height) : null, [analysis, assignments, homography, physical]);
@@ -119,6 +133,8 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const chooseFile = (selected?: File) => {
     controllerRef.current?.abort();
     setAnalysis(null);
+    setClassification(null);
+    setClassificationError('');
     setState('idle');
     setError(null);
     setVideoProgress(null);
@@ -146,6 +162,9 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
     const controller = new AbortController();
     controllerRef.current = controller;
     setState('processing');
+    setClassification(null);
+    setClassificationError('');
+    setAnalysis(null);
     setError(null);
     try {
       if (file.type.startsWith('video/')) {
@@ -154,8 +173,12 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
         await videoRef.current?.play();
         return;
       } else {
-        const result = await analyzeParkingImage(file, controller.signal, !setupRequired);
-        setAnalysis(result);
+        const result = await analyzeParkingWithClassifier(file, classifierModel, controller.signal, !setupRequired);
+        if (controller.signal.aborted) return;
+        setAnalysis(result.detection as DetectionResponse);
+        setClassification(result.classification ?? null);
+        setClassificationError(result.classification_error ?? '');
+        setError(result.parking_error ?? null);
       }
       setState('done');
     } catch (reason) {
@@ -178,7 +201,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
           <div><h1 id="camera-image-title" className="text-lg font-semibold">Camera / Image / Video</h1><p className="mt-1 text-sm text-slate-500">JPEG, PNG, WebP, MP4 or WebM · video analyzed every 5 seconds</p></div>
           <div className="flex gap-2">
             <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-50"><ImagePlus className="size-4" />{file ? 'Choose another' : 'Choose file'}<input type="file" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,image/jpeg,image/png,image/webp,video/*" className="sr-only" onChange={(event) => chooseFile(event.target.files?.[0])} /></label>
-            <button type="button" onClick={() => void analyze()} disabled={!file || state === 'processing'} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{state === 'processing' ? <LoaderCircle className="size-4 animate-spin" /> : <ScanSearch className="size-4" />}{state === 'processing' ? 'Analyzing…' : 'Analyze'}</button>
+            <button type="button" onClick={() => void analyze()} disabled={!file || state === 'processing' || videoAnalysisActive} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{state === 'processing' ? <LoaderCircle className="size-4 animate-spin" /> : <ScanSearch className="size-4" />}{state === 'processing' ? 'Analyzing…' : 'Analyze'}</button>
           </div>
         </div>
         {file && <p className="mt-3 truncate text-sm text-slate-500">{file.name}</p>}
@@ -188,7 +211,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
       </section>
 
       <CameraMonitor imageUrl={previewUrl} videoUrl={videoUrl} videoRef={videoRef} analysis={analysis} assignments={assignments} />
-      <ClassifierExperiment key={previewUrl ?? videoUrl ?? 'no-image'} file={file} />
+      <ClassifierExperiment model={classifierModel} onModelChange={changeClassifierModel} result={classification} error={classificationError} busy={state === 'processing'} />
       <div className="flex gap-2 text-sm"><button type="button" onClick={() => setParkingView('camera')} className={parkingView === 'camera' ? 'font-semibold text-blue-700' : 'text-slate-500'}>Camera View</button><button type="button" onClick={() => setParkingView('physical')} className={parkingView === 'physical' ? 'font-semibold text-blue-700' : 'text-slate-500'}>Physical Map</button></div>
       {parkingView === 'camera' ? <CameraParkingOverlay imageUrl={previewUrl ?? latestVideoFrameUrl} analysis={analysis?.parking_analysis} detection={analysis} /> : <PhysicalMeasuredMap physical={physical} mapping={mapping} homography={homography} occupiedSpace={occupiedSpace} freeSpace={freeSpace} fitting={null} recommendations={analysis?.parking_analysis?.placement_recommendation} capacity={analysis?.parking_analysis?.capacity} almostAvailablePlacements={analysis?.parking_analysis?.almost_available_placements} witnessSafety={analysis?.parking_analysis?.witness_safety} parkingState={analysis?.parking_analysis?.parking_state} uncertainty={analysis?.parking_analysis?.uncertainty} />}
       {analysis?.parking_analysis && <ParkingStateSummary analysis={analysis.parking_analysis} />}
