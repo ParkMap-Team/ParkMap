@@ -1,0 +1,33 @@
+{
+  "workspace": "honda2",
+  "title": "HONDA 2",
+  "canonical_config": "config.json",
+  "source": {
+    "id": "honda2-v2",
+    "archive": "inputs/HONDA 2.v2i.yolov8.zip",
+    "yaml": "data.yaml",
+    "splits": {"train": "train", "val": "valid", "test": "test"},
+    "license": {
+      "name": "CC BY 4.0 (archive declaration; underlying rights not independently verified)",
+      "credit": "chaleamchai / HONDA 2, Roboflow Universe",
+      "url": "https://universe.roboflow.com/chaleamchai/honda-2/dataset/2",
+      "changes": "Polygon-enclosing crops without additional stretching; review previews only"
+    },
+    "known_preprocessing": ["640x640 stretch in source export; original aspect ratio unrecoverable", "Three augmented versions per source; flips, rotation, blur"]
+  },
+  "mapping": {
+    "HONDA  Forza": {"default_class": "forza", "candidates": ["forza"], "note": "Name match; still requires visual confirmation"},
+    "HONDA  Foza": {"default_class": null, "candidates": ["forza"], "note": "Do not assume Foza means Forza; choose only after inspection"},
+    "HONDA  MSX": {"default_class": null, "candidates": ["msxgrom"], "note": "Confirm alias and image before selecting msxgrom"},
+    "HONDA  PCX": {"default_class": "pcx", "candidates": ["pcx"], "note": "Name match; still requires visual confirmation"},
+    "HONDA  Super cub": {"default_class": "super_cub", "candidates": ["super_cub"], "note": "Name match; still requires visual confirmation"},
+    "HONDA ADV": {"default_class": "adv", "candidates": ["adv"], "note": "Name match; still requires visual confirmation"},
+    "HONDA CB": {"default_class": null, "candidates": ["cb150", "cb300"], "note": "Select exact family only if identifiable; exclude otherwise"},
+    "HONDA CBR": {"default_class": null, "candidates": ["cbr150", "cbr250", "cbr300", "cbr500r"], "note": "Select exact family only if identifiable; exclude otherwise"},
+    "HONDA CRF": {"default_class": null, "candidates": ["crf250", "crf300"], "note": "Select exact family only if identifiable; exclude otherwise"},
+    "HONDA Click": {"default_class": "click", "candidates": ["click"], "note": "Name match; still requires visual confirmation"},
+    "HONDA Scoopyi": {"default_class": null, "candidates": ["scoopy"], "note": "Confirm alias and image before selecting scoopy"},
+    "HONDA Wave": {"default_class": "wave", "candidates": ["wave"], "note": "Name match; still requires visual confirmation"},
+    "HONDA ZoomerX": {"default_class": "zoomerx", "candidates": ["zoomerx"], "note": "Name match; still requires visual confirmation"}
+  }
+}

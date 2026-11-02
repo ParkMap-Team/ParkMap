@@ -1,0 +1,2 @@
+-r requirements.txt
+Shapely>=2.0,<3.0

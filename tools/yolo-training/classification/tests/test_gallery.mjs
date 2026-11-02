@@ -26,7 +26,11 @@ with zipfile.ZipFile(archive,'w') as z:
   z.writestr(f'train/images/{index}.png',stream.getvalue())
   z.writestr(f'train/labels/{index}.txt',f'{index%2} 0.5 0.5 0.5 0.5')
 config={'seed':42,'ratios':{'train':.7,'val':.15,'test':.15},'sources':[{'id':'fixture','archive':str(archive),'yaml':'data.yaml','splits':{'train':'train','val':'valid','test':'test'},'class_map':{'model_a':'model_a','model_b':'model_b'},'license':{'name':'test','credit':'synthetic','url':'local'}}]}
-p=root/'config.json';p.write_text(json.dumps(config));print(prepare(p,root/'out'))
+p=root/'config.json';p.write_text(json.dumps(config));run=prepare(p,root/'out')
+from prepare_review import build_workspace
+staging={'workspace':'honda2','title':'HONDA 2','canonical_config':str(p),'source':config['sources'][0],'mapping':{'model_a':{'default_class':'model_a','candidates':['model_a']},'model_b':{'default_class':None,'candidates':['model_b']}}}
+sp=root/'staging.json';sp.write_text(json.dumps(staging));build_workspace(sp,root/'staging')
+print(run)
 `;
 const run = execFileSync(python, ['-c', fixtureCode, join(root, 'tools/yolo-training/classification'), temp], { encoding: 'utf8' }).trim();
 const listener = createServer();
@@ -239,7 +243,23 @@ try {
   await evaluate(`document.body.dispatchEvent(new KeyboardEvent('keydown',{key:'n',code:'KeyN',bubbles:true}))`);
   await idle();
   assert.equal(await evaluate(`document.querySelectorAll('[data-id]').length`), 0, 'The filtered queue finishes without repeating another image');
-  console.log('PASS: N/M single-image review, previous image, grid buttons, valid JSON, grouping/pairs, cancellation/retry and real download.');
+  await evaluate('dirty=false;drafts.clear()');
+  await call('Page.navigate', { url: pathToFileURL(join(temp, 'staging/index.html')).href });
+  for (let attempt=0;attempt<100;attempt++) {
+    if(await evaluate(`Boolean(document.querySelector('[data-id]')) && typeof workspace!=='undefined' && Boolean(workspace)`))break;
+    await new Promise(resolveWait=>setTimeout(resolveWait,25));
+  }
+  await evaluate(`page=data.annotations.findIndex(a=>a.requires_class_selection);render();window.pickerCalls=0;window.showSaveFilePicker=async()=>{window.pickerCalls++;throw Error('unexpected picker')}`);
+  const ambiguous=await evaluate(`document.querySelector('[data-id]').dataset.id`);
+  assert.equal(await evaluate(`document.querySelector('[data-field=class]').value`),'','Ambiguous source must not select the first class');
+  await evaluate(`quickDecision('save')`);
+  assert.equal(await evaluate('Object.keys(review.annotations).length'),0,'N cannot accept an unresolved class');
+  assert.equal(await evaluate(`document.querySelector('[data-id]').dataset.id`),ambiguous);
+  await evaluate(`document.querySelector('[data-field=class]').value='model_b';quickDecision('save')`);
+  assert.deepEqual(await evaluate(`review.annotations[${JSON.stringify(ambiguous)}]`),{confirmed:true,canonical_class:'model_b',reason:'ผู้ตรวจระบุรุ่นจากภาพ'});
+  assert.equal(await evaluate('window.pickerCalls'),0,'Reviewing never opens a save picker');
+  assert.equal(await evaluate('reviewFilename'),'review-honda2.json');
+  console.log('PASS: N/M review, explicit saves, downloads, grouping, and ambiguous source selection guard.');
   console.log(`Synthetic fixture: ${run}`);
 } finally {
   if (socket?.readyState === WebSocket.OPEN) {

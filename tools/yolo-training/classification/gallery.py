@@ -74,6 +74,8 @@ a{color:#1454b5}pre{white-space:pre-wrap;font-size:12px}summary{cursor:pointer}#
 <script id="data" type="application/json">__PAYLOAD__</script>
 <script>
 const data=JSON.parse(document.getElementById('data').textContent);
+const workspace=data.after.review_workspace??null,reviewFilename=workspace?.review_filename??'review.json';
+if(workspace){document.querySelector('h1').textContent=workspace.title+' · ตรวจภาพก่อนรวมชุดข้อมูล';document.getElementById('exportReview').textContent='บันทึกไฟล์ '+reviewFilename;}
 const byImage=Object.fromEntries(data.images.map(i=>[i.image_id,i]));
 const byAnnotation=Object.fromEntries(data.annotations.map(a=>[a.annotation_id,a]));
 const classes=Object.keys(data.after.classes),selected=new Set(),drafts=new Map();
@@ -93,7 +95,7 @@ function draftSuffix(){return drafts.size?' ยังมีช่องที่
 function downloadReview(){
   if(!allowSave())return;
   const blob=new Blob([JSON.stringify(review,null,2)+'\n'],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');
-  link.href=url;link.download='review.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);dirty=false;
+  link.href=url;link.download=reviewFilename;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);dirty=false;
   notice('ส่งไฟล์ review.json ไปยังรายการดาวน์โหลดแล้ว โปรดตรวจไฟล์ที่บันทึก'+draftSuffix());
 }
 async function saveFile(){
@@ -102,7 +104,7 @@ async function saveFile(){
   if(!fileHandle&&typeof window.showSaveFilePicker!=='function'){downloadReview();return true;}
   saving=true;$('exportReview').disabled=true;$('downloadReview').disabled=true;let writable;
   try{
-    if(!fileHandle)fileHandle=await window.showSaveFilePicker({suggestedName:'review.json',types:[{description:'ParkMap review JSON',accept:{'application/json':['.json']}}]});
+    if(!fileHandle)fileHandle=await window.showSaveFilePicker({suggestedName:reviewFilename,types:[{description:'ParkMap review JSON',accept:{'application/json':['.json']}}]});
     const snapshot=JSON.stringify(review,null,2)+'\n',savedRevision=revision;
     writable=await fileHandle.createWritable();await writable.write(snapshot);await writable.close();writable=null;
     dirty=revision!==savedRevision;
@@ -131,8 +133,8 @@ function annotationCard(a){
   return `<article class="card ${selected.has(a.annotation_id)?'selected':''}" data-id="${esc(a.annotation_id)}">
     ${a.crop?`<a href="${esc(a.crop.path)}" target="_blank"><img loading="lazy" src="${esc(a.crop.path)}"></a>`:'ไม่มีกล่องที่ crop ได้'}
     <b>${esc(currentClass(a)||a.original_class||'annotation ผิดรูปแบบ')}</b><p><span class="badge ${excluded?'excluded':confirmed?'confirmed':''}" data-review-status>${status}</span></p>
-    <div class="muted">${esc(a.source_image)}<br>${esc(a.annotation_id)}</div>
-    <div class="fields"><label>รุ่นรถ <select data-field="class">${options(classes,draft?.className??currentClass(a))}</select></label>
+    <div class="muted">${esc(a.source_image)}<br>${esc(a.annotation_id)}${workspace?`<br>ชื่อจากต้นทาง: ${esc(a.original_class)}<br>${esc(a.mapping_note??'')}`:''}</div>
+    <div class="fields"><label>รุ่นรถ <select data-field="class">${!currentClass(a)?'<option value="">— เลือกรุ่นก่อนยืนยัน —</option>':''}${options(classes,draft?.className??currentClass(a))}</select></label>
     <label>เหตุผล <input data-field="reason" placeholder="จำเป็นเมื่อเปลี่ยนรุ่นหรือตัดออก" value="${esc(draft?.reason??decision.reason??'')}"></label></div>
     <button class="primary" data-action="save" ${!a.crop?'disabled':''}>บันทึกรุ่นนี้</button><button class="danger" data-action="exclude">ตัดออก</button>
     <button data-action="reset">ยกเลิกผลตรวจ</button><br>
@@ -191,6 +193,7 @@ function render(){
   const confirmed=Object.values(review.annotations).filter(d=>d.confirmed&&!d.exclude).length;
   $('summary').textContent=`ต้นทาง ${data.before.totals.images} ภาพ / ${data.before.totals.annotation_lines} กล่อง · ชุดข้อมูลปัจจุบัน ${data.after.classification_crops} crop · บันทึกยืนยันรุ่น ${confirmed} รายการ การบันทึก review ยังไม่เปลี่ยน split จนกว่าจะรัน pipeline ใหม่`;
   $('groups').textContent=JSON.stringify(review.same_vehicle_groups,null,2);$('selection').textContent=[...selected].join(', ');
+  if(workspace)$('summary').textContent=`ชุดตรวจแยก: ${data.before.totals.images} ภาพ / ${data.annotations.length} annotation · ยืนยันแล้ว ${confirmed} · ยังไม่รวมชุดเทรนหรือแบ่ง split · บันทึกผลลง ${reviewFilename}`;
   updateKeyboardControls();
 }
 function requireReason(card){
@@ -205,9 +208,11 @@ function commitAnnotation(card,action,advance=false){
   if(action==='save'){
     if(!a.crop)return;
     const name=card.querySelector('[data-field=class]').value,reason=card.querySelector('[data-field=reason]').value.trim(),previous=review.annotations[id];
-    if(name!==baseClass(a)&&!requireReason(card))return;
+    if(!classes.includes(name)){notice('กรุณาเลือกรุ่นให้ชัดเจนก่อนยืนยัน หรือกด M หากระบุไม่ได้');return;}
+    if(!a.requires_class_selection&&name!==baseClass(a)&&!requireReason(card))return;
     review.annotations[id]={confirmed:true};
     if(name!==baseClass(a))review.annotations[id].canonical_class=name;
+    if(a.requires_class_selection)review.annotations[id].reason=reason||'ผู้ตรวจระบุรุ่นจากภาพ';
     if(reason&&(!previous?.exclude||reason!==previous.reason||name!==baseClass(a)))review.annotations[id].reason=reason;
   }else if(action==='exclude'){
     const field=card.querySelector('[data-field=reason]');
@@ -292,6 +297,7 @@ $('importReview').onchange=async event=>{
     const incoming=JSON.parse(await event.target.files[0].text());
     if(incoming.version!==1||!incoming.annotations||!incoming.images||!Array.isArray(incoming.same_vehicle_groups)||!Array.isArray(incoming.similar_pairs))throw Error('รูปแบบ review ไม่ถูกต้อง');
     if(Object.keys(incoming.annotations).some(id=>!byAnnotation[id])||Object.keys(incoming.images).some(id=>!byImage[id]))throw Error('ไฟล์มี ID ที่ไม่อยู่ในชุดข้อมูลนี้');
+    for(const [id,d] of Object.entries(incoming.annotations))if(d.confirmed&&!d.exclude&&byAnnotation[id].requires_class_selection&&!classes.includes(d.canonical_class))throw Error('ผลตรวจต้องระบุรุ่นที่เลือกสำหรับชื่อกำกวม');
     review=incoming;drafts.clear();selected.clear();revision++;dirty=false;fileHandle=null;
     notice('นำเข้าผลตรวจแล้ว กดบันทึกไฟล์เพื่อเลือกไฟล์ที่จะเก็บผลตรวจต่อ');render();
   }catch(error){notice(error.message);}
