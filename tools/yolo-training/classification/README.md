@@ -137,15 +137,63 @@ deterministic and documented.
 
 ## Human review
 
-Use Human-confirmed label to record a checked model-family label. Choose an
-existing class and a reason for corrections, or use Exclude with a reason for
-ambiguous crops. Select confirmed matching vehicle annotations and group them
-before splitting. Similar-image pairs are proposals only; record pair decisions
-with reasons and group actual matching annotations for same_vehicle_grouped.
+The gallery opens in **ตรวจทีละรูป** (one crop at a time). Use:
 
-Click Download review.json to keep decisions before closing. Changes remain in
-page memory until downloaded. Import an existing review file to continue. Rerun
-preparation with --review to apply it; generated snapshots are immutable.
+- **N**: explicitly confirm the currently selected class in page memory and advance one crop.
+- **M**: exclude this crop in page memory and advance. A blank reason becomes
+  `ผู้ตรวจเลือกไม่ใช้ภาพนี้`; a reason you typed is kept.
+- **Left / Right arrows**: visit the previous/next crop without making a decision.
+  Go back and use the buttons or N/M to correct an earlier decision.
+- **ดูหลายรูป / จับกลุ่ม**: return to the grid for comparisons and grouping.
+
+Keyboard shortcuts apply only to single-crop review, never while typing in a
+field, selecting a class, composing text, holding a key, or using Ctrl/Alt/Meta.
+Physical N/M keys also work on a Thai keyboard layout. N/M never open a file picker
+or write a file, including after a save file was selected earlier. Filtered queues use
+annotation IDs to advance without skipping when a decision removes the current
+crop from the filter. The final crop stops instead of repeating decisions.
+Use the explicit save/download button before closing, as described below.
+
+Use explicit buttons in the gallery instead of review checkboxes:
+
+- **บันทึกรุ่นนี้**: confirm the selected model-family label for this annotation.
+  Changing the dropdown alone is an uncommitted draft, never human confirmation.
+  Correcting the original label requires a reason before this button can save.
+- **ตัดออก**: exclude this annotation with a required reason.
+- **ยกเลิกผลตรวจ**: clear this annotation's review decision and return to its
+  original mapped class. It does not claim that the original label was verified.
+- **เลือกเพื่อจับกลุ่ม**, then **บันทึกกลุ่มที่เลือก**: group confirmed views of
+  the same physical motorcycle. Merely selecting cards does not change review.
+- Source-image exclusions and similar-pair decisions also use explicit buttons.
+
+The similar-pair panel records `distinct`,
+`same_vehicle_grouped` or `uncertain`; marking a pair as the same vehicle also
+requires selecting the actual matching annotation cards and grouping them.
+Images may contain several vehicles, so a similarity pair alone never identifies
+which vehicles match.
+
+Decision buttons, grouping and pair review only update page memory. They never
+open a save dialog or write automatically. The notice states when results have
+not been saved to disk, and the unsaved-change warning remains active.
+
+On browsers supporting the [native save-file picker](https://developer.mozilla.org/en-US/docs/Web/API/Window/showSaveFilePicker),
+click **บันทึกไฟล์ review.json** when ready. The first explicit save asks where to
+save; later explicit saves reuse that file for the page session. The page reports
+success only after closing the writable stream. A failed or cancelled explicit
+save retains pending decisions and the unsaved-change warning. Click the save
+button again to retry; it does not change the currently displayed crop.
+
+On browsers without that picker, decision buttons record the result in page
+memory. **บันทึกไฟล์ review.json** downloads the JSON; **ดาวน์โหลดสำเนา** always
+offers the download fallback. Check the downloaded file before closing. Native
+save-picker support varies by browser; no server or uploads are introduced.
+
+Input drafts survive switching tabs/filters, but only a decision button commits
+them to review JSON. The page warns before closing with uncommitted drafts. On
+an existing reviewed run the page starts with all prior applied decisions. To
+continue from a separately saved review.json after reopening the page, import
+that file first, then choose the save file again. Importing and saving review do
+not modify the immutable dataset snapshot; rerun preparation to apply decisions.
 
 Alternatively copy review.template.json **outside the immutable run** into
 ignored `reviews/` and edit:
@@ -229,3 +277,17 @@ uv run --project apps/vision-api --no-sync ruff check tools/yolo-training/classi
 ```
 
 Checks use synthetic archives, not private source images. No model is loaded.
+
+For the offline button/file workflow, using Node 22+ and the installed Edge:
+
+```powershell
+node tools/yolo-training/classification/tests/test_gallery.mjs
+```
+
+This creates a tiny synthetic dataset in a temporary folder and uses a hidden
+headless browser. Set `PARKMAP_TEST_BROWSER` and `PARKMAP_TEST_PYTHON` for other
+local Chromium/Python paths. It checks real DOM clicks, correction/exclusion
+validation, valid pipeline-compatible JSON, grouping/pairs, cancellation/retry,
+and an actual download. The native OS file-picker boundary is replaced by a
+controlled file-handle adapter; its dialog/permission flow still needs a manual
+check. No test decision is written to the actual motorcycle dataset.
