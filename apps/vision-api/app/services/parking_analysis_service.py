@@ -7,17 +7,20 @@ from shapely.geometry import Point, Polygon
 from shapely.ops import unary_union
 
 from app.models import DetectionResponse
-from app.services.physical_row_geometry_service import derive_row_centerline
-from app.services.virtual_fitting_service import LENGTH_M, WIDTH_M, fit_rows
-from app.services.capacity_service import calculate_capacity
 from app.services.almost_available_service import calculate_almost_available_placements
 from app.services.camera_projection_service import project_metric_geometry
-from app.services.uncertainty_service import calculate_uncertainty
+from app.services.capacity_service import calculate_capacity
+from app.services.experimental_occupancy_v2_service import (
+    calculate_experimental_occupancy_v2,
+)
+from app.services.motorcycle_reference_sizes import ReferenceDimensions
 from app.services.parking_state_service import calculate_parking_state
-from app.services.repacking_service import calculate_repacking
+from app.services.physical_row_geometry_service import derive_row_centerline
 from app.services.placement_recommendation_service import calculate_recommendations
-from app.services.experimental_occupancy_v2_service import calculate_experimental_occupancy_v2
 from app.services.rearrangement_plan_service import build_rearrangement_plan
+from app.services.repacking_service import calculate_repacking
+from app.services.uncertainty_service import calculate_uncertainty
+from app.services.virtual_fitting_service import LENGTH_M, WIDTH_M, fit_rows
 from app.services.witness_uncertainty_service import classify_witness_uncertainty
 
 EPSILON = 1e-8
@@ -107,10 +110,10 @@ class ParkingAnalysisService:
         return float(projected[0] / projected[2]), float(projected[1] / projected[2])
 
     @staticmethod
-    def _footprint(point: tuple[float, float]) -> Polygon:
+    def _footprint(point: tuple[float, float], width_m: float = WIDTH_M, length_m: float = LENGTH_M) -> Polygon:
         x, y = point
-        half = WIDTH_M / 2
-        return Polygon([(x - half, y), (x + half, y), (x + half, y + LENGTH_M), (x - half, y + LENGTH_M)])
+        half = width_m / 2
+        return Polygon([(x - half, y), (x + half, y), (x + half, y + length_m), (x - half, y + length_m)])
 
     @staticmethod
     def _row_assignment(footprint: Polygon, point: tuple[float, float], rows: list[tuple[str, Polygon]]) -> tuple[str | None, str, list[dict[str, Any]]]:
@@ -135,7 +138,11 @@ class ParkingAnalysisService:
             evidence.append({"row_id": row_id, "intersection_area_m2": intersection_area, "overlap_ratio": intersection_area / footprint_area if footprint_area else 0.0, "overlap_percent": intersection_area / footprint_area * 100 if footprint_area else 0.0})
         return evidence
 
-    def analyze(self, detection: DetectionResponse) -> dict[str, Any]:
+    def analyze(self, detection: DetectionResponse, *, reference_sizes: list[ReferenceDimensions] | None = None) -> dict[str, Any]:
+        if reference_sizes is not None:
+            if len(reference_sizes) != len(detection.detections):
+                raise ValueError("Reference sizes must match every detection index")
+            reference_sizes = [ReferenceDimensions(width_m=size.width_m, length_m=size.length_m, basis=size.basis) for size in reference_sizes]
         homography, calibration, parking = self._config()
         matrix = homography["matrix"]
         roi = Polygon([(p["x_m"], p["y_m"]) for p in homography["roi_metric"]["points"]])
@@ -146,7 +153,8 @@ class ParkingAnalysisService:
         for index, item in enumerate(detection.detections):
             image_point = (item.bbox.x + item.bbox.width / 2, item.bbox.y + item.bbox.height)
             metric_point = self._project(image_point, matrix)
-            footprint = self._footprint(metric_point)
+            size = reference_sizes[index] if reference_sizes is not None else None
+            footprint = self._footprint(metric_point, size.width_m, size.length_m) if size else self._footprint(metric_point)
             row_evidence = ParkingAnalysisService._row_evidence(footprint, rows)
             ordered = sorted([(item["row_id"], item["overlap_ratio"]) for item in row_evidence], key=lambda value: value[1], reverse=True)
             ground_inside = roi.covers(Point(metric_point))
@@ -156,6 +164,9 @@ class ParkingAnalysisService:
             assignment = self._row_assignment(footprint, metric_point, rows)
             inclusion_source = "GROUND_POINT_ROI" if ground_inside else "FOOTPRINT_ROI" if footprint_inside else "PHYSICAL_ROW" if strong_row else "OUTSIDE"
             enriched.append({"detection_id": f"detection_{index + 1}", "detection_index": index, "confidence": item.confidence, "image_ground_point": {"x": image_point[0], "y": image_point[1]}, "metric_ground_point": {"x_m": metric_point[0], "y_m": metric_point[1]}, "canonical_footprint": _geometry(footprint), "transform_valid": True, "ground_point_inside_roi": ground_inside, "footprint_roi_intersection_area_m2": footprint.intersection(roi).area, "footprint_roi_positive_overlap": footprint_inside, "inside_parking_roi": is_included, "roi_inclusion_source": inclusion_source, "row_overlaps": row_evidence, "best_row_id": ordered[0][0] if ordered else None, "best_overlap_ratio": ordered[0][1] if ordered else 0.0, "second_overlap_ratio": ordered[1][1] if len(ordered) > 1 else 0.0, "overlap_margin": (ordered[0][1] - ordered[1][1]) if len(ordered) > 1 else (ordered[0][1] if ordered else 0.0), "row_assignment_v2": {"state": assignment[1], "assigned_row_id": assignment[0], "point_containing_rows": [row_id for row_id, row in rows if row.covers(Point(metric_point))], "matching_rows": [row_id for row_id, ratio in ordered if ratio > EPSILON], "best_row_id": ordered[0][0] if ordered else None, "best_overlap_ratio": ordered[0][1] if ordered else 0.0, "second_overlap_ratio": ordered[1][1] if len(ordered) > 1 else 0.0, "overlap_margin": (ordered[0][1] - ordered[1][1]) if len(ordered) > 1 else (ordered[0][1] if ordered else 0.0), "reason": assignment[1]}})
+            if size is not None:
+                enriched[-1]["reference_size"] = size.model_dump()
+                enriched[-1]["footprint_area_m2"] = footprint.area
             if is_included:
                 included.append((enriched[-1], footprint, assignment))
         occupied_rows = []
@@ -209,7 +220,11 @@ class ParkingAnalysisService:
         experimental_occupancy_v2 = calculate_experimental_occupancy_v2(rows, free_geometries, included)
         recommendation = calculate_recommendations(capacity, parking_state, repacking)
         rearrangement_plan = build_rearrangement_plan(capacity, parking_state, recommendation, repacking)
-        return {"analysis_version": "parking-analysis-v2", "camera_id": homography["camera_id"], "image": {"width": detection.image_width, "height": detection.image_height}, "detection_summary": {"detected": len(detection.detections), "metric_projected": len(enriched), "parking_included": len(included), "parking_excluded": len(enriched) - len(included)}, "detections": enriched, "physical_map": {"parking_roi": _geometry(roi), "parking_roi_image_normalized": roi_image_normalized, "rows": [{"row_id": row_id, "polygon": _geometry(row)["polygons"][0][0], "measured_length_m": measured.get(row_id, {}).get("length_m"), "measured_width_m": measured.get(row_id, {}).get("width_m"), "area_m2": row.area} for row_id, row in rows]}, "occupied_space": {"rows": occupied_rows}, "free_space": {"rows": free_rows}, "virtual_fitting": fitting, "capacity": capacity, "almost_available_placements": almost_available_placements, "witness_safety": witness_safety, "uncertainty": uncertainty, "witness_uncertainty_experiment": witness_uncertainty_experiment, "parking_state": parking_state, "repacking": repacking, "experimental_occupancy_v2": experimental_occupancy_v2, "placement_recommendation": recommendation, "rearrangement_plan": rearrangement_plan}
+        result = {"analysis_version": "parking-analysis-v2", "camera_id": homography["camera_id"], "image": {"width": detection.image_width, "height": detection.image_height}, "detection_summary": {"detected": len(detection.detections), "metric_projected": len(enriched), "parking_included": len(included), "parking_excluded": len(enriched) - len(included)}, "detections": enriched, "physical_map": {"parking_roi": _geometry(roi), "parking_roi_image_normalized": roi_image_normalized, "rows": [{"row_id": row_id, "polygon": _geometry(row)["polygons"][0][0], "measured_length_m": measured.get(row_id, {}).get("length_m"), "measured_width_m": measured.get(row_id, {}).get("width_m"), "area_m2": row.area} for row_id, row in rows]}, "occupied_space": {"rows": occupied_rows}, "free_space": {"rows": free_rows}, "virtual_fitting": fitting, "capacity": capacity, "almost_available_placements": almost_available_placements, "witness_safety": witness_safety, "uncertainty": uncertainty, "witness_uncertainty_experiment": witness_uncertainty_experiment, "parking_state": parking_state, "repacking": repacking, "experimental_occupancy_v2": experimental_occupancy_v2, "placement_recommendation": recommendation, "rearrangement_plan": rearrangement_plan}
+        if reference_sizes is not None:
+            result["analysis_version"] = "reference-size-experiment-v1"
+            result["reference_size_experiment"] = {"status": "EXPERIMENTAL", "candidate_width_m": WIDTH_M, "candidate_length_m": LENGTH_M}
+        return result
 
 
 parking_analysis_service = ParkingAnalysisService()

@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "min_score": 0.0,
+  "fallback": {
+    "width_m": 0.66,
+    "length_m": 2.0,
+    "basis": "INITIAL_STANDARD_NOT_MEASURED"
+  },
+  "classes": {
+    "adv": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "aerox": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "africatwin": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "c125": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "cb150": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "cb300": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "cbr150": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "cbr250": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "cbr300": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "cbr500r": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "click": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "crf250": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "crf300": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "ct125": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "demon": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "drone": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "exciter": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "finn": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "fino": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "forza": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "goldwing": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "grand_filano": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "gt125": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "gtx125": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "lead": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "legend": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "monkey": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "msxgrom": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "mt15": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "nc750": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "nmax": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "pcx": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "popz": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "qbix": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "r15": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "razer": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "rebel": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "rock": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "scoopy": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "super_cub": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "wave": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "wr155": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "xadv": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "xmax": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "xsr": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "zoomerx": {
+      "width_m": 0.66,
+      "length_m": 2.0,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    }
+  }
+}
