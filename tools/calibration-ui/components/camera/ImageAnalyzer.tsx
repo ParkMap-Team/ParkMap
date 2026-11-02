@@ -11,6 +11,8 @@ import { adaptBackendParkingGeometry } from '@/lib/legacyParkingAnalysis';
 import { getCalibration } from '@/lib/calibration';
 import { analyzeParkingWithClassifier, MAX_UPLOAD_BYTES, SUPPORTED_IMAGE_TYPES } from '@/lib/detection';
 import type { components } from '@/types/api.gen';
+import type { ParkingAnalysisResponse } from '@/types/parkingAnalysis';
+import { referenceSizeGeometry } from '@/lib/referenceSizeGeometry';
 import { getGroundPlaneHomography } from '@/lib/groundPlaneHomography';
 import { buildMetricMotorcycleMapping } from '@/lib/metricMotorcycle';
 import { getPhysicalRowGeometry } from '@/lib/physicalRowGeometry';
@@ -28,11 +30,18 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const [classifierModel, setClassifierModel] = useState('');
   const [classification, setClassification] = useState<components['schemas']['ClassifierResult'] | null>(null);
   const [classificationError, setClassificationError] = useState('');
+  const [referenceExperiment, setReferenceExperiment] = useState<components['schemas']['ReferenceSizeExperiment'] | null>(null);
+  const [referenceSizeError, setReferenceSizeError] = useState('');
+  const [useReferenceSizes, setUseReferenceSizes] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [latestVideoFrameUrl, setLatestVideoFrameUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoAnalysisActive, setVideoAnalysisActive] = useState(false);
-  const [analysis, setAnalysis] = useState<DetectionResponse | null>(null);
+  const [standardAnalysis, setAnalysis] = useState<DetectionResponse | null>(null);
+  const experimentActive = useReferenceSizes && referenceExperiment?.parking_analysis != null;
+  const analysis = useMemo(() => standardAnalysis && experimentActive ? {
+    ...standardAnalysis, parking_analysis: referenceExperiment!.parking_analysis as unknown as ParkingAnalysisResponse,
+  } : standardAnalysis, [standardAnalysis, experimentActive, referenceExperiment]);
   const [state, setState] = useState<'idle' | 'processing' | 'error' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [parkingView, setParkingView] = useState<'camera' | 'physical'>('physical');
@@ -46,7 +55,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const videoAnalysisBusyRef = useRef(false);
   const changeClassifierModel = useCallback((model: string) => {
     controllerRef.current?.abort(); setVideoAnalysisActive(false); setVideoProgress(null);
-    setClassifierModel(model); setClassification(null); setClassificationError(''); setState('idle');
+    setClassifierModel(model); setClassification(null); setReferenceExperiment(null); setReferenceSizeError(''); setClassificationError(''); setState('idle');
   }, []);
 
   useEffect(() => {
@@ -91,11 +100,13 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
         const frameTime = video.currentTime;
         const frame = await captureVideoFrame(video);
         setLatestVideoFrameUrl(URL.createObjectURL(frame));
-        setClassification(null);
+        setClassification(null); setReferenceExperiment(null); setReferenceSizeError('');
         const result = await analyzeParkingWithClassifier(frame, classifierModel, controller.signal, !setupRequired);
         if (controller.signal.aborted) return;
         setAnalysis(result.detection as DetectionResponse);
         setClassification(result.classification ?? null);
+        setReferenceExperiment(result.reference_size_experiment ?? null);
+        setReferenceSizeError(result.reference_size_error ?? '');
         setClassificationError(result.classification_error ?? '');
         setState('done');
         setError(result.parking_error ?? null);
@@ -124,7 +135,11 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   }, [setupRequired, videoAnalysisActive, videoUrl, classifierModel]);
 
   const assignments = useMemo(() => analysis && calibration ? assignDetectionsToParkingRows(analysis.detections, calibration) : [], [analysis, calibration]);
-  const mapping = useMemo(() => analysis ? buildMetricMotorcycleMapping(analysis.detections, assignments, homography, physical, analysis.image_width, analysis.image_height) : null, [analysis, assignments, homography, physical]);
+  const mapping = useMemo(() => {
+    if (!analysis) return null;
+    const base = buildMetricMotorcycleMapping(analysis.detections, assignments, homography, physical, analysis.image_width, analysis.image_height);
+    return experimentActive && analysis.parking_analysis ? referenceSizeGeometry(base, analysis.parking_analysis.detections as unknown as Parameters<typeof referenceSizeGeometry>[1]) : base;
+  }, [analysis, assignments, homography, physical, experimentActive]);
   const legacyParkingGeometry = useMemo(() => analysis?.parking_analysis ? adaptBackendParkingGeometry(analysis.parking_analysis) : null, [analysis]);
   const occupiedSpace = legacyParkingGeometry?.occupiedSpace ?? null;
   const freeSpace = legacyParkingGeometry?.freeSpace ?? null;
@@ -133,7 +148,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const chooseFile = (selected?: File) => {
     controllerRef.current?.abort();
     setAnalysis(null);
-    setClassification(null);
+    setClassification(null); setReferenceExperiment(null); setReferenceSizeError('');
     setClassificationError('');
     setState('idle');
     setError(null);
@@ -162,7 +177,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
     const controller = new AbortController();
     controllerRef.current = controller;
     setState('processing');
-    setClassification(null);
+    setClassification(null); setReferenceExperiment(null); setReferenceSizeError('');
     setClassificationError('');
     setAnalysis(null);
     setError(null);
@@ -177,6 +192,8 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
         if (controller.signal.aborted) return;
         setAnalysis(result.detection as DetectionResponse);
         setClassification(result.classification ?? null);
+        setReferenceExperiment(result.reference_size_experiment ?? null);
+        setReferenceSizeError(result.reference_size_error ?? '');
         setClassificationError(result.classification_error ?? '');
         setError(result.parking_error ?? null);
       }
@@ -212,6 +229,13 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
 
       <CameraMonitor imageUrl={previewUrl} videoUrl={videoUrl} videoRef={videoRef} analysis={analysis} assignments={assignments} />
       <ClassifierExperiment model={classifierModel} onModelChange={changeClassifierModel} result={classification} error={classificationError} busy={state === 'processing'} />
+      <section aria-label="ทดลองขนาดตามคลาส" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+        <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={useReferenceSizes} onChange={event => setUseReferenceSizes(event.target.checked)} />ใช้ขนาดอ้างอิงตามคลาส · ทดลอง</label>
+        <p className="mt-2">แก้ความกว้าง/ยาวหน่วยเมตรใน apps/vision-api/config/motorcycle_reference_sizes.json แล้วกด Analyze ใหม่ ค่าเริ่มต้นทุกคลาสเป็นขนาดมาตรฐานเดิม ไม่ใช่ขนาดจริงที่วัดจากรถ</p>
+        <p className="mt-2" role="status">{experimentActive ? 'แผนที่และพื้นที่ว่างด้านล่างใช้ขนาดอ้างอิงตามผลจำแนก · ไม่ใช่การยืนยันว่าจอดได้จริง' : 'แผนที่ด้านล่างใช้ขนาดมาตรฐานเดิม'}</p>
+        <p className="mt-1">ขนาดรถที่จะเข้าจอดใน fitting ยังเป็นขนาดมาตรฐาน · ส่วนนี้ไม่เปลี่ยนผลใน LIFF/worker</p>
+        {referenceSizeError && <p role="alert" className="mt-2 text-red-700">{referenceSizeError}</p>}
+      </section>
       <div className="flex gap-2 text-sm"><button type="button" onClick={() => setParkingView('camera')} className={parkingView === 'camera' ? 'font-semibold text-blue-700' : 'text-slate-500'}>Camera View</button><button type="button" onClick={() => setParkingView('physical')} className={parkingView === 'physical' ? 'font-semibold text-blue-700' : 'text-slate-500'}>Physical Map</button></div>
       {parkingView === 'camera' ? <CameraParkingOverlay imageUrl={previewUrl ?? latestVideoFrameUrl} analysis={analysis?.parking_analysis} detection={analysis} /> : <PhysicalMeasuredMap physical={physical} mapping={mapping} homography={homography} occupiedSpace={occupiedSpace} freeSpace={freeSpace} fitting={null} recommendations={analysis?.parking_analysis?.placement_recommendation} capacity={analysis?.parking_analysis?.capacity} almostAvailablePlacements={analysis?.parking_analysis?.almost_available_placements} witnessSafety={analysis?.parking_analysis?.witness_safety} parkingState={analysis?.parking_analysis?.parking_state} uncertainty={analysis?.parking_analysis?.uncertainty} />}
       {analysis?.parking_analysis && <ParkingStateSummary analysis={analysis.parking_analysis} />}

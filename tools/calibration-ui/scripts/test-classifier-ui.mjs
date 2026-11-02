@@ -74,6 +74,12 @@ try {
   await wait(`Boolean(document.querySelector('img[alt="Crop ที่ส่งเข้า classifier"]'))`, 120000);
   assert.equal(await evaluate(`document.querySelectorAll('section[aria-label="จำแนกรุ่นรถทดลอง"] ol li').length`), 3);
   assert.equal(await evaluate(`document.querySelector('img[alt="Crop ที่ส่งเข้า classifier"]').naturalWidth>0`), true);
+  assert.match(await evaluate(`document.querySelector('[aria-label="ขนาดอ้างอิงของรถ"]').textContent`), /0\.66.*2\.00/);
+  assert.equal(await evaluate(`document.querySelector('section[aria-label="ทดลองขนาดตามคลาส"] input').checked`), true);
+  await evaluate(`document.querySelector('section[aria-label="ทดลองขนาดตามคลาส"] input').click()`);
+  await wait(`document.querySelector('section[aria-label="ทดลองขนาดตามคลาส"]').textContent.includes('แผนที่ด้านล่างใช้ขนาดมาตรฐานเดิม')`);
+  await evaluate(`document.querySelector('section[aria-label="ทดลองขนาดตามคลาส"] input').click()`);
+  await wait(`document.querySelector('section[aria-label="ทดลองขนาดตามคลาส"]').textContent.includes('แผนที่และพื้นที่ว่างด้านล่างใช้ขนาดอ้างอิง')`);
   await evaluate(`var s=document.querySelector('select[aria-label="โมเดลจำแนกรุ่น"]');s.selectedIndex=2;s.dispatchEvent(new Event('change',{bubbles:true}))`);
   await wait(`!document.querySelector('img[alt="Crop ที่ส่งเข้า classifier"]')`);
   await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent==='Analyze').click()`);

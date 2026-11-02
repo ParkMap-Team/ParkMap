@@ -65,4 +65,14 @@ previews stay in request/page memory, use no-store responses, and are never
 automatically added to Label or a dataset. Changing input/model/mode clears old
 results. This is closed-set classification with uncalibrated scores, not verified
 model identity, measured dimensions, or parking availability. Neither LIFF nor
-parking geometry uses these experimental predictions. Training remains terminal-only.
+the worker's parking geometry uses these experimental predictions. Training remains terminal-only.
+
+Local Parking may map exact classifier families through
+`config/motorcycle_reference_sizes.json`. All classes initially use the standard
+0.66 m lateral pitch and 2.00 m length, explicitly not measured vehicle dimensions.
+Python returns separate experimental occupied/free geometry and capacity for UI
+comparison with the unchanged standard result. Prospective incoming vehicles keep
+standard fitting dimensions. Invalid rules retain standard analysis with an error.
+Worker, persisted state and LIFF never consume these references. This experiment
+does not replace ADR 0011's validation requirement. See
+[reference-size instructions](../motorcycle-reference-sizes.md).
