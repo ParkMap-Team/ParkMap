@@ -700,6 +700,12 @@ export interface components {
             };
             /** Crop Url */
             crop_url: string;
+            /**
+             * Detection Index
+             * @default 0
+             */
+            detection_index: number;
+            reference_size?: components["schemas"]["ResolvedReferenceSize"] | null;
             /** Top3 */
             top3: components["schemas"]["Prediction"][];
         };
@@ -1282,6 +1288,9 @@ export interface components {
             detection: components["schemas"]["DetectionResponse"];
             /** Parking Error */
             parking_error?: string | null;
+            /** Reference Size Error */
+            reference_size_error?: string | null;
+            reference_size_experiment?: components["schemas"]["ReferenceSizeExperiment"] | null;
         };
         /**
          * ParkingStatePublish
@@ -1370,6 +1379,52 @@ export interface components {
             family: string;
             /** Score */
             score: number;
+        };
+        /** ReferenceSizeExperiment */
+        ReferenceSizeExperiment: {
+            /**
+             * Config File
+             * @default config/motorcycle_reference_sizes.json
+             */
+            config_file: string;
+            /** Parking Analysis */
+            parking_analysis?: {
+                [key: string]: unknown;
+            } | null;
+            /** Sizes */
+            sizes: components["schemas"]["ResolvedReferenceSize"][];
+            /**
+             * Status
+             * @default EXPERIMENTAL
+             * @constant
+             */
+            status: "EXPERIMENTAL";
+        };
+        /** ResolvedReferenceSize */
+        ResolvedReferenceSize: {
+            /** Basis */
+            basis: string;
+            /** Length M */
+            length_m: number;
+            /** Predicted Family */
+            predicted_family: string | null;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "CLASS_RULE" | "NO_CLASSIFICATION" | "CLASS_NOT_CONFIGURED" | "BELOW_MIN_SCORE";
+            /** Rule Class */
+            rule_class: string | null;
+            /** Score */
+            score: number | null;
+            /**
+             * Status
+             * @default EXPERIMENTAL_REFERENCE
+             * @constant
+             */
+            status: "EXPERIMENTAL_REFERENCE";
+            /** Width M */
+            width_m: number;
         };
         /** SiteParkingStateResponse */
         SiteParkingStateResponse: {

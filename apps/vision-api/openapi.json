@@ -314,6 +314,21 @@
             "title": "Crop Url",
             "type": "string"
           },
+          "detection_index": {
+            "default": 0,
+            "title": "Detection Index",
+            "type": "integer"
+          },
+          "reference_size": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolvedReferenceSize"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "top3": {
             "items": {
               "$ref": "#/components/schemas/Prediction"
@@ -1992,6 +2007,27 @@
               }
             ],
             "title": "Parking Error"
+          },
+          "reference_size_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Size Error"
+          },
+          "reference_size_experiment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReferenceSizeExperiment"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -2192,6 +2228,127 @@
           "score"
         ],
         "title": "Prediction",
+        "type": "object"
+      },
+      "ReferenceSizeExperiment": {
+        "properties": {
+          "config_file": {
+            "default": "config/motorcycle_reference_sizes.json",
+            "title": "Config File",
+            "type": "string"
+          },
+          "parking_analysis": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parking Analysis"
+          },
+          "sizes": {
+            "items": {
+              "$ref": "#/components/schemas/ResolvedReferenceSize"
+            },
+            "title": "Sizes",
+            "type": "array"
+          },
+          "status": {
+            "const": "EXPERIMENTAL",
+            "default": "EXPERIMENTAL",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sizes"
+        ],
+        "title": "ReferenceSizeExperiment",
+        "type": "object"
+      },
+      "ResolvedReferenceSize": {
+        "additionalProperties": false,
+        "properties": {
+          "basis": {
+            "minLength": 1,
+            "title": "Basis",
+            "type": "string"
+          },
+          "length_m": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 10.0,
+            "title": "Length M",
+            "type": "number"
+          },
+          "predicted_family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predicted Family"
+          },
+          "reason": {
+            "enum": [
+              "CLASS_RULE",
+              "NO_CLASSIFICATION",
+              "CLASS_NOT_CONFIGURED",
+              "BELOW_MIN_SCORE"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "rule_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Class"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "status": {
+            "const": "EXPERIMENTAL_REFERENCE",
+            "default": "EXPERIMENTAL_REFERENCE",
+            "title": "Status",
+            "type": "string"
+          },
+          "width_m": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 5.0,
+            "title": "Width M",
+            "type": "number"
+          }
+        },
+        "required": [
+          "width_m",
+          "length_m",
+          "basis",
+          "predicted_family",
+          "score",
+          "rule_class",
+          "reason"
+        ],
+        "title": "ResolvedReferenceSize",
         "type": "object"
       },
       "SiteParkingStateResponse": {
