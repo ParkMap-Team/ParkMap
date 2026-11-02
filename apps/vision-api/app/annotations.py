@@ -103,7 +103,8 @@ def decode_sample(payload: str) -> AnnotationSample:
 
 def workspace(dataset: str) -> Path:
     # Environment is server-owned; there is no browser-supplied filesystem path.
-    default = Path(__file__).resolve().parents[3] / "tools/yolo-training/datasets"
+    api_root = Path(__file__).resolve().parent.parent
+    default = api_root.parent.parent / "tools/yolo-training/datasets"
     root = Path(os.getenv("PARKMAP_DATASET_ROOT", str(default))).resolve()
     folder = (root / dataset).resolve()
     if folder.parent != root:

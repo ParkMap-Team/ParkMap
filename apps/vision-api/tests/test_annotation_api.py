@@ -6,9 +6,20 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
+from app import annotations
 from app.annotations import capture_group
 from app.main import app
 from app.services.cv_service import cv_service
+
+
+def test_dataset_override_works_in_the_shallow_container_layout(tmp_path, monkeypatch):
+    monkeypatch.setenv("PARKMAP_EDITOR_TOKEN", "test")
+    monkeypatch.setenv("PARKMAP_DATASET_ROOT", str(tmp_path))
+    monkeypatch.setattr(annotations, "__file__", "/app/app/annotations.py")
+    response = TestClient(app).get("/api/operator/annotations/demo", headers={"Authorization": "Bearer test"})
+    assert response.status_code == 200
+    assert response.json() == []
+    assert (tmp_path / "demo" / "annotations.sqlite3").is_file()
 
 
 def upload(client, headers, color="blue", filename="sample.png"):
