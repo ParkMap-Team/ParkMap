@@ -6,7 +6,7 @@ restart the Calibration UI terminal if it was already running.
 
 1. Choose a JPEG, PNG or WebP with the existing **Choose file** button.
 2. Under the camera preview, enable **จำแนกรุ่นรถ · ทดลอง**.
-3. Choose a completed model run. The menu shows chronological run number, run ID
+3. Choose a completed model run. The menu shows chronological run number, architecture, run ID
    and best epoch. Incomplete training runs are not listed.
 4. Choose full image with YOLO, or an already cropped single motorcycle without YOLO.
 5. Press **ทดสอบจำแนกรุ่น**. Click a detection box or crop thumbnail to see the
@@ -34,6 +34,9 @@ format, dimensions and decoding, normalizes EXIF, and creates metadata-free
 previews in memory. No upload or classifier result is written to disk.
 
 Models are discovered under ignored `tools/yolo-training/classification/runs/`.
+Supported architectures are ResNet18 and EfficientNet-B0. Both use the recorded
+ParkMap letterbox preprocessing, preserving the crop aspect ratio, rather than
+the original ImageNet center-crop evaluation recipe.
 They must have `run_state=complete`, evaluation metadata and `best.pt` matching
 the hash recorded in `run.json`. No checkpoint paths are accepted from the browser.
 Only the latest selected checkpoint is cached in memory; inference runs on CPU.
