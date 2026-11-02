@@ -1,7 +1,8 @@
 # Comparing classifier architectures
 
-The trainer and the local Parking experiment support `resnet18` and
-`efficientnet_b0`. This does not change the YOLO detector or parking decisions.
+The trainer and the local Parking experiment support `resnet18`,
+`efficientnet_b0` and the [YOLO11n-cls trial](YOLO-CLASSIFICATION.md).
+This does not change the YOLO detector or parking decisions.
 
 Run from the repository root (PowerShell):
 
