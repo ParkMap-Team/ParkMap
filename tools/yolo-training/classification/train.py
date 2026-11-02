@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from classifier_data import validate_run
+from classifier_data import sha256, validate_run
 
 
 def read_options(config_path, args):
@@ -19,7 +19,7 @@ def read_options(config_path, args):
         raise ValueError(f"Training config requires exactly: {sorted(expected)}")
     dataset = Path(args.dataset).resolve() if args.dataset else (config_path.parent / options["dataset"]).resolve()
     output = Path(args.output).resolve() if args.output else (config_path.parent / options["output"]).resolve()
-    for key in ("epochs", "batch_size", "image_size", "device", "learning_rate"):
+    for key in ("epochs", "batch_size", "image_size", "device", "learning_rate", "architecture"):
         value = getattr(args, key)
         if value is not None:
             options[key] = value
@@ -27,8 +27,11 @@ def read_options(config_path, args):
         options["fine_tune"] = True
     if args.no_augment:
         options["augment"] = False
-    if options["architecture"] != "resnet18":
-        raise ValueError("This baseline supports architecture=resnet18")
+    if args.patience < 0:
+        raise ValueError("patience must be nonnegative; zero disables early stopping")
+    options["patience"] = args.patience
+    if options["architecture"] not in {"resnet18", "efficientnet_b0"}:
+        raise ValueError("Use architecture=resnet18 or efficientnet_b0")
     if not isinstance(options["device"], str):
         raise TypeError("device must be auto, cpu, cuda[:N] or mps")
     for name in ("epochs", "batch_size", "threads"):
@@ -60,23 +63,32 @@ def main(argv=None):
     parser.add_argument("--image-size", type=int)
     parser.add_argument("--learning-rate", type=float)
     parser.add_argument("--device", help="auto, cpu, cuda[:N] or mps")
+    parser.add_argument("--architecture", choices=("resnet18", "efficientnet_b0"))
     parser.add_argument("--fine-tune", action="store_true", help="Update the whole network instead of just its classifier head")
     parser.add_argument("--no-augment", action="store_true")
-    parser.add_argument("--initial-weights", type=Path, help="Optional local original torchvision ResNet18 ImageNet state_dict for offline training")
+    parser.add_argument("--patience", type=int, default=0, help="Stop after this many epochs without better validation Macro F1; 0 disables")
+    parser.add_argument("--warm-start", type=Path, help="Verified parent ParkMap best.pt for an incoming-only transfer snapshot")
+    parser.add_argument("--continue-from", type=Path, help="Continue weights on the exact same snapshot with a fresh optimizer in a new run")
+    parser.add_argument("--initial-weights", type=Path, help="Optional original torchvision ImageNet state_dict matching --architecture for offline training")
     parser.add_argument("--evaluate-test", action="store_true", help="Explicit held-out test evaluation, after val-based model selection")
     parser.add_argument("--checkpoint", type=Path, help="ParkMap classifier best.pt; only with --evaluate-test")
     args = parser.parse_args(argv)
+    if args.continue_from and (args.warm_start or args.initial_weights or args.evaluate_test):
+        parser.error("--continue-from cannot be combined with --warm-start, --initial-weights or --evaluate-test")
     if args.evaluate_test != bool(args.checkpoint):
         parser.error("--evaluate-test and --checkpoint must be supplied together")
     if args.initial_weights and args.evaluate_test:
         parser.error("--initial-weights is for training, not test evaluation")
+    if args.warm_start and (args.initial_weights or args.evaluate_test):
+        parser.error("--warm-start cannot be combined with --initial-weights or --evaluate-test")
     try:
         options = read_options(args.config, args)
-        summary, samples = validate_run(options["dataset"], options["allow_provisional"])
+        summary, samples = validate_run(options["dataset"], options["allow_provisional"], warm_start=args.warm_start, evaluation_only=args.evaluate_test)
         if args.initial_weights and not args.initial_weights.is_file():
             raise ValueError("Initial weights file does not exist")
-        console_summary = {key: value for key, value in summary.items() if key not in {"class_coverage", "classes"}}
+        console_summary = {key: value for key, value in summary.items() if key not in {"class_coverage", "classes", "warm_start_parent", "missing_training_classes"}}
         console_summary["class_count"] = len(summary["classes"])
+        console_summary["missing_training_class_count"] = len(summary["missing_training_classes"])
         print(json.dumps({"dataset": console_summary, "options": options, "validate_only": args.validate_only}, indent=2), flush=True)
         if args.validate_only:
             return 0
@@ -86,6 +98,7 @@ def main(argv=None):
             evaluate_test,
             fit,
             initial_weights_metadata,
+            load_checkpoint,
             seed_everything,
             select_device,
         )
@@ -99,8 +112,24 @@ def main(argv=None):
             print(f"Test top1: {metrics['top1']:.3f} | macro F1: {metrics['macro_f1']:.3f}\nReport: {run}", flush=True)
         else:
             weights_dir = Path(__file__).with_name("weights")
-            model = build_model(summary["classes"], weights_dir, options["fine_tune"], args.initial_weights)
-            options.update(initial_weights_metadata(weights_dir, args.initial_weights))
+            if args.warm_start or args.continue_from:
+                starting_path = (args.warm_start or args.continue_from).resolve()
+                checkpoint = load_checkpoint(starting_path, summary["warm_start_parent"] if args.warm_start else summary)
+                if checkpoint["architecture"] != options["architecture"]:
+                    raise ValueError("Warm-start architecture must match the parent checkpoint")
+                if checkpoint["image_size"] != options["image_size"]:
+                    raise ValueError("Warm-start image size must match the parent checkpoint")
+                model = build_model(summary["classes"], weights_dir=None, fine_tune=options["fine_tune"], pretrained=False, architecture=options["architecture"])
+                model.load_state_dict(checkpoint["state_dict"], strict=True)
+                options.update(initial_weights=str(starting_path), initial_weights_source="ParkMap classifier",
+                               initial_weights_sha256=sha256(starting_path))
+                if args.warm_start:
+                    options["warm_start_checkpoint"] = str(starting_path)
+                else:
+                    options.update(continued_from_checkpoint=str(starting_path), continued_from_epoch=checkpoint["epoch"], optimizer_restored=False)
+            else:
+                model = build_model(summary["classes"], weights_dir, options["fine_tune"], args.initial_weights, architecture=options["architecture"])
+                options.update(initial_weights_metadata(weights_dir, args.initial_weights, architecture=options["architecture"]))
             print(f"Training {len(summary['classes'])} classes | {'full network' if options['fine_tune'] else 'classifier head only'} | device {options['device']}", flush=True)
             fit(model, samples, summary, options, run)
             print(f"Finished. Best classifier: {run / 'best.pt'}\nValidation mistakes: {run / 'val/mistakes.html'}\nHeld-out test was not evaluated.", flush=True)
