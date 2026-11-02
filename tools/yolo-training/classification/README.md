@@ -296,3 +296,37 @@ validation, valid pipeline-compatible JSON, grouping/pairs, cancellation/retry,
 and an actual download. The native OS file-picker boundary is replaced by a
 controlled file-handle adapter; its dialog/permission flow still needs a manual
 check. No test decision is written to the actual motorcycle dataset.
+# Review an additional HONDA 2 source
+
+Open `prepared/review-honda2/index.html` locally after generating it. This is a
+separate provisional review workspace, not a training snapshot. It does not
+change `prepared/latest.json`, existing reviews, or `training.json`.
+
+```powershell
+apps\vision-api\.venv\Scripts\python.exe tools/yolo-training/classification/prepare_review.py --archive "C:\Users\user\Downloads\HONDA 2.v2i.yolov8.zip"
+```
+
+For a separate Python environment (including Colab), install
+`requirements-review.txt`. Source policies are explicit in `honda2.review.json`;
+the original ZIP remains unchanged. Polygon annotations are cropped using their
+enclosing rectangle at native resolution, with no extra stretching. Existing
+stretch in the source export cannot be undone.
+
+- **N** confirms the displayed selected family and moves forward; **M** excludes
+  the annotation and moves forward. Arrow keys navigate without a decision.
+- Ambiguous source names start with a blank selection. Choose a known family
+  before N; exclude a picture if you cannot identify it. Candidate names in the
+  config are suggestions only, never automatic alias corrections.
+- N/M retain decisions in page memory. Click the save button explicitly to save
+  **review-honda2.json** before closing. Import that file to resume later.
+- To rebuild with saved decisions, repeat the command with
+  `--review "C:\path\review-honda2.json"`. Immutable fingerprinted workspaces
+  preserve earlier versions; repeated identical input reuses the same output.
+- Exact duplicates and filename-derived augmentation relationships are grouped
+  conservatively, without dropping any annotation. Inspect source images and
+  similar-image pairs too. Filename groups do not prove physical vehicle identity.
+
+No train/val/test folders are created here. After human review, a separate merge
+must reconcile labels and duplicates against the existing dataset before new
+splits or training. Model-family accuracy, unrecognized same-vehicle views,
+source image rights, and heuristic similar pairs remain unverified.
