@@ -40,9 +40,12 @@ format, dimensions and decoding, normalizes EXIF, and creates metadata-free
 previews in memory. No upload or classifier result is written to disk.
 
 Models are discovered under ignored `tools/yolo-training/classification/runs/`.
-Supported architectures are ResNet18 and EfficientNet-B0. Both use the recorded
+Supported architectures are ResNet18, EfficientNet-B0 and YOLO11n-cls. All use the recorded
 ParkMap letterbox preprocessing, preserving the crop aspect ratio, rather than
 the original ImageNet center-crop evaluation recipe.
+YOLO11n-cls uses its recorded RGB 0..1 normalization and logits; its softmax scores
+are computed once, matching training evaluation. Selecting it changes the crop
+classifier, while YOLO detection and parking geometry use the existing pipeline.
 They must have `run_state=complete`, evaluation metadata and `best.pt` matching
 the hash recorded in `run.json`. No checkpoint paths are accepted from the browser.
 Only the latest selected checkpoint is cached in memory; inference runs on CPU.

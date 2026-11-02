@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -59,7 +60,8 @@ def test_analyze_detects_once_and_classifies_the_same_boxes(monkeypatch):
     assert partial.json()["classification_error"]
 
 
-def test_operator_can_predict_with_an_efficientnet_checkpoint(tmp_path, monkeypatch):
+@pytest.mark.parametrize("architecture", ["efficientnet_b0", "yolo11n_cls"])
+def test_operator_can_predict_with_a_classifier_checkpoint(tmp_path, monkeypatch, architecture):
     import torch
     from torchvision import models
 
@@ -68,24 +70,37 @@ def test_operator_can_predict_with_an_efficientnet_checkpoint(tmp_path, monkeypa
     monkeypatch.setattr(classifier, "_cache", None)
     folder = tmp_path / "train-fixture"
     (folder / "val").mkdir(parents=True)
-    model = models.efficientnet_b0(weights=None)
-    model.classifier[-1] = torch.nn.Linear(model.classifier[-1].in_features, 3)
+    if architecture == "yolo11n_cls":
+        from ultralytics.nn.tasks import ClassificationModel
+
+        model = ClassificationModel("yolo11n-cls.yaml", nc=1000, verbose=False)
+        head = model.model[-1]
+        head.linear = torch.nn.Linear(head.linear.in_features, 3)
+        linear = head.linear
+    else:
+        model = models.efficientnet_b0(weights=None)
+        model.classifier[-1] = torch.nn.Linear(model.classifier[-1].in_features, 3)
+        linear = model.classifier[-1]
     with torch.no_grad():
         for parameter in model.parameters():
             parameter.zero_()
-        model.classifier[-1].bias.copy_(torch.tensor([0., 1., 2.]))
+        linear.bias.copy_(torch.tensor([0., 1., 2.]))
     classes = ["a", "b", "c"]
     checkpoint = folder / "best.pt"
-    torch.save({"format_version": 1, "architecture": "efficientnet_b0", "classes": classes, "image_size": 64,
-                "preprocessing": {"protocol": "letterbox_rgb_v1", "mean": [.485, .456, .406], "std": [.229, .224, .225], "padding_rgb": [124, 116, 104]},
-                "state_dict": model.state_dict()}, checkpoint)
+    is_yolo = architecture == "yolo11n_cls"
+    torch.save({"format_version": 1, "architecture": architecture, "classes": classes, "image_size": 64,
+                "preprocessing": {"protocol": "letterbox_rgb_v1", "mean": [0., 0., 0.] if is_yolo else [.485, .456, .406], "std": [1., 1., 1.] if is_yolo else [.229, .224, .225], "padding_rgb": [124, 116, 104]},
+                "state_dict": {("network." + key if is_yolo else key): value for key, value in model.state_dict().items()}}, checkpoint)
     digest = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
     (folder / "run.json").write_text(json.dumps({"run_state": "complete", "best_epoch": 1, "dataset": {"classes": classes},
-                                                "options": {"architecture": "efficientnet_b0"}, "best_checkpoint_sha256": digest}))
+                                                "options": {"architecture": architecture}, "best_checkpoint_sha256": digest}))
     (folder / "val/metrics.json").write_text(json.dumps({"top1": .5}))
     stream = io.BytesIO()
     Image.new("RGB", (40, 20), "blue").save(stream, "PNG")
     client = TestClient(app, headers={"Authorization": "Bearer test-key"})
+    listed = client.get("/api/operator/classifier/models")
+    assert listed.status_code == 200
+    assert architecture in listed.json()[0]["label"]
     response = client.post("/api/operator/classifier/predict", data={"model_id": "train-fixture", "mode": "crop"},
                            files={"image": ("motorcycle.png", stream.getvalue(), "image/png")})
     assert response.status_code == 200

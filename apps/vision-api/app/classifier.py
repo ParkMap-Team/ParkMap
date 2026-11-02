@@ -77,7 +77,7 @@ def available_models():
             if meta.get("run_state") != "complete" or not (folder / "best.pt").is_file():
                 continue
             architecture = meta.get("options", {}).get("architecture", "resnet18")
-            if architecture not in {"resnet18", "efficientnet_b0"}:
+            if architecture not in {"resnet18", "efficientnet_b0", "yolo11n_cls"}:
                 continue
             result.append(ClassifierModel(id=folder.name, label=f"{architecture} · {folder.name} · {len(meta['dataset']['classes'])} classes",
                                           epoch=meta["best_epoch"], classes=len(meta["dataset"]["classes"]), val_top1=metrics["top1"]))
@@ -120,7 +120,7 @@ def load_model(model_id):
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
     preprocessing = checkpoint["preprocessing"]
     architecture = checkpoint.get("architecture")
-    if checkpoint.get("format_version") != 1 or architecture not in {"resnet18", "efficientnet_b0"} or preprocessing["protocol"] != "letterbox_rgb_v1":
+    if checkpoint.get("format_version") != 1 or architecture not in {"resnet18", "efficientnet_b0", "yolo11n_cls"} or preprocessing["protocol"] != "letterbox_rgb_v1":
         raise ValueError("Unsupported classifier checkpoint")
     if architecture != meta.get("options", {}).get("architecture", "resnet18"):
         raise ValueError("Checkpoint architecture does not match run metadata")
@@ -128,13 +128,24 @@ def load_model(model_id):
     if classes != meta["dataset"]["classes"] or not 64 <= checkpoint["image_size"] <= 1024:
         raise ValueError("Invalid classifier class order or image size")
     torch.set_num_threads(2)
-    if architecture == "resnet18":
+    state_dict = checkpoint["state_dict"]
+    if architecture == "yolo11n_cls":
+        from ultralytics.nn.tasks import ClassificationModel
+
+        model = ClassificationModel("yolo11n-cls.yaml", nc=1000, verbose=False)
+        head = model.model[-1]
+        head.linear = torch.nn.Linear(head.linear.in_features, len(classes))
+        # The training adapter wraps the same Ultralytics network under `network`.
+        if not all(key.startswith("network.") for key in state_dict):
+            raise ValueError("Invalid YOLO classifier state dict")
+        state_dict = {key.removeprefix("network."): value for key, value in state_dict.items()}
+    elif architecture == "resnet18":
         model = models.resnet18(weights=None)
         model.fc = torch.nn.Linear(model.fc.in_features, len(classes))
     else:
         model = models.efficientnet_b0(weights=None)
         model.classifier[-1] = torch.nn.Linear(model.classifier[-1].in_features, len(classes))
-    model.load_state_dict(checkpoint["state_dict"], strict=True)
+    model.load_state_dict(state_dict, strict=True)
     model.eval()
     tensor_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(preprocessing["mean"], preprocessing["std"])])
     _cache = (stamp, model, classes, checkpoint["image_size"], tuple(preprocessing["padding_rgb"]), tensor_transform)
@@ -166,7 +177,11 @@ def classify(decoded, model_id, mode, boxes=None):
                 continue
             padded = ImageOps.pad(crop, (size, size), method=Image.Resampling.BILINEAR, color=padding)
             with torch.inference_mode():
-                scores, indices = model(transform(padded).unsqueeze(0)).softmax(1)[0].topk(min(3, len(classes)))
+                output = model(transform(padded).unsqueeze(0))
+                # YOLO returns (probabilities, logits) in eval mode; use logits so
+                # softmax is applied once, matching the saved training evaluation.
+                logits = output[1] if isinstance(output, tuple) else output
+                scores, indices = logits.softmax(1)[0].topk(min(3, len(classes)))
             crops.append(ClassifiedCrop(bbox=box, crop_url=encode_preview(crop), top3=[Prediction(family=classes[i], score=float(s)) for i, s in zip(indices.tolist(), scores.tolist(), strict=True)]))
         return ClassifierResult(model_id=model_id, image_width=decoded.width, image_height=decoded.height,
                                 preview_url=encode_preview(decoded), crops=crops)

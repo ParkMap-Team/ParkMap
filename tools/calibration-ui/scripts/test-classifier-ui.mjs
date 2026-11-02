@@ -9,6 +9,7 @@ import { extname, join, resolve } from 'node:path';
 
 const base = process.argv[2] ?? 'http://127.0.0.1:3000';
 const image = resolve(process.argv[3] ?? '../../apps/vision-api/test-data/auto-parking/20260925_0931.jpeg');
+const targetArchitecture = process.argv[4];
 const temp = await mkdtemp(join(tmpdir(), 'parkmap-classifier-browser-'));
 const listener = createServer();
 await new Promise(done => listener.listen(0, '127.0.0.1', done));
@@ -64,6 +65,11 @@ try {
   await call('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [image] });
   await wait(`document.body.innerText.includes(${JSON.stringify(image.split(/[\\/]/).at(-1))})`);
   await wait(`document.querySelector('select[aria-label="โมเดลจำแนกรุ่น"]')?.options.length >= 3`);
+  if (targetArchitecture) {
+    await wait(`[...document.querySelector('select[aria-label="โมเดลจำแนกรุ่น"]').options].some(o=>o.textContent.includes(${JSON.stringify(targetArchitecture)}))`);
+    await evaluate(`var target=document.querySelector('select[aria-label="โมเดลจำแนกรุ่น"]');target.value=[...target.options].find(o=>o.textContent.includes(${JSON.stringify(targetArchitecture)})).value;target.dispatchEvent(new Event('change',{bubbles:true}))`);
+    assert.ok((await evaluate(`document.querySelector('select[aria-label="โมเดลจำแนกรุ่น"]').selectedOptions[0].textContent`)).includes(targetArchitecture));
+  }
   await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent==='Analyze').click()`);
   await wait(`Boolean(document.querySelector('img[alt="Crop ที่ส่งเข้า classifier"]'))`, 120000);
   assert.equal(await evaluate(`document.querySelectorAll('section[aria-label="จำแนกรุ่นรถทดลอง"] ol li').length`), 3);
