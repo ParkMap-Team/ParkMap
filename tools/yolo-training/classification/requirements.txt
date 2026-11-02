@@ -1,0 +1,3 @@
+# Preparation only: no Torch, YOLO or model training dependencies.
+Pillow==11.3.0
+PyYAML==6.0.3

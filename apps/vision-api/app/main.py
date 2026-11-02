@@ -19,6 +19,7 @@ from app.db.session import get_session
 from app.db.tables import ParkingArea, Site
 from app.lot_model_editor import router as lot_model_editor_router
 from app.annotations import router as annotations_router
+from app.classifier import router as classifier_router
 from app.models import IDENTIFIER_PATTERN, DetectionResponse, GroundPlaneCalibration, GroundPlaneCalibrationResponse, GroundPlaneHomographyResponse, HealthResponse, LotModelDefinition, LotModelResponse, MotorcycleFittingConfiguration, MotorcycleFittingResponse, ParkingCalibration, ParkingStatePublish, PhysicalRowGeometryConfig, SiteParkingStateResponse, SiteSummary
 from app.services.calibration_service import calibration_service
 from app.services.cv_service import ModelUnavailableError, cv_service
@@ -36,6 +37,7 @@ load_dotenv()
 app = FastAPI(title="ParkMap API", version="0.2.0", description="API boundary for ParkMap monitoring and the future CV pipeline.")
 app.include_router(lot_model_editor_router)
 app.include_router(annotations_router)
+app.include_router(classifier_router)
 
 allowed_origins = [origin.strip() for origin in os.getenv("PARKMAP_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",") if origin.strip()]
 app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_credentials=True, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])

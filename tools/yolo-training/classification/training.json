@@ -1,0 +1,16 @@
+{
+  "dataset": "prepared/run-4cb0b6637def7634bde2",
+  "output": "runs",
+  "architecture": "resnet18",
+  "image_size": 224,
+  "epochs": 10,
+  "batch_size": 16,
+  "learning_rate": 0.001,
+  "seed": 20261102,
+  "device": "auto",
+  "threads": 2,
+  "workers": 0,
+  "fine_tune": false,
+  "augment": true,
+  "allow_provisional": true
+}

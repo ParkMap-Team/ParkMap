@@ -55,6 +55,11 @@ tools/yolo-training/**/.ipynb_checkpoints/
 tools/yolo-training/**/__pycache__/
 tools/yolo-training/**/*.pt
 tools/yolo-training/**/*.onnx
+tools/yolo-training/classification/inputs/
+tools/yolo-training/classification/prepared/
+tools/yolo-training/classification/reviews/
+tools/yolo-training/classification/runs/
+tools/yolo-training/classification/weights/
 
 # Local deployment packaging
 .deploy-stage*/

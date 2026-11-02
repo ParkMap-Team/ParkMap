@@ -147,6 +147,34 @@
         "title": "Body_analyze_hybrid_parking_api_hybrid_parking_analyze_post",
         "type": "object"
       },
+      "Body_predict_api_operator_classifier_predict_post": {
+        "properties": {
+          "image": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Image",
+            "type": "string"
+          },
+          "mode": {
+            "default": "detect",
+            "enum": [
+              "detect",
+              "crop"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image",
+          "model_id"
+        ],
+        "title": "Body_predict_api_operator_classifier_predict_post",
+        "type": "object"
+      },
       "Body_upload_image_api_operator_annotations__dataset__images_post": {
         "properties": {
           "image": {
@@ -247,6 +275,110 @@
           "name"
         ],
         "title": "CalibrationRow",
+        "type": "object"
+      },
+      "ClassifiedCrop": {
+        "properties": {
+          "bbox": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Bbox",
+            "type": "object"
+          },
+          "crop_url": {
+            "title": "Crop Url",
+            "type": "string"
+          },
+          "top3": {
+            "items": {
+              "$ref": "#/components/schemas/Prediction"
+            },
+            "title": "Top3",
+            "type": "array"
+          }
+        },
+        "required": [
+          "bbox",
+          "crop_url",
+          "top3"
+        ],
+        "title": "ClassifiedCrop",
+        "type": "object"
+      },
+      "ClassifierModel": {
+        "properties": {
+          "classes": {
+            "title": "Classes",
+            "type": "integer"
+          },
+          "epoch": {
+            "title": "Epoch",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "val_top1": {
+            "title": "Val Top1",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "epoch",
+          "classes",
+          "val_top1"
+        ],
+        "title": "ClassifierModel",
+        "type": "object"
+      },
+      "ClassifierResult": {
+        "properties": {
+          "crops": {
+            "items": {
+              "$ref": "#/components/schemas/ClassifiedCrop"
+            },
+            "title": "Crops",
+            "type": "array"
+          },
+          "image_height": {
+            "title": "Image Height",
+            "type": "integer"
+          },
+          "image_width": {
+            "title": "Image Width",
+            "type": "integer"
+          },
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          },
+          "preview_url": {
+            "title": "Preview Url",
+            "type": "string"
+          },
+          "status": {
+            "const": "EXPERIMENTAL",
+            "default": "EXPERIMENTAL",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model_id",
+          "image_width",
+          "image_height",
+          "preview_url",
+          "crops"
+        ],
+        "title": "ClassifierResult",
         "type": "object"
       },
       "Detection": {
@@ -1976,6 +2108,24 @@
         "title": "PhysicalRowGeometryConfig",
         "type": "object"
       },
+      "Prediction": {
+        "properties": {
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "family",
+          "score"
+        ],
+        "title": "Prediction",
+        "type": "object"
+      },
       "SiteParkingStateResponse": {
         "properties": {
           "areas": {
@@ -2986,6 +3136,118 @@
         "summary": "Propose Boxes",
         "tags": [
           "Annotations"
+        ]
+      }
+    },
+    "/api/operator/classifier/models": {
+      "get": {
+        "operationId": "list_models_api_operator_classifier_models_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ClassifierModel"
+                  },
+                  "title": "Response List Models Api Operator Classifier Models Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Models",
+        "tags": [
+          "Classifier experiment"
+        ]
+      }
+    },
+    "/api/operator/classifier/predict": {
+      "post": {
+        "operationId": "predict_api_operator_classifier_predict_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_predict_api_operator_classifier_predict_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassifierResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Predict",
+        "tags": [
+          "Classifier experiment"
         ]
       }
     },
