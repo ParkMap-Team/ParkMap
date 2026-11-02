@@ -2,10 +2,10 @@
 // No model training, dataset writes, or intercepted inference responses.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp } from 'node:fs/promises';
+import { copyFile, mkdtemp } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { extname, join, resolve } from 'node:path';
 
 const base = process.argv[2] ?? 'http://127.0.0.1:3000';
 const image = resolve(process.argv[3] ?? '../../apps/vision-api/test-data/auto-parking/20260925_0931.jpeg');
@@ -63,27 +63,24 @@ try {
   const input = await call('DOM.querySelector', { nodeId: doc.root.nodeId, selector: 'input[type=file]' });
   await call('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [image] });
   await wait(`document.body.innerText.includes(${JSON.stringify(image.split(/[\\/]/).at(-1))})`);
-  await evaluate(`document.querySelector('section[aria-label="จำแนกรุ่นรถทดลอง"] input[type=checkbox]').click()`);
   await wait(`document.querySelector('select[aria-label="โมเดลจำแนกรุ่น"]')?.options.length >= 3`);
-  await evaluate(`var s=document.querySelector('section[aria-label="จำแนกรุ่นรถทดลอง"] select:not([aria-label])');s.value='crop';s.dispatchEvent(new Event('change',{bubbles:true}))`);
-  await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent==='ทดสอบจำแนกรุ่น').click()`);
+  await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent==='Analyze').click()`);
   await wait(`Boolean(document.querySelector('img[alt="Crop ที่ส่งเข้า classifier"]'))`, 120000);
   assert.equal(await evaluate(`document.querySelectorAll('section[aria-label="จำแนกรุ่นรถทดลอง"] ol li').length`), 3);
   assert.equal(await evaluate(`document.querySelector('img[alt="Crop ที่ส่งเข้า classifier"]').naturalWidth>0`), true);
   await evaluate(`var s=document.querySelector('select[aria-label="โมเดลจำแนกรุ่น"]');s.selectedIndex=2;s.dispatchEvent(new Event('change',{bubbles:true}))`);
   await wait(`!document.querySelector('img[alt="Crop ที่ส่งเข้า classifier"]')`);
-  await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent==='ทดสอบจำแนกรุ่น').click()`);
+  await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent==='Analyze').click()`);
   await wait(`Boolean(document.querySelector('img[alt="Crop ที่ส่งเข้า classifier"]'))`, 120000);
-  await evaluate(`var s=document.querySelector('section[aria-label="จำแนกรุ่นรถทดลอง"] select:not([aria-label])');s.value='detect';s.dispatchEvent(new Event('change',{bubbles:true}))`);
-  await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent==='ทดสอบจำแนกรุ่น').click()`);
   await wait(`document.querySelectorAll('button[aria-label^="ดูรถคันที่"]').length>1`, 120000);
   await evaluate(`document.querySelector('button[aria-label="ดูรถคันที่ 2"]').click()`);
   assert.match(await evaluate(`document.querySelector('section[aria-label="จำแนกรุ่นรถทดลอง"] h3').textContent`), /คันที่ 2/);
-  await call('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [] });
-  // Disable explicitly; navigating or changing source may abort pending work.
-  await evaluate(`document.querySelector('section[aria-label="จำแนกรุ่นรถทดลอง"] input[type=checkbox]').click()`);
+  const nextImage = join(temp, `another-image${extname(image)}`);
+  await copyFile(image, nextImage);
+  await call('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [nextImage] });
+  await wait(`!document.querySelector('img[alt="Crop ที่ส่งเข้า classifier"]')`);
   assert.equal(await evaluate(`Boolean(document.querySelector('img[alt="Crop ที่ส่งเข้า classifier"]'))`), false);
-  console.log('PASS: real Parking UI, model selection, top3, crop preview, YOLO multi-crop selection, reset on model/mode/disable.');
+  console.log('PASS: one Analyze action detects and classifies, model selection, top3, crop preview, YOLO multi-crop selection, reset on model/file changes.');
 } finally {
   if (socket?.readyState === WebSocket.OPEN) { await call('Browser.close').catch(() => {}); socket.close(); }
   else child.kill();

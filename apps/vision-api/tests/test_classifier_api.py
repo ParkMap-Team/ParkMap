@@ -12,6 +12,53 @@ from app import classifier
 from app.main import app
 
 
+def test_analyze_detects_once_and_classifies_the_same_boxes(monkeypatch):
+    from app.models import DetectionResponse
+
+    monkeypatch.setenv("PARKMAP_EDITOR_TOKEN", "test-key")
+    calls = []
+    detection = DetectionResponse(image_width=40, image_height=20, model={"name": "fixture"},
+                                  inference={"imgsz": 640, "confidence_threshold": .25, "nms_iou": .45, "processing_time_ms": 1},
+                                  detections=[{"class_id": 0, "class_name": "motorcycle", "confidence": .9,
+                                               "bbox": {"x": .1, "y": .2, "width": .3, "height": .4}}])
+    def detect(raw):
+        calls.append("detect")
+        return detection
+    def classify(image, model, mode, boxes):
+        calls.append("classify")
+        assert image.size == (40, 20)
+        assert boxes == [detection.detections[0].bbox.model_dump()]
+        return classifier.ClassifierResult(model_id=model, image_width=40, image_height=20, preview_url="data:image/jpeg;base64,", crops=[])
+    monkeypatch.setattr(classifier.cv_service, "analyze_image", detect)
+    monkeypatch.setattr(classifier, "classify", classify)
+    stream = io.BytesIO()
+    Image.new("RGB", (40, 20)).save(stream, "PNG")
+    client = TestClient(app, headers={"Authorization": "Bearer test-key"})
+    response = client.post("/api/operator/classifier/analyze", data={"model_id": "fixture", "include_parking": "false"}, files={"image": ("a.png", stream.getvalue(), "image/png")})
+    assert response.status_code == 200
+    assert calls == ["detect", "classify"]
+    assert response.json()["detection"]["detections"][0]["confidence"] == .9
+    assert response.json()["classification"]["model_id"] == "fixture"
+    assert response.headers["cache-control"] == "no-store"
+    from app.services.parking_analysis_service import ParkingCalibrationUnavailableError
+
+    def missing_calibration(*args):
+        raise ParkingCalibrationUnavailableError("not set up")
+    monkeypatch.setattr(classifier.parking_analysis_service, "analyze", missing_calibration)
+    uncalibrated = client.post("/api/operator/classifier/analyze", data={"model_id": "fixture"}, files={"image": ("a.png", stream.getvalue(), "image/png")})
+    assert uncalibrated.status_code == 200
+    assert uncalibrated.json()["parking_error"]
+    assert uncalibrated.json()["classification"]["model_id"] == "fixture"
+    def unavailable(*args):
+        raise ValueError("missing checkpoint")
+    monkeypatch.setattr(classifier, "classify", unavailable)
+    partial = client.post("/api/operator/classifier/analyze", data={"model_id": "fixture", "include_parking": "false"}, files={"image": ("a.png", stream.getvalue(), "image/png")})
+    assert partial.status_code == 200
+    assert partial.json()["detection"]["detections"]
+    assert partial.json()["classification"] is None
+    assert partial.json()["classification_error"]
+
+
 def test_operator_can_predict_with_an_efficientnet_checkpoint(tmp_path, monkeypatch):
     import torch
     from torchvision import models
@@ -61,6 +108,7 @@ def test_classifier_routes_are_operator_only(monkeypatch):
     monkeypatch.setenv("PARKMAP_EDITOR_TOKEN", "test-key")
     client = TestClient(app)
     assert client.get("/api/operator/classifier/models").status_code == 401
+    assert client.post("/api/operator/classifier/analyze").status_code == 401
 
 
 def test_classifier_rejects_invalid_images_and_unknown_models(monkeypatch):

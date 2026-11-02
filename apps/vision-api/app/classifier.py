@@ -15,8 +15,13 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
+from app.models import DetectionResponse
 from app.operator_auth import require_editor_token
 from app.services.cv_service import ModelUnavailableError, cv_service
+from app.services.parking_analysis_service import (
+    ParkingCalibrationUnavailableError,
+    parking_analysis_service,
+)
 
 router = APIRouter(prefix="/api/operator/classifier", tags=["Classifier experiment"], dependencies=[Depends(require_editor_token)])
 API_ROOT = Path(__file__).resolve().parent.parent
@@ -51,6 +56,13 @@ class ClassifierResult(BaseModel):
     preview_url: str
     crops: list[ClassifiedCrop]
     status: Literal["EXPERIMENTAL"] = "EXPERIMENTAL"
+
+
+class ParkingClassifierResult(BaseModel):
+    detection: DetectionResponse
+    classification: ClassifierResult | None = None
+    classification_error: str | None = None
+    parking_error: str | None = None
 
 
 def available_models():
@@ -128,12 +140,14 @@ def load_model(model_id):
     return _cache[1:]
 
 
-def classify(decoded, model_id, mode):
+def classify(decoded, model_id, mode, boxes=None):
     import torch
 
     with LOCK:
         model, classes, size, padding, transform = load_model(model_id)
-        if mode == "crop":
+        if boxes is not None:
+            pass  # Boxes came from this request's detector, never from the browser.
+        elif mode == "crop":
             boxes = [{"x": 0., "y": 0., "width": 1., "height": 1.}]
         else:
             stream = io.BytesIO()
@@ -157,9 +171,7 @@ def classify(decoded, model_id, mode):
                                 preview_url=encode_preview(decoded), crops=crops)
 
 
-@router.post("/predict", response_model=ClassifierResult)
-async def predict(image: Annotated[UploadFile, File()], model_id: Annotated[str, Form()], response: Response, mode: Literal["detect", "crop"] = Form("detect")):
-    response.headers["Cache-Control"] = "no-store"
+async def read_image(image: UploadFile):
     if image.content_type not in {"image/jpeg", "image/png", "image/webp"}:
         raise HTTPException(415, "Choose JPEG, PNG or WebP.")
     try:
@@ -178,9 +190,45 @@ async def predict(image: Annotated[UploadFile, File()], model_id: Annotated[str,
             decoded = ImageOps.exif_transpose(source).convert("RGB")
     except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as error:
         raise HTTPException(400, "Invalid image.") from error
+    return decoded
+
+
+@router.post("/predict", response_model=ClassifierResult)
+async def predict(image: Annotated[UploadFile, File()], model_id: Annotated[str, Form()], response: Response, mode: Literal["detect", "crop"] = Form("detect")):
+    response.headers["Cache-Control"] = "no-store"
+    decoded = await read_image(image)
     try:
         return await run_in_threadpool(classify, decoded, model_id, mode)
     except (ValueError, OSError, KeyError, RuntimeError, ModelUnavailableError) as error:
         raise HTTPException(503, "Classifier or YOLO unavailable; verify local trained checkpoints and detector settings.") from error
+    finally:
+        decoded.close()
+
+
+@router.post("/analyze", response_model=ParkingClassifierResult)
+async def analyze(image: Annotated[UploadFile, File()], response: Response, model_id: str = Form(""), include_parking: bool = Form(True)):
+    response.headers["Cache-Control"] = "no-store"
+    decoded = await read_image(image)
+    try:
+        stream = io.BytesIO()
+        decoded.save(stream, "PNG")
+        try:
+            detection = await run_in_threadpool(cv_service.analyze_image, stream.getvalue())
+        except ModelUnavailableError as error:
+            raise HTTPException(503, "YOLO unavailable; verify local detector settings.") from error
+        result = ParkingClassifierResult(detection=detection)
+        if include_parking:
+            try:
+                detection.parking_analysis = await run_in_threadpool(parking_analysis_service.analyze, detection)
+            except ParkingCalibrationUnavailableError:
+                result.parking_error = "Parking calibration is unavailable; detection and classification remain usable."
+        if model_id:
+            try:
+                result.classification = await run_in_threadpool(classify, decoded, model_id, "detect", [d.bbox.model_dump() for d in detection.detections])
+            except (HTTPException, ValueError, OSError, KeyError, RuntimeError, ModelUnavailableError):
+                result.classification_error = "Classifier unavailable; choose a completed local model and retry Analyze."
+        else:
+            result.classification_error = "No classifier selected; choose a completed local model and retry Analyze."
+        return result
     finally:
         decoded.close()

@@ -50,11 +50,16 @@ or new LIFF behavior is introduced. The existing Label Studio workflow can still
 be used; the local workspace is an additional team-owned labelling option. The
 footage policy applies equally to local workspace images, SQLite and exports.
 
-Parking also has an opt-in, local classifier experiment panel. It uses the same
+Parking also has a local classifier experiment panel, driven by the main Analyze
+button alongside detection. Python runs YOLO once and reuses those boxes for
+native crops and classification, including each analyzed video frame. Parking
+and classifier failures are reported separately so successful detections remain
+visible. It uses the same
 operator-only loopback proxy, discovers completed local ResNet18 or EfficientNet-B0 runs, and loads
 their hash-verified `best.pt` with `weights_only=True`. Python owns EXIF handling,
 YOLO boxes, native-resolution crops, aspect-preserving padding, and top-three
-family scores. A pre-cropped single-motorcycle mode bypasses YOLO. Uploads and
+family scores. The standalone operator predict API retains a pre-cropped
+single-motorcycle mode that bypasses YOLO. Uploads and
 previews stay in request/page memory, use no-store responses, and are never
 automatically added to Label or a dataset. Changing input/model/mode clears old
 results. This is closed-set classification with uncalibrated scores, not verified

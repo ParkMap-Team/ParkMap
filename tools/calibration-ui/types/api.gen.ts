@@ -381,6 +381,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operator/classifier/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Analyze */
+        post: operations["analyze_api_operator_classifier_analyze_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operator/classifier/models": {
         parameters: {
             query?: never;
@@ -598,6 +615,21 @@ export interface components {
              * @enum {string}
              */
             split: "unassigned" | "train" | "val" | "test";
+        };
+        /** Body_analyze_api_operator_classifier_analyze_post */
+        Body_analyze_api_operator_classifier_analyze_post: {
+            /** Image */
+            image: string;
+            /**
+             * Include Parking
+             * @default true
+             */
+            include_parking: boolean;
+            /**
+             * Model Id
+             * @default
+             */
+            model_id: string;
         };
         /** Body_analyze_auto_parking_api_auto_parking_analyze_post */
         Body_analyze_auto_parking_api_auto_parking_analyze_post: {
@@ -1241,6 +1273,15 @@ export interface components {
              * @constant
              */
             schema_version: 2;
+        };
+        /** ParkingClassifierResult */
+        ParkingClassifierResult: {
+            classification?: components["schemas"]["ClassifierResult"] | null;
+            /** Classification Error */
+            classification_error?: string | null;
+            detection: components["schemas"]["DetectionResponse"];
+            /** Parking Error */
+            parking_error?: string | null;
         };
         /**
          * ParkingStatePublish
@@ -2036,6 +2077,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MotorcycleLabel"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analyze_api_operator_classifier_analyze_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_analyze_api_operator_classifier_analyze_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParkingClassifierResult"];
                 };
             };
             /** @description Validation Error */

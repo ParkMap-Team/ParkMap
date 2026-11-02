@@ -381,6 +381,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operator/classifier/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Analyze */
+        post: operations["analyze_api_operator_classifier_analyze_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/classifier/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Models */
+        get: operations["list_models_api_operator_classifier_models_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/classifier/predict": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Predict */
+        post: operations["predict_api_operator_classifier_predict_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operator/lot-model/sites/{site_id}/activate": {
         parameters: {
             query?: never;
@@ -565,6 +616,21 @@ export interface components {
              */
             split: "unassigned" | "train" | "val" | "test";
         };
+        /** Body_analyze_api_operator_classifier_analyze_post */
+        Body_analyze_api_operator_classifier_analyze_post: {
+            /** Image */
+            image: string;
+            /**
+             * Include Parking
+             * @default true
+             */
+            include_parking: boolean;
+            /**
+             * Model Id
+             * @default
+             */
+            model_id: string;
+        };
         /** Body_analyze_auto_parking_api_auto_parking_analyze_post */
         Body_analyze_auto_parking_api_auto_parking_analyze_post: {
             /** Images */
@@ -579,6 +645,19 @@ export interface components {
         Body_analyze_hybrid_parking_api_hybrid_parking_analyze_post: {
             /** Image */
             image: string;
+        };
+        /** Body_predict_api_operator_classifier_predict_post */
+        Body_predict_api_operator_classifier_predict_post: {
+            /** Image */
+            image: string;
+            /**
+             * Mode
+             * @default detect
+             * @enum {string}
+             */
+            mode: "detect" | "crop";
+            /** Model Id */
+            model_id: string;
         };
         /** Body_upload_image_api_operator_annotations__dataset__images_post */
         Body_upload_image_api_operator_annotations__dataset__images_post: {
@@ -612,6 +691,49 @@ export interface components {
             name: string;
             /** Polygon */
             polygon: components["schemas"]["CalibrationPoint"][];
+        };
+        /** ClassifiedCrop */
+        ClassifiedCrop: {
+            /** Bbox */
+            bbox: {
+                [key: string]: number;
+            };
+            /** Crop Url */
+            crop_url: string;
+            /** Top3 */
+            top3: components["schemas"]["Prediction"][];
+        };
+        /** ClassifierModel */
+        ClassifierModel: {
+            /** Classes */
+            classes: number;
+            /** Epoch */
+            epoch: number;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Val Top1 */
+            val_top1: number;
+        };
+        /** ClassifierResult */
+        ClassifierResult: {
+            /** Crops */
+            crops: components["schemas"]["ClassifiedCrop"][];
+            /** Image Height */
+            image_height: number;
+            /** Image Width */
+            image_width: number;
+            /** Model Id */
+            model_id: string;
+            /** Preview Url */
+            preview_url: string;
+            /**
+             * Status
+             * @default EXPERIMENTAL
+             * @constant
+             */
+            status: "EXPERIMENTAL";
         };
         /** Detection */
         Detection: {
@@ -1152,6 +1274,15 @@ export interface components {
              */
             schema_version: 2;
         };
+        /** ParkingClassifierResult */
+        ParkingClassifierResult: {
+            classification?: components["schemas"]["ClassifierResult"] | null;
+            /** Classification Error */
+            classification_error?: string | null;
+            detection: components["schemas"]["DetectionResponse"];
+            /** Parking Error */
+            parking_error?: string | null;
+        };
         /**
          * ParkingStatePublish
          * @description One analysed frame. `observed_at` is when the image was captured; `processed_at` is when it was analysed.
@@ -1232,6 +1363,13 @@ export interface components {
              * @constant
              */
             schema_version: 1;
+        };
+        /** Prediction */
+        Prediction: {
+            /** Family */
+            family: string;
+            /** Score */
+            score: number;
         };
         /** SiteParkingStateResponse */
         SiteParkingStateResponse: {
@@ -1939,6 +2077,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MotorcycleLabel"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analyze_api_operator_classifier_analyze_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_analyze_api_operator_classifier_analyze_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParkingClassifierResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_models_api_operator_classifier_models_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassifierModel"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    predict_api_operator_classifier_predict_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_predict_api_operator_classifier_predict_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassifierResult"];
                 };
             };
             /** @description Validation Error */
