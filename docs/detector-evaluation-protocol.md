@@ -23,7 +23,7 @@ Shared by the #4 baseline and the #5 fine-tune so both are measured the same way
 
 ## Tooling and storage
 
-- Labelling uses Label Studio self-hosted on the team's Coolify, with one account per member. Images, labels, and exports stay there and out of Git and issues.
+- Labelling can use the local Calibration UI Label workspace (ADR 0014), or Label Studio self-hosted on the team's Coolify with one account per member. Local images, labels, annotation databases and exports stay in private ignored dataset storage; hosted copies stay on the team's service. None enter Git or issues.
 - Real-angle footage is uploaded only after #16 permits it, and its access and deletion follow #16.
 
 ## Matching

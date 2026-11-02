@@ -83,6 +83,13 @@ Open <http://localhost:3001>. After changing a Pydantic API model, run `uv run p
 
 ## Calibration POC (tools/calibration-ui)
 
+The operator navigation is **Parking / Setup / Label**. Setup contains camera
+calibration and the site lot model in separate tabs/save actions. `/lot-model`
+continues to open the lot-model tab, and `/setup` opens camera setup.
+`/label` provides manual motorcycle boxes and occlusion flags,
+optional YOLO proposals, reviewed saves and private local YOLO+JSON exports. See
+[local labelling and terminal training](tools/yolo-training/README.md).
+
 ```sh
 corepack enable
 pnpm install --frozen-lockfile
@@ -91,7 +98,7 @@ pnpm dev
 
 Open <http://127.0.0.1:3000>. The dashboard can analyze an uploaded image through the backend and display the Physical Map and camera overlay.
 
-The **แผนผังสถานที่** link opens <http://127.0.0.1:3000/lot-model>. It starts from
+The **แผนผังสถานที่** tab in Setup also opens via <http://127.0.0.1:3000/lot-model>. It starts from
 `apps/vision-api/fixtures/spu-cam-01-lot-model.json`, or resumes a saved site draft.
 Select a landmark to drag it, edit polygon vertices, or enter metric dimensions,
 rotation, height and tree radius. The 3D tab previews static shapes. Irregular

@@ -52,6 +52,8 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 
 `apps/vision-api/` is FastAPI with an Ultralytics YOLO motorcycle detector, calibration, homography, footprint fitting, capacity, almost-available, and uncertainty logic, plus the live state API and a frame worker. Model weights and site measurements must be supplied separately. See `docs/backend-parking-analysis-contract.md` and `docs/adr/0002-live-state-pipeline-and-liff-app.md`.
 
+`tools/calibration-ui/` has Parking, combined Setup (camera calibration plus lot model), and a private Label workspace for reviewed motorcycle boxes and occlusion flags (ADR 0014). Label exports YOLO and JSON datasets into ignored `tools/yolo-training/datasets/`; training is an explicit Terminal command with no Training web page.
+
 ## Target flow
 
 1. A recorded video from one fixed viewpoint stands in for the camera on the hidden parking area; the final deliverable is this replay, not an installed camera (ADR 0005). A separate entrance view may estimate incoming motorcycle dimensions.

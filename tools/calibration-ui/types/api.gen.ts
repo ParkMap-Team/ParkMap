@@ -279,6 +279,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operator/annotations/{dataset}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Samples */
+        get: operations["list_samples_api_operator_annotations__dataset__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/annotations/{dataset}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Export Dataset */
+        post: operations["export_dataset_api_operator_annotations__dataset__export_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/annotations/{dataset}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Image */
+        post: operations["upload_image_api_operator_annotations__dataset__images_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/annotations/{dataset}/images/{sample_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Image */
+        get: operations["get_image_api_operator_annotations__dataset__images__sample_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/annotations/{dataset}/samples/{sample_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save Sample */
+        put: operations["save_sample_api_operator_annotations__dataset__samples__sample_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/annotations/{dataset}/samples/{sample_id}/detect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Propose Boxes */
+        post: operations["propose_boxes_api_operator_annotations__dataset__samples__sample_id__detect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operator/lot-model/sites/{site_id}/activate": {
         parameters: {
             query?: never;
@@ -421,6 +523,48 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AnnotationSample */
+        AnnotationSample: {
+            /** Annotations */
+            annotations: components["schemas"]["MotorcycleLabel"][];
+            /** Filename */
+            filename: string;
+            /** Height */
+            height: number;
+            /** Id */
+            id: string;
+            /** Reviewed */
+            reviewed: boolean;
+            /** Revision */
+            revision: number;
+            /** Session */
+            session: string;
+            /**
+             * Split
+             * @enum {string}
+             */
+            split: "unassigned" | "train" | "val" | "test";
+            /** Width */
+            width: number;
+        };
+        /** AnnotationWrite */
+        AnnotationWrite: {
+            /** Annotations */
+            annotations: components["schemas"]["MotorcycleLabel"][];
+            /** Expected Revision */
+            expected_revision: number;
+            /**
+             * Reviewed
+             * @default false
+             */
+            reviewed: boolean;
+            /**
+             * Split
+             * @default unassigned
+             * @enum {string}
+             */
+            split: "unassigned" | "train" | "val" | "test";
+        };
         /** Body_analyze_auto_parking_api_auto_parking_analyze_post */
         Body_analyze_auto_parking_api_auto_parking_analyze_post: {
             /** Images */
@@ -433,6 +577,11 @@ export interface components {
         };
         /** Body_analyze_hybrid_parking_api_hybrid_parking_analyze_post */
         Body_analyze_hybrid_parking_api_hybrid_parking_analyze_post: {
+            /** Image */
+            image: string;
+        };
+        /** Body_upload_image_api_operator_annotations__dataset__images_post */
+        Body_upload_image_api_operator_annotations__dataset__images_post: {
             /** Image */
             image: string;
         };
@@ -765,6 +914,24 @@ export interface components {
              */
             status: "ok";
         };
+        /** LabelBox */
+        LabelBox: {
+            /** Height */
+            height: number;
+            /** Width */
+            width: number;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        };
+        /** LabelPoint */
+        LabelPoint: {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        };
         /** LiveRegion */
         LiveRegion: {
             /**
@@ -924,6 +1091,15 @@ export interface components {
             configuration: components["schemas"]["MotorcycleFittingConfiguration"] | null;
             /** Configured */
             configured: boolean;
+        };
+        /** MotorcycleLabel */
+        MotorcycleLabel: {
+            bbox: components["schemas"]["LabelBox"];
+            ground_point?: components["schemas"]["LabelPoint"] | null;
+            /** Id */
+            id: string;
+            /** Occluded */
+            occluded: boolean;
         };
         /** MotorcycleProxy */
         MotorcycleProxy: {
@@ -1554,6 +1730,215 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MotorcycleFittingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_samples_api_operator_annotations__dataset__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                dataset: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnotationSample"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_dataset_api_operator_annotations__dataset__export_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                dataset: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_image_api_operator_annotations__dataset__images_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                dataset: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_image_api_operator_annotations__dataset__images_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnotationSample"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_image_api_operator_annotations__dataset__images__sample_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                dataset: string;
+                sample_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_sample_api_operator_annotations__dataset__samples__sample_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                dataset: string;
+                sample_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnotationWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnotationSample"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_boxes_api_operator_annotations__dataset__samples__sample_id__detect_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                dataset: string;
+                sample_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MotorcycleLabel"][];
                 };
             };
             /** @description Validation Error */

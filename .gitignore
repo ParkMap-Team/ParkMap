@@ -45,6 +45,17 @@ apps/vision-api/hybrid-parking-experimental/current_state.json
 *.mkv
 *.avi
 
+# Local training artifacts and private datasets (notebook source remains tracked)
+tools/yolo-training/data/
+tools/yolo-training/dataset/
+tools/yolo-training/datasets/
+tools/yolo-training/runs/
+tools/yolo-training/reports/
+tools/yolo-training/**/.ipynb_checkpoints/
+tools/yolo-training/**/__pycache__/
+tools/yolo-training/**/*.pt
+tools/yolo-training/**/*.onnx
+
 # Local deployment packaging
 .deploy-stage*/
 *.tar.gz
