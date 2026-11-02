@@ -19,7 +19,8 @@ from app.operator_auth import require_editor_token
 from app.services.cv_service import ModelUnavailableError, cv_service
 
 router = APIRouter(prefix="/api/operator/classifier", tags=["Classifier experiment"], dependencies=[Depends(require_editor_token)])
-RUNS = Path(__file__).resolve().parents[3] / "tools/yolo-training/classification/runs"
+API_ROOT = Path(__file__).resolve().parent.parent
+RUNS = API_ROOT.parent.parent / "tools/yolo-training/classification/runs"
 LOCK = Lock()
 _cache = None
 
@@ -62,7 +63,10 @@ def available_models():
             metrics = json.loads((folder / "val/metrics.json").read_text(encoding="utf-8"))
             if meta.get("run_state") != "complete" or not (folder / "best.pt").is_file():
                 continue
-            result.append(ClassifierModel(id=folder.name, label=f"{folder.name} · {len(meta['dataset']['classes'])} classes",
+            architecture = meta.get("options", {}).get("architecture", "resnet18")
+            if architecture not in {"resnet18", "efficientnet_b0"}:
+                continue
+            result.append(ClassifierModel(id=folder.name, label=f"{architecture} · {folder.name} · {len(meta['dataset']['classes'])} classes",
                                           epoch=meta["best_epoch"], classes=len(meta["dataset"]["classes"]), val_top1=metrics["top1"]))
         except (OSError, ValueError, KeyError):
             continue
@@ -102,14 +106,21 @@ def load_model(model_id):
             raise ValueError("Checkpoint hash mismatch")
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
     preprocessing = checkpoint["preprocessing"]
-    if checkpoint.get("format_version") != 1 or checkpoint.get("architecture") != "resnet18" or preprocessing["protocol"] != "letterbox_rgb_v1":
+    architecture = checkpoint.get("architecture")
+    if checkpoint.get("format_version") != 1 or architecture not in {"resnet18", "efficientnet_b0"} or preprocessing["protocol"] != "letterbox_rgb_v1":
         raise ValueError("Unsupported classifier checkpoint")
+    if architecture != meta.get("options", {}).get("architecture", "resnet18"):
+        raise ValueError("Checkpoint architecture does not match run metadata")
     classes = checkpoint["classes"]
     if classes != meta["dataset"]["classes"] or not 64 <= checkpoint["image_size"] <= 1024:
         raise ValueError("Invalid classifier class order or image size")
     torch.set_num_threads(2)
-    model = models.resnet18(weights=None)
-    model.fc = torch.nn.Linear(model.fc.in_features, len(classes))
+    if architecture == "resnet18":
+        model = models.resnet18(weights=None)
+        model.fc = torch.nn.Linear(model.fc.in_features, len(classes))
+    else:
+        model = models.efficientnet_b0(weights=None)
+        model.classifier[-1] = torch.nn.Linear(model.classifier[-1].in_features, len(classes))
     model.load_state_dict(checkpoint["state_dict"], strict=True)
     model.eval()
     tensor_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(preprocessing["mean"], preprocessing["std"])])

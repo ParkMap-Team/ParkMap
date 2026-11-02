@@ -51,7 +51,7 @@ be used; the local workspace is an additional team-owned labelling option. The
 footage policy applies equally to local workspace images, SQLite and exports.
 
 Parking also has an opt-in, local classifier experiment panel. It uses the same
-operator-only loopback proxy, discovers completed local ResNet18 runs, and loads
+operator-only loopback proxy, discovers completed local ResNet18 or EfficientNet-B0 runs, and loads
 their hash-verified `best.pt` with `weights_only=True`. Python owns EXIF handling,
 YOLO boxes, native-resolution crops, aspect-preserving padding, and top-three
 family scores. A pre-cropped single-motorcycle mode bypasses YOLO. Uploads and
