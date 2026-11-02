@@ -18,7 +18,7 @@ export function lotModelEditorDevProxy(options: ProxyOptions): Plugin {
 export function lotModelEditorMiddleware(options: ProxyOptions) {
   return (incoming: IncomingMessage, outgoing: ServerResponse, next: () => void) => {
     const path = incoming.url?.split('?')[0];
-    if (path !== '/api/lot-model-editor' && path !== '/api/annotation') { next(); return; }
+    if (path !== '/api/lot-model-editor' && path !== '/api/annotation' && path !== '/api/classifier') { next(); return; }
     const headers = new Headers();
     for (const [key, value] of Object.entries(incoming.headers)) {
       if (value !== undefined) for (const part of Array.isArray(value) ? value : [value]) headers.append(key, part);
@@ -30,7 +30,7 @@ export function lotModelEditorMiddleware(options: ProxyOptions) {
         init.duplex = 'half';
       }
       const request = new Request(new URL(incoming.url ?? '/', `http://${headers.get('Host') ?? '127.0.0.1:3000'}`), init);
-      const response = await (path === '/api/annotation' ? proxyAnnotationRequest : proxyLotModelRequest)(request, options);
+      const response = await (path === '/api/lot-model-editor' ? proxyLotModelRequest : proxyAnnotationRequest)(request, options);
       outgoing.statusCode = response.status;
       response.headers.forEach((value, name) => outgoing.setHeader(name, value));
       outgoing.end(new Uint8Array(await response.arrayBuffer()));

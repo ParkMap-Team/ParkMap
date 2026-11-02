@@ -49,3 +49,14 @@ used for checkpoint selection. No web training process, queue, public image stor
 or new LIFF behavior is introduced. The existing Label Studio workflow can still
 be used; the local workspace is an additional team-owned labelling option. The
 footage policy applies equally to local workspace images, SQLite and exports.
+
+Parking also has an opt-in, local classifier experiment panel. It uses the same
+operator-only loopback proxy, discovers completed local ResNet18 runs, and loads
+their hash-verified `best.pt` with `weights_only=True`. Python owns EXIF handling,
+YOLO boxes, native-resolution crops, aspect-preserving padding, and top-three
+family scores. A pre-cropped single-motorcycle mode bypasses YOLO. Uploads and
+previews stay in request/page memory, use no-store responses, and are never
+automatically added to Label or a dataset. Changing input/model/mode clears old
+results. This is closed-set classification with uncalibrated scores, not verified
+model identity, measured dimensions, or parking availability. Neither LIFF nor
+parking geometry uses these experimental predictions. Training remains terminal-only.
