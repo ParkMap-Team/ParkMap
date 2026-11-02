@@ -17,6 +17,7 @@ from starlette.concurrency import run_in_threadpool
 from app.db import repository
 from app.db.session import get_session
 from app.db.tables import ParkingArea, Site
+from app.lot_model_editor import router as lot_model_editor_router
 from app.models import IDENTIFIER_PATTERN, DetectionResponse, GroundPlaneCalibration, GroundPlaneCalibrationResponse, GroundPlaneHomographyResponse, HealthResponse, LotModelDefinition, LotModelResponse, MotorcycleFittingConfiguration, MotorcycleFittingResponse, ParkingCalibration, ParkingStatePublish, PhysicalRowGeometryConfig, SiteParkingStateResponse, SiteSummary
 from app.services.calibration_service import calibration_service
 from app.services.cv_service import ModelUnavailableError, cv_service
@@ -27,10 +28,12 @@ from app.services.physical_row_geometry_service import measurement_fingerprint, 
 from app.services.parking_analysis_service import ParkingCalibrationUnavailableError, parking_analysis_service
 from app.services.auto_parking_service import analyze_detections
 from app.services.live_state_service import MAX_FUTURE_SKEW_S, evaluate_area_state, unmonitored_polygons
+from app.services.lot_placement_service import place_area_state
 
 load_dotenv()
 
 app = FastAPI(title="ParkMap API", version="0.2.0", description="API boundary for ParkMap monitoring and the future CV pipeline.")
+app.include_router(lot_model_editor_router)
 
 allowed_origins = [origin.strip() for origin in os.getenv("PARKMAP_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",") if origin.strip()]
 app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_credentials=True, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
@@ -85,7 +88,9 @@ def get_lot_model(site_id: str = SiteId, session: Session = Depends(get_session)
 @app.get("/api/sites/{site_id}/parking-state", response_model=SiteParkingStateResponse)
 def get_site_parking_state(site_id: str = SiteId, session: Session = Depends(get_session)) -> SiteParkingStateResponse:
     area_ids = [area.id for area in _require_site_areas(session, site_id)]
-    calibrations = repository.active_calibration_versions(session, area_ids)
+    calibrations = repository.active_calibrations(session, area_ids)
+    lot_model = repository.active_lot_model(session, site_id)
+    polygons = {area.parking_area_id: area.polygon for area in LotModelDefinition.model_validate(lot_model.payload).parking_areas} if lot_model else {}
     states = repository.latest_states(session, area_ids)
     now = datetime.now(UTC)
     limit = freshness_limit_s()
@@ -93,7 +98,10 @@ def get_site_parking_state(site_id: str = SiteId, session: Session = Depends(get
         site_id=site_id,
         generated_at=now,
         freshness_limit_s=limit,
-        areas=[evaluate_area_state(area_id, stored=states.get(area_id), active_calibration_version=calibrations.get(area_id), now=now, freshness_limit_s=limit) for area_id in area_ids],
+        areas=[place_area_state(
+            evaluate_area_state(area_id, stored=states.get(area_id), active_calibration_version=calibrations[area_id].version if area_id in calibrations else None, now=now, freshness_limit_s=limit),
+            calibrations[area_id].payload if area_id in calibrations else {}, polygons.get(area_id),
+        ) for area_id in area_ids],
     )
 
 

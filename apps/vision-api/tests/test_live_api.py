@@ -1,4 +1,5 @@
 import json
+import math
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -7,7 +8,9 @@ from alembic.migration import MigrationContext
 from fastapi.testclient import TestClient
 
 from app import manage
+from app.db import repository
 from app.db.migrations import include_name, migration_engine
+from app.db.session import open_session
 from app.db.tables import SCHEMA, Base
 from app.main import app
 from app.manage import dev_state
@@ -79,6 +82,42 @@ def test_published_state_is_served_as_live_with_its_source(seeded, client):
     assert area["source"] == "SYNTHETIC_FIXTURE"
     assert {region["kind"] for region in area["regions"]} == {"AVAILABLE", "ALMOST_AVAILABLE", "UNKNOWN"}
     assert len(area["motorcycles"]) == 2
+
+
+def test_rotated_roi_moves_demo_motorcycles_headings_and_regions_together(seeded, client, monkeypatch):
+    monkeypatch.setenv("PARKMAP_EDITOR_TOKEN", "test-editor")
+    definition = client.get("/api/sites/dev-site/lot-model").json()
+    original_roi = definition["parking_areas"][0]["polygon"]
+    with open_session() as session:
+        repository.activate_calibration(session, "dev-area-1", "placement-test", {
+            "ground_plane_homography.json": {"roi_metric": {"points": original_roi[0]}},
+        })
+        session.commit()
+    payload = state_json(source="STILL_IMAGE_LOOP", calibration_version="placement-test")
+    assert client.post(INGEST_URL, headers=AUTH, json=payload).status_code == 204
+    definition["parking_areas"][0]["polygon"] = [[{"x_m": 20 - p["y_m"], "y_m": 2 + p["x_m"]} for p in ring] for ring in original_roi]
+    editor = "/api/operator/lot-model/sites/dev-site"
+    headers = {"Authorization": "Bearer test-editor"}
+    saved = client.put(editor + "/draft", headers=headers, json={"definition": definition, "expected_revision": 0, "base_version": 1})
+    assert saved.status_code == 200, saved.text
+    activated = client.post(editor + "/activate", headers=headers, json={"expected_revision": saved.json()["revision"], "base_version": 1})
+    assert activated.status_code == 200, activated.text
+    result = area_state(client)
+    assert result["status"] == "DEMO"
+    assert result["observed_at"] == payload["observed_at"]
+    before, after = payload["motorcycles"][0], result["motorcycles"][0]
+    assert after["center"]["x_m"] == pytest.approx(20 - before["center"]["y_m"])
+    assert after["center"]["y_m"] == pytest.approx(2 + before["center"]["x_m"])
+    assert math.cos(after["heading_rad"]) == pytest.approx(math.cos(before["heading_rad"] + math.pi / 2))
+    assert after["length_m"] == before["length_m"]
+    assert after["width_m"] == before["width_m"]
+    for original, moved in zip(payload["regions"], result["regions"], strict=True):
+        assert moved["kind"] == original["kind"]
+        for ring, transformed in zip(original["polygon"], moved["polygon"], strict=True):
+            for p, q in zip(ring, transformed, strict=True):
+                assert q["x_m"] == pytest.approx(20 - p["y_m"])
+                assert q["y_m"] == pytest.approx(2 + p["x_m"])
+    assert area_state(client)["motorcycles"] == result["motorcycles"]  # No accumulating transform on later polls.
 
 
 def test_latest_processed_state_wins(seeded, client):

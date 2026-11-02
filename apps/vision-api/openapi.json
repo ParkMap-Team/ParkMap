@@ -1131,6 +1131,133 @@
         "title": "LotLandmark",
         "type": "object"
       },
+      "LotModelDefinition": {
+        "description": "Static lot geometry stored per site version, measured or estimated from photos and imagery.",
+        "properties": {
+          "landmarks": {
+            "items": {
+              "$ref": "#/components/schemas/LotLandmark"
+            },
+            "maxItems": 100,
+            "title": "Landmarks",
+            "type": "array"
+          },
+          "outline": {
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/MetricGroundPoint"
+              },
+              "type": "array"
+            },
+            "title": "Outline",
+            "type": "array"
+          },
+          "parking_areas": {
+            "items": {
+              "$ref": "#/components/schemas/LotModelParkingArea"
+            },
+            "minItems": 1,
+            "title": "Parking Areas",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "outline",
+          "parking_areas"
+        ],
+        "title": "LotModelDefinition",
+        "type": "object"
+      },
+      "LotModelDraftActivate": {
+        "properties": {
+          "base_version": {
+            "minimum": 0.0,
+            "title": "Base Version",
+            "type": "integer"
+          },
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "base_version"
+        ],
+        "title": "LotModelDraftActivate",
+        "type": "object"
+      },
+      "LotModelDraftState": {
+        "properties": {
+          "active_version": {
+            "minimum": 0.0,
+            "title": "Active Version",
+            "type": "integer"
+          },
+          "base_version": {
+            "minimum": 0.0,
+            "title": "Base Version",
+            "type": "integer"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/LotModelDefinition"
+          },
+          "is_published": {
+            "title": "Is Published",
+            "type": "boolean"
+          },
+          "revision": {
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "site_id": {
+            "title": "Site Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "site_id",
+          "revision",
+          "base_version",
+          "active_version",
+          "is_published",
+          "definition"
+        ],
+        "title": "LotModelDraftState",
+        "type": "object"
+      },
+      "LotModelDraftWrite": {
+        "properties": {
+          "base_version": {
+            "minimum": 0.0,
+            "title": "Base Version",
+            "type": "integer"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/LotModelDefinition"
+          },
+          "expected_revision": {
+            "minimum": 0.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "definition",
+          "expected_revision",
+          "base_version"
+        ],
+        "title": "LotModelDraftWrite",
+        "type": "object"
+      },
       "LotModelParkingArea": {
         "properties": {
           "parking_area_id": {
@@ -2244,6 +2371,309 @@
           }
         },
         "summary": "Save Motorcycle Fitting"
+      }
+    },
+    "/api/operator/lot-model/sites/{site_id}/activate": {
+      "post": {
+        "operationId": "post_activate_api_operator_lot_model_sites__site_id__activate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Site Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LotModelDraftActivate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotModelDraftState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Activate",
+        "tags": [
+          "Lot model editor"
+        ]
+      }
+    },
+    "/api/operator/lot-model/sites/{site_id}/draft": {
+      "get": {
+        "operationId": "get_draft_api_operator_lot_model_sites__site_id__draft_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Site Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotModelDraftState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Draft",
+        "tags": [
+          "Lot model editor"
+        ]
+      },
+      "put": {
+        "operationId": "put_draft_api_operator_lot_model_sites__site_id__draft_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Site Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LotModelDraftWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotModelDraftState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Draft",
+        "tags": [
+          "Lot model editor"
+        ]
+      }
+    },
+    "/api/operator/lot-model/template": {
+      "get": {
+        "operationId": "get_template_api_operator_lot_model_template_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotModelDefinition"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Template",
+        "tags": [
+          "Lot model editor"
+        ]
+      }
+    },
+    "/api/operator/lot-model/validate": {
+      "post": {
+        "operationId": "validate_definition_api_operator_lot_model_validate_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LotModelDefinition"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotModelDefinition"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate Definition",
+        "tags": [
+          "Lot model editor"
+        ]
       }
     },
     "/api/physical-row-geometry": {

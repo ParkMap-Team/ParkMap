@@ -29,6 +29,49 @@ cd ../liff && cp .env.example .env.local && pnpm dev   # http://localhost:3001
 
 The seeded data is synthetic, and the LIFF app labels it as such.
 
+## Windows launcher
+
+Double-click `start-dev.bat` at the repository root, or run it from a terminal:
+
+```bat
+start-dev.bat
+start-dev.bat --demo
+start-dev.bat --no-browser
+start-dev.bat --dry-run
+```
+
+Before the first run, open Docker Desktop, install frontend dependencies with
+`corepack pnpm install --frozen-lockfile`, and run `uv sync --locked --all-groups`
+in `apps/vision-api`. Copy that package's `.env.example` to `.env`; set
+`PARKMAP_WORKER_TOKEN` if using `--demo`. The launcher uses pnpm when available,
+otherwise npm runs each package's already-installed `dev` script. It does not
+download a package manager, install dependencies, or change the pnpm lockfile.
+
+The launcher starts only the development Postgres service, waits for its healthcheck,
+runs migrations, and opens separate terminals for database logs, Vision API (8000),
+LIFF (3001), and Calibration UI (3000). It then opens the two web apps and API docs
+in the browser, unless `--no-browser` is supplied. Progress messages identify each
+startup step. It works from any directory,
+checks for occupied app ports, and uses the compose database on `127.0.0.1:5432` and
+the API on `127.0.0.1:8000` even when existing environment files point elsewhere.
+The explicit IPv4 addresses avoid slow IPv6 attempts through `localhost` on Windows;
+database connection attempts time out after 10 seconds. It preserves
+existing environment files and does not import lot models or seed sites by default.
+
+`--demo` additionally seeds the **synthetic development site** and starts
+`publish-dev-state`; it does not publish observations for Sripatum. For photo/video
+observations, configure a real frame worker separately as described in the
+[backend README](apps/vision-api/README.md#live-state), using
+`PARKMAP_API_URL=http://127.0.0.1:8000`. Uploaded-image analysis needs no worker.
+
+Stop app processes with Ctrl+C in their terminals. Closing the database log window
+does not stop Postgres; run `docker compose stop postgres` from the repository root
+to stop it while keeping its data. If startup fails after opening some terminals,
+those processes stay running; stop them before retrying. To check the launcher
+without starting services, use `--dry-run`. Its focused Windows tests are
+`node --test tools/start-dev.test.mjs`. The two native integration cases require
+free app ports and explicitly skip when development servers are already running.
+
 ## LIFF app
 
 ```sh
@@ -46,7 +89,40 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open <http://localhost:3000>. The dashboard can analyze an uploaded image through the backend and display the Physical Map and camera overlay.
+Open <http://127.0.0.1:3000>. The dashboard can analyze an uploaded image through the backend and display the Physical Map and camera overlay.
+
+The **แผนผังสถานที่** link opens <http://127.0.0.1:3000/lot-model>. It starts from
+`apps/vision-api/fixtures/spu-cam-01-lot-model.json`, or resumes a saved site draft.
+Select a landmark to drag it, edit polygon vertices, or enter metric dimensions,
+rotation, height and tree radius. The 3D tab previews static shapes. Irregular
+polygons and holes stay intact. Enable **แก้ขอบเขต ROI**, select a blue parking-area
+polygon, then drag the polygon or its corners, or enter its angle in degrees.
+Positive angles turn counterclockwise. If the ROI extends past the grey lot outline,
+select **ใช้ ROI นี้เป็นขอบลาน** before saving (available for a single ROI). This
+explicitly replaces the lot boundary with that ROI, including holes; ground outside
+it is no longer part of the lot. Other outline edits stay locked. Moving or rotating
+the whole ROI places motorcycles, headings and analysis regions in the new lot frame
+on the backend, preserving dimensions and state freshness. Resizing or reshaping
+deactivates camera calibration until reviewed; an incompatible registered calibration
+returns `CALIBRATION_MISMATCH` without geometry. Draft saves
+do not change availability. These are metric ground polygons, not image-pixel ROIs.
+Undo/redo
+and JSON import/export are available, and estimated values keep their provenance.
+
+Choose a registered site, **บันทึกฉบับร่าง**, review the preview, then **เปิดใช้ใน LIFF**.
+Saving alone does not change LIFF. Activation creates a normal model version; reload
+LIFF to see it. Concurrent edits are rejected instead of silently overwriting data.
+The initial fixture references `sripatum-near-lot`, so that area must be registered
+under the chosen site before saving it. Site registration is described in the
+[backend README](apps/vision-api/README.md#live-state).
+
+For Windows, restart `start-dev.bat` after updating: it runs the draft migration and
+creates a temporary private editor token shared by both servers. Manual startup
+requires the same `PARKMAP_EDITOR_TOKEN` in the API's `.env` and Calibration UI's
+`.env.local`, plus server-side `PARKMAP_API_URL`. Never use a `NEXT_PUBLIC_` token.
+The editor is local-only; see [ADR 0013](docs/adr/0013-local-lot-model-editor.md).
+After API changes, generate calibration types with
+`pnpm --filter @parkmap/calibration-ui api:generate` as well as the LIFF types.
 
 ## Backend
 

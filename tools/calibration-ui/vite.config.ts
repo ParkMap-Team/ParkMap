@@ -1,7 +1,8 @@
 import { sites } from '@openai/sites-vite-plugin';
 import tailwindcss from '@tailwindcss/postcss';
 import vinext from 'vinext';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
+import { lotModelEditorDevProxy } from './lib/lotModelEditorDevProxy';
 import hostingConfig from './.openai/hosting.json';
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
@@ -34,7 +35,8 @@ const localBindingConfig = {
     : [],
 };
 
-export default defineConfig(async () => {
+export default defineConfig(async ({ mode }) => {
+  const localEnv = loadEnv(mode, process.cwd(), '');
   // Keep Wrangler and Miniflare state project-local. These are non-secret tool
   // settings; application environment belongs in ignored `.env*` files.
   process.env.WRANGLER_WRITE_LOGS ??= 'false';
@@ -46,10 +48,16 @@ export default defineConfig(async () => {
 
   return {
     css: { postcss: { plugins: [tailwindcss()] } },
-    server: isCodexSeatbeltSandbox
-      ? { watch: { useFsEvents: false, usePolling: true } }
-      : undefined,
+    // The operator editor's server proxy must not be reachable from the LAN.
+    server: {
+      host: '127.0.0.1',
+      ...(isCodexSeatbeltSandbox ? { watch: { useFsEvents: false, usePolling: true } } : {}),
+    },
     plugins: [
+      lotModelEditorDevProxy({
+        token: process.env.PARKMAP_EDITOR_TOKEN ?? localEnv.PARKMAP_EDITOR_TOKEN,
+        apiUrl: process.env.PARKMAP_API_URL ?? localEnv.PARKMAP_API_URL ?? 'http://127.0.0.1:8000',
+      }),
       vinext(),
       sites(),
       cloudflare({

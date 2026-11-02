@@ -35,6 +35,26 @@ An area serves regions only when its latest state is younger than `PARKMAP_STATE
 
 Real site setup:
 
+The local Calibration UI lot-model editor uses protected `/api/operator/lot-model`
+endpoints: template/validation, site draft GET/PUT, and explicit activation POST.
+`PARKMAP_EDITOR_TOKEN` is separate from the worker token and stays on the servers.
+Without it authoring is disabled (503); an invalid token returns 401. Draft writes
+carry `expected_revision` and `base_version`, and activation accepts only the saved
+revision. Conflicts return 409. Migration `0003_lot_model_drafts` stores drafts
+separately; public LIFF endpoints continue to serve only the active model.
+ROI polygons can be edited, but must remain valid, non-overlapping and inside the
+lot outline, and refer to registered site areas, including after rotation. For a single-area model, the
+operator can explicitly set the lot outline to the exact ROI polygon; the editor
+accepts that outline as well as existing template/active/draft outlines. A rigid
+move/rotation preserves calibration: the public state endpoint maps every region
+ring, motorcycle centre and heading from the ROI stored in the active calibration
+to the active lot polygon. The API accepts only a rotation/translation matching all
+vertices within 0.000001 m and keeps physical dimensions, timestamps and semantics.
+Resizing/reshaping deactivates calibration atomically; an incompatible registered
+calibration returns `CALIBRATION_MISMATCH` without geometry. Review image ROI, rows
+and metric mapping before registering changed calibration.
+Saving a draft or changing landmarks alone does not deactivate calibration.
+
 ```sh
 python -m app.manage create-site --site-id <id> --name <name> --latitude <lat> --longitude <lng>
 python -m app.manage create-parking-area --site-id <id> --parking-area-id <area> --camera-id <camera> --name <name>

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.tables import Calibration, LotModel, ParkingArea, ParkingState, Site
 from app.models import LotModelDefinition, ParkingStatePublish
+from app.services.lot_placement_service import placement_for_calibration
 
 
 def list_sites(session: Session) -> list[Site]:
@@ -21,9 +22,13 @@ def active_lot_model(session: Session, site_id: str) -> LotModel | None:
     return session.scalar(select(LotModel).where(LotModel.site_id == site_id, LotModel.is_active))
 
 
-def active_calibration_versions(session: Session, area_ids: list[str]) -> dict[str, str]:
-    rows = session.execute(select(Calibration.parking_area_id, Calibration.version).where(Calibration.parking_area_id.in_(area_ids), Calibration.is_active))
-    return {area_id: version for area_id, version in rows}
+def lock_site(session: Session, site_id: str) -> Site | None:
+    """Serialize lot model activation and draft writes for one site."""
+    return session.scalar(select(Site).where(Site.id == site_id).with_for_update())
+
+
+def active_calibrations(session: Session, area_ids: list[str]) -> dict[str, Calibration]:
+    return {row.parking_area_id: row for row in session.scalars(select(Calibration).where(Calibration.parking_area_id.in_(area_ids), Calibration.is_active))}
 
 
 def latest_states(session: Session, area_ids: list[str]) -> dict[str, ParkingStatePublish]:
@@ -58,6 +63,9 @@ def create_parking_area(session: Session, area_id: str, site_id: str, camera_id:
 
 def activate_calibration(session: Session, area_id: str, version: str, payload: dict[str, Any]) -> None:
     """Make `version` the only active calibration for the area, inserting it when new."""
+    area = session.get(ParkingArea, area_id)
+    if area is not None:
+        lock_site(session, area.site_id)
     session.execute(update(Calibration).where(Calibration.parking_area_id == area_id, Calibration.is_active).values(is_active=False))
     session.flush()
     existing = session.scalar(select(Calibration).where(Calibration.parking_area_id == area_id, Calibration.version == version))
@@ -69,6 +77,18 @@ def activate_calibration(session: Session, area_id: str, version: str, payload: 
 
 def activate_lot_model(session: Session, site_id: str, definition: LotModelDefinition) -> int:
     """Store the definition as the next version for the site and make it the only active one."""
+    lock_site(session, site_id)
+    previous = active_lot_model(session, site_id)
+    old_areas = {area["parking_area_id"]: area["polygon"] for area in previous.payload["parking_areas"]} if previous else {}
+    new_areas = {area.parking_area_id: area.model_dump(mode="json")["polygon"] for area in definition.parking_areas}
+    changed = {area_id for area_id in old_areas.keys() | new_areas.keys() if old_areas.get(area_id) != new_areas.get(area_id)}
+    if changed:
+        # Rigid map placement preserves measured geometry; resizing/reshaping requires calibration review.
+        calibrations = active_calibrations(session, list(changed))
+        unsafe = {area_id for area_id in changed if area_id not in calibrations or placement_for_calibration(
+            calibrations[area_id].payload, next((area.polygon for area in definition.parking_areas if area.parking_area_id == area_id), None)
+        ) is None}
+        session.execute(update(Calibration).where(Calibration.parking_area_id.in_(unsafe), Calibration.is_active).values(is_active=False))
     version = (session.scalar(select(func.max(LotModel.version)).where(LotModel.site_id == site_id)) or 0) + 1
     session.execute(update(LotModel).where(LotModel.site_id == site_id, LotModel.is_active).values(is_active=False))
     session.flush()

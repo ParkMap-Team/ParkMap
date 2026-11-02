@@ -12,3 +12,4 @@
 - [0010: Where I parked by plate handoff](0010-where-i-parked-by-plate-handoff.md) (proposed)
 - [0011: Still-image loop demo on estimated calibration](0011-still-image-loop-demo-on-estimated-calibration.md)
 - [0012: Rotate the 3D lot view](0012-rotate-the-3d-lot-view.md)
+- [0013: Local lot model editor](0013-local-lot-model-editor.md)
