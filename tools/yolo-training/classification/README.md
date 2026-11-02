@@ -1,5 +1,9 @@
 # Motorcycle model-family dataset preparation
 
+For the reviewed dataset's **VS Code Terminal training command**, see
+[TRAINING.md](TRAINING.md). Preparation and training are separate entry points;
+the scripts below only prepare/review data.
+
 This is a **separate classification experiment**, not the existing class-0 YOLO
 detector dataset. It prepares annotation crops; it never trains, runs inference,
 downloads weights, changes the API, or changes parking availability. Model-family
@@ -276,7 +280,8 @@ uv run --project apps/vision-api --no-sync python -m unittest discover -s tools/
 uv run --project apps/vision-api --no-sync ruff check tools/yolo-training/classification
 ```
 
-Checks use synthetic archives, not private source images. No model is loaded.
+Checks use synthetic archives, not private source images. Training checks also
+run tiny synthetic ResNet18 epochs without downloading pretrained weights.
 
 For the offline button/file workflow, using Node 22+ and the installed Edge:
 
