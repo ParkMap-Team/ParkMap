@@ -1,9 +1,23 @@
 import io
+import sys
+from pathlib import Path
+from types import ModuleType
+
+from fastapi.testclient import TestClient
+from PIL import Image
 
 from app import classifier
 from app.main import app
-from fastapi.testclient import TestClient
-from PIL import Image
+
+
+def test_classifier_imports_from_the_shallow_container_layout(monkeypatch):
+    name = "app._classifier_container_layout"
+    module = ModuleType(name)
+    module.__file__ = str(Path("/app/app/classifier.py"))
+    monkeypatch.setitem(sys.modules, name, module)
+    source = Path(classifier.__file__).read_text(encoding="utf-8")
+    exec(compile(source, module.__file__, "exec"), module.__dict__)  # noqa: S102 - trusted module source under a simulated container path
+    assert module.RUNS == Path("/tools/yolo-training/classification/runs").resolve()
 
 
 def test_classifier_routes_are_operator_only(monkeypatch):

@@ -19,7 +19,9 @@ from app.operator_auth import require_editor_token
 from app.services.cv_service import ModelUnavailableError, cv_service
 
 router = APIRouter(prefix="/api/operator/classifier", tags=["Classifier experiment"], dependencies=[Depends(require_editor_token)])
-RUNS = Path(__file__).resolve().parents[3] / "tools/yolo-training/classification/runs"
+# Parent chaining stays at the filesystem root in the shallower Docker layout.
+API_ROOT = Path(__file__).resolve().parent.parent
+RUNS = API_ROOT.parent.parent / "tools/yolo-training/classification/runs"
 LOCK = Lock()
 _cache = None
 
