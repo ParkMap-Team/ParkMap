@@ -18,8 +18,11 @@ Exports go to `datasets/<dataset>/exports/<export-id>/` with `train/val/test` im
 and label directories, `sessions.json`, and JSON annotations with normalized 0..1
 box coordinates and occlusion. Optional ground-point metadata from older labels
 is preserved for compatibility, but is not displayed or edited by the current UI.
-Filenames use canonical image IDs; original
-names remain in JSON. Uploaded images are converted to metadata-free PNG with
+The export ID is its local time, e.g. `2026-11-02_173045` (`_2` and so on if
+two exports land in the same second). Files are named `<dataset>_0001`, `_0002`, ...
+numbered across all splits in original-filename order; each export renumbers, so a
+number is not stable between exports. The JSON keeps the canonical image ID and
+original filename. Uploaded images are converted to metadata-free PNG with
 normalized EXIF orientation; label coordinates refer to these saved PNGs.
 Each export is new. A partial export is not ready to train until every split has
 data. All workspace images, SQLite databases, labels and exports are ignored by Git.

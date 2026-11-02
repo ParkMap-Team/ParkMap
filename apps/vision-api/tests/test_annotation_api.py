@@ -1,5 +1,6 @@
 import io
 import json
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -75,12 +76,36 @@ def test_image_and_reviewed_labels_survive_reload_and_export(tmp_path, monkeypat
     assert exported.status_code == 200, exported.text
     assert exported.json()["ready_for_training"] is False
     path = tmp_path / "demo" / "exports" / exported.json()["export_id"]
-    assert (path / "train/labels" / f'{sample["id"]}.txt').read_text().strip() == "0 0.30000000 0.45000000 0.40000000 0.50000000"
+    assert (path / "train/labels/demo_0001.txt").read_text().strip() == "0 0.30000000 0.45000000 0.40000000 0.50000000"
     assert (path / "sessions.json").is_file()
-    assert (path / "annotations" / f'{sample["id"]}.json').is_file()
-    metadata = json.loads((path / "annotations" / f'{sample["id"]}.json').read_text())
+    metadata = json.loads((path / "annotations/demo_0001.json").read_text())
+    assert metadata["id"] == sample["id"] and metadata["filename"] == "photo.png"
     assert metadata["annotations"][0]["occluded"] is True
     assert metadata["annotations"][0]["ground_point"] == {"x": 0.3, "y": 0.65}
+
+
+def test_export_names_files_by_dataset_number_and_folder_by_timestamp(tmp_path, monkeypatch):
+    monkeypatch.setenv("PARKMAP_EDITOR_TOKEN", "test")
+    monkeypatch.setenv("PARKMAP_DATASET_ROOT", str(tmp_path))
+    client, headers = TestClient(app), {"Authorization": "Bearer test"}
+    root = "/api/operator/annotations/demo"
+    # Uploaded out of name order and across splits; numbering follows original filename, not hash or split.
+    for color, filename, split in (("red", "20261029_b.png", "val"), ("blue", "20261028_a.png", "train"), ("green", "20261030_c.png", "test")):
+        sample = upload(client, headers, color, filename)
+        response = client.put(root + "/samples/" + sample["id"], headers=headers, json={
+            "expected_revision": 0, "split": split, "reviewed": True, "annotations": [],
+        })
+        assert response.status_code == 200, response.text
+    first, second = client.post(root + "/export", headers=headers).json(), client.post(root + "/export", headers=headers).json()
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}_\d{6}(_\d+)?", first["export_id"])
+    assert first["export_id"] != second["export_id"]  # Same-second exports never overwrite each other.
+    assert first["path"].endswith("/exports/" + first["export_id"])
+    path = tmp_path / "demo" / "exports" / first["export_id"]
+    assert [p.name for p in sorted(path.glob("*/images/*.png"))] == ["demo_0003.png", "demo_0001.png", "demo_0002.png"]
+    assert sorted(p.name for p in path.glob("*/labels/*.txt")) == ["demo_0001.txt", "demo_0002.txt", "demo_0003.txt"]
+    assert (path / "train/images/demo_0001.png").is_file() and (path / "val/images/demo_0002.png").is_file()
+    assert json.loads((path / "sessions.json").read_text()) == {
+        "demo_0001": "date:2026-10-28", "demo_0002": "date:2026-10-29", "demo_0003": "date:2026-10-30"}
 
 
 def test_label_guards_revision_session_split_and_review(tmp_path, monkeypatch):

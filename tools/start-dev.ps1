@@ -38,7 +38,7 @@ function Open-Terminal([string] $title, [string] $directory, [string] $command, 
     $serverEditorToken = $env:PARKMAP_EDITOR_TOKEN
     try {
         if (-not $EditorAccess) { $env:PARKMAP_EDITOR_TOKEN = $null }
-        Start-Process -FilePath 'powershell.exe' -WorkingDirectory $directory -WindowStyle Normal `
+        Start-Process -FilePath (Get-Process -Id $PID).Path -WorkingDirectory $directory -WindowStyle Normal `
             -ArgumentList @('-NoProfile', '-NoExit', '-EncodedCommand', $encoded) | Out-Null
     } finally {
         $env:PARKMAP_EDITOR_TOKEN = $serverEditorToken

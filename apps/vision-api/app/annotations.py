@@ -10,7 +10,7 @@ import sqlite3
 import uuid
 import warnings
 from contextlib import contextmanager
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -238,28 +238,45 @@ def export_dataset(dataset: str = Dataset):
         if sample.session in assigned and assigned[sample.session] != sample.split:
             raise HTTPException(422, "Images from the same filename date cross splits; correct the assignments before exporting")
         assigned[sample.session] = sample.split
-    export_id = uuid.uuid4().hex
-    staging = folder / "exports" / (".pending-" + export_id)
-    destination = folder / "exports" / export_id
+    staging = folder / "exports" / (".pending-" + uuid.uuid4().hex)
     counts = {split: 0 for split in ("train", "val", "test")}
+    # Readable names numbered by original filename; the JSON keeps the hash ID and filename for traceability.
+    samples.sort(key=lambda s: (s.filename.lower(), s.id))
+    width = max(4, len(str(len(samples))))
     try:
         for split in counts:
             (staging / split / "images").mkdir(parents=True)
             (staging / split / "labels").mkdir()
         (staging / "annotations").mkdir()
         sessions = {}
-        for sample in samples:
+        for number, sample in enumerate(samples, start=1):
+            name = f"{dataset}_{number:0{width}d}"
             counts[sample.split] += 1
-            sessions[sample.id] = sample.session
-            shutil.copyfile(folder / "images" / f"{sample.id}.png", staging / sample.split / "images" / f"{sample.id}.png")
+            sessions[name] = sample.session
+            shutil.copyfile(folder / "images" / f"{sample.id}.png", staging / sample.split / "images" / f"{name}.png")
             lines = [f"0 {a.bbox.x + a.bbox.width / 2:.8f} {a.bbox.y + a.bbox.height / 2:.8f} {a.bbox.width:.8f} {a.bbox.height:.8f}" for a in sample.annotations]
-            (staging / sample.split / "labels" / f"{sample.id}.txt").write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
-            (staging / "annotations" / f"{sample.id}.json").write_text(sample.model_dump_json(indent=2), encoding="utf-8")
+            (staging / sample.split / "labels" / f"{name}.txt").write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+            (staging / "annotations" / f"{name}.json").write_text(sample.model_dump_json(indent=2), encoding="utf-8")
         (staging / "sessions.json").write_text(json.dumps(sessions, indent=2), encoding="utf-8")
         (staging / "README.txt").write_text("Images are normalized PNG. JSON box/ground coordinates are normalized 0..1. Null ground points are unconfirmed. YOLO txt contains only class 0 boxes. Never merge a capture session across splits.\n", encoding="utf-8")
-        staging.rename(destination)
+        export_id = publish_export(staging, datetime.now(UTC).astimezone().strftime("%Y-%m-%d_%H%M%S"))
     finally:
         if staging.exists():
             shutil.rmtree(staging)  # Server-generated UUID directory below the fixed workspace only.
     return {"export_id": export_id, "path": f"tools/yolo-training/datasets/{dataset}/exports/{export_id}",
             "counts": counts, "ready_for_training": all(counts.values())}
+
+
+def publish_export(staging: Path, stamp: str) -> str:
+    """Move a finished export to a timestamp name; a same-second export gets a suffix and never overwrites."""
+    for attempt in range(1, 1000):
+        export_id = stamp if attempt == 1 else f"{stamp}_{attempt}"
+        destination = staging.parent / export_id
+        if destination.exists():
+            continue
+        try:
+            staging.rename(destination)
+            return export_id
+        except FileExistsError:
+            continue
+    raise HTTPException(409, "Too many exports this second; retry")

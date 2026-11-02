@@ -88,6 +88,17 @@ test("Windows launcher works outside the repository and keeps existing site data
   assert.doesNotMatch(result.output, /seed-dev|publish-dev-state/);
 });
 
+test("launcher does not need WindowsPowerShell on PATH", {
+  skip: process.platform !== "win32",
+}, () => {
+  const env = { ...process.env };
+  const pathKey = Object.keys(env).find((key) => key.toLowerCase() === "path");
+  env[pathKey ?? "PATH"] = join(process.env.SystemRoot, "System32");
+  const result = runAt(launcher, ["--dry-run"], env);
+  assert.equal(result.status, 0, result.output);
+  assert.match(result.output, /Calibration UI: http:\/\/127\.0\.0\.1:3000/);
+});
+
 test("synthetic data and its publisher require explicit demo mode", {
   skip: process.platform !== "win32",
 }, () => {
