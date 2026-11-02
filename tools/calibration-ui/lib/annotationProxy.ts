@@ -11,8 +11,9 @@ export async function proxyAnnotationRequest(request: Request, options: ProxyOpt
   if (!['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) || (origin && origin !== url.origin) || (request.method !== 'GET' && !origin)) return reply(403, 'ใช้ได้จากเครื่องผู้ดูแลและ origin เดียวกันเท่านั้น');
   if (!options.token) return reply(503, 'เปิดบริการผ่าน start-dev.bat เพื่อใช้ Label');
   const dataset = url.searchParams.get('dataset') ?? '';
+  const classifier = url.pathname === '/api/classifier';
   const id = url.searchParams.get('id') ?? '';
-  if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(dataset)) return reply(400, 'ชื่อชุดข้อมูลใช้ a-z, 0-9 และขีดกลาง ไม่เกิน 63 ตัว');
+  if (!classifier && !/^[a-z0-9][a-z0-9-]{0,62}$/.test(dataset)) return reply(400, 'ชื่อชุดข้อมูลใช้ a-z, 0-9 และขีดกลาง ไม่เกิน 63 ตัว');
   const operation = url.searchParams.get('op');
   if (['image', 'save', 'detect'].includes(operation ?? '') && !/^[a-f0-9]{64}$/.test(id)) return reply(400, 'รหัสภาพไม่ถูกต้อง');
   const root = `/api/operator/annotations/${dataset}`;
@@ -20,12 +21,13 @@ export async function proxyAnnotationRequest(request: Request, options: ProxyOpt
     'GET:samples': root, 'POST:upload': `${root}/images`, 'GET:image': `${root}/images/${id}`,
     'PUT:save': `${root}/samples/${id}`, 'POST:detect': `${root}/samples/${id}/detect`, 'POST:export': `${root}/export`,
   };
-  const path = routes[`${request.method}:${operation}`];
+  const classifierRoutes: Record<string, string> = { 'GET:models': '/api/operator/classifier/models', 'POST:predict': '/api/operator/classifier/predict' };
+  const path = (classifier ? classifierRoutes : routes)[`${request.method}:${operation}`];
   if (!path) return reply(405, 'คำสั่งไม่รองรับ');
   const type = request.headers.get('Content-Type') ?? '';
-  if (operation === 'upload' && !type.startsWith('multipart/form-data;')) return reply(415, 'ส่งรูปด้วย multipart/form-data');
+  if (['upload', 'predict'].includes(operation ?? '') && !type.startsWith('multipart/form-data;')) return reply(415, 'ส่งรูปด้วย multipart/form-data');
   if (operation === 'save' && type.split(';')[0].trim() !== 'application/json') return reply(415, 'ส่ง label เป็น JSON');
-  const limit = operation === 'upload' ? 26 * 1024 * 1024 : 1024 * 1024;
+  const limit = ['upload', 'predict'].includes(operation ?? '') ? 26 * 1024 * 1024 : 1024 * 1024;
   if (Number(request.headers.get('Content-Length')) > limit) return reply(413, 'ข้อมูลใหญ่เกินกำหนด');
   try {
     let body: ArrayBuffer | undefined;
@@ -45,7 +47,7 @@ export async function proxyAnnotationRequest(request: Request, options: ProxyOpt
       body = bytes.buffer;
     }
     const response = await (options.fetcher ?? fetch)(options.apiUrl.replace(/\/$/, '') + path, {
-      method: request.method, body, cache: 'no-store', signal: AbortSignal.timeout(operation === 'detect' ? 120_000 : 30_000),
+      method: request.method, body, cache: 'no-store', signal: AbortSignal.timeout(['detect', 'predict'].includes(operation ?? '') ? 120_000 : 30_000),
       headers: { Authorization: `Bearer ${options.token}`, ...(type ? { 'Content-Type': type } : {}) },
     });
     return new Response(await response.arrayBuffer(), { status: response.status, headers: {

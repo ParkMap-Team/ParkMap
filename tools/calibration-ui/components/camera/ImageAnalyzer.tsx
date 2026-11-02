@@ -6,6 +6,7 @@ import { CameraMonitor } from '@/components/camera/CameraMonitor';
 import { PhysicalMeasuredMap } from '@/components/parking/PhysicalMeasuredMap';
 import { ParkingStateSummary } from '@/components/parking/ParkingStateSummary';
 import { CameraParkingOverlay } from '@/components/parking/CameraParkingOverlay';
+import { ClassifierExperiment } from '@/components/parking/ClassifierExperiment';
 import { adaptBackendParkingGeometry } from '@/lib/legacyParkingAnalysis';
 import { getCalibration } from '@/lib/calibration';
 import { analyzeParkingImage, MAX_UPLOAD_BYTES, SUPPORTED_IMAGE_TYPES } from '@/lib/detection';
@@ -187,6 +188,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
       </section>
 
       <CameraMonitor imageUrl={previewUrl} videoUrl={videoUrl} videoRef={videoRef} analysis={analysis} assignments={assignments} />
+      <ClassifierExperiment key={previewUrl ?? videoUrl ?? 'no-image'} file={file} />
       <div className="flex gap-2 text-sm"><button type="button" onClick={() => setParkingView('camera')} className={parkingView === 'camera' ? 'font-semibold text-blue-700' : 'text-slate-500'}>Camera View</button><button type="button" onClick={() => setParkingView('physical')} className={parkingView === 'physical' ? 'font-semibold text-blue-700' : 'text-slate-500'}>Physical Map</button></div>
       {parkingView === 'camera' ? <CameraParkingOverlay imageUrl={previewUrl ?? latestVideoFrameUrl} analysis={analysis?.parking_analysis} detection={analysis} /> : <PhysicalMeasuredMap physical={physical} mapping={mapping} homography={homography} occupiedSpace={occupiedSpace} freeSpace={freeSpace} fitting={null} recommendations={analysis?.parking_analysis?.placement_recommendation} capacity={analysis?.parking_analysis?.capacity} almostAvailablePlacements={analysis?.parking_analysis?.almost_available_placements} witnessSafety={analysis?.parking_analysis?.witness_safety} parkingState={analysis?.parking_analysis?.parking_state} uncertainty={analysis?.parking_analysis?.uncertainty} />}
       {analysis?.parking_analysis && <ParkingStateSummary analysis={analysis.parking_analysis} />}

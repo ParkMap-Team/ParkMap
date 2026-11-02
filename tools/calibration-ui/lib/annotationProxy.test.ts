@@ -4,6 +4,15 @@ import { proxyAnnotationRequest } from './annotationProxy.ts';
 const base = 'http://127.0.0.1:3000';
 const options = { apiUrl: 'http://127.0.0.1:8000', token: 'server-only-test' };
 
+void test('classifier proxy forwards only explicit experiment routes with operator auth', async () => {
+  const response = await proxyAnnotationRequest(new Request(base + '/api/classifier?op=models'), { ...options, fetcher: async (url, init) => {
+    assert.equal(url, options.apiUrl + '/api/operator/classifier/models');
+    assert.equal(new Headers(init.headers).get('Authorization'), 'Bearer server-only-test');
+    return Response.json([]);
+  } });
+  assert.equal(response.status, 200);
+});
+
 void test('annotation proxy preserves multipart bytes and sends credentials only upstream', async () => {
   const body = new FormData(); body.set('image', new Blob([new Uint8Array([0, 255, 128])], { type: 'image/png' }), 'photo.png');
   const request = new Request(base + '/api/annotation?dataset=demo&op=upload', { method: 'POST', headers: { Origin: base }, body });

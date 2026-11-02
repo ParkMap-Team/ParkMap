@@ -381,6 +381,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operator/classifier/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Models */
+        get: operations["list_models_api_operator_classifier_models_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/classifier/predict": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Predict */
+        post: operations["predict_api_operator_classifier_predict_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operator/lot-model/sites/{site_id}/activate": {
         parameters: {
             query?: never;
@@ -580,6 +614,19 @@ export interface components {
             /** Image */
             image: string;
         };
+        /** Body_predict_api_operator_classifier_predict_post */
+        Body_predict_api_operator_classifier_predict_post: {
+            /** Image */
+            image: string;
+            /**
+             * Mode
+             * @default detect
+             * @enum {string}
+             */
+            mode: "detect" | "crop";
+            /** Model Id */
+            model_id: string;
+        };
         /** Body_upload_image_api_operator_annotations__dataset__images_post */
         Body_upload_image_api_operator_annotations__dataset__images_post: {
             /** Image */
@@ -612,6 +659,49 @@ export interface components {
             name: string;
             /** Polygon */
             polygon: components["schemas"]["CalibrationPoint"][];
+        };
+        /** ClassifiedCrop */
+        ClassifiedCrop: {
+            /** Bbox */
+            bbox: {
+                [key: string]: number;
+            };
+            /** Crop Url */
+            crop_url: string;
+            /** Top3 */
+            top3: components["schemas"]["Prediction"][];
+        };
+        /** ClassifierModel */
+        ClassifierModel: {
+            /** Classes */
+            classes: number;
+            /** Epoch */
+            epoch: number;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Val Top1 */
+            val_top1: number;
+        };
+        /** ClassifierResult */
+        ClassifierResult: {
+            /** Crops */
+            crops: components["schemas"]["ClassifiedCrop"][];
+            /** Image Height */
+            image_height: number;
+            /** Image Width */
+            image_width: number;
+            /** Model Id */
+            model_id: string;
+            /** Preview Url */
+            preview_url: string;
+            /**
+             * Status
+             * @default EXPERIMENTAL
+             * @constant
+             */
+            status: "EXPERIMENTAL";
         };
         /** Detection */
         Detection: {
@@ -1232,6 +1322,13 @@ export interface components {
              * @constant
              */
             schema_version: 1;
+        };
+        /** Prediction */
+        Prediction: {
+            /** Family */
+            family: string;
+            /** Score */
+            score: number;
         };
         /** SiteParkingStateResponse */
         SiteParkingStateResponse: {
@@ -1939,6 +2036,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MotorcycleLabel"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_models_api_operator_classifier_models_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassifierModel"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    predict_api_operator_classifier_predict_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_predict_api_operator_classifier_predict_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassifierResult"];
                 };
             };
             /** @description Validation Error */
