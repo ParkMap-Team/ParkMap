@@ -8,7 +8,7 @@ import math
 import re
 from pathlib import Path
 from threading import Lock
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from PIL import Image, ImageOps, UnidentifiedImageError
@@ -18,6 +18,11 @@ from starlette.concurrency import run_in_threadpool
 from app.models import DetectionResponse
 from app.operator_auth import require_editor_token
 from app.services.cv_service import ModelUnavailableError, cv_service
+from app.services.motorcycle_reference_sizes import (
+    ResolvedReferenceSize,
+    load_rules,
+    reference_size,
+)
 from app.services.parking_analysis_service import (
     ParkingCalibrationUnavailableError,
     parking_analysis_service,
@@ -44,9 +49,11 @@ class Prediction(BaseModel):
 
 
 class ClassifiedCrop(BaseModel):
+    detection_index: int = 0
     bbox: dict[str, float]
     crop_url: str
     top3: list[Prediction]
+    reference_size: ResolvedReferenceSize | None = None
 
 
 class ClassifierResult(BaseModel):
@@ -58,11 +65,20 @@ class ClassifierResult(BaseModel):
     status: Literal["EXPERIMENTAL"] = "EXPERIMENTAL"
 
 
+class ReferenceSizeExperiment(BaseModel):
+    status: Literal["EXPERIMENTAL"] = "EXPERIMENTAL"
+    config_file: str = "config/motorcycle_reference_sizes.json"
+    sizes: list[ResolvedReferenceSize]
+    parking_analysis: dict[str, Any] | None = None
+
+
 class ParkingClassifierResult(BaseModel):
     detection: DetectionResponse
     classification: ClassifierResult | None = None
     classification_error: str | None = None
     parking_error: str | None = None
+    reference_size_error: str | None = None
+    reference_size_experiment: ReferenceSizeExperiment | None = None
 
 
 def available_models():
@@ -167,7 +183,7 @@ def classify(decoded, model_id, mode, boxes=None):
         if len(boxes) > 300:
             raise HTTPException(422, "Too many detections; use smaller images or cropped motorcycles.")
         crops = []
-        for box in boxes:
+        for detection_index, box in enumerate(boxes):
             left, top = math.floor(box["x"] * decoded.width), math.floor(box["y"] * decoded.height)
             right = min(decoded.width, math.ceil((box["x"] + box["width"]) * decoded.width))
             bottom = min(decoded.height, math.ceil((box["y"] + box["height"]) * decoded.height))
@@ -181,7 +197,7 @@ def classify(decoded, model_id, mode, boxes=None):
                 # softmax is applied once, matching the saved training evaluation.
                 logits = output[1] if isinstance(output, tuple) else output
                 scores, indices = logits.softmax(1)[0].topk(min(3, len(classes)))
-            crops.append(ClassifiedCrop(bbox=box, crop_url=encode_preview(crop), top3=[Prediction(family=classes[i], score=float(s)) for i, s in zip(indices.tolist(), scores.tolist(), strict=True)]))
+            crops.append(ClassifiedCrop(detection_index=detection_index, bbox=box, crop_url=encode_preview(crop), top3=[Prediction(family=classes[i], score=float(s)) for i, s in zip(indices.tolist(), scores.tolist(), strict=True)]))
         return ClassifierResult(model_id=model_id, image_width=decoded.width, image_height=decoded.height,
                                 preview_url=encode_preview(decoded), crops=crops)
 
@@ -244,6 +260,21 @@ async def analyze(image: Annotated[UploadFile, File()], response: Response, mode
                 result.classification_error = "Classifier unavailable; choose a completed local model and retry Analyze."
         else:
             result.classification_error = "No classifier selected; choose a completed local model and retry Analyze."
+        if result.classification is not None:
+            try:
+                rules = load_rules()
+                sizes = [reference_size(rules, None, None) for _ in detection.detections]
+                for crop in result.classification.crops:
+                    top = crop.top3[0] if crop.top3 else None
+                    size = reference_size(rules, top.family if top else None, top.score if top else None)
+                    crop.reference_size = size
+                    sizes[crop.detection_index] = size
+                experiment = ReferenceSizeExperiment(sizes=sizes)
+                if include_parking and detection.parking_analysis is not None:
+                    experiment.parking_analysis = await run_in_threadpool(parking_analysis_service.analyze, detection, reference_sizes=sizes)
+                result.reference_size_experiment = experiment
+            except (OSError, ValueError, ParkingCalibrationUnavailableError):
+                result.reference_size_error = "Reference-size experiment unavailable; check config/motorcycle_reference_sizes.json. Standard analysis remains available."
         return result
     finally:
         decoded.close()

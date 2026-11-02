@@ -126,6 +126,51 @@ def test_classifier_routes_are_operator_only(monkeypatch):
     assert client.post("/api/operator/classifier/analyze").status_code == 401
 
 
+def test_reference_size_experiment_preserves_detection_identity_and_standard_result(tmp_path, monkeypatch):
+    from app.models import DetectionResponse
+    from app.services import motorcycle_reference_sizes
+
+    monkeypatch.setenv("PARKMAP_EDITOR_TOKEN", "test-key")
+    rules = tmp_path / "sizes.json"
+    rules.write_text(json.dumps({"schema_version": 1, "min_score": .0,
+        "fallback": {"width_m": .66, "length_m": 2., "basis": "initial"},
+        "classes": {"wave": {"width_m": .9, "length_m": 2.5, "basis": "operator reference"}}}))
+    monkeypatch.setattr(motorcycle_reference_sizes, "RULES_PATH", rules)
+    box = {"x": .1, "y": .2, "width": .3, "height": .4}
+    detection = DetectionResponse(image_width=40, image_height=20, model={"name": "fixture"},
+        inference={"imgsz": 640, "confidence_threshold": .25, "nms_iou": .45, "processing_time_ms": 1},
+        detections=[{"class_id": 0, "class_name": "motorcycle", "confidence": .9, "bbox": box} for _ in range(3)])
+    monkeypatch.setattr(classifier.cv_service, "analyze_image", lambda raw: detection.model_copy(deep=True))
+    def predict(*args):
+        return classifier.ClassifierResult(model_id="test", image_width=40, image_height=20, preview_url="preview", crops=[
+            classifier.ClassifiedCrop(detection_index=2, bbox=box, crop_url="crop", top3=[classifier.Prediction(family="wave", score=.9)])])
+    monkeypatch.setattr(classifier, "classify", predict)
+    def parking(item, *, reference_sizes=None):
+        if reference_sizes is None:
+            return {"kind": "standard"}
+        assert [size.width_m for size in reference_sizes] == [.66, .66, .9]
+        assert [size.reason for size in reference_sizes] == ["NO_CLASSIFICATION", "NO_CLASSIFICATION", "CLASS_RULE"]
+        return {"kind": "experiment"}
+    monkeypatch.setattr(classifier.parking_analysis_service, "analyze", parking)
+    stream = io.BytesIO()
+    Image.new("RGB", (40, 20)).save(stream, "PNG")
+    client = TestClient(app, headers={"Authorization": "Bearer test-key"})
+    def analyze():
+        response = client.post("/api/operator/classifier/analyze", data={"model_id": "test"}, files={"image": ("a.png", stream.getvalue(), "image/png")})
+        assert response.status_code == 200
+        return response.json()
+    result = analyze()
+    assert result["detection"]["parking_analysis"] == {"kind": "standard"}
+    assert result["reference_size_experiment"]["parking_analysis"] == {"kind": "experiment"}
+    assert result["classification"]["crops"][0]["reference_size"]["width_m"] == .9
+    rules.write_text('{"bad":true}')
+    invalid = analyze()
+    assert invalid["classification"]["crops"]
+    assert invalid["detection"]["parking_analysis"] == {"kind": "standard"}
+    assert invalid["reference_size_experiment"] is None
+    assert invalid["reference_size_error"]
+
+
 def test_classifier_rejects_invalid_images_and_unknown_models(monkeypatch):
     monkeypatch.setenv("PARKMAP_EDITOR_TOKEN", "test-key")
     client = TestClient(app, headers={"Authorization": "Bearer test-key"})
