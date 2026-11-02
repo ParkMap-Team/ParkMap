@@ -27,6 +27,11 @@ certainty. It predicts neither dimensions nor parking availability. Different
 training runs can have different validation sets; their validation numbers are
 not a controlled comparison.
 
+The local [reference-size experiment](motorcycle-reference-sizes.md) maps the
+predicted family to editable width/length references. It returns separate local
+parking geometry and lets the UI compare it with the standard result. These are
+not measured dimensions; worker, persisted states and LIFF retain standard sizes.
+
 New test images should be independent of training, validation and test datasets
 if used to assess generalization. Human-confirmed truth is needed to count correct
 predictions. No truth labels or evaluation scores are saved by this panel. Use
