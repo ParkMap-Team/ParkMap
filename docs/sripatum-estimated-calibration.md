@@ -11,7 +11,7 @@ Status: `ESTIMATED`, 2026-10-15 (#26). It makes no distance or accuracy claim (A
 | Camera | `sripatum-camera-1` |
 | Reference photo | `20260925_0931` (4032 x 3024, the least occluded of the seven) |
 | Calibration files | `ground_plane_calibration.json`, `ground_plane_homography.json`, `parking_calibration.json`, kept on the team Drive, never in Git |
-| Lot model | [`apps/vision-api/fixtures/sripatum-lot-model.json`](../apps/vision-api/fixtures/sripatum-lot-model.json) |
+| Lot model | [`apps/vision-api/fixtures/sripatum-lot-model.json`](../apps/vision-api/fixtures/sripatum-lot-model.json); the editor's [`spu-cam-01-lot-model.json`](../apps/vision-api/fixtures/spu-cam-01-lot-model.json) is active in production |
 
 ## Ground frame
 
@@ -61,6 +61,8 @@ Every row spans the ROI width (17.25 m) and is `ESTIMATED` with 1.0 m uncertaint
 ## Lot model
 
 The outline is the whole lot, `x` -8.35 to 37.5, `y` -14.7 to 14.08: from the west planters to the hedge curb, and from the covered walkway to the far end of the lot. The parking area is the Parking ROI. The rest of the outline, including the half of the lot the camera does not see, is `UNMONITORED`.
+
+`spu-cam-01-lot-model.json` keeps the same landmarks. Its outline is only the parking area, which is the calibrated Parking ROI shifted 7.29 m west (`x` -3.36 to 13.89), so its top edge is centred where the operator placed the lot in the editor. `y` is unchanged, so the ROI still ends at the hedge curb and above the near planters. It copies the exact `roi_metric` corners from `ground_plane_homography.json`, because the API accepts only a rigid placement of those corners; a reshaped or resized ROI deactivates the calibration.
 
 Every landmark is `ESTIMATED` from a satellite image of the campus and the team's site photos, not surveyed. The team marked the lot, the camera's view, and the shared entrance and exit on the satellite image. Its scale was set from the lot's painted stall grid (about 0.069 m per pixel, uncertain by up to 30 %), and it was aligned to the ground frame by the hedge curb (`y` 14.08) and the near planter tops (`y` 0.96):
 
