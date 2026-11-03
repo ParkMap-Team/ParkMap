@@ -269,7 +269,10 @@ def test_spu_cam_01_lot_model_uses_only_the_calibrated_parking_roi():
     validate_lot_model(definition)
 
     assert [area.parking_area_id for area in definition.parking_areas] == ["sripatum-near-lot"]
-    assert len(definition.parking_areas[0].polygon[0]) == 6
+    # The calibrated rectangle shifted 7.29 m west, so the registered calibration still places it rigidly.
+    roi = definition.parking_areas[0].polygon[0]
+    assert len(roi) == 4
+    assert [(round(point.x_m, 2), round(point.y_m, 2)) for point in roi] == [(-3.36, 1.12), (13.89, 1.12), (13.89, 14.08), (-3.36, 14.08)]
     assert definition.outline == definition.parking_areas[0].polygon
     assert {"TREE", "ROAD", "WALKWAY"}.issubset({landmark.kind for landmark in definition.landmarks})
     assert unmonitored_polygons(definition) == []
