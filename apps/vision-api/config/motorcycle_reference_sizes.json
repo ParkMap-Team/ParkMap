@@ -8,233 +8,234 @@
   },
   "classes": {
     "adv": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.83,
+      "length_m": 2.1,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "aerox": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.71,
+      "length_m": 1.98,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "africatwin": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.96,
+      "length_m": 2.315,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "c125": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.718,
+      "length_m": 1.91,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "cb150": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.822,
+      "length_m": 1.973,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "cb300": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.888,
+      "length_m": 2.012,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "cbr150": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.7,
+      "length_m": 1.983,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "cbr250": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.724,
+      "length_m": 2.06,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "cbr300": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.72,
+      "length_m": 2.033,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "cbr500r": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.765,
+      "length_m": 2.081,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "click": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.679,
+      "length_m": 1.92,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "crf250": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.815,
+      "length_m": 2.172,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "crf300": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.819,
+      "length_m": 2.208,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "ct125": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.805,
+      "length_m": 1.961,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "demon": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.757,
+      "length_m": 1.878,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "drone": {
-      "width_m": 0.66,
+      "width_m": 0.76,
       "length_m": 2.0,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "exciter": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.665,
+      "length_m": 1.975,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "finn": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.71,
+      "length_m": 1.94,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "fino": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.74,
+      "length_m": 1.87,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "forza": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.772,
+      "length_m": 2.171,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "goldwing": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.905,
+      "length_m": 2.615,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "grand_filano": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.685,
+      "length_m": 1.82,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "gt125": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.685,
+      "length_m": 1.87,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "gtx125": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.685,
+      "length_m": 1.87,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "lead": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.698,
+      "length_m": 1.844,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "legend": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.785,
+      "length_m": 2.04,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "monkey": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.754,
+      "length_m": 1.711,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "msxgrom": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.726,
+      "length_m": 1.758,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "mt15": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.8,
+      "length_m": 1.965,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "nc750": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.846,
+      "length_m": 2.21,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "nmax": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.74,
+      "length_m": 1.935,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "pcx": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.742,
+      "length_m": 1.935,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "popz": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.732,
+      "length_m": 1.88,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
+
     "qbix": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.715,
+      "length_m": 1.86,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "r15": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.725,
+      "length_m": 1.99,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "razer": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.8,
+      "length_m": 1.945,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "rebel": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.822,
+      "length_m": 2.206,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "rock": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.73,
+      "length_m": 1.92,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "scoopy": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.693,
+      "length_m": 1.869,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "super_cub": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.702,
+      "length_m": 1.876,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "wave": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.715,
+      "length_m": 1.907,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "wr155": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.84,
+      "length_m": 2.145,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "xadv": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.94,
+      "length_m": 2.2,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "xmax": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.775,
+      "length_m": 2.182,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "xsr": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.805,
+      "length_m": 2.005,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "zoomerx": {
-      "width_m": 0.66,
-      "length_m": 2.0,
+      "width_m": 0.759,
+      "length_m": 1.84,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     }
   }

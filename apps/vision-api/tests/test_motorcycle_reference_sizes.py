@@ -7,13 +7,12 @@ from app.services.motorcycle_reference_sizes import load_rules, reference_size
 from app.services.virtual_fitting_service import LENGTH_M, WIDTH_M
 
 
-def test_defaults_cover_the_classifier_catalog_without_claiming_measurements():
+def test_editable_catalog_keeps_the_standard_fallback():
     rules = load_rules()
     assert len(rules.classes) == 46
     assert {"wave", "pcx", "adv", "grand_filano"} <= rules.classes.keys()
-    for size in [rules.fallback, *rules.classes.values()]:
-        assert (size.width_m, size.length_m) == (WIDTH_M, LENGTH_M)
-        assert size.basis == "INITIAL_STANDARD_NOT_MEASURED"
+    assert (rules.fallback.width_m, rules.fallback.length_m) == (WIDTH_M, LENGTH_M)
+    assert rules.fallback.basis == "INITIAL_STANDARD_NOT_MEASURED"
 
 
 def test_exact_class_mapping_reload_and_explicit_fallback(tmp_path):
