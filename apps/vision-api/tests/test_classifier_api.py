@@ -126,6 +126,61 @@ def test_classifier_routes_are_operator_only(monkeypatch):
     assert client.post("/api/operator/classifier/analyze").status_code == 401
 
 
+def test_optional_segmentation_never_replaces_standard_detections(monkeypatch):
+    from app.models import DetectionResponse
+    from app.services.cv_service import ModelUnavailableError
+    from app.services.segmentation_experiment_service import (
+        SegmentationExperimentResult,
+    )
+
+    monkeypatch.setenv("PARKMAP_EDITOR_TOKEN", "test-key")
+    detection = DetectionResponse(image_width=40, image_height=20, model={"name": "standard"},
+        inference={"imgsz": 960, "confidence_threshold": .25, "nms_iou": .5, "processing_time_ms": 1}, detections=[])
+    monkeypatch.setattr(classifier.cv_service, "analyze_image", lambda raw: detection)
+    calls = []
+    def segment(raw):
+        calls.append("segmentation")
+        return SegmentationExperimentResult(model="yolo11m-seg.pt", image_width=40, image_height=20, processing_time_ms=2, imgsz=960,
+            detections=[{"bbox": {"x": .1, "y": .1, "width": .5, "height": .5}, "confidence": .8,
+                "polygon": [{"x": .1, "y": .1}, {"x": .6, "y": .1}, {"x": .6, "y": .6}]}])
+    monkeypatch.setattr(classifier.segmentation_experiment_service, "analyze_image", segment)
+    stream = io.BytesIO()
+    Image.new("RGB", (40, 20)).save(stream, "PNG")
+    client = TestClient(app, headers={"Authorization": "Bearer test-key"})
+    def analyze(enabled):
+        response = client.post("/api/operator/classifier/analyze", data={"include_parking": "false", "include_segmentation": str(enabled).lower()}, files={"image": ("a.png", stream.getvalue(), "image/png")})
+        assert response.status_code == 200
+        return response.json()
+    assert analyze(False)["segmentation"] is None
+    assert calls == []
+    comparison = analyze(True)
+    assert comparison["detection"]["detections"] == []
+    assert len(comparison["segmentation"]["detections"]) == 1
+    assert comparison["segmentation"]["preview_url"].startswith("data:image/jpeg;base64,")
+    from app.services.segmentation_gap_service import SegmentationGapResult
+
+    def gaps(standard, segmented, **kwargs):
+        assert standard.detections == []
+        assert len(segmented.detections) == 1
+        return SegmentationGapResult(status="EXPERIMENTAL")
+    monkeypatch.setattr(classifier, "analyze_segmentation_gaps", gaps)
+    only_gaps = client.post("/api/operator/classifier/analyze", data={"include_parking": "false", "include_segmentation_gaps": "true"}, files={"image": ("a.png", stream.getvalue(), "image/png")})
+    assert only_gaps.status_code == 200
+    assert only_gaps.json()["segmentation_gaps"]["status"] == "EXPERIMENTAL"
+    assert only_gaps.json()["detection"]["detections"] == []
+    def missing(raw):
+        raise ModelUnavailableError("missing")
+    monkeypatch.setattr(classifier.segmentation_experiment_service, "analyze_image", missing)
+    failed = analyze(True)
+    assert failed["detection"]["model"]["name"] == "standard"
+    assert failed["segmentation"] is None
+    assert failed["segmentation_error"]
+    unavailable = client.post("/api/operator/classifier/analyze", data={"include_parking": "false", "include_segmentation_gaps": "true"}, files={"image": ("a.png", stream.getvalue(), "image/png")})
+    assert unavailable.status_code == 200
+    assert unavailable.json()["segmentation_gaps"]["status"] == "UNKNOWN"
+    assert unavailable.json()["segmentation_gaps"]["green_count"] == 0
+
+
 def test_reference_size_experiment_preserves_detection_identity_and_standard_result(tmp_path, monkeypatch):
     from app.models import DetectionResponse
     from app.services import motorcycle_reference_sizes

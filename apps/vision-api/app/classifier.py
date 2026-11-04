@@ -27,6 +27,14 @@ from app.services.parking_analysis_service import (
     ParkingCalibrationUnavailableError,
     parking_analysis_service,
 )
+from app.services.segmentation_experiment_service import (
+    SegmentationExperimentResult,
+    segmentation_experiment_service,
+)
+from app.services.segmentation_gap_service import (
+    SegmentationGapResult,
+    analyze_segmentation_gaps,
+)
 
 router = APIRouter(prefix="/api/operator/classifier", tags=["Classifier experiment"], dependencies=[Depends(require_editor_token)])
 API_ROOT = Path(__file__).resolve().parent.parent
@@ -79,6 +87,9 @@ class ParkingClassifierResult(BaseModel):
     parking_error: str | None = None
     reference_size_error: str | None = None
     reference_size_experiment: ReferenceSizeExperiment | None = None
+    segmentation: SegmentationExperimentResult | None = None
+    segmentation_error: str | None = None
+    segmentation_gaps: SegmentationGapResult | None = None
 
 
 def available_models():
@@ -237,7 +248,7 @@ async def predict(image: Annotated[UploadFile, File()], model_id: Annotated[str,
 
 
 @router.post("/analyze", response_model=ParkingClassifierResult)
-async def analyze(image: Annotated[UploadFile, File()], response: Response, model_id: str = Form(""), include_parking: bool = Form(True)):
+async def analyze(image: Annotated[UploadFile, File()], response: Response, model_id: str = Form(""), include_parking: bool = Form(True), include_segmentation: bool = Form(False), include_segmentation_gaps: bool = Form(False)):
     response.headers["Cache-Control"] = "no-store"
     decoded = await read_image(image)
     try:
@@ -275,6 +286,18 @@ async def analyze(image: Annotated[UploadFile, File()], response: Response, mode
                 result.reference_size_experiment = experiment
             except (OSError, ValueError, ParkingCalibrationUnavailableError):
                 result.reference_size_error = "Reference-size experiment unavailable; check config/motorcycle_reference_sizes.json. Standard analysis remains available."
+        if include_segmentation or include_segmentation_gaps:
+            try:
+                result.segmentation = await run_in_threadpool(segmentation_experiment_service.analyze_image, stream.getvalue())
+                result.segmentation.preview_url = encode_preview(decoded)
+            except (ModelUnavailableError, OSError, ValueError, RuntimeError):
+                result.segmentation_error = "Segmentation unavailable. Install models/yolo11m-seg.pt with python scripts/download_segmentation_weights.py; the standard analysis remains available."
+        if include_segmentation_gaps:
+            if result.segmentation is None:
+                result.segmentation_gaps = SegmentationGapResult(status="UNKNOWN", evaluation_mode="WIDTH_ONLY", reasons=["SEGMENTATION_UNAVAILABLE"])
+            else:
+                references = result.reference_size_experiment.sizes if result.reference_size_experiment else None
+                result.segmentation_gaps = await run_in_threadpool(analyze_segmentation_gaps, detection, result.segmentation, reference_sizes=references)
         return result
     finally:
         decoded.close()

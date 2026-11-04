@@ -626,6 +626,16 @@ export interface components {
              */
             include_parking: boolean;
             /**
+             * Include Segmentation
+             * @default false
+             */
+            include_segmentation: boolean;
+            /**
+             * Include Segmentation Gaps
+             * @default false
+             */
+            include_segmentation_gaps: boolean;
+            /**
              * Model Id
              * @default
              */
@@ -801,6 +811,85 @@ export interface components {
             parking_analysis?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** GapCandidate */
+        GapCandidate: {
+            /** Gap Width M */
+            gap_width_m: number;
+            /** Id */
+            id: string;
+            label_image: components["schemas"]["MaskPoint"] | null;
+            label_metric?: components["schemas"]["MetricGroundPoint"] | null;
+            /** Nearest Clearance M */
+            nearest_clearance_m: number | null;
+            /** Nearest Line Image */
+            nearest_line_image: components["schemas"]["MaskPoint"][] | null;
+            /** Polygon Image */
+            polygon_image: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Polygon Metric
+             * @default []
+             */
+            polygon_metric: components["schemas"]["MetricGroundPoint"][];
+            /** Reasons */
+            reasons: string[];
+            /** Row Id */
+            row_id: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "FIT" | "WIDTH_SUFFICIENT" | "INSUFFICIENT_WIDTH" | "UNKNOWN";
+            /** Width Line Image */
+            width_line_image: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Width Line Metric
+             * @default []
+             */
+            width_line_metric: components["schemas"]["MetricGroundPoint"][];
+        };
+        /** GapMetricGeometry */
+        GapMetricGeometry: {
+            /**
+             * Polygons
+             * @default []
+             */
+            polygons: components["schemas"]["MetricGroundPoint"][][][];
+        };
+        /** GapOccupancyLayer */
+        GapOccupancyLayer: {
+            /** Detection Id */
+            detection_id: string;
+            geometry: components["schemas"]["GapMetricGeometry"];
+            roi_geometry: components["schemas"]["GapMetricGeometry"];
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "PRIMARY" | "SEGMENTATION";
+        };
+        /** GapRow */
+        GapRow: {
+            /** Fit Count */
+            fit_count: number;
+            label_image?: components["schemas"]["MaskPoint"] | null;
+            label_metric?: components["schemas"]["MetricGroundPoint"] | null;
+            /** Polygon Image */
+            polygon_image?: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Polygon Metric
+             * @default []
+             */
+            polygon_metric: components["schemas"]["MetricGroundPoint"][];
+            /** Row Id */
+            row_id: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "FIT" | "WIDTH_SUFFICIENT" | "UNKNOWN" | "NO_FIT";
+            /** Unknown Count */
+            unknown_count: number;
         };
         /** GroundControlPoint */
         GroundControlPoint: {
@@ -1190,6 +1279,29 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** MaskPoint */
+        MaskPoint: {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        };
+        /** MeasuredGap */
+        MeasuredGap: {
+            /** Depth M */
+            depth_m: number;
+            /** Row Id */
+            row_id: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "INSUFFICIENT_WIDTH" | "INSUFFICIENT_DEPTH" | "REQUIRES_FIT_VALIDATION";
+            /** Width Line Image */
+            width_line_image: components["schemas"]["MaskPoint"][] | null;
+            /** Width M */
+            width_m: number;
+        };
         /** MetricGroundPoint */
         MetricGroundPoint: {
             /** X M */
@@ -1291,6 +1403,10 @@ export interface components {
             /** Reference Size Error */
             reference_size_error?: string | null;
             reference_size_experiment?: components["schemas"]["ReferenceSizeExperiment"] | null;
+            segmentation?: components["schemas"]["SegmentationExperimentResult"] | null;
+            /** Segmentation Error */
+            segmentation_error?: string | null;
+            segmentation_gaps?: components["schemas"]["SegmentationGapResult"] | null;
         };
         /**
          * ParkingStatePublish
@@ -1425,6 +1541,130 @@ export interface components {
             status: "EXPERIMENTAL_REFERENCE";
             /** Width M */
             width_m: number;
+        };
+        /** SegmentationExperimentResult */
+        SegmentationExperimentResult: {
+            /** Detections */
+            detections: components["schemas"]["SegmentedMotorcycle"][];
+            /** Image Height */
+            image_height: number;
+            /** Image Width */
+            image_width: number;
+            /** Imgsz */
+            imgsz: number;
+            /** Model */
+            model: string;
+            /** Preview Url */
+            preview_url?: string | null;
+            /** Processing Time Ms */
+            processing_time_ms: number;
+            /**
+             * Status
+             * @default EXPERIMENTAL_IMAGE_MASK
+             * @constant
+             */
+            status: "EXPERIMENTAL_IMAGE_MASK";
+        };
+        /** SegmentationGapResult */
+        SegmentationGapResult: {
+            /**
+             * Calibration Source
+             * @default UNKNOWN
+             * @enum {string}
+             */
+            calibration_source: "MEASURED" | "ESTIMATED" | "UNKNOWN";
+            /** Calibration Version */
+            calibration_version?: string | null;
+            /**
+             * Candidates
+             * @default []
+             */
+            candidates: components["schemas"]["GapCandidate"][];
+            /**
+             * Clearance Margin M
+             * @default 0
+             */
+            clearance_margin_m: number;
+            /**
+             * Evaluation Mode
+             * @default FULL_FOOTPRINT
+             * @enum {string}
+             */
+            evaluation_mode: "FULL_FOOTPRINT" | "WIDTH_ONLY";
+            /**
+             * Green Count
+             * @default 0
+             */
+            green_count: number;
+            /**
+             * Measured Gaps
+             * @default []
+             */
+            measured_gaps: components["schemas"]["MeasuredGap"][];
+            /** Measurement Band M */
+            measurement_band_m?: number | null;
+            /**
+             * Narrow Count
+             * @default 0
+             */
+            narrow_count: number;
+            /**
+             * Occupied Layers
+             * @default []
+             */
+            occupied_layers: components["schemas"]["GapOccupancyLayer"][];
+            occupied_metric?: components["schemas"]["GapMetricGeometry"] | null;
+            parking_roi_metric?: components["schemas"]["GapMetricGeometry"] | null;
+            /**
+             * Reasons
+             * @default []
+             */
+            reasons: string[];
+            /**
+             * Rows
+             * @default []
+             */
+            rows: components["schemas"]["GapRow"][];
+            /**
+             * Status
+             * @default EXPERIMENTAL
+             * @enum {string}
+             */
+            status: "EXPERIMENTAL" | "CALIBRATION_REQUIRED" | "UNKNOWN";
+            /**
+             * Target Length M
+             * @default 2
+             */
+            target_length_m: number;
+            /**
+             * Target Width M
+             * @default 0.66
+             */
+            target_width_m: number;
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated: boolean;
+            /**
+             * Unknown Count
+             * @default 0
+             */
+            unknown_count: number;
+            /**
+             * Width Measurement
+             * @default FULL_DEPTH
+             * @enum {string}
+             */
+            width_measurement: "ROW_MIDLINE_BAND" | "FULL_DEPTH";
+        };
+        /** SegmentedMotorcycle */
+        SegmentedMotorcycle: {
+            bbox: components["schemas"]["DetectionBBox"];
+            /** Confidence */
+            confidence: number;
+            /** Polygon */
+            polygon?: components["schemas"]["MaskPoint"][] | null;
         };
         /** SiteParkingStateResponse */
         SiteParkingStateResponse: {

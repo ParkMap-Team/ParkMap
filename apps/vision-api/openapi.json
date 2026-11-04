@@ -114,6 +114,16 @@
             "title": "Include Parking",
             "type": "boolean"
           },
+          "include_segmentation": {
+            "default": false,
+            "title": "Include Segmentation",
+            "type": "boolean"
+          },
+          "include_segmentation_gaps": {
+            "default": false,
+            "title": "Include Segmentation Gaps",
+            "type": "boolean"
+          },
           "model_id": {
             "default": "",
             "title": "Model Id",
@@ -586,6 +596,268 @@
           "detections"
         ],
         "title": "DetectionResponse",
+        "type": "object"
+      },
+      "GapCandidate": {
+        "properties": {
+          "gap_width_m": {
+            "title": "Gap Width M",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label_image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MaskPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label_metric": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetricGroundPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nearest_clearance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nearest Clearance M"
+          },
+          "nearest_line_image": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MaskPoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nearest Line Image"
+          },
+          "polygon_image": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MaskPoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polygon Image"
+          },
+          "polygon_metric": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MetricGroundPoint"
+            },
+            "title": "Polygon Metric",
+            "type": "array"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "row_id": {
+            "title": "Row Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "FIT",
+              "WIDTH_SUFFICIENT",
+              "INSUFFICIENT_WIDTH",
+              "UNKNOWN"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "width_line_image": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MaskPoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width Line Image"
+          },
+          "width_line_metric": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MetricGroundPoint"
+            },
+            "title": "Width Line Metric",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "row_id",
+          "state",
+          "reasons",
+          "gap_width_m",
+          "nearest_clearance_m",
+          "polygon_image",
+          "width_line_image",
+          "nearest_line_image",
+          "label_image"
+        ],
+        "title": "GapCandidate",
+        "type": "object"
+      },
+      "GapMetricGeometry": {
+        "properties": {
+          "polygons": {
+            "default": [],
+            "items": {
+              "items": {
+                "items": {
+                  "$ref": "#/components/schemas/MetricGroundPoint"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "Polygons",
+            "type": "array"
+          }
+        },
+        "title": "GapMetricGeometry",
+        "type": "object"
+      },
+      "GapOccupancyLayer": {
+        "properties": {
+          "detection_id": {
+            "title": "Detection Id",
+            "type": "string"
+          },
+          "geometry": {
+            "$ref": "#/components/schemas/GapMetricGeometry"
+          },
+          "roi_geometry": {
+            "$ref": "#/components/schemas/GapMetricGeometry"
+          },
+          "source": {
+            "enum": [
+              "PRIMARY",
+              "SEGMENTATION"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detection_id",
+          "source",
+          "geometry",
+          "roi_geometry"
+        ],
+        "title": "GapOccupancyLayer",
+        "type": "object"
+      },
+      "GapRow": {
+        "properties": {
+          "fit_count": {
+            "title": "Fit Count",
+            "type": "integer"
+          },
+          "label_image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MaskPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label_metric": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetricGroundPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "polygon_image": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MaskPoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polygon Image"
+          },
+          "polygon_metric": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MetricGroundPoint"
+            },
+            "title": "Polygon Metric",
+            "type": "array"
+          },
+          "row_id": {
+            "title": "Row Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "FIT",
+              "WIDTH_SUFFICIENT",
+              "UNKNOWN",
+              "NO_FIT"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "unknown_count": {
+            "title": "Unknown Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row_id",
+          "state",
+          "fit_count",
+          "unknown_count"
+        ],
+        "title": "GapRow",
         "type": "object"
       },
       "GroundControlPoint": {
@@ -1694,6 +1966,76 @@
         "title": "LotModelResponse",
         "type": "object"
       },
+      "MaskPoint": {
+        "properties": {
+          "x": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "MaskPoint",
+        "type": "object"
+      },
+      "MeasuredGap": {
+        "properties": {
+          "depth_m": {
+            "title": "Depth M",
+            "type": "number"
+          },
+          "row_id": {
+            "title": "Row Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "INSUFFICIENT_WIDTH",
+              "INSUFFICIENT_DEPTH",
+              "REQUIRES_FIT_VALIDATION"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "width_line_image": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MaskPoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width Line Image"
+          },
+          "width_m": {
+            "title": "Width M",
+            "type": "number"
+          }
+        },
+        "required": [
+          "row_id",
+          "width_m",
+          "depth_m",
+          "state",
+          "width_line_image"
+        ],
+        "title": "MeasuredGap",
+        "type": "object"
+      },
       "MetricGroundPoint": {
         "properties": {
           "x_m": {
@@ -2028,6 +2370,37 @@
                 "type": "null"
               }
             ]
+          },
+          "segmentation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SegmentationExperimentResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "segmentation_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segmentation Error"
+          },
+          "segmentation_gaps": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SegmentationGapResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -2349,6 +2722,258 @@
           "reason"
         ],
         "title": "ResolvedReferenceSize",
+        "type": "object"
+      },
+      "SegmentationExperimentResult": {
+        "properties": {
+          "detections": {
+            "items": {
+              "$ref": "#/components/schemas/SegmentedMotorcycle"
+            },
+            "title": "Detections",
+            "type": "array"
+          },
+          "image_height": {
+            "title": "Image Height",
+            "type": "integer"
+          },
+          "image_width": {
+            "title": "Image Width",
+            "type": "integer"
+          },
+          "imgsz": {
+            "title": "Imgsz",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Url"
+          },
+          "processing_time_ms": {
+            "title": "Processing Time Ms",
+            "type": "number"
+          },
+          "status": {
+            "const": "EXPERIMENTAL_IMAGE_MASK",
+            "default": "EXPERIMENTAL_IMAGE_MASK",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model",
+          "image_width",
+          "image_height",
+          "processing_time_ms",
+          "imgsz",
+          "detections"
+        ],
+        "title": "SegmentationExperimentResult",
+        "type": "object"
+      },
+      "SegmentationGapResult": {
+        "properties": {
+          "calibration_source": {
+            "default": "UNKNOWN",
+            "enum": [
+              "MEASURED",
+              "ESTIMATED",
+              "UNKNOWN"
+            ],
+            "title": "Calibration Source",
+            "type": "string"
+          },
+          "calibration_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calibration Version"
+          },
+          "candidates": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GapCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "clearance_margin_m": {
+            "default": 0.0,
+            "title": "Clearance Margin M",
+            "type": "number"
+          },
+          "evaluation_mode": {
+            "default": "FULL_FOOTPRINT",
+            "enum": [
+              "FULL_FOOTPRINT",
+              "WIDTH_ONLY"
+            ],
+            "title": "Evaluation Mode",
+            "type": "string"
+          },
+          "green_count": {
+            "default": 0,
+            "title": "Green Count",
+            "type": "integer"
+          },
+          "measured_gaps": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MeasuredGap"
+            },
+            "title": "Measured Gaps",
+            "type": "array"
+          },
+          "measurement_band_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measurement Band M"
+          },
+          "narrow_count": {
+            "default": 0,
+            "title": "Narrow Count",
+            "type": "integer"
+          },
+          "occupied_layers": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GapOccupancyLayer"
+            },
+            "title": "Occupied Layers",
+            "type": "array"
+          },
+          "occupied_metric": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GapMetricGeometry"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parking_roi_metric": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GapMetricGeometry"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reasons": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "rows": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GapRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "status": {
+            "default": "EXPERIMENTAL",
+            "enum": [
+              "EXPERIMENTAL",
+              "CALIBRATION_REQUIRED",
+              "UNKNOWN"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "target_length_m": {
+            "default": 2.0,
+            "title": "Target Length M",
+            "type": "number"
+          },
+          "target_width_m": {
+            "default": 0.66,
+            "title": "Target Width M",
+            "type": "number"
+          },
+          "truncated": {
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          },
+          "unknown_count": {
+            "default": 0,
+            "title": "Unknown Count",
+            "type": "integer"
+          },
+          "width_measurement": {
+            "default": "FULL_DEPTH",
+            "enum": [
+              "ROW_MIDLINE_BAND",
+              "FULL_DEPTH"
+            ],
+            "title": "Width Measurement",
+            "type": "string"
+          }
+        },
+        "title": "SegmentationGapResult",
+        "type": "object"
+      },
+      "SegmentedMotorcycle": {
+        "properties": {
+          "bbox": {
+            "$ref": "#/components/schemas/DetectionBBox"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "polygon": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MaskPoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polygon"
+          }
+        },
+        "required": [
+          "bbox",
+          "confidence"
+        ],
+        "title": "SegmentedMotorcycle",
         "type": "object"
       },
       "SiteParkingStateResponse": {
