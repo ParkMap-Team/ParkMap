@@ -2,6 +2,12 @@
 
 Status: accepted, 2026-11-01. Extends ADR 0013 and the detector evaluation protocol.
 
+The local segmentation gap overlay now checks only the standard lateral width
+(0.66 m). Green means `WIDTH_SUFFICIENT`, not full-vehicle fitting or availability.
+Target length is not an acceptance criterion; row geometry, calibration,
+uncertainty and image occlusion checks remain required. This does not change
+standard parking analysis, worker publication or LIFF semantics.
+
 The operator UI has three areas: Parking, Setup, Label. Setup groups camera/metric
 calibration and static lot authoring under separate tabs and save actions. Existing
 `/lot-model` bookmarks open its Setup tab. Switching tabs retains mounted work so
@@ -76,3 +82,29 @@ standard fitting dimensions. Invalid rules retain standard analysis with an erro
 Worker, persisted state and LIFF never consume these references. This experiment
 does not replace ADR 0011's validation requirement. See
 [reference-size instructions](../motorcycle-reference-sizes.md).
+
+Parking also supports an explicitly enabled YOLO11m-seg comparison. A separate
+local model returns normalized image masks, counts and timings while the original
+detector, classifier crops and parking analysis remain authoritative for that
+flow. Masks are never treated as metric ground footprints or persisted/published
+to worker/LIFF. Failures preserve standard analysis. No weights are downloaded
+by request handlers. See the [segmentation comparison](../segmentation-experiment.md).
+
+Local segmentation gap/clearance analysis is a further explicit experiment. It
+uses the conservative union of both detectors with calibrated reference
+footprints and the standard incoming target, retaining larger known references.
+Green means a model width-sufficient corridor, not full fitting or live availability. Image masks
+and boxes gate potential occlusion instead of being projected as ground shapes.
+Missing evidence/calibration and uncertainty withhold green. Results have a
+separate response/overlay and never publish to worker/LIFF. See
+[gap semantics and limitations](../segmentation-gaps.md).
+
+The experiment has its own metric top-down view alongside the image overlay,
+using Python-provided geometry and identical uncertainty states. It is an
+additional display; the existing Physical Map is retained. It does not project
+vehicle masks as ground shapes or calculate fitting in JavaScript.
+The view defaults to ROI bounds and ROI-clipped segmentation footprints, with
+optional outside-ROI and detector layers. Width checks now measure a 2 cm band
+centred on each row midline, rather than demanding a full-row-depth corridor.
+Image occlusion and row uncertainty continue to withhold green; width sufficiency
+at this cross-section is not a claim that a full motorcycle can fit.

@@ -2,9 +2,11 @@ import { PARKMAP_API_URL, ParkingApiError } from './api.ts';
 import type { DetectionResponse } from '../types/detection.ts';
 import type { components } from '../types/api.gen.ts';
 
-export async function analyzeParkingWithClassifier(file: File, model: string, signal?: AbortSignal, includeParking = true): Promise<components['schemas']['ParkingClassifierResult']> {
+export async function analyzeParkingWithClassifier(file: File, model: string, signal?: AbortSignal, includeParking = true, includeSegmentation = false, includeSegmentationGaps = false): Promise<components['schemas']['ParkingClassifierResult']> {
   const body = new FormData();
   body.set('image', file); body.set('model_id', model); body.set('include_parking', String(includeParking));
+  body.set('include_segmentation', String(includeSegmentation || includeSegmentationGaps));
+  body.set('include_segmentation_gaps', String(includeSegmentationGaps));
   const response = await fetch('/api/classifier?op=analyze', { method: 'POST', body, signal });
   const data = await response.json();
   if (!response.ok) throw new ParkingApiError(data && typeof data === 'object' && 'detail' in data && typeof data.detail === 'string' ? data.detail : `Image analysis failed (${response.status}).`);
