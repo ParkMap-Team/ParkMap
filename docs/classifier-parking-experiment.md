@@ -27,6 +27,10 @@ certainty. It predicts neither dimensions nor parking availability. Different
 training runs can have different validation sets; their validation numbers are
 not a controlled comparison.
 
+For a side-by-side image-mask comparison, enable the optional
+[YOLO11m-seg experiment](segmentation-experiment.md) before Analyze. It adds
+another inference and does not replace classifier crops or parking geometry.
+
 The local [reference-size experiment](motorcycle-reference-sizes.md) maps the
 predicted family to editable width/length references. It returns separate local
 parking geometry and lets the UI compare it with the standard result. These are

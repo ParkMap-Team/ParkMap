@@ -13,10 +13,12 @@ void test('Analyze sends image, chosen classifier and parking flag through the p
     const body = options.body as FormData;
     assert.equal(body.get('model_id'), 'efficientnet-run');
     assert.equal(body.get('include_parking'), 'false');
+    assert.equal(body.get('include_segmentation'), 'true');
+    assert.equal(body.get('include_segmentation_gaps'), 'true');
     assert.equal(await (body.get('image') as File).text(), 'image-data');
     return Response.json(payload);
   });
-  assert.deepEqual(await analyzeParkingWithClassifier(image, 'efficientnet-run', controller.signal, false), payload);
+  assert.deepEqual(await analyzeParkingWithClassifier(image, 'efficientnet-run', controller.signal, false, true, true), payload);
 });
 
 void test('Analyze preserves upstream failure messages', async t => {

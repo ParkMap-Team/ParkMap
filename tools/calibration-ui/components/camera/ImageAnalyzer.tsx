@@ -7,6 +7,7 @@ import { PhysicalMeasuredMap } from '@/components/parking/PhysicalMeasuredMap';
 import { ParkingStateSummary } from '@/components/parking/ParkingStateSummary';
 import { CameraParkingOverlay } from '@/components/parking/CameraParkingOverlay';
 import { ClassifierExperiment } from '@/components/parking/ClassifierExperiment';
+import { SegmentationExperiment } from '@/components/parking/SegmentationExperiment';
 import { adaptBackendParkingGeometry } from '@/lib/legacyParkingAnalysis';
 import { getCalibration } from '@/lib/calibration';
 import { analyzeParkingWithClassifier, MAX_UPLOAD_BYTES, SUPPORTED_IMAGE_TYPES } from '@/lib/detection';
@@ -30,6 +31,11 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const [classifierModel, setClassifierModel] = useState('');
   const [classification, setClassification] = useState<components['schemas']['ClassifierResult'] | null>(null);
   const [classificationError, setClassificationError] = useState('');
+  const [includeSegmentation, setIncludeSegmentation] = useState(false);
+  const [includeSegmentationGaps, setIncludeSegmentationGaps] = useState(false);
+  const [segmentationGaps, setSegmentationGaps] = useState<components['schemas']['SegmentationGapResult'] | null>(null);
+  const [segmentation, setSegmentation] = useState<components['schemas']['SegmentationExperimentResult'] | null>(null);
+  const [segmentationError, setSegmentationError] = useState('');
   const [referenceExperiment, setReferenceExperiment] = useState<components['schemas']['ReferenceSizeExperiment'] | null>(null);
   const [referenceSizeError, setReferenceSizeError] = useState('');
   const [useReferenceSizes, setUseReferenceSizes] = useState(true);
@@ -55,7 +61,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const videoAnalysisBusyRef = useRef(false);
   const changeClassifierModel = useCallback((model: string) => {
     controllerRef.current?.abort(); setVideoAnalysisActive(false); setVideoProgress(null);
-    setClassifierModel(model); setClassification(null); setReferenceExperiment(null); setReferenceSizeError(''); setClassificationError(''); setState('idle');
+    setClassifierModel(model); setClassification(null); setSegmentation(null); setSegmentationGaps(null); setSegmentationError(''); setReferenceExperiment(null); setReferenceSizeError(''); setClassificationError(''); setState('idle');
   }, []);
 
   useEffect(() => {
@@ -100,11 +106,12 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
         const frameTime = video.currentTime;
         const frame = await captureVideoFrame(video);
         setLatestVideoFrameUrl(URL.createObjectURL(frame));
-        setClassification(null); setReferenceExperiment(null); setReferenceSizeError('');
-        const result = await analyzeParkingWithClassifier(frame, classifierModel, controller.signal, !setupRequired);
+        setClassification(null); setSegmentation(null); setSegmentationGaps(null); setSegmentationError(''); setReferenceExperiment(null); setReferenceSizeError('');
+        const result = await analyzeParkingWithClassifier(frame, classifierModel, controller.signal, !setupRequired, includeSegmentation, includeSegmentationGaps);
         if (controller.signal.aborted) return;
         setAnalysis(result.detection as DetectionResponse);
         setClassification(result.classification ?? null);
+        setSegmentation(result.segmentation ?? null); setSegmentationGaps(result.segmentation_gaps ?? null); setSegmentationError(result.segmentation_error ?? '');
         setReferenceExperiment(result.reference_size_experiment ?? null);
         setReferenceSizeError(result.reference_size_error ?? '');
         setClassificationError(result.classification_error ?? '');
@@ -132,7 +139,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
       controller.abort();
       videoAnalysisBusyRef.current = false;
     };
-  }, [setupRequired, videoAnalysisActive, videoUrl, classifierModel]);
+  }, [setupRequired, videoAnalysisActive, videoUrl, classifierModel, includeSegmentation, includeSegmentationGaps]);
 
   const assignments = useMemo(() => analysis && calibration ? assignDetectionsToParkingRows(analysis.detections, calibration) : [], [analysis, calibration]);
   const mapping = useMemo(() => {
@@ -148,7 +155,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const chooseFile = (selected?: File) => {
     controllerRef.current?.abort();
     setAnalysis(null);
-    setClassification(null); setReferenceExperiment(null); setReferenceSizeError('');
+    setClassification(null); setSegmentation(null); setSegmentationGaps(null); setSegmentationError(''); setReferenceExperiment(null); setReferenceSizeError('');
     setClassificationError('');
     setState('idle');
     setError(null);
@@ -177,7 +184,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
     const controller = new AbortController();
     controllerRef.current = controller;
     setState('processing');
-    setClassification(null); setReferenceExperiment(null); setReferenceSizeError('');
+    setClassification(null); setSegmentation(null); setSegmentationGaps(null); setSegmentationError(''); setReferenceExperiment(null); setReferenceSizeError('');
     setClassificationError('');
     setAnalysis(null);
     setError(null);
@@ -188,10 +195,11 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
         await videoRef.current?.play();
         return;
       } else {
-        const result = await analyzeParkingWithClassifier(file, classifierModel, controller.signal, !setupRequired);
+        const result = await analyzeParkingWithClassifier(file, classifierModel, controller.signal, !setupRequired, includeSegmentation, includeSegmentationGaps);
         if (controller.signal.aborted) return;
         setAnalysis(result.detection as DetectionResponse);
         setClassification(result.classification ?? null);
+        setSegmentation(result.segmentation ?? null); setSegmentationGaps(result.segmentation_gaps ?? null); setSegmentationError(result.segmentation_error ?? '');
         setReferenceExperiment(result.reference_size_experiment ?? null);
         setReferenceSizeError(result.reference_size_error ?? '');
         setClassificationError(result.classification_error ?? '');
@@ -222,12 +230,25 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
           </div>
         </div>
         {file && <p className="mt-3 truncate text-sm text-slate-500">{file.name}</p>}
+        <label className="mt-3 flex items-center gap-2 text-sm text-cyan-900"><input type="checkbox" aria-label="เปรียบเทียบ YOLO11m-seg" checked={includeSegmentation} disabled={state === 'processing'} onChange={event => {
+          controllerRef.current?.abort(); setVideoAnalysisActive(false); setVideoProgress(null); setState('idle');
+          setIncludeSegmentation(event.target.checked); setSegmentation(null); setSegmentationGaps(null); setSegmentationError('');
+          if (!event.target.checked) setIncludeSegmentationGaps(false);
+        }} />เปรียบเทียบ YOLO11m-seg และแสดง polygon · ทดลอง (ประมวลผลเพิ่ม)</label>
+        <label className="mt-2 flex items-center gap-2 text-sm text-emerald-900"><input type="checkbox" aria-label="หาช่องว่างจาก segmentation" checked={includeSegmentationGaps} disabled={state === 'processing'} onChange={event => {
+          controllerRef.current?.abort(); setVideoAnalysisActive(false); setVideoProgress(null); setState('idle');
+          setIncludeSegmentationGaps(event.target.checked); setSegmentationGaps(null);
+          if (event.target.checked) setIncludeSegmentation(true);
+        }} />หาช่องว่างและระยะ · เฉพาะความกว้าง 0.66 ม. · ทดลอง</label>
         {videoProgress && <p role="status" className="mt-2 text-sm text-blue-700">{videoProgress}</p>}
         {setupRequired && <div role="status" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900"><span className="inline-flex items-center gap-2"><AlertCircle className="size-4" />กรุณาตั้งค่าพื้นที่จอดในหน้า Setup ก่อน แล้วจึงกลับมาวิเคราะห์รูป</span><button type="button" onClick={onOpenSetup} className="rounded-lg bg-amber-600 px-3 py-2 font-semibold text-white">ไปที่ Setup</button></div>}
         {error && !setupRequired && <div role="alert" className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"><span className="inline-flex items-center gap-2"><AlertCircle className="size-4" />{error}</span>{file && state === 'error' && <button type="button" onClick={() => void analyze()} className="inline-flex items-center gap-1 font-semibold"><RotateCcw className="size-4" />Retry</button>}</div>}
       </section>
 
-      <CameraMonitor imageUrl={previewUrl} videoUrl={videoUrl} videoRef={videoRef} analysis={analysis} assignments={assignments} />
+      <div className={includeSegmentation ? 'grid items-start gap-4 lg:grid-cols-2' : ''}>
+        <CameraMonitor imageUrl={previewUrl} videoUrl={videoUrl} videoRef={videoRef} analysis={analysis} assignments={assignments} />
+        {includeSegmentation && <SegmentationExperiment result={segmentation} error={segmentationError} gaps={includeSegmentationGaps ? segmentationGaps : null} standardCount={analysis?.detections.length ?? 0} standardMs={analysis?.inference.processing_time_ms} />}
+      </div>
       <ClassifierExperiment model={classifierModel} onModelChange={changeClassifierModel} result={classification} error={classificationError} busy={state === 'processing'} />
       <section aria-label="ทดลองขนาดตามคลาส" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
         <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={useReferenceSizes} onChange={event => setUseReferenceSizes(event.target.checked)} />ใช้ขนาดอ้างอิงตามคลาส · ทดลอง</label>
