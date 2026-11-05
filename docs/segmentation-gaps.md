@@ -1,99 +1,103 @@
-# Local segmentation gap and clearance experiment
+# Local virtual parking slots from segmentation
 
-In Parking enable **หาช่องว่างและระยะ · เฉพาะความกว้าง 0.66 ม. · ทดลอง**
-and press Analyze. It enables segmentation comparison too. Green polygons are
-**WIDTH_SUFFICIENT corridors**, not full-vehicle FIT candidates, physical stalls,
-simultaneous capacity or guaranteed safe parking. Grey polygons are UNKNOWN.
-All measured width gaps, including narrow ones, are returned as candidates.
-`INSUFFICIENT_WIDTH` is red when the geometry/visibility checks otherwise pass;
-uncertainty or occlusion takes precedence as UNKNOWN. The response's `narrow_count`
-counts red gaps, while `green_count` never includes them. An open list below the
-2D map shows every returned gap's width and Thai status, grouped by row 5 to 1.
-Selection adds a blue outline and never replaces the state colour. The map itself
-still labels only the selected distance to avoid overlapping text.
-Worker, saved states, the standard result and LIFF remain unchanged.
+In Parking enable **แบ่งช่องกว้าง 1 ม. · ลึกตามแถว · ทดลอง** and press Analyze.
+The original Physical Map remains available; this adds camera and top-down
+experimental overlays. The operator API returns `evaluation_mode=VIRTUAL_SLOTS`,
+`target_width_m=1` and `target_length_m=null`: depth varies per row and is supplied
+on each candidate as `slot_length_m`.
 
-Select a polygon/button for its corridor width. The line keeps its state colour.
-There is one polygon per gap, not one polygon per potential motorcycle.
-No extra clearance margin is added. Width is the existing lateral parking pitch,
-not measured body width or a claim of comfortable manoeuvring. An expandable list
-also reports widths, including narrow ones. Width-only mode measures in a 2 cm
-band centred on the row midline (or the full row depth if it is smaller). This
-is a local transverse measurement, not proof of a full-depth corridor or a
-vehicle placement. The target motorcycle length is not checked.
+## Dynamic geometry
 
-Purple outlines and row-ID labels show the exact metric rows used in fitting,
-projected by Python into the image. The **แสดงกรอบแถว (row)** switch starts on
-and can hide them without rerunning analysis. These are configured analysis
-regions, not painted physical stalls. Invalid/out-of-image projections are omitted.
+Python uses the current calibrated metric row direction and depth. Reference
+occupied footprints from both detectors remain obstacles; hiding a detector in
+the UI does not change calculations. Existing family references are retained for
+primary detections, with standard minimum dimensions; segmentation-only detections
+use the standard reference. Image masks are never treated as ground footprints.
 
-A separate **2D มุมบน · ช่องว่างจาก segmentation (ทดลอง)** view appears below
-the segmentation photo when gap analysis is enabled. The existing Physical Map
-remains available unchanged. Python supplies metric ROI, row outlines, individual
-reference footprints (from both detectors) and candidate polygons/width lines.
-The new view keeps a uniform metre scale, supports zoom/scroll and shares gap
-selection with the photo/readout. By default its frame uses only ROI bounds.
-The metric Y axis increases upward, placing the SPU rows from row_5 at the top
-to row_1 at the bottom. All shapes share that display transform; text stays upright.
-By default the view
-shows YOLO11m-seg footprints clipped in Python to ROI. A detector selector switches
-display layers; **แสดงรถนอก ROI** explicitly expands the frame to the selected
-detector's full footprints. These are display controls only: both models still
-block geometry and visibility. Only the selected gap has a distance label.
-Green/grey gap strokes indicate the measurement band, not a parking-sized area.
-Red shapes are occupied references; overlapping
-detections from the two models can represent the same motorcycle twice. They are
-not unique-vehicle counts. Green/grey come directly from backend states; neutral
-background is not confirmed free space. Switching viewpoint or detector display
-does not change measurement or remove occlusion gates. Missing calibration shows an explanation, not an
-invented map.
+Within each row, free lateral intervals are found over the row's entire depth.
+Each interval is split from its left edge in the row axis into non-overlapping
+1 m wide rectangles, with depth equal to that row. A 6 m interval generates six
+slots; 6.99 m generates six and leaves 0.99 m unused. Slot generation never rounds
+up, extends a row or adds another clearance margin beyond the 1 m allocation.
+`source_gap_width_m` preserves the original interval width for context.
 
-## Decision and geometry
+These are virtual, frame-dependent suggestions, not painted, reserved or fixed
+physical stalls. Positions and internal IDs can change with the frame's free
+intervals. They are not a verified parking-capacity count. No saved row dimensions
+or control points are altered by Analyze.
 
-Projecting object masks onto the ground was considered alongside reusing
-calibrated reference footprints. The implementation chooses reference footprints
-with image-space visibility checks: vehicle surfaces lie above the ground plane,
-so mask outlines cannot establish metric ground footprints.
+## Evidence and uncertainty
 
-`analyze_segmentation_gaps` runs existing Python fitting/capacity on the
-conservative union of both detectors. A motorcycle missed by one remains blocking
-if found by the other. Duplicates can over-block; no unverified matching deletes
-them. Larger known class references are retained for original detections, and no
-occupied reference is shrunk below standard. Segmentation-only vehicles use
-standard references. Ground anchors/undirected axes keep existing approximations.
-Only incoming target width (0.66 m) is checked. The API returns
-`evaluation_mode=WIDTH_ONLY`; `target_length_m` retains the standard reference for
-compatibility but is not an acceptance criterion. The pure geometry helper also
-retains full-footprint mode for regression checks.
+Each slot is independently checked against row/ROI containment, occupied geometry,
+row uncertainty, valid image projection and known image occluders. A mask or box
+intersecting one slot does not make every slot of the original interval unknown.
+`SLOT_CLEAR` is green only when all these checks pass; `UNKNOWN` stays grey and
+shows its reasons. A slot outside ROI is not made green by its 1 m width.
+No segmentation evidence inside ROI means UNKNOWN with no green slots.
 
-Width gaps come from lateral intervals free of occupied reference footprints
-at the row's middle cross-section band. They do not depend on full-vehicle fitting
-placements, so a row shorter than 2 m can pass the width check. Full row/ROI
-containment and no occupied overlap are still required. Current validated
-homography, row fingerprint, camera identity,
-reference resolution, ROI projection and before/after calibration hash must agree.
-Otherwise the result is CALIBRATION_REQUIRED. MEASURED/ESTIMATED describes supplied
-calibration provenance; estimated distances are approximate and neither source
-establishes individual vehicle geometry.
+Current validated homography, row fingerprint, camera identity, frame resolution,
+ROI and calibration version must agree, otherwise CALIBRATION_REQUIRED withholds
+green. MEASURED/ESTIMATED is supplied provenance, not independent verification of
+real-world accuracy. Reference sizes, ground anchors and detector misses remain
+limitations. Unmodelled obstacles and hidden ground must not be inferred as free.
 
-Green additionally requires a clear row and an entirely valid image projection.
-Projected candidates overlapping any known motorcycle image mask **or box from
-either detector** are UNKNOWN because ground may be occluded. No segmentation
-evidence inside ROI means UNKNOWN, not an empty lot. Both detectors can still
-miss vehicles; unrecognised obstacles, unmodelled occlusion, wrong camera-view
-assumptions and reference-size/anchor errors remain limitations. ROI must exclude
-unobserved ground/obstacles. A locked human-reviewed reference set is still needed.
+## Family suggestions and display
 
-At most 200 candidates and 200 measurements are returned. Browser code
-draws server states/geometry/distances; it never recomputes availability. The
-private Analyze option `include_segmentation_gaps=true` implies segmentation and
-returns a separate `segmentation_gaps` result. Missing segmentation yields UNKNOWN
-with zero green candidates. No extra model training or live publication occurs.
+### Incoming vehicle width
 
-Tests cover width-only short rows, insufficient width, legacy full-fit depth
-checks, occlusion, uncertainty, missing
-evidence, invalid projection, ROI, primary-only vehicles, larger references,
-unchanged inputs, stale calibration and wrong resolution. Real browser check:
+The operator can enter **ความกว้างรถที่จะเข้าจอด** and press Analyze. The private
+Analyze form accepts `incoming_width_m` (finite, greater than zero, at most 5 m),
+and automatically includes segmentation/gap analysis. Invalid widths are rejected
+before detection. Python reuses the same frame/geometry without another inference.
+
+The 1 m template grid remains visible. Separate recommendations allocate
+`max(1 m, entered width)` from continuous free intervals, so a 1.20 m vehicle can
+cross template lines instead of being rejected by individual 1 m cells. Row depth,
+ROI, occupancy and visibility checks remain required. `incoming_vehicle` contains
+the entered width, allocated width, per-position geometry and capped counts.
+Only SLOT_CLEAR positions are suggested; uncertain positions are counted but
+not promoted. These are not verified accessible parking spaces.
+
+Cyan outlines and a dedicated result list show incoming positions, with selection
+shared between image and top-down views. Changing input clears stale results;
+another Analyze is required. Vehicle length and access are not checked. A future
+classifier can resolve a family to a width and feed this same boundary; automatic
+incoming classification is not implemented here.
+
+Browser check with manual width (from tools/calibration-ui):
+
+```powershell
+node scripts/test-classifier-ui.mjs http://127.0.0.1:3000 ../../apps/vision-api/test-data/auto-parking/20260925_0931.jpeg yolo11n_cls --gaps --incoming-width=1.2
+```
+
+Selecting a green slot shows catalogue families whose exact reference widths
+fit its 1 m width. Python reads `config/motorcycle_reference_sizes.json` on every
+Analyze. Suggestions include reference width, remaining total lateral clearance
+and provenance. Per-family length, access paths and manoeuvring are not checked;
+the row depth shown is not proof that the suggested full motorcycle fits.
+Suggestions are individual choices, not simultaneous vehicle capacity. Invalid
+rules retain geometry with a separate error; non-green slots have no suggestions.
+
+The new map defaults to ROI bounds and ROI-clipped segmentation vehicle shapes.
+Detector/outside-ROI controls are display-only. Both detector layers can show the
+same vehicle twice. SPU rows display 5 to 1; zoom, slot selection and status colours
+are shared with the camera view. Blue marks selection without replacing status.
+Red shapes are reference vehicles, purple is row geometry, green/grey are virtual
+slots, and neutral background has no availability claim. The list shows slot
+width/depth and failure reasons; only the selected slot has a map distance label.
+
+At most 200 slots and 200 diagnostic intervals are returned. `truncated=true`
+means additional results were omitted, not that the omitted area is occupied.
+Legacy full-standard-footprint and midline-width helpers remain tested diagnostics;
+the operator route uses virtual slots. Standard analysis, worker, persisted state
+and LIFF are unchanged. Training stays terminal-only.
+
+## Verification
+
+Tests cover six independent slots, remainder handling, row depths 1.46/1.90 m,
+non-overlap, per-slot occlusion, deterministic IDs, limits, reference-width family
+matching, invalid rules, stale calibration, wrong image resolution and legacy
+fitting regressions.
 
 ```powershell
 cd tools/calibration-ui
