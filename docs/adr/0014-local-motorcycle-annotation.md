@@ -2,11 +2,25 @@
 
 Status: accepted, 2026-11-01. Extends ADR 0013 and the detector evaluation protocol.
 
-The local segmentation gap overlay now checks only the standard lateral width
-(0.66 m). Green means `WIDTH_SUFFICIENT`, not full-vehicle fitting or availability.
-Target length is not an acceptance criterion; row geometry, calibration,
-uncertainty and image occlusion checks remain required. This does not change
-standard parking analysis, worker publication or LIFF semantics.
+The local segmentation overlay divides free intervals into virtual slots 1 m
+wide and as deep as their calibrated row. A 6 m interval can yield six slots;
+fractions below 1 m do not create extra slots. Green `SLOT_CLEAR` requires
+independent geometry, ROI, uncertainty and image-visibility checks for that slot.
+These dynamic suggestions are not fixed physical stalls. Per-family length and
+access are not evaluated. Standard analysis, worker and LIFF remain unchanged.
+
+An optional operator-entered incoming width now requests separate recommendations
+over continuous free intervals. Python reserves at least 1 m, or the entered
+width when larger, and keeps row/ROI/occupancy/visibility gates. The 1 m display
+grid does not constrain wider incoming vehicles. Input changes clear old results.
+The width boundary may later receive a classifier-derived reference width;
+automatic incoming classification is not part of this implementation.
+
+Selecting a green virtual slot may show exact catalogue families whose
+configured reference widths fit that gap, calculated in Python. Recommendations
+retain dimension provenance, ignore target length/access explicitly and disappear
+for uncertain slots. This is a width-only family comparison, never live
+availability or verified individual vehicle compatibility.
 
 The operator UI has three areas: Parking, Setup, Label. Setup groups camera/metric
 calibration and static lot authoring under separate tabs and save actions. Existing
@@ -92,8 +106,8 @@ by request handlers. See the [segmentation comparison](../segmentation-experimen
 
 Local segmentation gap/clearance analysis is a further explicit experiment. It
 uses the conservative union of both detectors with calibrated reference
-footprints and the standard incoming target, retaining larger known references.
-Green means a model width-sufficient corridor, not full fitting or live availability. Image masks
+footprints and 1 m wide virtual slots with depth taken from each row, retaining
+larger known occupied references. Green means a checked virtual slot, not live availability. Image masks
 and boxes gate potential occlusion instead of being projected as ground shapes.
 Missing evidence/calibration and uncertainty withhold green. Results have a
 separate response/overlay and never publish to worker/LIFF. See
@@ -104,7 +118,7 @@ using Python-provided geometry and identical uncertainty states. It is an
 additional display; the existing Physical Map is retained. It does not project
 vehicle masks as ground shapes or calculate fitting in JavaScript.
 The view defaults to ROI bounds and ROI-clipped segmentation footprints, with
-optional outside-ROI and detector layers. Width checks now measure a 2 cm band
-centred on each row midline, rather than demanding a full-row-depth corridor.
-Image occlusion and row uncertainty continue to withhold green; width sufficiency
-at this cross-section is not a claim that a full motorcycle can fit.
+optional outside-ROI and detector layers. Each free interval over the row depth
+is divided into whole 1 m widths; remainder does not create an extra slot. Image
+occlusion and row uncertainty are checked per slot and continue to withhold green.
+The per-family recommendation still checks width only, not vehicle length/access.
