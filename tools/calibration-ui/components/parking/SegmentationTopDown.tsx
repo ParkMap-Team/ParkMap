@@ -2,21 +2,27 @@
 
 import { useId, useState } from 'react';
 import type { components } from '@/types/api.gen';
-import { gapPresentation } from '@/lib/segmentationGapPresentation';
+import { gapPresentation, gapReasonLabels } from '@/lib/segmentationGapPresentation';
+import { GapFamilyRecommendations } from './GapFamilyRecommendations';
+import { IncomingVehicleRecommendations } from './IncomingVehicleRecommendations';
 
 type Gaps = components['schemas']['SegmentationGapResult'];
 type Point = components['schemas']['MetricGroundPoint'];
 const points = (ring: Point[]) => ring.map(p => `${p.x_m},${p.y_m}`).join(' ');
 const path = (rings: Point[][]) => rings.map(ring => ring.length ? `M${ring.map(p => `${p.x_m},${p.y_m}`).join(' L')} Z` : '').join(' ');
 
-export function SegmentationTopDown({ gaps, selectedId, onSelect }: {
+export function SegmentationTopDown({ gaps, selectedId, onSelect, incomingSelectedId, onSelectIncoming }: {
   gaps: Gaps; selectedId?: string; onSelect: (id: string) => void;
+  incomingSelectedId?: string; onSelectIncoming: (id: string) => void;
 }) {
   const [zoom, setZoom] = useState(1);
   const [showOutside, setShowOutside] = useState(false);
   const [detector, setDetector] = useState('SEGMENTATION');
   const clipId = useId();
   const roi = gaps.parking_roi_metric;
+  const fullFit = gaps.evaluation_mode === 'FULL_FOOTPRINT';
+  const slots = gaps.evaluation_mode === 'VIRTUAL_SLOTS';
+  const rectangles = fullFit || slots;
   if (!roi?.polygons.length) return <p className="border-t p-4 text-sm text-amber-800">แผนผัง 2D ทดลองต้องมี calibration ที่ตรงกับภาพก่อน</p>;
   const layers = gaps.occupied_layers.filter(layer => detector === 'BOTH' || layer.source === detector);
   const visibleGeometry = layers.map(layer => ({ layer, geometry: showOutside ? layer.geometry : layer.roi_geometry }));
@@ -41,17 +47,17 @@ export function SegmentationTopDown({ gaps, selectedId, onSelect }: {
       </select></label>
       <label><input type="checkbox" aria-label="แสดงรถนอก ROI" checked={showOutside} onChange={event => { setShowOutside(event.target.checked); setZoom(1); }} /> แสดงรถนอก ROI</label>
     </div>
-    <p className="text-xs text-slate-600">กรอบแดง = รถอ้างอิง · ม่วง = แถว · เส้นเขียว = กว้างพอ · เส้นแดง = แคบเกินไป · เทา = ยังยืนยันไม่ได้ · ขอบฟ้า = ช่องที่เลือก</p>
-    <p className="text-xs text-amber-900">วัดช่องด้านข้างที่แนวกึ่งกลางแถว ไม่ตรวจความยาวรถ · การซ่อนกรอบไม่เปลี่ยนการคำนวณ ซึ่งยังใช้สิ่งกีดขวางจากทั้งสองโมเดล · พื้นหลังไม่ใช่พื้นที่ว่างที่ยืนยันแล้ว</p>
+    <p className="text-xs text-slate-600">กรอบแดง = รถอ้างอิง · ม่วง = แถว · {slots ? 'เขียว = ช่องจำลองผ่านเกณฑ์' : fullFit ? 'กรอบเขียว = วางรถทั้งคันได้ตามแบบจำลอง' : 'เส้นเขียว = กว้างพอ'} · เทา = ยังยืนยันไม่ได้ · ขอบฟ้า = ตำแหน่งที่เลือก</p>
+    <p className="text-xs text-amber-900">{slots ? 'แต่ละช่องกว้าง 1 ม. ลึกตามแถวนั้นใน Setup ไม่ใช่ช่องตีเส้นจริง · ตรวจแต่ละช่องแยกกัน ยังไม่ตรวจความยาวรถรายรุ่นหรือทางเข้า–ออก' : fullFit ? `ตรวจกรอบรถ ${gaps.target_width_m.toFixed(2)} × ${(gaps.target_length_m ?? 0).toFixed(2)} ม.` : 'วัดช่องด้านข้างที่กึ่งกลางแถว ไม่ตรวจความยาวรถ'} · การซ่อนกรอบไม่เปลี่ยนการคำนวณ · พื้นหลังไม่ใช่พื้นที่ว่างที่ยืนยันแล้ว</p>
     <div className="h-[460px] max-h-[65vh] overflow-auto rounded-xl border bg-slate-200">
       <svg aria-label="Segmentation metric top-down map" viewBox={`${minX-pad} ${minY-pad} ${width+2*pad} ${height+2*pad}`} style={{ width: `${zoom*100}%`, height: `${zoom*100}%` }} className="block" preserveAspectRatio="xMidYMid meet">
         <g transform={`translate(0 ${2*minY+height}) scale(1 -1)`}>
         <defs><clipPath id={clipId}>{roi.polygons.map((polygon, index) => <path key={index} d={path(polygon)} clipRule="evenodd" />)}</clipPath></defs>
         {roi.polygons.map((polygon, index) => <path key={index} d={path(polygon)} fill="#f1f5f9" fillRule="evenodd" stroke="#475569" strokeWidth={unit*.1} />)}
         {gaps.candidates.map(item => <g key={item.id}>
-          {item.id === selectedId && <polygon points={points(item.polygon_metric)} fill="none" stroke="#2563eb" strokeWidth={unit*.95} className="pointer-events-none" />}
-          <polygon data-state={item.state} data-gap-id={item.id} points={points(item.polygon_metric)}
-          fill={gapPresentation[item.state].fill} stroke={gapPresentation[item.state].color} strokeWidth={unit*.5}
+          {item.id === selectedId && <polygon points={points(item.polygon_metric)} fill="none" stroke="#2563eb" strokeWidth={unit*(rectangles ? .35 : .95)} className="pointer-events-none" />}
+          <polygon data-state={item.state} data-gap-id={item.id} data-slot-width={slots ? item.gap_width_m : undefined} data-slot-length={item.slot_length_m ?? undefined} points={points(item.polygon_metric)}
+          fill={gapPresentation[item.state].fill} fillOpacity={rectangles ? .65 : 1} stroke={gapPresentation[item.state].color} strokeWidth={unit*(rectangles ? .1 : .5)}
           tabIndex={0} role="button" aria-label={`2D ${item.id} ${item.gap_width_m.toFixed(2)} เมตร`}
           onClick={() => onSelect(item.id)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(item.id); } }}>
           <title>{item.row_id} · {item.gap_width_m.toFixed(2)} ม. · {gapPresentation[item.state].label}</title>
@@ -65,21 +71,33 @@ export function SegmentationTopDown({ gaps, selectedId, onSelect }: {
           {item.width_line_metric.length === 2 && <line x1={item.width_line_metric[0].x_m} y1={item.width_line_metric[0].y_m} x2={item.width_line_metric[1].x_m} y2={item.width_line_metric[1].y_m} stroke={gapPresentation[item.state].color} strokeWidth={unit*.13} />}
           {item.label_metric && <text transform={`translate(0 ${2*(item.label_metric.y_m+unit*.8)}) scale(1 -1)`} x={item.label_metric.x_m} y={item.label_metric.y_m+unit*.8} textAnchor="middle" fontSize={unit*2.2} fill="#0f172a" stroke="white" strokeWidth={unit*.1} paintOrder="stroke">{item.gap_width_m.toFixed(2)} ม.</text>}
         </g>)}
+        {gaps.incoming_vehicle?.candidates.filter(item => item.state === 'SLOT_CLEAR').map(item => <polygon key={item.id} data-incoming-id={item.id} points={points(item.polygon_metric)}
+          fill={item.id === incomingSelectedId ? 'rgba(6,182,212,.3)' : 'none'} stroke="#0891b2" strokeOpacity={item.id === incomingSelectedId ? 1 : .4} strokeWidth={unit*(item.id === incomingSelectedId ? .35 : .1)}
+          role="button" tabIndex={0} aria-label={`ตำแหน่งรถที่กรอก ${item.row_id}`} onClick={() => onSelectIncoming(item.id)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectIncoming(item.id); } }}>
+          <title>รถกว้าง {gaps.incoming_vehicle?.width_m.toFixed(3)} ม. · พื้นที่ {item.gap_width_m.toFixed(2)} × {item.slot_length_m?.toFixed(2)} ม.</title>
+        </polygon>)}
         </g>
       </svg>
     </div>
+    {gaps.incoming_vehicle && <IncomingVehicleRecommendations result={gaps.incoming_vehicle} selectedId={incomingSelectedId} onSelect={onSelectIncoming} />}
+    {gaps.incoming_vehicle ? <details className="rounded-xl border p-3 text-sm">
+      <summary className="cursor-pointer">ดูรุ่นที่เข้าช่องจำลอง 1 ม. — แยกจากคำแนะนำรถที่กรอก</summary>
+      <div className="mt-3"><GapFamilyRecommendations gap={selected} error={gaps.family_recommendation_error} /></div>
+    </details> : <GapFamilyRecommendations gap={selected} error={gaps.family_recommendation_error} />}
     <section aria-label="ผลช่องว่างทุกแถว" className="space-y-3 rounded-xl border p-3 text-sm">
-      <h4 className="font-semibold">ผลค้นหาช่องว่าง · เกณฑ์กว้าง {gaps.target_width_m.toFixed(2)} ม.</h4>
-      <p>กว้างพอ {gaps.green_count} ช่วง · แคบเกินไป {gaps.narrow_count} ช่วง · ยังยืนยันไม่ได้ {gaps.unknown_count} ช่วง</p>
+      <h4 className="font-semibold">{slots ? 'ช่องจำลองกว้าง' : 'ผลค้นหาพื้นที่ว่าง · รถ'} {gaps.target_width_m.toFixed(2)}{fullFit ? ` × ${(gaps.target_length_m ?? 0).toFixed(2)}` : ''} ม.{slots ? ' · ลึกตามแถว' : ''}</h4>
+      <p>{slots ? `ผ่านเกณฑ์ ${gaps.green_count} ช่อง` : fullFit ? `วางกรอบรถได้ ${gaps.green_count} ตำแหน่งทดลอง` : `กว้างพอ ${gaps.green_count} ช่วง · แคบเกินไป ${gaps.narrow_count} ช่วง`} · ยังยืนยันไม่ได้ {gaps.unknown_count} {slots ? 'ช่อง' : 'ตำแหน่ง'}</p>
+      {fullFit && <p className="text-xs text-amber-900">จำนวนตำแหน่งเป็นผลทดลอง ไม่ใช่จำนวนที่จอดที่รับรองหรือช่องจอดประจำ</p>}
       {[...gaps.rows].sort((a,b) => b.row_id.localeCompare(a.row_id, undefined, { numeric: true })).map(row => <div key={row.row_id} className="space-y-2 border-t pt-2">
         <h5 className="font-medium text-purple-800">{row.row_id}</h5>
         {gaps.candidates.filter(item => item.row_id === row.row_id).map((item, index) => <button type="button" key={item.id} data-gap-result={item.id} data-state={item.state} aria-pressed={item.id === selectedId} onClick={() => onSelect(item.id)} className={`flex w-full flex-wrap justify-between gap-2 rounded border px-3 py-2 text-left ${item.id === selectedId ? 'ring-2 ring-blue-600 ring-offset-1' : ''}`} style={{ borderColor: gapPresentation[item.state].color }}>
-          <span>ช่วง {index+1} · {item.gap_width_m.toFixed(2)} ม.</span><strong style={{ color: gapPresentation[item.state].color }}>{gapPresentation[item.state].label}</strong>
+          <span>{slots ? 'ช่องจำลอง' : fullFit ? 'ตำแหน่ง' : 'ช่วง'} {index+1} · {item.gap_width_m.toFixed(2)}{item.slot_length_m != null ? ` × ${item.slot_length_m.toFixed(2)}` : ''} ม.</span><strong style={{ color: gapPresentation[item.state].color }}>{gapPresentation[item.state].label}</strong>
+          {item.reasons.length > 0 && <span className="w-full text-xs text-slate-500">{item.reasons.map(reason => gapReasonLabels[reason] ?? reason).join(' · ')}</span>}
         </button>)}
-        {!gaps.candidates.some(item => item.row_id === row.row_id) && <p className="text-slate-500">ไม่มีช่องที่วัดได้ในผลนี้</p>}
+        {!gaps.candidates.some(item => item.row_id === row.row_id) && <p className="text-slate-500">{fullFit ? 'ยังไม่พบตำแหน่งวางกรอบรถทั้งคัน ดูข้อมูลช่องแคบ/สั้นหรือสถานะ calibration ด้านล่าง' : 'ไม่มีช่องที่วัดได้ในผลนี้'}</p>}
       </div>)}
     </section>
-    {selected && <p aria-label="ช่องว่าง 2D ที่เลือก" className="text-sm">{selected.row_id} · กว้าง {selected.gap_width_m.toFixed(2)} ม. · {gapPresentation[selected.state].label} · ยังไม่ตรวจความยาวรถ</p>}
+    {selected && <p aria-label="ช่องว่าง 2D ที่เลือก" className="text-sm">{selected.row_id} · ช่อง {selected.gap_width_m.toFixed(2)}{selected.slot_length_m != null ? ` × ${selected.slot_length_m.toFixed(2)}` : ''} ม. · {gapPresentation[selected.state].label} · ยังไม่ตรวจความยาวรถรายรุ่นหรือทางเข้า–ออก</p>}
     <p className="text-xs text-amber-900">ตำแหน่งและขนาดรถเป็นค่าอ้างอิงบนพื้นจาก calibration ไม่ใช่รูปทรงจริงจาก mask · มุมมองนี้ใช้ผลคำนวณเดียวกับภาพกล้อง พื้นที่ถูกบังยังยืนยันไม่ได้</p>
   </section>;
 }

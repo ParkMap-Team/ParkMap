@@ -11,6 +11,7 @@ const base = process.argv[2] ?? 'http://127.0.0.1:3000';
 const image = resolve(process.argv[3] ?? '../../apps/vision-api/test-data/auto-parking/20260925_0931.jpeg');
 const targetArchitecture = process.argv[4];
 const compareGaps = process.argv.includes('--gaps');
+const incomingWidthArgument = process.argv.find(value => value.startsWith('--incoming-width='))?.split('=')[1];
 const compareSegmentation = process.argv.includes('--segmentation') || compareGaps;
 const temp = await mkdtemp(join(tmpdir(), 'parkmap-classifier-browser-'));
 const listener = createServer();
@@ -74,6 +75,7 @@ try {
   }
   if (compareSegmentation) await evaluate(`document.querySelector('input[aria-label="เปรียบเทียบ YOLO11m-seg"]').click()`);
   if (compareGaps) await evaluate(`document.querySelector('input[aria-label="หาช่องว่างจาก segmentation"]').click()`);
+  if (incomingWidthArgument) await evaluate(`var widthInput=document.querySelector('input[aria-label="ความกว้างรถที่จะเข้าจอด"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(widthInput,${JSON.stringify(incomingWidthArgument)});widthInput.dispatchEvent(new Event('input',{bubbles:true}))`);
   await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent==='Analyze').click()`);
   await wait(`Boolean(document.querySelector('img[alt="Crop ที่ส่งเข้า classifier"]'))`, 120000);
   assert.equal(await evaluate(`document.querySelectorAll('section[aria-label="จำแนกรุ่นรถทดลอง"] ol li').length`), 3);
@@ -86,19 +88,43 @@ try {
   if (compareGaps) {
     await wait(`Boolean(document.querySelector('section[aria-label="ผลหาช่องว่าง segmentation"]'))`, 120000);
     const green = await evaluate(`Number(document.querySelector('section[aria-label="ผลหาช่องว่าง segmentation"]').dataset.greenCount)`);
-    assert.equal(await evaluate(`document.querySelectorAll('svg[aria-label="Segmentation free-space candidates"] polygon[data-state="WIDTH_SUFFICIENT"]').length`), green);
+    assert.equal(await evaluate(`document.querySelector('section[aria-label="ผลหาช่องว่าง segmentation"]').dataset.evaluationMode`), 'VIRTUAL_SLOTS');
+    assert.equal(await evaluate(`document.querySelectorAll('svg[aria-label="Segmentation free-space candidates"] polygon[data-state="SLOT_CLEAR"]').length`), green);
     if (green > 0) {
-      await evaluate(`document.querySelector('svg[aria-label="Segmentation free-space candidates"] polygon[data-state="WIDTH_SUFFICIENT"]').dispatchEvent(new MouseEvent('click',{bubbles:true}))`);
-      await wait(`document.querySelector('[aria-label="ระยะช่องว่างที่เลือก"]')?.textContent.includes('ไม่ได้ตรวจการวางรถทั้งคัน')`);
+      await evaluate(`document.querySelector('svg[aria-label="Segmentation free-space candidates"] polygon[data-state="SLOT_CLEAR"]').dispatchEvent(new MouseEvent('click',{bubbles:true}))`);
+      await wait(`document.querySelector('[aria-label="ระยะช่องว่างที่เลือก"]')?.textContent.includes('ยังไม่ตรวจความยาวรถ')`);
+      await wait(`document.querySelector('section[aria-label="รุ่นรถที่กว้างพอกับช่องที่เลือก"]')?.textContent.includes('ความกว้างเพียงพอตามค่าอ้างอิง')`);
+      const greenGapId = await evaluate(`document.querySelector('svg[aria-label="Segmentation metric top-down map"] polygon[data-state="SLOT_CLEAR"]').dataset.gapId`);
+      assert.equal(await evaluate(`document.querySelector('section[aria-label="รุ่นรถที่กว้างพอกับช่องที่เลือก"]').dataset.gapId`), greenGapId);
+      console.log('Compatible family count: ' + await evaluate(`document.querySelectorAll('[data-compatible-family]').length`));
+      if (await evaluate(`Boolean(document.querySelector('svg[aria-label="Segmentation metric top-down map"] polygon[data-state="UNKNOWN"]'))`)) {
+        await evaluate(`document.querySelector('svg[aria-label="Segmentation metric top-down map"] polygon[data-state="UNKNOWN"]').dispatchEvent(new MouseEvent('click',{bubbles:true}))`);
+        await wait(`document.querySelector('section[aria-label="รุ่นรถที่กว้างพอกับช่องที่เลือก"]')?.textContent.includes('ยังไม่แนะนำรุ่นรถ')`);
+        assert.equal(await evaluate(`document.querySelectorAll('[data-compatible-family]').length`), 0);
+        await evaluate(`document.querySelector('svg[aria-label="Segmentation metric top-down map"] polygon[data-state="SLOT_CLEAR"]').dispatchEvent(new MouseEvent('click',{bubbles:true}))`);
+        await wait(`document.querySelector('section[aria-label="รุ่นรถที่กว้างพอกับช่องที่เลือก"]')?.textContent.includes('ความกว้างเพียงพอตามค่าอ้างอิง')`);
+      }
       assert.match(await evaluate(`document.querySelector('[aria-label="ระยะช่องว่างที่เลือก"]').textContent`), /\d+\.\d{2}/);
     }
     console.log('Gap result: ' + await evaluate(`document.querySelector('section[aria-label="ผลหาช่องว่าง segmentation"]').innerText.slice(0,500)`));
+    if (incomingWidthArgument) {
+      await wait(`Boolean(document.querySelector('section[aria-label="ผลแนะนำตำแหน่งสำหรับรถที่กรอก"]'))`);
+      assert.equal(await evaluate(`Number(document.querySelector('section[aria-label="ผลแนะนำตำแหน่งสำหรับรถที่กรอก"]').dataset.width)`), Number(incomingWidthArgument));
+      assert.equal(await evaluate(`Number(document.querySelector('section[aria-label="ผลแนะนำตำแหน่งสำหรับรถที่กรอก"]').dataset.allocation)`), Math.max(1,Number(incomingWidthArgument)));
+      const incomingIds = await evaluate(`([...document.querySelectorAll('[data-incoming-placement]')]).map(el=>el.dataset.incomingPlacement)`);
+      assert.equal(incomingIds.length, await evaluate(`Number(document.querySelector('section[aria-label="ผลแนะนำตำแหน่งสำหรับรถที่กรอก"]').dataset.recommendedCount)`));
+      assert.ok(incomingIds.length > 0);
+      const incomingId = incomingIds[Math.min(1,incomingIds.length-1)];
+      await evaluate(`document.querySelector('[data-incoming-placement="${incomingId}"]').click()`);
+      await wait(`document.querySelector('svg[aria-label="Segmentation free-space candidates"] [data-incoming-id]')?.dataset.incomingId === '${incomingId}'`);
+      console.log('Incoming vehicle recommendations: ' + incomingIds.length);
+    }
     await wait(`Boolean(document.querySelector('svg[aria-label="Segmentation metric top-down map"]'))`);
     assert.equal(await evaluate(`(() => { const labels = [...document.querySelectorAll('svg[aria-label="Segmentation metric top-down map"] [data-row-label]')]; return labels.sort((a,b) => a.getBoundingClientRect().top-b.getBoundingClientRect().top).map(el=>el.dataset.rowLabel).join(','); })()`), 'row_5,row_4,row_3,row_2,row_1');
-    assert.equal(await evaluate(`document.querySelectorAll('svg[aria-label="Segmentation metric top-down map"] polygon[data-state="WIDTH_SUFFICIENT"]').length`), green);
+    assert.equal(await evaluate(`document.querySelectorAll('svg[aria-label="Segmentation metric top-down map"] polygon[data-state="SLOT_CLEAR"]').length`), green);
     const gapCount = await evaluate(`document.querySelectorAll('svg[aria-label="Segmentation metric top-down map"] polygon[data-gap-id]').length`);
     assert.equal(await evaluate(`document.querySelectorAll('[data-gap-result]').length`), gapCount);
-    assert.equal(await evaluate(`([...document.querySelectorAll('[data-gap-result]')]).every(el => /[0-9]+[.][0-9]{2}/.test(el.textContent) && el.textContent.includes(({WIDTH_SUFFICIENT:'กว้างพอ',INSUFFICIENT_WIDTH:'แคบเกินไป',UNKNOWN:'ยังยืนยันไม่ได้',FIT:'ผ่านเกณฑ์ footprint ทดลอง'})[el.dataset.state]))`), true);
+    assert.equal(await evaluate(`([...document.querySelectorAll('[data-gap-result]')]).every(el => /[0-9]+[.][0-9]{2}/.test(el.textContent) && el.textContent.includes(({SLOT_CLEAR:'ช่องจำลองว่าง (ทดลอง)',WIDTH_SUFFICIENT:'กว้างพอ',INSUFFICIENT_WIDTH:'แคบเกินไป',UNKNOWN:'ยังยืนยันไม่ได้',FIT:'วางกรอบรถได้ (ทดลอง)'})[el.dataset.state]))`), true);
     const statesBefore = await evaluate(`Object.fromEntries([...document.querySelectorAll('svg[aria-label="Segmentation metric top-down map"] polygon[data-gap-id]')].map(el => [el.dataset.gapId, el.getAttribute('stroke')]))`);
     assert.ok(await evaluate(`document.querySelectorAll('svg[aria-label="Segmentation metric top-down map"] path[data-occupied]').length > 0`));
     assert.equal(await evaluate(`document.querySelector('input[aria-label="แสดงรถนอก ROI"]').checked`), false);
@@ -132,6 +158,22 @@ try {
       const screenshotPath = join(temp, 'segmentation-top-down.png');
       await writeFile(screenshotPath, Buffer.from(shot.data, 'base64'));
       console.log('Screenshot: ' + screenshotPath);
+      if (incomingWidthArgument) {
+        await evaluate(`document.querySelector('section[aria-label="ผลแนะนำตำแหน่งสำหรับรถที่กรอก"]').scrollIntoView({block:'start'})`);
+        const incomingShot = await call('Page.captureScreenshot', { format: 'png' });
+        const incomingPath = join(temp, 'incoming-vehicle-recommendations.png');
+        await writeFile(incomingPath, Buffer.from(incomingShot.data, 'base64'));
+        console.log('Incoming screenshot: ' + incomingPath);
+      }
+      if (green > 0) {
+        await evaluate(`document.querySelector('svg[aria-label="Segmentation metric top-down map"] polygon[data-state="SLOT_CLEAR"]').dispatchEvent(new MouseEvent('click',{bubbles:true}))`);
+        await wait(`document.querySelector('section[aria-label="รุ่นรถที่กว้างพอกับช่องที่เลือก"]')?.textContent.includes('ความกว้างเพียงพอตามค่าอ้างอิง')`);
+        await evaluate(`document.querySelector('section[aria-label="รุ่นรถที่กว้างพอกับช่องที่เลือก"]').scrollIntoView({block:'start'})`);
+        const familyShot = await call('Page.captureScreenshot', { format: 'png' });
+        const familyPath = join(temp, 'gap-family-recommendations.png');
+        await writeFile(familyPath, Buffer.from(familyShot.data, 'base64'));
+        console.log('Family screenshot: ' + familyPath);
+      }
     }
     if (await evaluate(`document.querySelectorAll('svg[aria-label="Segmentation analysis row outlines"] polygon').length > 0`)) {
       assert.match(await evaluate(`document.querySelector('svg[aria-label="Segmentation analysis row outlines"]').textContent`), /row_1/);
@@ -141,6 +183,11 @@ try {
       await wait(`document.querySelectorAll('svg[aria-label="Segmentation analysis row outlines"] polygon').length > 0`);
     }
   }
+  if (incomingWidthArgument) {
+    await evaluate(`var widthInput=document.querySelector('input[aria-label="ความกว้างรถที่จะเข้าจอด"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(widthInput,${JSON.stringify((Number(incomingWidthArgument)+.1).toFixed(3))});widthInput.dispatchEvent(new Event('input',{bubbles:true}))`);
+    await wait(`!document.querySelector('section[aria-label="ผลแนะนำตำแหน่งสำหรับรถที่กรอก"]')`);
+    assert.equal(await evaluate(`document.querySelectorAll('[data-incoming-id]').length`), 0);
+  }
   assert.equal(await evaluate(`document.querySelector('section[aria-label="ทดลองขนาดตามคลาส"] input').checked`), true);
   await evaluate(`document.querySelector('section[aria-label="ทดลองขนาดตามคลาส"] input').click()`);
   await wait(`document.querySelector('section[aria-label="ทดลองขนาดตามคลาส"]').textContent.includes('แผนที่ด้านล่างใช้ขนาดมาตรฐานเดิม')`);
@@ -148,7 +195,7 @@ try {
   await wait(`document.querySelector('section[aria-label="ทดลองขนาดตามคลาส"]').textContent.includes('แผนที่และพื้นที่ว่างด้านล่างใช้ขนาดอ้างอิง')`);
   await evaluate(`var s=document.querySelector('select[aria-label="โมเดลจำแนกรุ่น"]');s.selectedIndex=2;s.dispatchEvent(new Event('change',{bubbles:true}))`);
   await wait(`!document.querySelector('img[alt="Crop ที่ส่งเข้า classifier"]')`);
-  if (compareGaps) assert.equal(await evaluate(`document.querySelectorAll('svg[aria-label="Segmentation free-space candidates"] polygon[data-state="WIDTH_SUFFICIENT"]').length`), 0);
+  if (compareGaps) assert.equal(await evaluate(`document.querySelectorAll('svg[aria-label="Segmentation free-space candidates"] polygon[data-state="SLOT_CLEAR"]').length`), 0);
   await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent==='Analyze').click()`);
   await wait(`Boolean(document.querySelector('img[alt="Crop ที่ส่งเข้า classifier"]'))`, 120000);
   await wait(`document.querySelectorAll('button[aria-label^="ดูรถคันที่"]').length>1`, 120000);
