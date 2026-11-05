@@ -15,10 +15,11 @@ void test('Analyze sends image, chosen classifier and parking flag through the p
     assert.equal(body.get('include_parking'), 'false');
     assert.equal(body.get('include_segmentation'), 'true');
     assert.equal(body.get('include_segmentation_gaps'), 'true');
+    assert.equal(body.get('incoming_width_m'), '1.2');
     assert.equal(await (body.get('image') as File).text(), 'image-data');
     return Response.json(payload);
   });
-  assert.deepEqual(await analyzeParkingWithClassifier(image, 'efficientnet-run', controller.signal, false, true, true), payload);
+  assert.deepEqual(await analyzeParkingWithClassifier(image, 'efficientnet-run', controller.signal, false, true, true, 1.2), payload);
 });
 
 void test('Analyze preserves upstream failure messages', async t => {

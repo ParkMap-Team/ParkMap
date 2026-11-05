@@ -11,8 +11,12 @@ export function SegmentationExperiment({ result, error, gaps, standardCount, sta
   result: Result | null; error: string; gaps?: components['schemas']['SegmentationGapResult'] | null; standardCount: number; standardMs?: number;
 }) {
   const [chosenGap, setChosenGap] = useState('');
+  const [chosenIncoming, setChosenIncoming] = useState('');
   const [showRows, setShowRows] = useState(true);
-  const currentGap = gaps?.candidates.find(item => item.id === chosenGap) ?? gaps?.candidates[0];
+  const currentGap = gaps?.candidates.find(item => item.id === chosenGap) ?? gaps?.candidates.find(item => item.state === 'FIT' || item.state === 'SLOT_CLEAR') ?? gaps?.candidates[0];
+  const fullFit = gaps?.evaluation_mode === 'FULL_FOOTPRINT';
+  const slots = gaps?.evaluation_mode === 'VIRTUAL_SLOTS';
+  const incomingSelected = gaps?.incoming_vehicle?.candidates.find(item => item.id === chosenIncoming && item.state === 'SLOT_CLEAR') ?? gaps?.incoming_vehicle?.candidates.find(item => item.state === 'SLOT_CLEAR');
   const reasons: Record<string, string> = {
     WIDTH_BELOW_TARGET: 'ช่องแคบกว่าเกณฑ์ความกว้างรถเป้าหมาย',
     GROUND_MAY_BE_OCCLUDED: 'พื้นอาจถูกตัวรถบัง', ROW_UNCERTAIN: 'แถวยังไม่แน่นอน',
@@ -43,6 +47,7 @@ export function SegmentationExperiment({ result, error, gaps, standardCount, sta
         {currentGap?.width_line_image?.length === 2 && <line x1={currentGap.width_line_image[0].x} y1={currentGap.width_line_image[0].y} x2={currentGap.width_line_image[1].x} y2={currentGap.width_line_image[1].y} stroke={gapPresentation[currentGap.state].color} strokeWidth=".003" />}
         {currentGap?.nearest_line_image?.length === 2 && <line x1={currentGap.nearest_line_image[0].x} y1={currentGap.nearest_line_image[0].y} x2={currentGap.nearest_line_image[1].x} y2={currentGap.nearest_line_image[1].y} stroke="#f97316" strokeWidth=".003" />}
         {currentGap?.label_image && <text x={currentGap.label_image.x} y={currentGap.label_image.y} fontSize=".022" textAnchor="middle" fill="white" stroke="#0f172a" strokeWidth=".001" paintOrder="stroke">{currentGap.gap_width_m.toFixed(2)} ม.</text>}
+        {incomingSelected?.polygon_image && <polygon data-incoming-id={incomingSelected.id} points={incomingSelected.polygon_image.map(p => `${p.x},${p.y}`).join(' ')} fill="rgba(6,182,212,.25)" stroke="#0891b2" strokeWidth=".006" />}
       </svg>}
       {gaps && showRows && <svg viewBox="0 0 1 1" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full" aria-label="Segmentation analysis row outlines">
         {gaps.rows.map(row => row.polygon_image && <g key={row.row_id} data-row-id={row.row_id}>
@@ -51,21 +56,22 @@ export function SegmentationExperiment({ result, error, gaps, standardCount, sta
         </g>)}
       </svg>}
     </div>}
-    {gaps && <SegmentationTopDown gaps={gaps} selectedId={currentGap?.id} onSelect={setChosenGap} />}
-    {gaps && <section aria-label="ผลหาช่องว่าง segmentation" data-status={gaps.status} data-green-count={gaps.green_count} className="space-y-3 border-t p-4 text-sm">
-      <h3 className="font-semibold">ตรวจเฉพาะความกว้าง · เป้าหมาย {gaps.target_width_m.toFixed(2)} ม.</h3>
-      <p>สีเขียวกว้างพอ: {gaps.green_count} ช่วงว่าง · สีแดงแคบเกินไป: {gaps.narrow_count} · สีเทายังยืนยันไม่ได้: {gaps.unknown_count}</p>
-      <p className="font-medium text-amber-900">ไม่ตรวจความยาวรถ 2 ม. สีเขียวหมายถึงกว้างพอเท่านั้น ยังไม่ยืนยันว่าจอดได้ทั้งคัน</p>
+    {gaps && <SegmentationTopDown gaps={gaps} selectedId={currentGap?.id} onSelect={setChosenGap} incomingSelectedId={incomingSelected?.id} onSelectIncoming={setChosenIncoming} />}
+    {gaps && <section aria-label="ผลหาช่องว่าง segmentation" data-status={gaps.status} data-evaluation-mode={gaps.evaluation_mode} data-green-count={gaps.green_count} className="space-y-3 border-t p-4 text-sm">
+      <h3 className="font-semibold">{slots ? 'ช่องจอดจำลอง · ลึกตามแถว' : fullFit ? 'ค้นหาพื้นที่วางรถทั้งคัน' : 'ตรวจเฉพาะความกว้าง'} · กว้าง {gaps.target_width_m.toFixed(2)}{fullFit ? ` × ${(gaps.target_length_m ?? 0).toFixed(2)}` : ''} ม.</h3>
+      <p>สีเขียว{slots ? 'ช่องจำลองผ่านเกณฑ์' : fullFit ? 'วางกรอบรถได้' : 'กว้างพอ'}: {gaps.green_count} {slots ? 'ช่อง' : fullFit ? 'ตำแหน่งทดลอง' : 'ช่วงว่าง'} · สีเทายังยืนยันไม่ได้: {gaps.unknown_count}</p>
+      <p className="font-medium text-amber-900">{slots ? 'แบ่งช่องกว้าง 1 ม. โดยใช้ความลึกของแต่ละแถว ตรวจสิ่งกีดขวางและการบังแยกทีละช่อง เศษที่ไม่ถึง 1 ม. ไม่เพิ่มเป็นช่อง · ยังไม่ตรวจความยาวของรุ่นรถหรือทางเข้า–ออก' : fullFit ? 'ตรวจกรอบรถทั้งคันในแถวและ ROI ไม่ทับรถเดิม และตรวจการบัง · ยังไม่ตรวจทางเข้า–ออก ไม่มีระยะเผื่อเพิ่ม' : 'ไม่ตรวจความยาวรถ สีเขียวหมายถึงกว้างพอเท่านั้น'}</p>
       <p className="text-amber-900">{gaps.calibration_source === 'ESTIMATED' ? 'ระยะประมาณจาก calibration แบบประมาณ' : gaps.calibration_source === 'MEASURED' ? 'ระยะคำนวณจาก calibration ที่ระบุว่าวัดจริง' : 'ยังไม่ยืนยันสเกลเมตร'} · ขนาด/ตำแหน่งรถเป็นค่าอ้างอิง ไม่ใช่การรับรองว่าจอดได้จริง · ไม่มีระยะเผื่อเพิ่มจาก footprint มาตรฐาน</p>
       {gaps.reasons.length > 0 && <p role="status" className="text-amber-800">{gaps.reasons.map(reason => reasons[reason] ?? reason).join(' · ')}</p>}
       <div className="flex max-h-28 flex-wrap gap-2 overflow-auto">{gaps.candidates.map(item => <button type="button" key={item.id} onClick={() => setChosenGap(item.id)} aria-pressed={item.id === currentGap?.id} className="rounded border px-2 py-1" style={{ borderColor: gapPresentation[item.state].color, color: gapPresentation[item.state].color }}>{item.id} · {gapPresentation[item.state].label}</button>)}</div>
       {currentGap && <div aria-label="ระยะช่องว่างที่เลือก" className="rounded bg-slate-50 p-3">
-        <p>ความกว้างช่องด้านข้างที่กึ่งกลางแถว: <strong>{currentGap.gap_width_m.toFixed(2)} ม.</strong></p>
-        <p>{currentGap.state === 'WIDTH_SUFFICIENT' ? 'ความกว้างเพียงพอ ไม่ได้ตรวจการวางรถทั้งคันหรือความยาวรถ' : currentGap.reasons.map(reason => reasons[reason] ?? reason).join(' · ')}</p>
+        <p>{slots ? 'ขนาดช่องจำลอง' : 'ความกว้างช่องด้านข้าง'}: <strong>{currentGap.gap_width_m.toFixed(2)}{currentGap.slot_length_m != null ? ` × ${currentGap.slot_length_m.toFixed(2)}` : ''} ม.</strong></p>
+        {currentGap.source_gap_width_m != null && <p>แบ่งจากช่วงว่าง {currentGap.source_gap_width_m.toFixed(2)} ม.</p>}
+        <p>{currentGap.state === 'SLOT_CLEAR' ? 'ช่องจำลองผ่านเกณฑ์ ไม่ทับรถอ้างอิง · ยังไม่ตรวจความยาวรถรายรุ่นและทางเข้า–ออก' : currentGap.state === 'FIT' ? 'วางกรอบรถได้ตามแบบจำลอง · ยังไม่ตรวจทางเข้า–ออก' : currentGap.state === 'WIDTH_SUFFICIENT' ? 'ความกว้างเพียงพอ ยังไม่ตรวจความยาวรถ' : currentGap.reasons.map(reason => reasons[reason] ?? reason).join(' · ')}</p>
       </div>}
-      {gaps.rows.map(row => <p key={row.row_id} className={row.state === 'NO_FIT' ? 'text-red-700' : 'text-slate-600'}>{row.row_id}: {row.state === 'NO_FIT' ? 'ยังไม่พบช่วงว่างที่กว้างพอ' : `${row.fit_count} ช่วงกว้างพอ · ${row.unknown_count} ยังยืนยันไม่ได้`}</p>)}
+      {gaps.rows.map(row => <p key={row.row_id} className={row.state === 'NO_FIT' ? 'text-red-700' : 'text-slate-600'}>{row.row_id}: {row.state === 'NO_FIT' ? 'ยังไม่พบตำแหน่งที่ผ่านเกณฑ์' : `${row.fit_count} ${slots ? 'ช่องจำลองผ่านเกณฑ์' : fullFit ? 'ตำแหน่งวางกรอบรถได้' : 'ช่วงกว้างพอ'} · ${row.unknown_count} ยังยืนยันไม่ได้`}</p>)}
       {gaps.measured_gaps.length > 0 && <details><summary className="cursor-pointer font-semibold">ระยะช่วงว่างแต่ละแถว รวมช่องแคบ</summary>
-        <p className="mt-2 text-xs text-slate-600">วัดช่องระหว่าง footprint อ้างอิงที่กึ่งกลางแถว ในแถบลึกไม่เกิน 0.02 ม. ไม่ตรวจความยาวรถ ไม่ใช่การยืนยันว่าจอดได้ทั้งคัน และยังตรวจการบังกับความไม่แน่นอน</p>
+        <p className="mt-2 text-xs text-slate-600">{slots ? 'ช่วงว่างระหว่างรถอ้างอิงตลอดความลึกแถว นำไปแบ่งเป็นช่องกว้าง 1 ม. เศษความกว้างไม่สร้างช่องเพิ่ม' : fullFit ? 'ระยะเบื้องต้นที่แนวหน้าแถว ใช้อธิบายช่องแคบ/สั้นเท่านั้น' : 'ระยะช่องด้านข้างที่กึ่งกลางแถว ไม่ตรวจความยาวรถ'}</p>
         <ul className="mt-2 max-h-44 space-y-1 overflow-auto">{gaps.measured_gaps.map((item, index) => <li key={index} className={item.state === 'REQUIRES_FIT_VALIDATION' ? 'text-amber-800' : 'text-red-700'}>{item.row_id} · กว้าง {item.width_m.toFixed(2)} ม. · ลึกที่ตรวจ {item.depth_m.toFixed(2)} ม. · {item.state === 'INSUFFICIENT_WIDTH' ? 'กว้างไม่พอ' : item.state === 'INSUFFICIENT_DEPTH' ? 'ลึกไม่พอ' : 'ต้องตรวจ FIT/ความไม่แน่นอน'}</li>)}</ul>
       </details>}
       {gaps.truncated && <p>แสดงข้อมูลไม่เกิน 200 รายการต่อชนิด</p>}
