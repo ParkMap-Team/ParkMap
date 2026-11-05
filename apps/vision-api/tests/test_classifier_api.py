@@ -13,6 +13,19 @@ from app import classifier
 from app.main import app
 
 
+@pytest.mark.parametrize("width", ["0", "-1", "nan", "inf", "5.01", "not-a-number"])
+def test_incoming_width_rejects_invalid_input_before_detection(monkeypatch, width):
+    monkeypatch.setenv("PARKMAP_EDITOR_TOKEN", "test-key")
+    calls = []
+    monkeypatch.setattr(classifier.cv_service, "analyze_image", lambda raw: calls.append(raw))
+    image = io.BytesIO()
+    Image.new("RGB", (40, 20)).save(image, "PNG")
+    client = TestClient(app, headers={"Authorization": "Bearer test-key"})
+    result = client.post("/api/operator/classifier/analyze", data={"incoming_width_m": width}, files={"image": ("a.png", image.getvalue(), "image/png")})
+    assert result.status_code == 422
+    assert calls == []
+
+
 def test_analyze_detects_once_and_classifies_the_same_boxes(monkeypatch):
     from app.models import DetectionResponse
 
@@ -162,9 +175,10 @@ def test_optional_segmentation_never_replaces_standard_detections(monkeypatch):
     def gaps(standard, segmented, **kwargs):
         assert standard.detections == []
         assert len(segmented.detections) == 1
+        assert kwargs["incoming_width_m"] == 1.2
         return SegmentationGapResult(status="EXPERIMENTAL")
     monkeypatch.setattr(classifier, "analyze_segmentation_gaps", gaps)
-    only_gaps = client.post("/api/operator/classifier/analyze", data={"include_parking": "false", "include_segmentation_gaps": "true"}, files={"image": ("a.png", stream.getvalue(), "image/png")})
+    only_gaps = client.post("/api/operator/classifier/analyze", data={"include_parking": "false", "incoming_width_m": "1.2"}, files={"image": ("a.png", stream.getvalue(), "image/png")})
     assert only_gaps.status_code == 200
     assert only_gaps.json()["segmentation_gaps"]["status"] == "EXPERIMENTAL"
     assert only_gaps.json()["detection"]["detections"] == []

@@ -635,6 +635,8 @@ export interface components {
              * @default false
              */
             include_segmentation_gaps: boolean;
+            /** Incoming Width M */
+            incoming_width_m?: number | null;
             /**
              * Model Id
              * @default
@@ -814,6 +816,11 @@ export interface components {
         };
         /** GapCandidate */
         GapCandidate: {
+            /**
+             * Compatible Families
+             * @default []
+             */
+            compatible_families: components["schemas"]["GapFamilyRecommendation"][];
             /** Gap Width M */
             gap_width_m: number;
             /** Id */
@@ -835,11 +842,15 @@ export interface components {
             reasons: string[];
             /** Row Id */
             row_id: string;
+            /** Slot Length M */
+            slot_length_m?: number | null;
+            /** Source Gap Width M */
+            source_gap_width_m?: number | null;
             /**
              * State
              * @enum {string}
              */
-            state: "FIT" | "WIDTH_SUFFICIENT" | "INSUFFICIENT_WIDTH" | "UNKNOWN";
+            state: "FIT" | "WIDTH_SUFFICIENT" | "SLOT_CLEAR" | "INSUFFICIENT_WIDTH" | "UNKNOWN";
             /** Width Line Image */
             width_line_image: components["schemas"]["MaskPoint"][] | null;
             /**
@@ -847,6 +858,17 @@ export interface components {
              * @default []
              */
             width_line_metric: components["schemas"]["MetricGroundPoint"][];
+        };
+        /** GapFamilyRecommendation */
+        GapFamilyRecommendation: {
+            /** Basis */
+            basis: string;
+            /** Family */
+            family: string;
+            /** Width Clearance M */
+            width_clearance_m: number;
+            /** Width M */
+            width_m: number;
         };
         /** GapMetricGeometry */
         GapMetricGeometry: {
@@ -887,7 +909,7 @@ export interface components {
              * State
              * @enum {string}
              */
-            state: "FIT" | "WIDTH_SUFFICIENT" | "UNKNOWN" | "NO_FIT";
+            state: "FIT" | "WIDTH_SUFFICIENT" | "SLOT_CLEAR" | "UNKNOWN" | "NO_FIT";
             /** Unknown Count */
             unknown_count: number;
         };
@@ -1130,6 +1152,26 @@ export interface components {
              * @constant
              */
             status: "ok";
+        };
+        /** IncomingVehicleRecommendation */
+        IncomingVehicleRecommendation: {
+            /** Allocation Width M */
+            allocation_width_m: number;
+            /** Candidates */
+            candidates: components["schemas"]["GapCandidate"][];
+            /**
+             * Reasons
+             * @default []
+             */
+            reasons: string[];
+            /** Recommended Count */
+            recommended_count: number;
+            /** Truncated */
+            truncated: boolean;
+            /** Unknown Count */
+            unknown_count: number;
+            /** Width M */
+            width_m: number;
         };
         /** LabelBox */
         LabelBox: {
@@ -1568,6 +1610,12 @@ export interface components {
         /** SegmentationGapResult */
         SegmentationGapResult: {
             /**
+             * Access Status
+             * @default NOT_EVALUATED
+             * @constant
+             */
+            access_status: "NOT_EVALUATED";
+            /**
              * Calibration Source
              * @default UNKNOWN
              * @enum {string}
@@ -1590,12 +1638,15 @@ export interface components {
              * @default FULL_FOOTPRINT
              * @enum {string}
              */
-            evaluation_mode: "FULL_FOOTPRINT" | "WIDTH_ONLY";
+            evaluation_mode: "FULL_FOOTPRINT" | "WIDTH_ONLY" | "VIRTUAL_SLOTS";
+            /** Family Recommendation Error */
+            family_recommendation_error?: string | null;
             /**
              * Green Count
              * @default 0
              */
             green_count: number;
+            incoming_vehicle?: components["schemas"]["IncomingVehicleRecommendation"] | null;
             /**
              * Measured Gaps
              * @default []
@@ -1635,7 +1686,7 @@ export interface components {
              * Target Length M
              * @default 2
              */
-            target_length_m: number;
+            target_length_m: number | null;
             /**
              * Target Width M
              * @default 0.66
