@@ -32,6 +32,7 @@ from app.services.segmentation_experiment_service import (
     segmentation_experiment_service,
 )
 from app.services.segmentation_gap_service import (
+    VIRTUAL_SLOT_WIDTH_M,
     SegmentationGapResult,
     analyze_segmentation_gaps,
 )
@@ -249,7 +250,7 @@ async def predict(image: Annotated[UploadFile, File()], model_id: Annotated[str,
 
 
 @router.post("/analyze", response_model=ParkingClassifierResult)
-async def analyze(image: Annotated[UploadFile, File()], response: Response, model_id: str = Form(""), include_parking: bool = Form(True), include_segmentation: bool = Form(False), include_segmentation_gaps: bool = Form(False)):
+async def analyze(image: Annotated[UploadFile, File()], response: Response, model_id: str = Form(""), include_parking: bool = Form(True), include_segmentation: bool = Form(False), include_segmentation_gaps: bool = Form(False), incoming_width_m: Annotated[float | None, Form(gt=0, le=5, allow_inf_nan=False)] = None):
     response.headers["Cache-Control"] = "no-store"
     decoded = await read_image(image)
     try:
@@ -287,18 +288,18 @@ async def analyze(image: Annotated[UploadFile, File()], response: Response, mode
                 result.reference_size_experiment = experiment
             except (OSError, ValueError, ParkingCalibrationUnavailableError):
                 result.reference_size_error = "Reference-size experiment unavailable; check config/motorcycle_reference_sizes.json. Standard analysis remains available."
-        if include_segmentation or include_segmentation_gaps:
+        if include_segmentation or include_segmentation_gaps or incoming_width_m is not None:
             try:
                 result.segmentation = await run_in_threadpool(segmentation_experiment_service.analyze_image, stream.getvalue())
                 result.segmentation.preview_url = encode_preview(decoded)
             except (ModelUnavailableError, OSError, ValueError, RuntimeError):
                 result.segmentation_error = "Segmentation unavailable. Install models/yolo11m-seg.pt with python scripts/download_segmentation_weights.py; the standard analysis remains available."
-        if include_segmentation_gaps:
+        if include_segmentation_gaps or incoming_width_m is not None:
             if result.segmentation is None:
-                result.segmentation_gaps = SegmentationGapResult(status="UNKNOWN", evaluation_mode="WIDTH_ONLY", reasons=["SEGMENTATION_UNAVAILABLE"])
+                result.segmentation_gaps = SegmentationGapResult(status="UNKNOWN", evaluation_mode="VIRTUAL_SLOTS", target_width_m=VIRTUAL_SLOT_WIDTH_M, target_length_m=None, reasons=["SEGMENTATION_UNAVAILABLE"])
             else:
                 references = result.reference_size_experiment.sizes if result.reference_size_experiment else None
-                result.segmentation_gaps = await run_in_threadpool(analyze_segmentation_gaps, detection, result.segmentation, reference_sizes=references)
+                result.segmentation_gaps = await run_in_threadpool(analyze_segmentation_gaps, detection, result.segmentation, reference_sizes=references, incoming_width_m=incoming_width_m)
         return result
     finally:
         decoded.close()

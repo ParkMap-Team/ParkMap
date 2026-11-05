@@ -1,4 +1,5 @@
 import pytest
+from shapely.affinity import rotate
 from shapely.geometry import Polygon, box
 
 from app.services.capacity_service import calculate_capacity
@@ -19,6 +20,101 @@ def scene(width=.66, depth=2., uncertain=False):
 
 
 INVERSE = [[.1, 0, 0], [0, .1, 0], [0, 0, 1]]
+
+
+def test_incoming_width_can_cross_one_metre_visual_grid():
+    result = evaluate_gap_geometry(scene(6., 1.9), INVERSE, [], evidence_count=1, virtual_slots=True, slot_width_m=1.2)
+    assert len(result.candidates) == 5
+    assert result.green_count == 5
+    assert result.target_width_m == pytest.approx(1.2)
+    for candidate in result.candidates:
+        shape = Polygon([(p.x_m, p.y_m) for p in candidate.polygon_metric])
+        assert shape.area == pytest.approx(1.2*1.9)
+        assert candidate.gap_width_m == pytest.approx(1.2)
+    assert len(evaluate_gap_geometry(scene(1.19, 1.9), INVERSE, [], evidence_count=1, virtual_slots=True, slot_width_m=1.2).candidates) == 0
+
+
+def test_six_metre_gap_produces_six_independent_one_by_two_slots():
+    result = evaluate_gap_geometry(scene(6., 2.), INVERSE, [box(.101, 0, .12, .2)], evidence_count=1, virtual_slots=True)
+    assert result.evaluation_mode == "VIRTUAL_SLOTS"
+    assert result.target_width_m == 1.
+    assert result.target_length_m is None
+    assert len(result.candidates) == 6
+    assert result.green_count == 5
+    assert result.unknown_count == 1
+    shapes = [Polygon([(p.x_m, p.y_m) for p in item.polygon_metric]) for item in result.candidates]
+    for index, shape in enumerate(shapes):
+        assert shape.area == pytest.approx(2.)
+        assert result.candidates[index].gap_width_m == pytest.approx(1.)
+        assert all(shape.intersection(other).area < 1e-8 for other in shapes[:index])
+
+
+def test_virtual_slots_follow_row_depth_and_do_not_round_up():
+    result = evaluate_gap_geometry(scene(6.99, 1.9), INVERSE, [], evidence_count=1, virtual_slots=True)
+    assert len(result.candidates) == 6
+    assert result.green_count == 6
+    assert all(item.slot_length_m == pytest.approx(1.9) for item in result.candidates)
+    assert all(Polygon([(p.x_m, p.y_m) for p in item.polygon_metric]).area == pytest.approx(1.9) for item in result.candidates)
+    assert all(item.source_gap_width_m == pytest.approx(6.99) for item in result.candidates)
+
+
+def test_virtual_slots_respect_limit_and_keep_deterministic_ids(monkeypatch):
+    from app.services import segmentation_gap_service
+
+    monkeypatch.setattr(segmentation_gap_service, "MAX_CANDIDATES", 3)
+    first = evaluate_gap_geometry(scene(6., 1.46), INVERSE, [], evidence_count=1, virtual_slots=True)
+    second = evaluate_gap_geometry(scene(6., 1.46), INVERSE, [], evidence_count=1, virtual_slots=True)
+    assert len(first.candidates) == 3
+    assert first.truncated
+    assert first == second
+    assert all(item.slot_length_m == pytest.approx(1.46) for item in first.candidates)
+
+
+def test_family_recommendations_use_exact_reference_width_and_only_green_gaps():
+    from app.services.motorcycle_reference_sizes import ReferenceSizeRules
+    from app.services.segmentation_gap_service import recommend_families_by_width
+
+    rules = ReferenceSizeRules.model_validate({"schema_version": 1, "min_score": 0.,
+        "fallback": {"width_m": .66, "length_m": 2., "basis": "fallback"},
+        "classes": {name: {"width_m": width, "length_m": 3., "basis": "test reference"}
+            for name, width in [("wave", .715), ("pcx", .742)]}})
+    gap = evaluate_gap_geometry(scene(.73, 1.), INVERSE, [], evidence_count=1, width_only=True)
+    recommend_families_by_width(gap, rules)
+    assert [item.family for item in gap.candidates[0].compatible_families] == ["wave"]
+    assert gap.candidates[0].compatible_families[0].width_clearance_m == pytest.approx(.015)
+    assert gap.candidates[0].compatible_families[0].basis == "test reference"
+    exact = evaluate_gap_geometry(scene(.742, 1.), INVERSE, [], evidence_count=1, width_only=True)
+    recommend_families_by_width(exact, rules)
+    assert [item.family for item in exact.candidates[0].compatible_families] == ["wave", "pcx"]
+    assert exact.candidates[0].compatible_families[1].width_clearance_m == pytest.approx(0)
+    hidden = evaluate_gap_geometry(scene(.8, 1.), INVERSE, [box(.1, 0, .18, .1)], evidence_count=1, width_only=True)
+    recommend_families_by_width(hidden, rules)
+    assert hidden.candidates[0].compatible_families == []
+    rules.classes["pcx"] = rules.classes["pcx"].model_copy(update={"width_m": 1.01})
+    slots = evaluate_gap_geometry(scene(6., 1.46), INVERSE, [], evidence_count=1, virtual_slots=True)
+    recommend_families_by_width(slots, rules)
+    assert all([item.family for item in slot.compatible_families] == ["wave"] for slot in slots.candidates)
+
+
+def test_full_vehicle_fit_respects_rotated_obstacles_and_roi_holes():
+    row = Polygon([(0, 0), (8, 0), (8, 3), (0, 3)])
+    roi = row.difference(box(4, .5, 4.3, 1.5))
+    occupied = rotate(box(1, .5, 1.8, 2.5), 20, origin=(1.4, 1.5))
+    row, roi, occupied = [rotate(shape, 27, origin=(0, 0)) for shape in (row, roi, occupied)]
+    free = roi.difference(occupied)
+    rows = [("row_1", row)]
+    analysis = {"physical_map": {"parking_roi": _geometry(roi), "rows": [{"row_id": "row_1", "polygon": _geometry(row)["polygons"][0][0]}]},
+        "detections": [{"canonical_footprint": _geometry(occupied)}],
+        "capacity": calculate_capacity(rows, {"row_1": free}, fit_rows(rows, {"row_1": free})),
+        "uncertainty": {"validation": True, "rows": [{"row_id": "row_1", "status": "CLEAR"}]}}
+    result = evaluate_gap_geometry(analysis, [[.04, 0, .4], [0, .04, .4], [0, 0, 1]], [], evidence_count=1)
+    assert result.green_count > 0
+    for candidate in result.candidates:
+        if candidate.state == "FIT":
+            shape = Polygon([(p.x_m, p.y_m) for p in candidate.polygon_metric])
+            assert roi.buffer(1e-7).covers(shape)
+            assert shape.intersection(occupied).area <= 1e-7
+            assert shape.area == pytest.approx(.66 * 2.)
 
 
 def test_all_width_gaps_report_sufficient_narrow_and_occluded_states():
@@ -110,7 +206,7 @@ def test_occlusion_uncertainty_no_evidence_or_bad_projection_never_turns_green()
     assert evaluate_gap_geometry(unsafe, INVERSE, [], evidence_count=1).green_count == 0
 
 
-def test_saved_calibration_and_conservative_union_with_primary_only_vehicle(tmp_path):
+def test_saved_calibration_and_conservative_union_with_primary_only_vehicle(tmp_path, monkeypatch):
     from app.models import DetectionResponse, GroundPlaneCalibration, ParkingCalibration
     from app.services.ground_plane_homography_service import (
         GroundPlaneHomographyService,
@@ -143,15 +239,38 @@ def test_saved_calibration_and_conservative_union_with_primary_only_vehicle(tmp_
     reference = [ReferenceDimensions(width_m=.9, length_m=2.3, basis="known reference")]
     result = analyze_segmentation_gaps(primary, segmentation, service, reference_sizes=reference)
     assert result.status == "EXPERIMENTAL"
-    assert result.evaluation_mode == "WIDTH_ONLY"
+    assert result.evaluation_mode == "VIRTUAL_SLOTS"
+    assert result.access_status == "NOT_EVALUATED"
     assert result.calibration_source == "MEASURED"
     assert result.candidates
     primary_block = box(3.25-.45, 1.5, 3.25+.45, 1.5+2.3)
     for item in result.candidates:
+        metric_shape = Polygon([(p.x_m, p.y_m) for p in item.polygon_metric])
+        assert metric_shape.area == pytest.approx(item.gap_width_m * item.slot_length_m)
+        assert item.state in {"SLOT_CLEAR", "UNKNOWN"}
         if item.polygon_image:
             shape = Polygon([(p.x*10, p.y*10) for p in item.polygon_image])
             assert shape.intersection(primary_block).area < 1e-7
     assert len(primary.detections) == 1
+    incoming = analyze_segmentation_gaps(primary, segmentation, service, reference_sizes=reference, incoming_width_m=1.2)
+    assert incoming.target_width_m == 1.
+    assert incoming.incoming_vehicle.width_m == 1.2
+    assert incoming.incoming_vehicle.allocation_width_m == 1.2
+    assert incoming.incoming_vehicle.candidates
+    assert all(item.gap_width_m == pytest.approx(1.2) for item in incoming.incoming_vehicle.candidates)
+    assert not {item.id for item in incoming.candidates} & {item.id for item in incoming.incoming_vehicle.candidates}
+    small = analyze_segmentation_gaps(primary, segmentation, service, incoming_width_m=.75)
+    assert small.incoming_vehicle.allocation_width_m == 1.
+    from app.services import motorcycle_reference_sizes
+
+    broken_rules = tmp_path / "broken_sizes.json"
+    broken_rules.write_text('{"schema_version": 999}', encoding="utf-8")
+    monkeypatch.setattr(motorcycle_reference_sizes, "RULES_PATH", broken_rules)
+    unavailable = analyze_segmentation_gaps(primary, segmentation, service, reference_sizes=reference)
+    assert unavailable.status == "EXPERIMENTAL"
+    assert unavailable.family_recommendation_error
+    assert unavailable.green_count == result.green_count
+    assert all(not item.compatible_families for item in unavailable.candidates)
     wrong_frame = segmentation.model_copy(update={"image_width": 200})
     assert analyze_segmentation_gaps(primary, wrong_frame, service).status == "CALIBRATION_REQUIRED"
     ground.control_points[0].ground_x_m = .1

@@ -124,6 +124,19 @@
             "title": "Include Segmentation Gaps",
             "type": "boolean"
           },
+          "incoming_width_m": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 5.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incoming Width M"
+          },
           "model_id": {
             "default": "",
             "title": "Model Id",
@@ -600,6 +613,14 @@
       },
       "GapCandidate": {
         "properties": {
+          "compatible_families": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GapFamilyRecommendation"
+            },
+            "title": "Compatible Families",
+            "type": "array"
+          },
           "gap_width_m": {
             "title": "Gap Width M",
             "type": "number"
@@ -686,10 +707,33 @@
             "title": "Row Id",
             "type": "string"
           },
+          "slot_length_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Length M"
+          },
+          "source_gap_width_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Gap Width M"
+          },
           "state": {
             "enum": [
               "FIT",
               "WIDTH_SUFFICIENT",
+              "SLOT_CLEAR",
               "INSUFFICIENT_WIDTH",
               "UNKNOWN"
             ],
@@ -732,6 +776,34 @@
           "label_image"
         ],
         "title": "GapCandidate",
+        "type": "object"
+      },
+      "GapFamilyRecommendation": {
+        "properties": {
+          "basis": {
+            "title": "Basis",
+            "type": "string"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "width_clearance_m": {
+            "title": "Width Clearance M",
+            "type": "number"
+          },
+          "width_m": {
+            "title": "Width M",
+            "type": "number"
+          }
+        },
+        "required": [
+          "family",
+          "width_m",
+          "width_clearance_m",
+          "basis"
+        ],
+        "title": "GapFamilyRecommendation",
         "type": "object"
       },
       "GapMetricGeometry": {
@@ -840,6 +912,7 @@
             "enum": [
               "FIT",
               "WIDTH_SUFFICIENT",
+              "SLOT_CLEAR",
               "UNKNOWN",
               "NO_FIT"
             ],
@@ -1503,6 +1576,55 @@
           }
         },
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "IncomingVehicleRecommendation": {
+        "properties": {
+          "allocation_width_m": {
+            "title": "Allocation Width M",
+            "type": "number"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/GapCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "reasons": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "recommended_count": {
+            "title": "Recommended Count",
+            "type": "integer"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          },
+          "unknown_count": {
+            "title": "Unknown Count",
+            "type": "integer"
+          },
+          "width_m": {
+            "title": "Width M",
+            "type": "number"
+          }
+        },
+        "required": [
+          "width_m",
+          "allocation_width_m",
+          "recommended_count",
+          "unknown_count",
+          "truncated",
+          "candidates"
+        ],
+        "title": "IncomingVehicleRecommendation",
         "type": "object"
       },
       "LabelBox": {
@@ -2784,6 +2906,12 @@
       },
       "SegmentationGapResult": {
         "properties": {
+          "access_status": {
+            "const": "NOT_EVALUATED",
+            "default": "NOT_EVALUATED",
+            "title": "Access Status",
+            "type": "string"
+          },
           "calibration_source": {
             "default": "UNKNOWN",
             "enum": [
@@ -2822,15 +2950,37 @@
             "default": "FULL_FOOTPRINT",
             "enum": [
               "FULL_FOOTPRINT",
-              "WIDTH_ONLY"
+              "WIDTH_ONLY",
+              "VIRTUAL_SLOTS"
             ],
             "title": "Evaluation Mode",
             "type": "string"
+          },
+          "family_recommendation_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family Recommendation Error"
           },
           "green_count": {
             "default": 0,
             "title": "Green Count",
             "type": "integer"
+          },
+          "incoming_vehicle": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IncomingVehicleRecommendation"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "measured_gaps": {
             "default": [],
@@ -2911,9 +3061,16 @@
             "type": "string"
           },
           "target_length_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "default": 2.0,
-            "title": "Target Length M",
-            "type": "number"
+            "title": "Target Length M"
           },
           "target_width_m": {
             "default": 0.66,
