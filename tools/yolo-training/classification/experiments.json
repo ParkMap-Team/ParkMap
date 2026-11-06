@@ -1,0 +1,30 @@
+{
+  "dataset": "prepared/run-a74c4e0917bd7ce25b2c",
+  "output": "runs",
+  "defaults": {
+    "image_size": 224,
+    "epochs": 100,
+    "patience": 0,
+    "batch_size": 8,
+    "learning_rate": 0.001,
+    "seed": 20261102,
+    "device": "auto",
+    "threads": 2,
+    "workers": 0,
+    "fine_tune": false,
+    "augment": true,
+    "allow_provisional": true
+  },
+  "models": {
+    "yolo26n": { "architecture": "yolo26n_cls", "note": "YOLO26 nano, pretrained, newest" },
+    "yolo11n": { "architecture": "yolo11n_cls", "note": "YOLO11 nano, pretrained" },
+    "yolo12n": { "architecture": "yolo12n_cls", "fine_tune": true, "note": "YOLO12 nano, NO pretrained weights: from scratch, weak" },
+    "convnext_tiny": { "architecture": "convnext_tiny", "note": "ConvNeXt-Tiny 28M, pretrained, recommended: accuracy" },
+    "mobilenet_v3": { "architecture": "mobilenet_v3_large", "note": "MobileNetV3-Large 5.5M, pretrained, recommended: fast on CPU" },
+    "efficientnet": { "architecture": "efficientnet_b0", "note": "EfficientNet-B0 5.3M, pretrained" },
+    "resnet18": { "architecture": "resnet18", "note": "ResNet18 11.7M, pretrained, simple baseline" },
+    "convnext_aug": { "architecture": "convnext_tiny", "augmentation": "strong", "note": "convnext_tiny + strong augmentation only (shift/scale/tilt/colour)" },
+    "convnext_reg": { "architecture": "convnext_tiny", "weight_decay": 0.05, "label_smoothing": 0.1, "note": "convnext_tiny + weight decay 0.05 + label smoothing 0.1 only" },
+    "convnext_aug_reg": { "architecture": "convnext_tiny", "augmentation": "strong", "weight_decay": 0.05, "label_smoothing": 0.1, "note": "convnext_tiny + strong augmentation + regularization (both)" }
+  }
+}

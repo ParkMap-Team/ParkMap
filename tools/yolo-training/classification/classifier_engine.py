@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import torch
+from architectures import has_pretrained, is_supported, is_yolo
 from classifier_data import (
     PREPROCESSING,
     PadResize,
@@ -51,11 +52,15 @@ def select_device(name):
 
 
 def model_spec(architecture):
-    if architecture == "resnet18":
-        return models.resnet18, models.ResNet18_Weights.IMAGENET1K_V1
-    if architecture == "efficientnet_b0":
-        return models.efficientnet_b0, models.EfficientNet_B0_Weights.IMAGENET1K_V1
-    raise ValueError("Unsupported classifier architecture")
+    specs = {
+        "resnet18": (models.resnet18, models.ResNet18_Weights.IMAGENET1K_V1),
+        "efficientnet_b0": (models.efficientnet_b0, models.EfficientNet_B0_Weights.IMAGENET1K_V1),
+        "mobilenet_v3_large": (models.mobilenet_v3_large, models.MobileNet_V3_Large_Weights.IMAGENET1K_V2),
+        "convnext_tiny": (models.convnext_tiny, models.ConvNeXt_Tiny_Weights.IMAGENET1K_V1),
+    }
+    if architecture not in specs:
+        raise ValueError("Unsupported classifier architecture")
+    return specs[architecture]
 
 
 def classifier_head(model):
@@ -63,11 +68,12 @@ def classifier_head(model):
 
 
 def build_model(classes, weights_dir, fine_tune=False, initial_weights=None, pretrained=True, architecture="resnet18"):
-    if architecture == "yolo11n_cls":
+    if is_yolo(architecture):
         from yolo_classifier import YoloClassifier, prepare_pretrained
 
-        weights = initial_weights or (prepare_pretrained(weights_dir) if pretrained else None)
-        return YoloClassifier(classes, fine_tune, weights)
+        # A YOLO family without official classification weights (YOLO12) starts from random initialization.
+        weights = initial_weights or (prepare_pretrained(weights_dir, architecture) if pretrained and has_pretrained(architecture) else None)
+        return YoloClassifier(architecture, classes, fine_tune, weights)
     builder, weights = model_spec(architecture)
     if initial_weights:
         model = builder(weights=None)
@@ -87,11 +93,14 @@ def build_model(classes, weights_dir, fine_tune=False, initial_weights=None, pre
 
 
 def initial_weights_metadata(weights_dir, initial_weights=None, architecture="resnet18"):
-    if architecture == "yolo11n_cls":
-        from yolo_classifier import OFFICIAL_URL, initial_weights_path
+    if is_yolo(architecture):
+        from yolo_classifier import initial_weights_path, official_url
 
-        path = Path(initial_weights) if initial_weights else initial_weights_path(weights_dir)
-        return {"initial_weights": str(path.resolve()), "initial_weights_source": "local state_dict" if initial_weights else OFFICIAL_URL,
+        if not initial_weights and not has_pretrained(architecture):
+            return {"initial_weights": None, "initial_weights_sha256": None, "ultralytics": importlib.metadata.version("ultralytics"),
+                    "initial_weights_source": "random initialization: Ultralytics publishes no pretrained classification weights for this architecture"}
+        path = Path(initial_weights) if initial_weights else initial_weights_path(weights_dir, architecture)
+        return {"initial_weights": str(path.resolve()), "initial_weights_source": "local state_dict" if initial_weights else official_url(architecture),
                 "initial_weights_sha256": sha256(path), "ultralytics": importlib.metadata.version("ultralytics")}
     url = model_spec(architecture)[1].url
     path = Path(initial_weights).resolve() if initial_weights else Path(weights_dir) / "checkpoints" / Path(urlparse(url).path).name
@@ -100,24 +109,29 @@ def initial_weights_metadata(weights_dir, initial_weights=None, architecture="re
 
 
 def preprocessing_for(architecture):
-    if architecture == "yolo11n_cls":
+    if is_yolo(architecture):
         return {**PREPROCESSING, "mean": [0., 0., 0.], "std": [1., 1., 1.]}
     return PREPROCESSING
 
 
-def image_transform(size, augment=False, architecture="resnet18"):
+def image_transform(size, augment=False, architecture="resnet18", level="basic"):
     steps = [PadResize(size)]
-    if augment:
+    if augment and level == "strong":
+        # Small shifts, scale and tilt (padding colour fills the gaps) and stronger colour jitter: the same motorcycle
+        # photographed a little off-centre, nearer or under other light. Applied to train only.
+        steps += [transforms.RandomAffine(degrees=10, translate=(.08, .08), scale=(.85, 1.1), fill=tuple(PREPROCESSING["padding_rgb"])),
+                  transforms.RandomHorizontalFlip(0.5), transforms.ColorJitter(brightness=.3, contrast=.3, saturation=.2, hue=.02)]
+    elif augment:
         steps += [transforms.RandomHorizontalFlip(0.5), transforms.ColorJitter(brightness=.1, contrast=.1, saturation=.05)]
     preprocessing = preprocessing_for(architecture)
     return transforms.Compose([*steps, transforms.ToTensor(), transforms.Normalize(preprocessing["mean"], preprocessing["std"])])
 
 
 class CropDataset(Dataset):
-    def __init__(self, root, rows, classes, size, augment=False, architecture="resnet18"):
+    def __init__(self, root, rows, classes, size, augment=False, architecture="resnet18", level="basic"):
         self.root, self.rows = Path(root), rows
         self.indices = {name: index for index, name in enumerate(classes)}
-        self.transform = image_transform(size, augment, architecture)
+        self.transform = image_transform(size, augment, architecture, level)
 
     def __len__(self):
         return len(self.rows)
@@ -130,12 +144,13 @@ class CropDataset(Dataset):
 
 
 def loader(root, rows, classes, options, training=False):
-    dataset = CropDataset(root, rows, classes, options["image_size"], training and options["augment"], options["architecture"])
+    dataset = CropDataset(root, rows, classes, options["image_size"], training and options["augment"], options["architecture"],
+                          options.get("augmentation", "basic"))
     return DataLoader(dataset, batch_size=options["batch_size"], shuffle=training, num_workers=options["workers"],
                       generator=torch.Generator().manual_seed(options["seed"]))
 
 
-def train_epoch(model, batches, optimizer, device, fine_tune, epoch, epochs):
+def train_epoch(model, batches, optimizer, device, fine_tune, epoch, epochs, label_smoothing=0.0):
     # Freeze backbone BN running statistics as well as its parameters for head-only training.
     model.train() if fine_tune else model.eval()
     classifier_head(model).train()
@@ -144,7 +159,8 @@ def train_epoch(model, batches, optimizer, device, fine_tune, epoch, epochs):
         images, targets = images.to(device), targets.to(device)
         optimizer.zero_grad(set_to_none=True)
         logits = model(images)
-        loss = nn.functional.cross_entropy(logits, targets)
+        # Smoothing applies to the training loss only; validation loss stays plain cross-entropy so runs remain comparable.
+        loss = nn.functional.cross_entropy(logits, targets, label_smoothing=label_smoothing)
         if not torch.isfinite(loss):
             raise ValueError("Non-finite training loss")
         loss.backward()
@@ -192,7 +208,7 @@ def save_checkpoint(path, model, options, summary, epoch, metrics):
 
 def load_checkpoint(path, summary):
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
-    if checkpoint.get("format_version") != 1 or checkpoint.get("architecture") not in {"resnet18", "efficientnet_b0", "yolo11n_cls"}:
+    if checkpoint.get("format_version") != 1 or not is_supported(checkpoint.get("architecture")):
         raise ValueError("Expected a supported ParkMap classifier checkpoint, not detector weights")
     if checkpoint["classes"] != summary["classes"]:
         raise ValueError("Checkpoint classes differ from dataset class order")
@@ -228,7 +244,8 @@ def fit(model, samples, summary, options, output):
     (output / "classes.json").write_text(json.dumps(dict(enumerate(summary["classes"])), indent=2) + "\n", encoding="utf-8")
     train_loader = loader(summary["snapshot"], samples["train"], summary["classes"], options, training=True)
     val_loader = loader(summary["snapshot"], samples["val"], summary["classes"], options)
-    optimizer = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad), lr=options["learning_rate"])
+    optimizer = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad), lr=options["learning_rate"],
+                                  weight_decay=options.get("weight_decay", 0.01))  # 0.01 is AdamW's own default
     best = (-math.inf, -math.inf)
     stopper = EarlyStopping(options.get("patience", 0))
     metadata["early_stopping"] = {"metric": "val_macro_f1", "patience": stopper.patience, "stopped_early": False}
@@ -251,7 +268,8 @@ def fit(model, samples, summary, options, output):
             writer = csv.DictWriter(stream, fieldnames=fields)
             writer.writeheader()
             for epoch in range(1, options["epochs"] + 1):
-                trained = train_epoch(model, train_loader, optimizer, device, options["fine_tune"], epoch, options["epochs"])
+                trained = train_epoch(model, train_loader, optimizer, device, options["fine_tune"], epoch, options["epochs"],
+                                      options.get("label_smoothing", 0.0))
                 metrics, _, _ = evaluate(model, val_loader, device, summary["classes"])
                 writer.writerow({"epoch": epoch, "train_loss": trained["loss"], "train_top1": trained["top1"],
                                  "val_loss": metrics["loss"], "val_top1": metrics["top1"], "val_macro_f1": metrics["macro_f1"],

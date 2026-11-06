@@ -60,7 +60,7 @@ def test_analyze_detects_once_and_classifies_the_same_boxes(monkeypatch):
     assert partial.json()["classification_error"]
 
 
-@pytest.mark.parametrize("architecture", ["efficientnet_b0", "yolo11n_cls"])
+@pytest.mark.parametrize("architecture", ["efficientnet_b0", "mobilenet_v3_large", "convnext_tiny", "yolo11n_cls", "yolo12n_cls", "yolo26n_cls"])
 def test_operator_can_predict_with_a_classifier_checkpoint(tmp_path, monkeypatch, architecture):
     import torch
     from torchvision import models
@@ -70,15 +70,15 @@ def test_operator_can_predict_with_a_classifier_checkpoint(tmp_path, monkeypatch
     monkeypatch.setattr(classifier, "_cache", None)
     folder = tmp_path / "train-fixture"
     (folder / "val").mkdir(parents=True)
-    if architecture == "yolo11n_cls":
+    if architecture.startswith("yolo"):
         from ultralytics.nn.tasks import ClassificationModel
 
-        model = ClassificationModel("yolo11n-cls.yaml", nc=1000, verbose=False)
+        model = ClassificationModel(architecture.removesuffix("_cls") + "-cls.yaml", nc=1000, verbose=False)
         head = model.model[-1]
         head.linear = torch.nn.Linear(head.linear.in_features, 3)
         linear = head.linear
     else:
-        model = models.efficientnet_b0(weights=None)
+        model = getattr(models, architecture)(weights=None)
         model.classifier[-1] = torch.nn.Linear(model.classifier[-1].in_features, 3)
         linear = model.classifier[-1]
     with torch.no_grad():
@@ -87,7 +87,7 @@ def test_operator_can_predict_with_a_classifier_checkpoint(tmp_path, monkeypatch
         linear.bias.copy_(torch.tensor([0., 1., 2.]))
     classes = ["a", "b", "c"]
     checkpoint = folder / "best.pt"
-    is_yolo = architecture == "yolo11n_cls"
+    is_yolo = architecture.startswith("yolo")
     torch.save({"format_version": 1, "architecture": architecture, "classes": classes, "image_size": 64,
                 "preprocessing": {"protocol": "letterbox_rgb_v1", "mean": [0., 0., 0.] if is_yolo else [.485, .456, .406], "std": [1., 1., 1.] if is_yolo else [.229, .224, .225], "padding_rgb": [124, 116, 104]},
                 "state_dict": {("network." + key if is_yolo else key): value for key, value in model.state_dict().items()}}, checkpoint)

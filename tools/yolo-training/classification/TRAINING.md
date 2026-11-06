@@ -1,5 +1,58 @@
 # Train the motorcycle model-family classifier
 
+## Quick start (Windows, GPU or CPU)
+
+From the repository root:
+
+```powershell
+.\train-classifier setup          # once, needs internet: CUDA PyTorch environment for the GPU
+.\train-classifier check          # GPU or CPU, every model's settings, dataset summary; trains nothing
+.\train-classifier run            # menu: pick one model, several ("1 3 4") or a = all, trained one after another
+.\train-classifier run yolo26n    # skip the menu: train one model by its name in experiments.json
+.\train-classifier run all        # every model in turn, then print them ranked by val macro-F1
+.\train-classifier test yolo26n   # held-out test of that model's newest run; do it once, after choosing by val
+```
+
+**All settings are in [experiments.json](experiments.json)**, the only file to edit. `dataset` and `output` are shared;
+`defaults` holds `epochs`, `patience` (0 turns early stopping off), `batch_size`, `learning_rate`, `seed`, `device`,
+`fine_tune` and the rest; each entry under `models` names a model and sets its `architecture` plus anything that should
+differ from `defaults`. The order of the entries is the order of the `run` menu, and an optional `note` is the hint shown
+there. Names use letters, digits, `-` or `_`. Options typed after the name win over the file for that run, e.g.
+`.\train-classifier run resnet18 --epochs 10 --device cpu`. The older single-experiment `training*.json` files still work
+with `train.py --config`.
+
+Three optional keys fight overfitting (they go in `defaults` or in one model's block; leaving them out gives the earlier behaviour):
+`"augmentation": "strong"` adds random shift, scale (0.85-1.1), tilt (up to 10 degrees) and stronger colour jitter to **train** images only
+(`"basic"`, the default, is flip plus mild jitter); `"weight_decay"` (default 0.01, AdamW's own) and `"label_smoothing"` (default 0,
+applied to the training loss only, so val loss stays comparable). `convnext_aug`, `convnext_reg` and `convnext_aug_reg` test each change on
+ConvNeXt-Tiny, alone and together, against the plain `convnext_tiny` run; `summary.csv` records the three settings per run.
+
+Models available out of the box (all except YOLO12 start from ImageNet-pretrained weights and train the last layer only):
+
+| Name in the file | `architecture` | Notes |
+| --- | --- | --- |
+| `yolo26n`, `yolo11n` | `yolo26n_cls`, `yolo11n_cls` | Ultralytics nano classifiers, ~2.8M parameters |
+| `yolo12n` | `yolo12n_cls` | **Ultralytics publishes no pretrained YOLO12 classification weights**, so it trains the whole network from scratch (`"fine_tune": true` is required and checked); expect weak results on ~1k crops |
+| `convnext_tiny` | `convnext_tiny` | 28M parameters; recommended to try first for accuracy on fine-grained classes |
+| `mobilenet_v3` | `mobilenet_v3_large` | 5.5M parameters; recommended for fast CPU inference in the API |
+| `efficientnet`, `resnet18` | `efficientnet_b0`, `resnet18` | Earlier baselines |
+
+Other YOLO sizes need only a new line: `"yolo26s": { "architecture": "yolo26s_cls" }` (`n`, `s`, `m`, `l`, `x` for YOLO11,
+YOLO12 and YOLO26; larger ones train slower). The Parking page lists any completed run of these architectures. Which model is
+best on this data is for the comparison to show: pretrained transfer usually matters more than the newest architecture.
+
+**Outputs are kept** under `classification/runs/`: one folder per run named `train-<date>-<time>-<model name>-<id>`
+(checkpoints, `history.csv`, `val/` reports, and `run.json` with the exact settings used), and **`runs/summary.csv`** with
+one row per finished run (model, best epoch, patience, val top-1, val macro-F1, val loss) for comparing models in one place.
+
+`setup` builds `tools/yolo-training/.venv-gpu` (ignored by Git) with the same package versions as the API lock but a
+CUDA PyTorch build. The API's own locked environment stays CPU-only and is used when that folder is absent.
+The commands call Python directly, so `uv` need not be on PATH except for `setup`. The first `run` downloads
+the pretrained weights; the script uses certifi's CA bundle for that because the Windows store on some machines lacks
+github.com's root. Details and the long forms follow.
+
+## Long form
+
 From the **ParkMap repository root** in VS Code Terminal, run:
 
 ```powershell
@@ -15,9 +68,10 @@ cannot silently change the data for this experiment.
 Training uses the project's locked Python 3.12 environment, which already has
 Torch, Torchvision and Pillow. If that environment is missing, first install it
 with `uv sync --project apps/vision-api --locked --all-groups`. The project lock
-uses CPU PyTorch on Windows; `auto` will select CPU there. A CUDA PyTorch setup
-can run the same script with `--device cuda`, but CUDA/Colab execution has not
-been tested in this change. No new web page or training service is used.
+uses CPU PyTorch on Windows; `auto` will select CPU there. The `setup` environment
+from the quick start runs the same script on CUDA (`auto` picks it); it was verified for
+all three architectures and `--fine-tune` on an RTX 4070 SUPER. Colab has not been
+tested. No new web page or training service is used.
 
 ## Before training
 
@@ -90,7 +144,8 @@ The Terminal reports the epoch number, batches, train loss/top-1, and val
 loss/top-1/macro F1. Each invocation creates a fresh ignored directory:
 
 ```text
-classification/runs/train-<UTC-time>-<unique-id>/
+classification/runs/train-<YYYYMMDD-HHMMSS local>-<architecture>-<6-hex id>/
+  # e.g. train-20261102-230415-yolo11n-cls-a1b2c3; held-out evaluation uses test-...
   run.json                  # exact dataset fingerprint, options, versions, status
   classes.json              # class-index mapping
   history.csv               # flushed after each completed epoch

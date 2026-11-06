@@ -28,6 +28,13 @@ API_ROOT = Path(__file__).resolve().parent.parent
 RUNS = API_ROOT.parent.parent / "tools/yolo-training/classification/runs"
 LOCK = Lock()
 _cache = None
+# Mirrors tools/yolo-training/classification/architectures.py; the API never imports the training tools.
+TORCHVISION_ARCHITECTURES = ("resnet18", "efficientnet_b0", "mobilenet_v3_large", "convnext_tiny")
+YOLO_ARCHITECTURE = re.compile(r"yolo(11|12|26)[nsmlx]_cls")
+
+
+def is_supported_architecture(architecture):
+    return architecture in TORCHVISION_ARCHITECTURES or bool(YOLO_ARCHITECTURE.fullmatch(str(architecture)))
 
 
 class ClassifierModel(BaseModel):
@@ -76,7 +83,7 @@ def available_models():
             if meta.get("run_state") != "complete" or not (folder / "best.pt").is_file():
                 continue
             architecture = meta.get("options", {}).get("architecture", "resnet18")
-            if architecture not in {"resnet18", "efficientnet_b0", "yolo11n_cls"}:
+            if not is_supported_architecture(architecture):
                 continue
             result.append(ClassifierModel(id=folder.name, label=f"{architecture} · {folder.name} · {len(meta['dataset']['classes'])} classes",
                                           epoch=meta["best_epoch"], classes=len(meta["dataset"]["classes"]), val_top1=metrics["top1"]))
@@ -119,7 +126,7 @@ def load_model(model_id):
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
     preprocessing = checkpoint["preprocessing"]
     architecture = checkpoint.get("architecture")
-    if checkpoint.get("format_version") != 1 or architecture not in {"resnet18", "efficientnet_b0", "yolo11n_cls"} or preprocessing["protocol"] != "letterbox_rgb_v1":
+    if checkpoint.get("format_version") != 1 or not is_supported_architecture(architecture) or preprocessing["protocol"] != "letterbox_rgb_v1":
         raise ValueError("Unsupported classifier checkpoint")
     if architecture != meta.get("options", {}).get("architecture", "resnet18"):
         raise ValueError("Checkpoint architecture does not match run metadata")
@@ -128,10 +135,10 @@ def load_model(model_id):
         raise ValueError("Invalid classifier class order or image size")
     torch.set_num_threads(2)
     state_dict = checkpoint["state_dict"]
-    if architecture == "yolo11n_cls":
+    if YOLO_ARCHITECTURE.fullmatch(architecture):
         from ultralytics.nn.tasks import ClassificationModel
 
-        model = ClassificationModel("yolo11n-cls.yaml", nc=1000, verbose=False)
+        model = ClassificationModel(f"{architecture.removesuffix('_cls')}-cls.yaml", nc=1000, verbose=False)
         head = model.model[-1]
         head.linear = torch.nn.Linear(head.linear.in_features, len(classes))
         # The training adapter wraps the same Ultralytics network under `network`.
@@ -142,7 +149,7 @@ def load_model(model_id):
         model = models.resnet18(weights=None)
         model.fc = torch.nn.Linear(model.fc.in_features, len(classes))
     else:
-        model = models.efficientnet_b0(weights=None)
+        model = getattr(models, architecture)(weights=None)  # Validated above against TORCHVISION_ARCHITECTURES.
         model.classifier[-1] = torch.nn.Linear(model.classifier[-1].in_features, len(classes))
     model.load_state_dict(state_dict, strict=True)
     model.eval()
