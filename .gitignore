@@ -60,6 +60,7 @@ tools/yolo-training/classification/prepared/
 tools/yolo-training/classification/reviews/
 tools/yolo-training/classification/runs/
 tools/yolo-training/classification/weights/
+tools/yolo-training/classification/curation/.venv/
 
 # Local deployment packaging
 .deploy-stage*/

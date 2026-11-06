@@ -1,0 +1,201 @@
+{
+  "seed": 20261102,
+  "ratios": {"train": 0.7, "val": 0.15, "test": 0.15},
+  "similar_dhash_max_distance": 6,
+  "sources": [
+    {
+      "id": "thai-motorcycle-v1-top1k",
+      "archive": "inputs/Thai Motorcycle.v1-top1k.yolov8.zip",
+      "yaml": "data.yaml",
+      "splits": {"train": "train", "val": "valid", "test": "test"},
+      "license": {
+        "name": "CC BY 4.0 (as declared in archive; underlying image rights not independently verified)",
+        "license_url": "https://creativecommons.org/licenses/by/4.0/",
+        "credit": "Thai Motorcycle / Satayu Chunnawong Roboflow workspace; README says Provided by a Roboflow user",
+        "url": "https://universe.roboflow.com/satayu-chunnawong-fotdq/thai-motorcycle-lwuk3/dataset/1",
+        "changes": "Annotation crops, lossless PNG conversion, exact-duplicate reconciliation and regrouped splits; see per-annotation manifest"
+      },
+      "known_preprocessing": [
+        "README.roboflow.txt: auto-orientation and EXIF stripping",
+        "README.roboflow.txt: Resize to 416x416 (Stretch); original aspect ratio cannot be recovered from this export",
+        "README.roboflow.txt: no augmentation applied"
+      ],
+      "class_map": {
+        "adv": "adv",
+        "aerox": "aerox",
+        "africatwin": "africatwin",
+        "c125": "c125",
+        "cb150": "cb150",
+        "cb300": "cb300",
+        "cbr150": "cbr150",
+        "cbr250": "cbr250",
+        "cbr300": "cbr300",
+        "cbr500r": "cbr500r",
+        "click": "click",
+        "crf250": "crf250",
+        "crf300": "crf300",
+        "ct125": "ct125",
+        "demon": "demon",
+        "drone": "drone",
+        "exciter": "exciter",
+        "finn": "finn",
+        "fino": "fino",
+        "forza": "forza",
+        "goldwing": "goldwing",
+        "grand filano": "grand_filano",
+        "gt125": "gt125",
+        "gtx125": "gtx125",
+        "lead": "lead",
+        "legend": "legend",
+        "monkey": "monkey",
+        "msxgrom": "msxgrom",
+        "mt15": "mt15",
+        "nc750": "nc750",
+        "nmax": "nmax",
+        "pcx": "pcx",
+        "popz": "popz",
+        "qbix": "qbix",
+        "r15": "r15",
+        "razer": "razer",
+        "rebel": "rebel",
+        "rock": "rock",
+        "scoopy": "scoopy",
+        "super cub": "super_cub",
+        "wave": "wave",
+        "wr155": "wr155",
+        "xadv": "xadv",
+        "xmax": "xmax",
+        "xsr": "xsr",
+        "zoomerx": "zoomerx"
+      },
+      "authoritative": true
+    },
+    {
+      "id": "arfah-merk-dan-warna-motor-v19",
+      "archive": "inputs/external-20261105/arfah__merk-dan-warna-motor-v19/arfah__merk-dan-warna-motor-v19.yolov8.zip",
+      "yaml": "data.yaml",
+      "splits": {"train": "train", "val": "valid", "test": "test"},
+      "train_only_splits": ["train"],
+      "grouping": {"roboflow_stem": true, "similar": true, "filename_patterns": ["^ezgif-frame-"]},
+      "license": {
+        "name": "CC BY 4.0 (as declared in archive; underlying image rights not independently verified)",
+        "license_url": "https://creativecommons.org/licenses/by/4.0/",
+        "credit": "arfah Roboflow workspace, project merk-dan-warna-motor v19",
+        "url": "https://universe.roboflow.com/arfah/merk-dan-warna-motor/dataset/19",
+        "changes": "Annotation crops, lossless PNG conversion, class merge/exclusion via class_map, exact-duplicate reconciliation and regrouped splits; see per-annotation manifest"
+      },
+      "known_preprocessing": [
+        "README.roboflow.txt: auto-orientation with EXIF stripping; Resize to 640x640 (Fit, black edges); auto-contrast via contrast stretching",
+        "README.roboflow.txt: 3 versions of each source image (horizontal flip, rotation +/-10 deg, brightness +/-25%, Gaussian blur 0-2 px); Roboflow augments train only, so train is train_only",
+        "Colour classes merged into one model class; Honda Vario is sold as Click in Thailand; Honda Beat excluded",
+        "Many ezgif-frame-* images are video frames; grouped together by filename pattern"
+      ],
+      "class_map": {
+        "Honda_Beat_Biru-Putih": null,
+        "Honda_Beat_Hijau": null,
+        "Honda_Beat_Hitam": null,
+        "Honda_Beat_Silver": null,
+        "Honda_Vario_Hitam": "click",
+        "Honda_Vario_Merah": "click",
+        "Honda_Vario_Putih": "click",
+        "Yamaha_Aerox_Hitam": "aerox",
+        "Yamaha_Aerox_Kuning": "aerox",
+        "Yamaha_Aerox_Putih": "aerox",
+        "Yamaha_NMAX_Hitam": "nmax",
+        "Yamaha_NMAX_Merah": "nmax",
+        "Yamaha_NMAX_Putih": "nmax"
+      }
+    },
+    {
+      "id": "elcy-sepedamotor-soqsa-v8",
+      "archive": "inputs/external-20261105/elcy__sepedamotor-soqsa-v8/elcy__sepedamotor-soqsa-v8.yolov8.zip",
+      "yaml": "data.yaml",
+      "splits": {"train": "train", "val": "valid", "test": "test"},
+      "train_only_splits": ["train"],
+      "grouping": {"roboflow_stem": true, "similar": true},
+      "license": {
+        "name": "CC BY 4.0 (as declared in archive; underlying image rights not independently verified)",
+        "license_url": "https://creativecommons.org/licenses/by/4.0/",
+        "credit": "elcy Roboflow workspace, project sepedamotor-soqsa v8",
+        "url": "https://universe.roboflow.com/elcy/sepedamotor-soqsa/dataset/8",
+        "changes": "Annotation crops, lossless PNG conversion, class merge/exclusion via class_map, exact-duplicate reconciliation and regrouped splits; see per-annotation manifest"
+      },
+      "known_preprocessing": [
+        "README.roboflow.txt: auto-orientation with EXIF stripping; Resize to 640x640 (Stretch)",
+        "README.roboflow.txt: 3 versions of each source image (horizontal flip); Roboflow augments train only, so train is train_only",
+        "Indonesian models; Vario mapped to click; classes without a ParkMap equivalent excluded"
+      ],
+      "class_map": {
+        "Beat": null,
+        "CRF": null,
+        "Revo": null,
+        "Scoopy": "scoopy",
+        "Sonic": null,
+        "Supra": null,
+        "Vario": "click"
+      }
+    },
+    {
+      "id": "box-m9ziu-motor-leyvq-v7",
+      "archive": "inputs/external-20261105/box-m9ziu__motor-leyvq-v7/box-m9ziu__motor-leyvq-v7.yolov8.zip",
+      "yaml": "data.yaml",
+      "splits": {"train": "train", "val": "valid", "test": "test"},
+      "train_only_splits": ["train"],
+      "grouping": {"roboflow_stem": true, "similar": true},
+      "license": {
+        "name": "CC BY 4.0 (as declared in archive; underlying image rights not independently verified)",
+        "license_url": "https://creativecommons.org/licenses/by/4.0/",
+        "credit": "box-m9ziu Roboflow workspace, project motor-leyvq v7",
+        "url": "https://universe.roboflow.com/box-m9ziu/motor-leyvq/dataset/7",
+        "changes": "Annotation crops, lossless PNG conversion, class merge/exclusion via class_map, exact-duplicate reconciliation and regrouped splits; see per-annotation manifest"
+      },
+      "known_preprocessing": [
+        "README.roboflow.txt: auto-orientation with EXIF stripping; Resize to 640x640 (Stretch)",
+        "README.roboflow.txt: 3 versions of each source image (horizontal flip, crop 0-2%, rotation +/-1 deg, brightness 0-15%, salt-and-pepper noise 0.02%); export has train only, all train_only",
+        "Generic Naked/Sport and Giorno (no ParkMap class) excluded"
+      ],
+      "class_map": {
+        "ADV": "adv",
+        "Click": "click",
+        "Giorno": null,
+        "Grom": "msxgrom",
+        "Naked": null,
+        "PCX": "pcx",
+        "Scoopy": "scoopy",
+        "Sport": null,
+        "Wave125i": "wave"
+      }
+    },
+    {
+      "id": "box-3-class-honda-class-v6",
+      "archive": "inputs/external-20261105/box-3-class__honda-class-v6/box-3-class__honda-class-v6.yolov8.zip",
+      "yaml": "data.yaml",
+      "splits": {"train": "train", "val": "valid", "test": "test"},
+      "train_only_splits": ["train"],
+      "grouping": {"roboflow_stem": true, "similar": true},
+      "license": {
+        "name": "CC BY 4.0 (as declared in archive; underlying image rights not independently verified)",
+        "license_url": "https://creativecommons.org/licenses/by/4.0/",
+        "credit": "box-3-class Roboflow workspace, project honda-class v6",
+        "url": "https://universe.roboflow.com/box-3-class/honda-class/dataset/6",
+        "changes": "Annotation crops, lossless PNG conversion, class merge/exclusion via class_map, exact-duplicate reconciliation and regrouped splits; see per-annotation manifest"
+      },
+      "known_preprocessing": [
+        "README.roboflow.txt: auto-orientation with EXIF stripping; Resize to 640x640 (Stretch)",
+        "README.roboflow.txt: 3 versions of each source image (horizontal flip, rotation +/-2 deg, brightness 0-10%); export has train only, all train_only",
+        "Generic Naked/Sport, Giorno and Vespa (no ParkMap class) excluded"
+      ],
+      "class_map": {
+        "ADV": "adv",
+        "Click": "click",
+        "Giorno": null,
+        "Naked": null,
+        "PCX": "pcx",
+        "Scoopy": "scoopy",
+        "Sport": null,
+        "Vespa": null,
+        "Wave": "wave"
+      }
+    }
+  ]
+}

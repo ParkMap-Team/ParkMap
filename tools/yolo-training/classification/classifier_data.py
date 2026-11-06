@@ -19,6 +19,8 @@ PREPROCESSING = {
     "std": [0.229, 0.224, 0.225],
     "resize": "contain_bilinear_then_center_pad_no_crop_no_stretch",
 }
+# Train-only augmentation policies; val/test always use plain letterboxing.
+AUGMENTATIONS = ("none", "mild", "strong")
 
 
 def sha256(path):
@@ -26,7 +28,8 @@ def sha256(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def validate_run(root, allow_provisional=False):
+def validate_run(root, allow_provisional=False, classes=None):
+    """Verify the whole snapshot; `classes` optionally limits the returned samples to a declared subset."""
     root = Path(root).resolve()
     if not (root / "COMPLETE").is_file():
         raise ValueError("Use the prepared run directory containing COMPLETE, not its classification subfolder")
@@ -35,14 +38,17 @@ def validate_run(root, allow_provisional=False):
     if audit["status"] != "reviewed" and not allow_provisional:
         raise ValueError("Dataset is provisional; set allow_provisional=true for an explicitly exploratory baseline")
     rows = [r for r in read_jsonl(root / "manifest.jsonl") if r["disposition"] == "included"]
-    classes = sorted(audit["classes"])
-    if len(classes) < 2:
+    observed = sorted(audit["classes"])
+    if classes is not None and (len(set(classes)) != len(classes) or not set(classes) <= set(observed)):
+        raise ValueError(f"classes must be unique names observed in the snapshot: {sorted(set(classes) - set(observed))}")
+    kept = observed if classes is None else sorted(classes)
+    if len(kept) < 2:
         raise ValueError("Classification requires at least two observed classes")
     samples = {split: [] for split in SPLITS}
     expected = set()
     for row in rows:
         relative = PurePosixPath(row["classification_path"])
-        if len(relative.parts) != 4 or relative.parts[:3] != ("classification", row["split"], row["canonical_class"]) or row["canonical_class"] not in classes or row["split"] not in SPLITS:
+        if len(relative.parts) != 4 or relative.parts[:3] != ("classification", row["split"], row["canonical_class"]) or row["canonical_class"] not in observed or row["split"] not in SPLITS:
             raise ValueError("Manifest has an invalid classification path or class")
         path = root / relative
         if not path.resolve().is_relative_to(root) or path.is_symlink():
@@ -56,22 +62,30 @@ def validate_run(root, allow_provisional=False):
             decoded.load()
             if decoded.getexif().get(274, 1) != 1:
                 raise ValueError("Unexpected image orientation")
-        samples[row["split"]].append(row)
+        if row["canonical_class"] in kept:
+            samples[row["split"]].append(row)
     actual = {p.relative_to(root).as_posix() for p in (root / "classification").rglob("*") if p.is_file()}
     if actual != expected:
         raise ValueError("Classification folder does not match included manifest crops")
     if not all(samples.values()):
         raise ValueError("Train, val and test must each have at least one crop")
-    absent = set(classes) - {r["canonical_class"] for r in samples["train"]}
+    absent = set(kept) - {r["canonical_class"] for r in samples["train"]}
     if absent:
         raise ValueError(f"Classes without training examples: {sorted(absent)}; review grouping/data first")
     metadata = json.loads((root / "reproducibility.json").read_text(encoding="utf-8"))
     return {"snapshot": str(root), "fingerprint": metadata["fingerprint"], "manifest_sha256": sha256(root / "manifest.jsonl"),
-            "classes": classes, "split_crops": {s: len(v) for s, v in samples.items()}, "status": audit["status"],
+            "classes": kept, "excluded_classes": sorted(set(observed) - set(kept)),
+            "split_crops": {s: len(v) for s, v in samples.items()}, "status": audit["status"],
             "similar_pairs_pending": audit["similar_pairs_pending"],
             "similar_pairs_cross_split_proposed": audit.get("similar_pairs_cross_split_proposed", 0),
             "unconfirmed_included_annotations": audit["unconfirmed_included_annotations"], "leakage": leakage,
-            "class_coverage": audit["classes"]}, samples
+            "class_coverage": {name: audit["classes"][name] for name in kept},
+            "train_only_splits": {s["id"]: sorted(s.get("train_only_splits", [])) for s in metadata["config"]["sources"]}}, samples
+
+
+def sampling_weights(rows, train_only_splits, copies):
+    """Count each pre-augmented source photo once: its `copies` exported versions share one photo's sampling weight."""
+    return [1 / copies if row["original_split"] in train_only_splits[row["source_dataset"]] else 1.0 for row in rows]
 
 
 class PadResize:
@@ -117,6 +131,13 @@ def write_evaluation(output, dataset, split, samples, predictions, probabilities
     output.mkdir(parents=True, exist_ok=False)
     targets = [classes.index(row["canonical_class"]) for row in samples]
     metrics = classification_metrics(targets, predictions, classes)
+    # A multi-source snapshot also reports each source, so a pinned source stays comparable with earlier runs.
+    sources = sorted({row.get("source_dataset") for row in samples} - {None})
+    if len(sources) > 1:
+        metrics["by_source"] = {}
+        for source in sources:
+            pairs = [(t, p) for row, t, p in zip(samples, targets, predictions, strict=True) if row.get("source_dataset") == source]
+            metrics["by_source"][source] = classification_metrics([t for t, _ in pairs], [p for _, p in pairs], classes)
     metrics.update(metadata)
     metrics["split"] = split
     (output / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
@@ -140,6 +161,6 @@ def write_evaluation(output, dataset, split, samples, predictions, probabilities
             cards.append(f'<article><img loading="lazy" src="{html.escape(uri, quote=True)}"><p>True: {html.escape(record["true"])}<br>Predicted: {html.escape(record["predicted"])}<br>Score: {probability:.3f}</p><small>{html.escape(row["annotation_id"])}</small></article>')
     (output / "predictions.jsonl").write_text("".join(json.dumps(r) + "\n" for r in records), encoding="utf-8")
     title = f"{split}: misclassified crops ({len(cards)})"
-    page = f'<!doctype html><meta charset="utf-8"><title>{title}</title><style>body{{font:16px system-ui;padding:20px;background:#eef2f7}}main{{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}}article{{background:white;padding:12px;overflow-wrap:anywhere}}img{{width:100%;height:200px;object-fit:contain}}</style><h1>{title}</h1><p>Dataset status: {html.escape(str(metadata["status"]))}. Exploratory results; score is not calibrated certainty or a parking-availability claim.</p><p>Top-1: {metrics["top1"]:.3f} · Macro F1: {metrics["macro_f1"]:.3f}</p><main>{"".join(cards) or "No misclassified crops in this split."}</main>'
+    page = f'<!doctype html><meta charset="utf-8"><title>{title}</title><style>body{{font:16px system-ui;padding:20px;background:#eef2f7}}main{{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}}article{{background:white;padding:12px;overflow-wrap:anywhere}}img{{width:100%;height:200px;object-fit:contain}}</style><h1>{title}</h1><p>Dataset status: {html.escape(str(metadata["status"]))}. Exploratory results; score is not calibrated certainty or a parking-availability claim.</p><p>Top-1: {metrics["top1"]:.3f} · Macro F1: {metrics["macro_f1"]:.3f}</p>{"".join(f"<p>{html.escape(name)}: top-1 {value['top1']:.3f} · macro F1 {value['macro_f1']:.3f} ({value['samples']} crops)</p>" for name, value in metrics.get("by_source", {}).items())}<main>{"".join(cards) or "No misclassified crops in this split."}</main>'
     (output / "mistakes.html").write_text(page, encoding="utf-8")
     return metrics

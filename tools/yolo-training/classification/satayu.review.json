@@ -1,0 +1,1778 @@
+{
+  "version": 1,
+  "annotations": {
+    "a4d8475b3f8ff13adec68c3a:2": {
+      "exclude": true,
+      "reason": "ตรวจด้วยตา: ตัดออก รูปหรือ label ไม่ชัดเจน"
+    },
+    "8397b6592c04ee105b742c0b:6": {
+      "exclude": true,
+      "reason": "ตรวจด้วยตา: ตัดออก คุณภาพรูปต่ำ"
+    },
+    "7de959274604b37c3c70e7d6:1": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "8397b6592c04ee105b742c0b:7": {
+      "exclude": true,
+      "reason": "ตรวจด้วยตา: ตัดออก คุณภาพรูปต่ำ"
+    },
+    "f6bf34034564141976eb3e56:1": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "b4b2ff3dcfe1118ede3c29bf:1": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "52b9053c9f6342786b34133e:1": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "722dda2f435bee09bdc834c0:2": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "1153aa58b585baa5d2ff767d:1": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "82c2329438567bac587bd532:9": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "2e2575e520e78004b2bf4dc3:2": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "8397b6592c04ee105b742c0b:2": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "82c2329438567bac587bd532:2": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "8397b6592c04ee105b742c0b:1": {
+      "exclude": true,
+      "reason": "ตรวจด้วยตา: ตัดออก คุณภาพรูปต่ำ"
+    },
+    "46e270ed4be011fe078894fa:1": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "72bcdcd89ce5669db4567f0d:11": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "a6d7b31ecbf58615c28fcabe:1": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "870fcdf0741dfc697d635e76:1": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "06918cd33976eeabfcda0f67:1": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "17c77217c6999188ffbf96df:3": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "2d2f293dcc15513950f6c123:1": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "6564a9ef3757a256ce795810:3": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "8bdfc411056be7450e0e0094:1": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "8397b6592c04ee105b742c0b:11": {
+      "exclude": true,
+      "reason": "ตรวจด้วยตา: ตัดออก คุณภาพรูปต่ำ"
+    },
+    "19cd5cfe255c72e9a6bf4c1d:8": {
+      "exclude": true,
+      "reason": "ตรวจด้วยตา: ตัดออก คุณภาพรูปต่ำ"
+    },
+    "8397b6592c04ee105b742c0b:8": {
+      "exclude": true,
+      "reason": "ตรวจด้วยตา: ตัดออก คุณภาพรูปต่ำ"
+    },
+    "19cd5cfe255c72e9a6bf4c1d:7": {
+      "exclude": true,
+      "reason": "ตรวจด้วยตา: ตัดออก คุณภาพรูปต่ำ"
+    },
+    "82c2329438567bac587bd532:8": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "8397b6592c04ee105b742c0b:5": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "70727725c600a492742c23ea:2": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "3f512cc887917951fe312cf9:4": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "1ad272cdd8c981c6bc56f504:2": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "9446d18a245850590b6db8e5:1": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "e13c9096c6afaf75228b97c1:1": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "2a6136c7f066ee9af0633d0d:1": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "8397b6592c04ee105b742c0b:10": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "3cd380519b5b98f31517de29:4": {
+      "exclude": true,
+      "reason": "ตรวจด้วยตา: ตัดออก รูปหรือ label ไม่ชัดเจน"
+    },
+    "09cd62e8a135b3f26ab1a8b6:1": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    },
+    "a4d8475b3f8ff13adec68c3a:1": {
+      "confirmed": true,
+      "reason": "ตรวจด้วยตา: label ถูกต้อง"
+    }
+  },
+  "images": {},
+  "same_vehicle_groups": [
+    [
+      "0710cd6f09305dfba95e40ae:1",
+      "1edde57eb8be51fd6bcbc698:1"
+    ],
+    [
+      "ddb82085ea30c29fc61488a1:1",
+      "e203dfaf8c70443acd072b2a:1"
+    ],
+    [
+      "09cd62e8a135b3f26ab1a8b6:1",
+      "5e41f163f74e2e5e1ed5e543:1"
+    ],
+    [
+      "8643e575eea6853712f3c40f:1",
+      "a3e17d6e20169d2a8c7d2161:1"
+    ],
+    [
+      "03f71f87032032ca72c2bfff:2",
+      "b7b78b07a5d288be67cdd9c5:1"
+    ],
+    [
+      "b5dce8818e632c331e5ce237:1",
+      "e20bf97476b52f688dcfcb6b:1"
+    ],
+    [
+      "0f5276588fcef76b448154fc:1",
+      "d60f501a5449da21f1900e5f:1"
+    ],
+    [
+      "b7b78b07a5d288be67cdd9c5:3",
+      "fe3cc79927915b87734562ec:4"
+    ],
+    [
+      "81f7cbeb5208780e9ca7d05a:1",
+      "e9bca306fac208d578891af9:1"
+    ],
+    [
+      "6c4659ea61d2a486927e4299:1",
+      "9b791c8b252278ba46952807:1"
+    ],
+    [
+      "3ae0257aad24c6bd38db8877:3",
+      "b78acd68bdff6b961d33eb95:1"
+    ],
+    [
+      "598a4435e8551f0505f745ea:2",
+      "857dcfa5166d35d0b04ea152:2"
+    ],
+    [
+      "6c4659ea61d2a486927e4299:1",
+      "833745e2c1c9bd5d10e79c23:1"
+    ],
+    [
+      "81f7cbeb5208780e9ca7d05a:1",
+      "833745e2c1c9bd5d10e79c23:1"
+    ],
+    [
+      "3ae0257aad24c6bd38db8877:3",
+      "b78acd68bdff6b961d33eb95:2"
+    ],
+    [
+      "482e0ec6c37bfe2606af3f92:1",
+      "5cd571ecc157a0bfc9cf051f:1"
+    ],
+    [
+      "c2054b06688b10b7802b4201:3",
+      "d2c3eab5865562e0c72c3236:2"
+    ],
+    [
+      "1de0cecc199829d3a18d15c8:1",
+      "f52e58a5225a6314b9b34af7:1"
+    ],
+    [
+      "598a4435e8551f0505f745ea:2",
+      "c2054b06688b10b7802b4201:3"
+    ],
+    [
+      "03f71f87032032ca72c2bfff:1",
+      "b7b78b07a5d288be67cdd9c5:2"
+    ],
+    [
+      "13e4f335e59f9d83e38f354e:1",
+      "f52e58a5225a6314b9b34af7:1"
+    ],
+    [
+      "833745e2c1c9bd5d10e79c23:1",
+      "888f97dc99ee7c460d775771:1"
+    ],
+    [
+      "6c4659ea61d2a486927e4299:1",
+      "888f97dc99ee7c460d775771:1"
+    ],
+    [
+      "2bf6e843a0d5eaad5d7e6aa6:1",
+      "9c57a21b15e25ef5c7c54f4a:1"
+    ],
+    [
+      "03f71f87032032ca72c2bfff:3",
+      "b7b78b07a5d288be67cdd9c5:4"
+    ],
+    [
+      "3ae0257aad24c6bd38db8877:3",
+      "e8f45a869fae7438aca3b605:1"
+    ],
+    [
+      "5a8d09c1df17898f710521d2:2",
+      "74326b917db8069a3731141a:2"
+    ],
+    [
+      "857dcfa5166d35d0b04ea152:2",
+      "e8f45a869fae7438aca3b605:1"
+    ],
+    [
+      "6c4659ea61d2a486927e4299:1",
+      "d651cde85d01c41ca015df97:1"
+    ],
+    [
+      "67e4145d32ba2dc92339f372:1",
+      "c780708ca5f33190dd23fe15:1"
+    ],
+    [
+      "4d78703a6f5f894176ccdb57:1",
+      "888f97dc99ee7c460d775771:1"
+    ],
+    [
+      "5a8d09c1df17898f710521d2:2",
+      "8e8bd2ac19c62f937846fd7a:2"
+    ],
+    [
+      "4d78703a6f5f894176ccdb57:1",
+      "d651cde85d01c41ca015df97:1"
+    ],
+    [
+      "bb839afc2f949b929a471dac:1",
+      "d019dc6ac94976334e8f9035:1"
+    ],
+    [
+      "67e4145d32ba2dc92339f372:1",
+      "f52e58a5225a6314b9b34af7:1"
+    ],
+    [
+      "6a1db11b0a487341e637ade9:2",
+      "7a3f226a72e75f6faea3b4df:2"
+    ],
+    [
+      "24a2bc86a1206be8943bcae8:1",
+      "81f7cbeb5208780e9ca7d05a:1"
+    ],
+    [
+      "0710cd6f09305dfba95e40ae:1",
+      "dc0501e2c7da7ad3825bacc1:1"
+    ],
+    [
+      "6c4659ea61d2a486927e4299:1",
+      "e9bca306fac208d578891af9:1"
+    ],
+    [
+      "81f7cbeb5208780e9ca7d05a:1",
+      "9b791c8b252278ba46952807:1"
+    ],
+    [
+      "13e4f335e59f9d83e38f354e:2",
+      "f52e58a5225a6314b9b34af7:2"
+    ],
+    [
+      "81f7cbeb5208780e9ca7d05a:1",
+      "d651cde85d01c41ca015df97:1"
+    ],
+    [
+      "2224b35e0df265c1fd9d8efc:1",
+      "9f0fd092faf631335a43ec13:1"
+    ],
+    [
+      "b7b78b07a5d288be67cdd9c5:1",
+      "fe3cc79927915b87734562ec:2"
+    ],
+    [
+      "8e8bd2ac19c62f937846fd7a:2",
+      "e7d0fd1440b7e021c1bd9bf9:2"
+    ],
+    [
+      "3ae0257aad24c6bd38db8877:1",
+      "b78acd68bdff6b961d33eb95:2"
+    ],
+    [
+      "3ae0257aad24c6bd38db8877:3",
+      "598a4435e8551f0505f745ea:2"
+    ],
+    [
+      "0f5276588fcef76b448154fc:1",
+      "8643e575eea6853712f3c40f:1"
+    ],
+    [
+      "b7b78b07a5d288be67cdd9c5:4",
+      "fe3cc79927915b87734562ec:1"
+    ],
+    [
+      "3ae0257aad24c6bd38db8877:3",
+      "b78acd68bdff6b961d33eb95:3"
+    ],
+    [
+      "49db6f208139c084d4481a09:1",
+      "a41a8ea9740a8f1ec820daaa:1"
+    ],
+    [
+      "3ae0257aad24c6bd38db8877:2",
+      "b78acd68bdff6b961d33eb95:1"
+    ],
+    [
+      "647e54cd681668044fc1176e:1",
+      "e8033c33a26b38d4cbac35bc:1"
+    ],
+    [
+      "1b387c210cb5f8eb9abe971d:1",
+      "602a3d01084cb6e75cbcc30d:1"
+    ],
+    [
+      "aec058fbeb5157859e3220e0:1",
+      "fec5502221a91a505132b9c6:3"
+    ],
+    [
+      "0710cd6f09305dfba95e40ae:1",
+      "54c8e5d2c1c176fa55fb645e:1"
+    ],
+    [
+      "24a2bc86a1206be8943bcae8:2",
+      "740c43dcd2f923311ae3ade7:3"
+    ],
+    [
+      "1ad272cdd8c981c6bc56f504:1",
+      "aa844fcc3e7e4d0a67ee7ebd:1"
+    ],
+    [
+      "37ec1864a459344766892148:2",
+      "b7b78b07a5d288be67cdd9c5:1"
+    ],
+    [
+      "740c43dcd2f923311ae3ade7:1",
+      "81f7cbeb5208780e9ca7d05a:1"
+    ],
+    [
+      "0f5276588fcef76b448154fc:1",
+      "a3e17d6e20169d2a8c7d2161:1"
+    ],
+    [
+      "4d49e0c13a0ebc0535c33ffa:1",
+      "8d4da97318306ef4d63c2ec7:1"
+    ],
+    [
+      "53f1de77c24c255196ec420f:1",
+      "67e4145d32ba2dc92339f372:1"
+    ],
+    [
+      "6a1db11b0a487341e637ade9:1",
+      "93a52f4b9139c2a3742404b6:1"
+    ],
+    [
+      "3ae0257aad24c6bd38db8877:2",
+      "b78acd68bdff6b961d33eb95:2"
+    ],
+    [
+      "bb839afc2f949b929a471dac:1",
+      "e8033c33a26b38d4cbac35bc:1"
+    ],
+    [
+      "4d49e0c13a0ebc0535c33ffa:1",
+      "5ec6f61294eb78c1e54f2935:1"
+    ],
+    [
+      "81f7cbeb5208780e9ca7d05a:1",
+      "a995ad1043dc02de8beb8e13:3"
+    ],
+    [
+      "13e4f335e59f9d83e38f354e:1",
+      "67e4145d32ba2dc92339f372:1"
+    ],
+    [
+      "74326b917db8069a3731141a:2",
+      "8e8bd2ac19c62f937846fd7a:2"
+    ],
+    [
+      "740c43dcd2f923311ae3ade7:1",
+      "833745e2c1c9bd5d10e79c23:1"
+    ],
+    [
+      "81f7cbeb5208780e9ca7d05a:1",
+      "888f97dc99ee7c460d775771:1"
+    ],
+    [
+      "4d78703a6f5f894176ccdb57:1",
+      "f4012e54ccdbce694b17062c:1"
+    ],
+    [
+      "4d78703a6f5f894176ccdb57:1",
+      "833745e2c1c9bd5d10e79c23:1"
+    ],
+    [
+      "57b5c735787674671fae355a:1",
+      "cf62cf4c6d3cfc4b598e0837:1"
+    ],
+    [
+      "6a1db11b0a487341e637ade9:1",
+      "c82a095e95321b6858844ddd:1"
+    ],
+    [
+      "888f97dc99ee7c460d775771:1",
+      "d651cde85d01c41ca015df97:1"
+    ],
+    [
+      "6564a9ef3757a256ce795810:1",
+      "ec712bb1a7a9c7788aaaecd7:1"
+    ],
+    [
+      "79a606cf056c8d33790be523:1",
+      "c2054b06688b10b7802b4201:3"
+    ],
+    [
+      "54c8e5d2c1c176fa55fb645e:1",
+      "dc0501e2c7da7ad3825bacc1:1"
+    ],
+    [
+      "1edde57eb8be51fd6bcbc698:1",
+      "54c8e5d2c1c176fa55fb645e:1"
+    ],
+    [
+      "475dae9aee6e0ba5e9ff2329:1",
+      "655f881e2531b2f1d06592dc:1"
+    ],
+    [
+      "54c8e5d2c1c176fa55fb645e:1",
+      "f4012e54ccdbce694b17062c:1"
+    ],
+    [
+      "2c7bc59a0b662d62ef785d2c:1",
+      "bc233442a6f6f73e9f424126:1"
+    ],
+    [
+      "8661ab335912a843d486270d:1",
+      "e4c01041fbf91a73209c6398:1"
+    ],
+    [
+      "1d90a7d629392378c4499bd6:1",
+      "2c7bc59a0b662d62ef785d2c:1"
+    ],
+    [
+      "4c4300e584287afdcbdd9a0d:1",
+      "652101a8e8e5d4ea3edccefe:1"
+    ],
+    [
+      "dd7af5e1324eb14ab92d17fb:1",
+      "dd96951831f150d78bcdbde6:1"
+    ],
+    [
+      "a995ad1043dc02de8beb8e13:2",
+      "ab188818eb2038c6f6b0991c:5"
+    ],
+    [
+      "0390bb37602efd65db5bceb5:1",
+      "3d0829376f9a2a828ed6c99f:1"
+    ],
+    [
+      "804b19d9d8b041255393ac04:1",
+      "dc0501e2c7da7ad3825bacc1:1"
+    ],
+    [
+      "a995ad1043dc02de8beb8e13:3",
+      "ab188818eb2038c6f6b0991c:5"
+    ],
+    [
+      "a995ad1043dc02de8beb8e13:1",
+      "ab188818eb2038c6f6b0991c:4"
+    ],
+    [
+      "1d90a7d629392378c4499bd6:1",
+      "280afb19001a543b346b16d6:1"
+    ],
+    [
+      "804b19d9d8b041255393ac04:1",
+      "ec712bb1a7a9c7788aaaecd7:1"
+    ],
+    [
+      "a995ad1043dc02de8beb8e13:1",
+      "ab188818eb2038c6f6b0991c:1"
+    ],
+    [
+      "1ebcc90596b880080bdea96a:4",
+      "ec712bb1a7a9c7788aaaecd7:1"
+    ],
+    [
+      "a995ad1043dc02de8beb8e13:2",
+      "ab188818eb2038c6f6b0991c:6"
+    ],
+    [
+      "a995ad1043dc02de8beb8e13:1",
+      "ab188818eb2038c6f6b0991c:6"
+    ],
+    [
+      "1ebcc90596b880080bdea96a:5",
+      "ec712bb1a7a9c7788aaaecd7:1"
+    ],
+    [
+      "dc0501e2c7da7ad3825bacc1:1",
+      "ec712bb1a7a9c7788aaaecd7:1"
+    ],
+    [
+      "a995ad1043dc02de8beb8e13:1",
+      "ab188818eb2038c6f6b0991c:2"
+    ],
+    [
+      "1ebcc90596b880080bdea96a:3",
+      "ec712bb1a7a9c7788aaaecd7:1"
+    ],
+    [
+      "833745e2c1c9bd5d10e79c23:1",
+      "eceeee9472e990762183c33b:2"
+    ],
+    [
+      "2cf23693faf9584b22e7fed9:1",
+      "bc233442a6f6f73e9f424126:1"
+    ],
+    [
+      "a995ad1043dc02de8beb8e13:2",
+      "ab188818eb2038c6f6b0991c:2"
+    ],
+    [
+      "1ebcc90596b880080bdea96a:6",
+      "ec712bb1a7a9c7788aaaecd7:1"
+    ],
+    [
+      "1ebcc90596b880080bdea96a:1",
+      "ec712bb1a7a9c7788aaaecd7:1"
+    ],
+    [
+      "9b791c8b252278ba46952807:1",
+      "ab188818eb2038c6f6b0991c:5"
+    ],
+    [
+      "854f66c75a0f8d79222a6239:1",
+      "e9bca306fac208d578891af9:1"
+    ],
+    [
+      "a995ad1043dc02de8beb8e13:2",
+      "ab188818eb2038c6f6b0991c:3"
+    ],
+    [
+      "15abda86a992ba338115fe5b:1",
+      "854f66c75a0f8d79222a6239:1"
+    ],
+    [
+      "44d7187965915532b28a0324:1",
+      "d1d6f831ac894d7a6417e24f:1"
+    ],
+    [
+      "80269f77e97bbc1bbf7c185f:1",
+      "f4012e54ccdbce694b17062c:1"
+    ],
+    [
+      "8661ab335912a843d486270d:1",
+      "bc233442a6f6f73e9f424126:1"
+    ]
+  ],
+  "similar_pairs": [
+    {
+      "images": [
+        "0710cd6f09305dfba95e40ae",
+        "1edde57eb8be51fd6bcbc698"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "ddb82085ea30c29fc61488a1",
+        "e203dfaf8c70443acd072b2a"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "09cd62e8a135b3f26ab1a8b6",
+        "5e41f163f74e2e5e1ed5e543"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "8643e575eea6853712f3c40f",
+        "a3e17d6e20169d2a8c7d2161"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "03f71f87032032ca72c2bfff",
+        "b7b78b07a5d288be67cdd9c5"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "b5dce8818e632c331e5ce237",
+        "e20bf97476b52f688dcfcb6b"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "0f5276588fcef76b448154fc",
+        "d60f501a5449da21f1900e5f"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "b7b78b07a5d288be67cdd9c5",
+        "fe3cc79927915b87734562ec"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "81f7cbeb5208780e9ca7d05a",
+        "e9bca306fac208d578891af9"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "6c4659ea61d2a486927e4299",
+        "9b791c8b252278ba46952807"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "3ae0257aad24c6bd38db8877",
+        "b78acd68bdff6b961d33eb95"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "598a4435e8551f0505f745ea",
+        "857dcfa5166d35d0b04ea152"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "6c4659ea61d2a486927e4299",
+        "833745e2c1c9bd5d10e79c23"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "81f7cbeb5208780e9ca7d05a",
+        "833745e2c1c9bd5d10e79c23"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "14b151f3590e52da1f21df3c",
+        "82b49c2071122319795c9930"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "482e0ec6c37bfe2606af3f92",
+        "5cd571ecc157a0bfc9cf051f"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "c2054b06688b10b7802b4201",
+        "d2c3eab5865562e0c72c3236"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "1de0cecc199829d3a18d15c8",
+        "f52e58a5225a6314b9b34af7"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "598a4435e8551f0505f745ea",
+        "c2054b06688b10b7802b4201"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "13e4f335e59f9d83e38f354e",
+        "f52e58a5225a6314b9b34af7"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "833745e2c1c9bd5d10e79c23",
+        "888f97dc99ee7c460d775771"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "6c4659ea61d2a486927e4299",
+        "888f97dc99ee7c460d775771"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "2bf6e843a0d5eaad5d7e6aa6",
+        "9c57a21b15e25ef5c7c54f4a"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "3ae0257aad24c6bd38db8877",
+        "e8f45a869fae7438aca3b605"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "5a8d09c1df17898f710521d2",
+        "74326b917db8069a3731141a"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "857dcfa5166d35d0b04ea152",
+        "e8f45a869fae7438aca3b605"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "6c4659ea61d2a486927e4299",
+        "d651cde85d01c41ca015df97"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "652101a8e8e5d4ea3edccefe",
+        "ddb82085ea30c29fc61488a1"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "67e4145d32ba2dc92339f372",
+        "c780708ca5f33190dd23fe15"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "4c4300e584287afdcbdd9a0d",
+        "ddb82085ea30c29fc61488a1"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "4d78703a6f5f894176ccdb57",
+        "888f97dc99ee7c460d775771"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "5a8d09c1df17898f710521d2",
+        "8e8bd2ac19c62f937846fd7a"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "4d78703a6f5f894176ccdb57",
+        "d651cde85d01c41ca015df97"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "bb839afc2f949b929a471dac",
+        "d019dc6ac94976334e8f9035"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "67e4145d32ba2dc92339f372",
+        "f52e58a5225a6314b9b34af7"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "6a1db11b0a487341e637ade9",
+        "7a3f226a72e75f6faea3b4df"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "24a2bc86a1206be8943bcae8",
+        "81f7cbeb5208780e9ca7d05a"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "0710cd6f09305dfba95e40ae",
+        "dc0501e2c7da7ad3825bacc1"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "6c4659ea61d2a486927e4299",
+        "e9bca306fac208d578891af9"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "81f7cbeb5208780e9ca7d05a",
+        "9b791c8b252278ba46952807"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "81f7cbeb5208780e9ca7d05a",
+        "d651cde85d01c41ca015df97"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "2224b35e0df265c1fd9d8efc",
+        "9f0fd092faf631335a43ec13"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "8e8bd2ac19c62f937846fd7a",
+        "e7d0fd1440b7e021c1bd9bf9"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "3ae0257aad24c6bd38db8877",
+        "598a4435e8551f0505f745ea"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "0f5276588fcef76b448154fc",
+        "8643e575eea6853712f3c40f"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "49db6f208139c084d4481a09",
+        "a41a8ea9740a8f1ec820daaa"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "647e54cd681668044fc1176e",
+        "e8033c33a26b38d4cbac35bc"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "1b387c210cb5f8eb9abe971d",
+        "602a3d01084cb6e75cbcc30d"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "aec058fbeb5157859e3220e0",
+        "fec5502221a91a505132b9c6"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "0710cd6f09305dfba95e40ae",
+        "54c8e5d2c1c176fa55fb645e"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "24a2bc86a1206be8943bcae8",
+        "740c43dcd2f923311ae3ade7"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "1ad272cdd8c981c6bc56f504",
+        "aa844fcc3e7e4d0a67ee7ebd"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "37ec1864a459344766892148",
+        "b7b78b07a5d288be67cdd9c5"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "740c43dcd2f923311ae3ade7",
+        "81f7cbeb5208780e9ca7d05a"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "0f5276588fcef76b448154fc",
+        "a3e17d6e20169d2a8c7d2161"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "4d49e0c13a0ebc0535c33ffa",
+        "8d4da97318306ef4d63c2ec7"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "53f1de77c24c255196ec420f",
+        "67e4145d32ba2dc92339f372"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "6a1db11b0a487341e637ade9",
+        "93a52f4b9139c2a3742404b6"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "bb839afc2f949b929a471dac",
+        "e8033c33a26b38d4cbac35bc"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "4d49e0c13a0ebc0535c33ffa",
+        "5ec6f61294eb78c1e54f2935"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "81f7cbeb5208780e9ca7d05a",
+        "a995ad1043dc02de8beb8e13"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "13e4f335e59f9d83e38f354e",
+        "67e4145d32ba2dc92339f372"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "74326b917db8069a3731141a",
+        "8e8bd2ac19c62f937846fd7a"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "740c43dcd2f923311ae3ade7",
+        "833745e2c1c9bd5d10e79c23"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "81f7cbeb5208780e9ca7d05a",
+        "888f97dc99ee7c460d775771"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "4d78703a6f5f894176ccdb57",
+        "f4012e54ccdbce694b17062c"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "4d78703a6f5f894176ccdb57",
+        "833745e2c1c9bd5d10e79c23"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "57b5c735787674671fae355a",
+        "cf62cf4c6d3cfc4b598e0837"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "6a1db11b0a487341e637ade9",
+        "c82a095e95321b6858844ddd"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "888f97dc99ee7c460d775771",
+        "d651cde85d01c41ca015df97"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "6564a9ef3757a256ce795810",
+        "ec712bb1a7a9c7788aaaecd7"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "690cd85e82baf53176f2babe",
+        "ac2c6cad5e06245f6e2ad69f"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "79a606cf056c8d33790be523",
+        "c2054b06688b10b7802b4201"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "54c8e5d2c1c176fa55fb645e",
+        "dc0501e2c7da7ad3825bacc1"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "1edde57eb8be51fd6bcbc698",
+        "54c8e5d2c1c176fa55fb645e"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "475dae9aee6e0ba5e9ff2329",
+        "655f881e2531b2f1d06592dc"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "54c8e5d2c1c176fa55fb645e",
+        "f4012e54ccdbce694b17062c"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "2c7bc59a0b662d62ef785d2c",
+        "bc233442a6f6f73e9f424126"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "086a19615ddaf2010a7fc109",
+        "1f7e9c1727c98c93dfa53395"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "06816191aa537eee617964e6",
+        "0db11ca1b7ecc6f551e8b636"
+      ],
+      "decision": "uncertain",
+      "reason": "ตรวจด้วยตา: ไม่แน่ใจว่าเป็นคันเดียวกัน"
+    },
+    {
+      "images": [
+        "1d90a7d629392378c4499bd6",
+        "e4c01041fbf91a73209c6398"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "280afb19001a543b346b16d6",
+        "2c7bc59a0b662d62ef785d2c"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "2c7bc59a0b662d62ef785d2c",
+        "e4c01041fbf91a73209c6398"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "2cf23693faf9584b22e7fed9",
+        "7bc547075d22a58ffb442a3a"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "53499ab978023362dce09838",
+        "f4012e54ccdbce694b17062c"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "57afc6a6e1fee9e1e6d9ebcf",
+        "600a09087420608e3326468a"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "bc233442a6f6f73e9f424126",
+        "e4c01041fbf91a73209c6398"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "06816191aa537eee617964e6",
+        "65e661cd97bd40dc41d22f9d"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "0710cd6f09305dfba95e40ae",
+        "0db11ca1b7ecc6f551e8b636"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "086a19615ddaf2010a7fc109",
+        "2cc1979f4aee7ddff9d5dbce"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "15abda86a992ba338115fe5b",
+        "8bdfc411056be7450e0e0094"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "21e7796c8e3f708ac840334a",
+        "2cc1979f4aee7ddff9d5dbce"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "4a761a907b6663c3b1f21b62",
+        "e4c01041fbf91a73209c6398"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "54c8e5d2c1c176fa55fb645e",
+        "95221baedad4667ae1806d00"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "60c7667ba0a5ad55a97bd4d1",
+        "8bdfc411056be7450e0e0094"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "8661ab335912a843d486270d",
+        "e4c01041fbf91a73209c6398"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "06816191aa537eee617964e6",
+        "44d857cd490ea439dd95f527"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "06816191aa537eee617964e6",
+        "b05eec8468381387ef32d19a"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "0710cd6f09305dfba95e40ae",
+        "65e661cd97bd40dc41d22f9d"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "086a19615ddaf2010a7fc109",
+        "521171e0ef4a684c32aa1ba1"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "0db11ca1b7ecc6f551e8b636",
+        "b05eec8468381387ef32d19a"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "1d90a7d629392378c4499bd6",
+        "2c7bc59a0b662d62ef785d2c"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "21e7796c8e3f708ac840334a",
+        "6e9d0e68e4d38dd28b96d90b"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "53499ab978023362dce09838",
+        "95221baedad4667ae1806d00"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "54c8e5d2c1c176fa55fb645e",
+        "80269f77e97bbc1bbf7c185f"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "6a1db11b0a487341e637ade9",
+        "997702f573317316d135d23a"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "be262ea0b8f34ae09f2a1432",
+        "d903b2b528fe3c7515dd6758"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "4c4300e584287afdcbdd9a0d",
+        "652101a8e8e5d4ea3edccefe"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "dd7af5e1324eb14ab92d17fb",
+        "dd96951831f150d78bcdbde6"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "a995ad1043dc02de8beb8e13",
+        "ab188818eb2038c6f6b0991c"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "0390bb37602efd65db5bceb5",
+        "3d0829376f9a2a828ed6c99f"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "804b19d9d8b041255393ac04",
+        "dc0501e2c7da7ad3825bacc1"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "652101a8e8e5d4ea3edccefe",
+        "e203dfaf8c70443acd072b2a"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "1d90a7d629392378c4499bd6",
+        "280afb19001a543b346b16d6"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "804b19d9d8b041255393ac04",
+        "ec712bb1a7a9c7788aaaecd7"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "741989990562cc35cc5f697b",
+        "a485f7749e5de342fa6b46b6"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "1ebcc90596b880080bdea96a",
+        "ec712bb1a7a9c7788aaaecd7"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "c24d71c393b1010984f02089",
+        "dafd89285e6c0f1db93a7650"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "dc0501e2c7da7ad3825bacc1",
+        "ec712bb1a7a9c7788aaaecd7"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "833745e2c1c9bd5d10e79c23",
+        "eceeee9472e990762183c33b"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "2cf23693faf9584b22e7fed9",
+        "bc233442a6f6f73e9f424126"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "9b791c8b252278ba46952807",
+        "ab188818eb2038c6f6b0991c"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "854f66c75a0f8d79222a6239",
+        "e9bca306fac208d578891af9"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "15abda86a992ba338115fe5b",
+        "854f66c75a0f8d79222a6239"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "602a3d01084cb6e75cbcc30d",
+        "f1bbaa77ce8e4a18bc12e250"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "44d7187965915532b28a0324",
+        "d1d6f831ac894d7a6417e24f"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "280afb19001a543b346b16d6",
+        "bc233442a6f6f73e9f424126"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "4a761a907b6663c3b1f21b62",
+        "8661ab335912a843d486270d"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "1f7e9c1727c98c93dfa53395",
+        "521171e0ef4a684c32aa1ba1"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "205d7d6e4de4e762ad08d751",
+        "eceeee9472e990762183c33b"
+      ],
+      "decision": "uncertain",
+      "reason": "ตรวจด้วยตา: ไม่แน่ใจว่าเป็นคันเดียวกัน"
+    },
+    {
+      "images": [
+        "2cc1979f4aee7ddff9d5dbce",
+        "4af1c711ad969383ce3f7c30"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "2cc1979f4aee7ddff9d5dbce",
+        "521171e0ef4a684c32aa1ba1"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "34e0d5346e3da02ba0cda2ff",
+        "eceeee9472e990762183c33b"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "4a761a907b6663c3b1f21b62",
+        "bc233442a6f6f73e9f424126"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "80269f77e97bbc1bbf7c185f",
+        "95221baedad4667ae1806d00"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "80269f77e97bbc1bbf7c185f",
+        "f4012e54ccdbce694b17062c"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "8661ab335912a843d486270d",
+        "bc233442a6f6f73e9f424126"
+      ],
+      "decision": "same_vehicle_grouped",
+      "reason": "ตรวจด้วยตา: รูปซ้ำหรือรถคันเดียวกัน ต้องอยู่ split เดียวกัน"
+    },
+    {
+      "images": [
+        "233629a2ef1caee4fe6c37e4",
+        "f4012e54ccdbce694b17062c"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "49ac121de47b82da65479d8f",
+        "bd7eafda2b64f21d79fd29b2"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "4af1c711ad969383ce3f7c30",
+        "6e9d0e68e4d38dd28b96d90b"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "521171e0ef4a684c32aa1ba1",
+        "6e9d0e68e4d38dd28b96d90b"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "60c7667ba0a5ad55a97bd4d1",
+        "854f66c75a0f8d79222a6239"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "9b791c8b252278ba46952807",
+        "fb14f4e5d21f6ffcc1500fef"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    },
+    {
+      "images": [
+        "db176e3fba76c78773900104",
+        "fb14f4e5d21f6ffcc1500fef"
+      ],
+      "decision": "distinct",
+      "reason": "ตรวจด้วยตา: เป็นรถคนละคัน"
+    }
+  ]
+}

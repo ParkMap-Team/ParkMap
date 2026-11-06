@@ -2,7 +2,9 @@
 
 For the reviewed dataset's **VS Code Terminal training command**, see
 [TRAINING.md](TRAINING.md). Preparation and training are separate entry points;
-the scripts below only prepare/review data.
+the scripts below only prepare/review data. To audit a prepared snapshot (EDA,
+image quality, cross-split near duplicates, suspected labels) and review the
+findings in a keyboard queue before handoff, see [CURATION.md](CURATION.md).
 
 This is a **separate classification experiment**, not the existing class-0 YOLO
 detector dataset. It prepares annotation crops; it never trains, runs inference,
@@ -268,6 +270,62 @@ corrected or merged**. A new source's apparently similar names must remain separ
 unless a person explicitly establishes the intended meaning and updates mapping.
 Do not turn remaining classes or ambiguous crops into an unknown catch-all.
 
+A `null` mapping excludes a source class explicitly: its annotations are kept in
+the manifest as `excluded_by_class_map`, never cropped or turned into a class.
+
+### Extra sources with pinned splits
+
+`config.external.json` adds four public Roboflow sets (arfah, elcy, box-m9ziu,
+box-3-class) to the reviewed Thai Motorcycle source. Colour classes are merged
+(`Honda_Vario_*` -> `click`, `Yamaha_NMAX_*` -> `nmax`, ...); Vario is sold as
+Click in Thailand. Classes without a ParkMap equivalent are `null`. Optional
+per-source fields:
+
+- `pinned_splits`: a complete earlier run (relative to the config). It is
+  verified, must have been prepared from the same archive, and the source's
+  dispositions/classes must match it exactly (use that run's
+  `review_applied.json` as `--review`); its splits are reused unchanged so its
+  test stays comparable with earlier models. Ratios apply only to the other
+  sources. A pinned source is also authoritative.
+- `authoritative`: this source's annotations win over other sources'
+  identical-pixel copies; a copy with different labels is quarantined. Its
+  dispositions are then the same as when it is prepared alone, so the run can
+  seed its pinned single-source snapshot.
+- `train_only_splits`: original splits whose images may only go to train.
+  Roboflow augments only its train split, so its augmented copies never enter
+  val/test. Groups containing them stay in train and do not count toward the
+  ratios, so they never drain another source's train split.
+- `grouping`: `roboflow_stem` groups images sharing the name before `.rf.`
+  (augmented copies), `filename_patterns` groups every match of each regex
+  (e.g. video frames), and `similar` treats dHash pairs, including horizontally
+  mirrored ones, as same-group links. These pairs are marked `auto_linked` and
+  are not pending review. Grouping is conservative, not proof of identity.
+
+Pinned images are never merged with added images by similarity; a similar
+added image must take the pinned image's split. Added rows that cannot
+(train-only rows linked to a pinned val/test image, or links to several pinned
+splits) become `quarantined_pinned_split_link`. Because links are transitive,
+one false dHash match can force a whole group, so check `pinned_split_links` in
+`audit_after.json`. The gallery lists these pinned links (not the many
+auto-linked pairs between added images); a `distinct` similar-pair review
+removes the link. `external.review.json` holds every decision for the current
+archives (see [CURATION.md](CURATION.md)); `satayu.review.json` is its subset
+that touches only Thai Motorcycle IDs. After a review, prepare all sources
+together (the Thai source is `authoritative`, not pinned, so links to the other
+sources group it correctly), then pin the Thai-only snapshot to that run so both
+share one Thai test split:
+
+```powershell
+uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/prepare.py --config tools/yolo-training/classification/config.external.json --review tools/yolo-training/classification/external.review.json
+# set pinned_splits in config.json to the run printed above, then:
+uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/prepare.py --config tools/yolo-training/classification/config.json --review tools/yolo-training/classification/satayu.review.json
+```
+
+Pinning the Thai source first would not work: its own run cannot see links to
+the other sources, so one other-source group can link two of its splits.
+
+Evaluation reports of a multi-source snapshot add `by_source` metrics.
+
 The archive declares CC BY 4.0 and a Roboflow workspace credit. This is recorded
 as source metadata, not an independent verification of rights to every image.
 Original READMEs, source URL, license URL and transformation credits accompany
@@ -282,6 +340,12 @@ uv run --project apps/vision-api --no-sync ruff check tools/yolo-training/classi
 
 Checks use synthetic archives, not private source images. Training checks also
 run tiny synthetic ResNet18 epochs without downloading pretrained weights.
+`test_curation.py` skips its probe/cleanlab checks in the API environment; run
+it fully in the curation environment:
+
+```powershell
+uv run --project tools/yolo-training/classification/curation --no-sync python tools/yolo-training/classification/tests/test_curation.py -v
+```
 
 For the offline button/file workflow, using Node 22+ and the installed Edge:
 
