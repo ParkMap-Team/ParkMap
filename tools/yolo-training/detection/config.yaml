@@ -1,0 +1,117 @@
+# =====================================================================================
+# ไฟล์ตั้งค่าเดียวของงาน Detection (หาตำแหน่งรถมอเตอร์ไซค์ในภาพ)
+# ปรับค่าที่นี่ที่เดียว train.py ไม่มีค่าใด hard-code ไว้
+# path ทุกตัวนับจากโฟลเดอร์ของไฟล์นี้ (tools/yolo-training/detection/)
+# =====================================================================================
+
+# ---------- ข้อมูลและที่เก็บผลลัพธ์ ----------
+dataset: ../datasets/spu-park-split   # โฟลเดอร์ dataset ที่มี train/ val/ test/ (images + labels) และ sessions.json
+output: runs                          # ผลการเทรนทุกรอบ: runs/<model>/round-NN_<วันที่>_<เวลา>/
+weights_dir: weights                  # ที่เก็บ pretrained weights ที่โหลดอัตโนมัติครั้งแรก
+
+classes:                              # class id -> ชื่อ; label ที่มี id อื่นจะถูกปฏิเสธตอนตรวจ dataset
+  0: motorcycle
+
+# ---------- ค่าการเทรนที่ใช้ร่วมกันทุกโมเดล ----------
+# ทุก key ในบล็อกนี้ส่งตรงให้ Ultralytics model.train(); พิมพ์ชื่อผิด Ultralytics จะแจ้ง error
+# โมเดลใดต้องการค่าต่างไป ให้ใส่ใน "train:" ของโมเดลนั้นด้านล่าง (จะทับค่าที่นี่)
+train:
+  # --- รอบการเทรน ---
+  epochs: 150            # จำนวนรอบสูงสุดที่เทรนผ่านข้อมูล train ทั้งชุด
+  patience: 0          # หยุดก่อนถ้า val mAP ไม่ดีขึ้นติดต่อกันกี่ epoch (0 = ไม่หยุดก่อน)
+
+  # --- ขนาดภาพ / หน่วยความจำ ---
+  imgsz: 960            # ขนาดด้านยาวของภาพตอนเทรน (px) ภาพ SPU กว้าง 3400; ค่าน้อยรถจะเล็กจนหาไม่เจอ
+                         #   API ต้องใช้ค่าเดียวกันตอนใช้งาน (PARKMAP_MODEL_IMGSZ)
+  batch: 4               # จำนวนภาพต่อ step; out of memory ให้ลดเป็น 2 หรือ 1
+  device: auto           # auto = ใช้ GPU ถ้ามี ไม่งั้น CPU; หรือระบุ cpu / 0 (GPU ตัวแรก)
+  workers: 2             # จำนวน process โหลดภาพคู่ขนาน (Windows แนะนำ 0-2)
+  cache: false           # true = เก็บภาพไว้ใน RAM ให้เร็วขึ้น แต่ใช้ RAM มาก
+
+  # --- ทำซ้ำได้ (reproducibility) ---
+  seed: 42               # เลขสุ่มตั้งต้น ให้ผลเทรนซ้ำได้ใกล้เคียงเดิม
+  deterministic: true    # บังคับให้คำนวณแบบให้ผลเดิมทุกครั้ง (ช้าลงเล็กน้อย)
+
+  # --- Optimizer / learning rate ---
+  optimizer: AdamW       # SGD, Adam, AdamW, auto (auto จะเลือกเองและไม่สนค่า lr0/momentum ด้านล่าง)
+  lr0: 0.002             # learning rate เริ่มต้น
+  lrf: 0.01              # learning rate สุดท้าย = lr0 x lrf (ลดลงเรื่อยๆ ระหว่างเทรน)
+  momentum: 0.9          # momentum (SGD) / beta1 (Adam, AdamW)
+  weight_decay: 0.0005   # ลงโทษน้ำหนักที่ใหญ่เกินไป ช่วยลด overfitting
+  warmup_epochs: 3.0     # จำนวน epoch แรกที่ค่อยๆ เพิ่ม learning rate จาก 0 ขึ้นไปถึง lr0
+  cos_lr: false          # true = ลด learning rate แบบโค้ง cosine แทนเส้นตรง
+
+  # --- การตรวจจับ ---
+  max_det: 300           # จำนวนกล่องสูงสุดต่อภาพ (ลาน SPU มีได้ราว 150 คัน)
+
+  # --- Data augmentation (สุ่มดัดแปลงภาพ train เท่านั้น ไม่แตะ val/test) ---
+  hsv_h: 0.015           # สุ่มเปลี่ยนสี (hue) สัดส่วน 0-1
+  hsv_s: 0.7             # สุ่มความอิ่มสี (saturation)
+  hsv_v: 0.4             # สุ่มความสว่าง (value) ช่วยเรื่องแดด/เมฆ/พื้นเปียก
+  degrees: 3.0           # สุ่มหมุนภาพ ±องศา (กล้องติดตั้งตายตัว จึงใช้ค่าน้อย)
+  translate: 0.08        # สุ่มเลื่อนภาพ ±สัดส่วนของความกว้าง/สูง
+  scale: 0.25            # สุ่มย่อ/ขยายภาพ ±สัดส่วน
+  fliplr: 0.5            # โอกาสกลับภาพซ้าย-ขวา (0-1)
+  flipud: 0.0            # โอกาสกลับภาพบน-ล่าง (0 = ปิด เพราะกล้องไม่เคยกลับหัว)
+  mosaic: 0.5            # โอกาสต่อ 4 ภาพเป็นภาพเดียว ช่วยเห็นรถหลายขนาด
+  mixup: 0.0             # โอกาสซ้อนสองภาพเข้าด้วยกัน (0 = ปิด)
+  close_mosaic: 10       # ปิด mosaic ใน N epoch สุดท้าย ให้โมเดลเห็นภาพจริงก่อนจบ
+
+  # --- ผลลัพธ์ ---
+  plots: true            # บันทึกกราฟและภาพตัวอย่างลงโฟลเดอร์ run
+  verbose: true          # แสดงรายละเอียดระหว่างเทรน (เก็บลง train.log ด้วย)
+
+# ---------- ค่าตอนวัดผลชุด test (.\train-detector test) ----------
+# imgsz และ device ใช้ค่าเดียวกับรอบที่ถูกทดสอบโดยอัตโนมัติ
+test:
+  split: test            # ใช้ชุด test (held-out) ทดสอบได้ครั้งเดียวต่อรอบ
+  conf: 0.25             # ความมั่นใจขั้นต่ำของกล่องที่นับ (ควรเท่ากับ PARKMAP_MODEL_CONF ของ API)
+  iou: 0.5               # IoU ของ NMS สำหรับรวมกล่องซ้อน (ควรเท่ากับ PARKMAP_MODEL_NMS_IOU)
+  batch: 1               # จำนวนภาพต่อ step ตอนทดสอบ
+  max_det: 300           # จำนวนกล่องสูงสุดต่อภาพ
+
+# ---------- รายการโมเดลในเมนู ----------
+# weights:     ไฟล์ .pt = เริ่มจาก pretrained weights (โหลดอัตโนมัติ)
+#              ไฟล์ .yaml = สร้างโครงโมเดลเปล่า (ไม่ pretrain) เริ่มจากค่าสุ่ม
+# family:      yolo (ค่าเริ่มต้น) หรือ rtdetr
+# description: ข้อความที่แสดงในเมนู
+# train:       (ไม่บังคับ) ค่าที่ต่างจากบล็อก train ด้านบนสำหรับโมเดลนี้
+# COCO = ชุดภาพ 118k ภาพ 80 คลาส (มีคลาส motorcycle) โมเดล pretrain จึงรู้จักรถอยู่แล้ว
+models:
+  yolo26s:
+    weights: yolo26s.pt
+    description: "[Pretrained COCO] YOLO26 Small 9.5M params. รุ่นใหม่สุด ไม่ต้องใช้ NMS เก่งวัตถุเล็ก แนะนำให้ลองก่อน"
+  yolo11s:
+    weights: yolo11s.pt
+    description: "[Pretrained COCO] YOLO11 Small 9.4M params. Baseline ที่พิสูจน์แล้ว ค่าเริ่มต้นเดิมของ ParkMap"
+  yolo26n:
+    weights: yolo26n.pt
+    description: "[Pretrained COCO] YOLO26 Nano 2.4M params. เร็วสุดบน CPU เหมาะถ้า API ไม่มี GPU แม่นน้อยกว่าในแถวรถแน่น"
+  yolo11n:
+    weights: yolo11n.pt
+    description: "[Pretrained COCO] YOLO11 Nano 2.6M params. เล็กสุด ตระกูลเดียวกับ baseline-yolo11n.pt ที่ API ใช้อยู่"
+  yolo26m:
+    weights: yolo26m.pt
+    description: "[Pretrained COCO] YOLO26 Medium 20.4M params. แม่นขึ้นกับรถที่ถูกบัง ต้องใช้ GPU ช้ากว่า Small ราว 2 เท่า"
+    train: {batch: 2}
+  yolo11m:
+    weights: yolo11m.pt
+    description: "[Pretrained COCO] YOLO11 Medium 20.1M params. ตัวอ้างอิงความแม่นของ YOLO11 ต้องใช้ GPU"
+    train: {batch: 2}
+  yolo12s:
+    weights: yolo12s.pt
+    description: "[Pretrained COCO] YOLO12 Small 9.3M params. ใช้ attention อาจช่วยรถบังกันหนาแน่น แต่เทรนช้าและผันผวนกว่า"
+  rtdetr-l:
+    weights: rtdetr-l.pt
+    family: rtdetr
+    description: "[Pretrained COCO] RT-DETR Large 32M params (ไม่ใช่ YOLO: Transformer จาก Baidu). ไม่ต้องใช้ NMS ดีกับฉากแน่น ต้องใช้ GPU และ RAM มาก"
+    train: {batch: 2}
+  rtdetr-x:
+    weights: rtdetr-x.pt
+    family: rtdetr
+    description: "[Pretrained COCO] RT-DETR X-Large 67M params (ไม่ใช่ YOLO). แม่นสุดในรายการ แต่ช้าสุดและใช้ GPU memory มาก"
+    train: {batch: 1}
+  yolo26s-scratch:
+    weights: yolo26s.yaml
+    description: "[ไม่ Pretrain] YOLO26 Small เริ่มจากค่าสุ่ม ใช้เปรียบเทียบว่า pretrain ช่วยแค่ไหน คาดว่าแม่นต่ำมากกับข้อมูล 18 ภาพ"
+    train: {pretrained: false, epochs: 300, patience: 60}

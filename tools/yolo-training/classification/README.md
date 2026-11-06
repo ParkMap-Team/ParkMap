@@ -9,6 +9,17 @@ detector dataset. It prepares annotation crops; it never trains, runs inference,
 downloads weights, changes the API, or changes parking availability. Model-family
 labels do not establish a motorcycle's real dimensions (ADR 0004).
 
+## Folders
+
+| Path | Contents |
+| --- | --- |
+| [`inputs/`](inputs/README.md) | source ZIP archives (Git-ignored) |
+| [`prepared/`](prepared/README.md) | immutable prepared crop snapshots (Git-ignored) |
+| [`runs/`](runs/README.md) | training/test outputs read by the API (Git-ignored) |
+| [`weights/`](weights/README.md) | downloaded pretrained starting weights (Git-ignored) |
+| [`tests/`](tests/README.md) | automated checks |
+| [`_eval_transfer/`](_eval_transfer/README.md) | manual split archive (Git-ignored) |
+
 ## Run in VS Code
 
 From the repository root, with the existing Vision API environment:

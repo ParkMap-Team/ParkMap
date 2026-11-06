@@ -8,7 +8,9 @@ from pathlib import Path
 from PIL import Image
 
 
-def validate_dataset(root: Path) -> dict:
+def validate_dataset(root: Path, class_ids=("0",)) -> dict:
+    """Check splits, sessions, hashes and YOLO box labels; class_ids come from config."""
+    class_ids = {str(c) for c in class_ids}
     root = root.resolve()
     manifest = root / "sessions.json"
     if not manifest.is_file():
@@ -51,8 +53,8 @@ def validate_dataset(root: Path) -> dict:
                 if not line.strip():
                     continue
                 parts = line.split()
-                if len(parts) != 5 or parts[0] != "0":
-                    raise ValueError(f"{label.name}: expected class 0 and four coordinates")
+                if len(parts) != 5 or parts[0] not in class_ids:
+                    raise ValueError(f"{label.name}: expected a configured class id and four box coordinates")
                 x, y, w, h = map(float, parts[1:])
                 if not all(math.isfinite(v) for v in (x, y, w, h)) or w <= 0 or h <= 0 or not all(-1e-6 <= v <= 1 + 1e-6 for v in (x - w / 2, y - h / 2, x + w / 2, y + h / 2)):
                     raise ValueError(f"{label.name}: invalid or out-of-image box")

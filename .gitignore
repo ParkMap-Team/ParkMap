@@ -55,11 +55,23 @@ tools/yolo-training/**/.ipynb_checkpoints/
 tools/yolo-training/**/__pycache__/
 tools/yolo-training/**/*.pt
 tools/yolo-training/**/*.onnx
-tools/yolo-training/classification/inputs/
-tools/yolo-training/classification/prepared/
+tools/yolo-training/classification/inputs/*
+!tools/yolo-training/classification/inputs/README.md
+tools/yolo-training/classification/prepared/*
+!tools/yolo-training/classification/prepared/README.md
 tools/yolo-training/classification/reviews/
-tools/yolo-training/classification/runs/
-tools/yolo-training/classification/weights/
+tools/yolo-training/classification/runs/*
+!tools/yolo-training/classification/runs/README.md
+tools/yolo-training/classification/weights/*
+!tools/yolo-training/classification/weights/README.md
+tools/yolo-training/detection/runs/*
+!tools/yolo-training/detection/runs/README.md
+tools/yolo-training/detection/weights/*
+!tools/yolo-training/detection/weights/README.md
+tools/yolo-training/classification/_eval_transfer/*
+!tools/yolo-training/classification/_eval_transfer/README.md
+# Ultralytics downloads its AMP-check model here when training starts from the repository root
+/weights/
 
 # Local deployment packaging
 .deploy-stage*/
