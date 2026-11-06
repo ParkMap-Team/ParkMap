@@ -18,9 +18,10 @@ from pathlib import Path, PurePosixPath
 
 import PIL
 import yaml
-from PIL import Image, ImageDraw, UnidentifiedImageError
+from PIL import Image, ImageDraw, ImageOps, UnidentifiedImageError
 
 SPLITS = ("train", "val", "test")
+GROUPING_KEYS = {"roboflow_stem", "filename_patterns", "similar"}
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
 SAFE_NAME = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}\Z")
 MAX_IMAGE_BYTES = 50 * 1024 * 1024
@@ -135,10 +136,24 @@ def validate_config(config):
         for folder in source["splits"].values():
             if PurePosixPath(folder).is_absolute() or ".." in PurePosixPath(folder).parts:
                 raise ValueError("Unsafe ZIP split folder")
-        if not source.get("class_map") or any(not SAFE_NAME.fullmatch(v) for v in source["class_map"].values()):
-            raise ValueError("Explicit class_map with safe canonical directory names required")
+        # null maps a source class out of the dataset explicitly; it never becomes a canonical class.
+        if not any(source.get("class_map", {}).values()) or any(v is not None and not SAFE_NAME.fullmatch(v) for v in source["class_map"].values()):
+            raise ValueError("Explicit class_map with safe canonical directory names (or null to exclude) required")
         if any(not source.get("license", {}).get(key) for key in ("name", "credit", "url")):
             raise ValueError("Each source needs license name, credit, url")
+        grouping = source.get("grouping", {})
+        if (not isinstance(grouping, dict) or set(grouping) - GROUPING_KEYS
+                or any(not isinstance(grouping.get(key, False), bool) for key in ("roboflow_stem", "similar"))
+                or not isinstance(grouping.get("filename_patterns", []), list)):
+            raise ValueError("grouping allows boolean roboflow_stem/similar and a filename_patterns list")
+        for pattern in grouping.get("filename_patterns", []):
+            re.compile(pattern)
+        if not isinstance(source.get("train_only_splits", []), list) or set(source.get("train_only_splits", [])) - set(SPLITS):
+            raise ValueError("train_only_splits must list original splits")
+        if "pinned_splits" in source and (not isinstance(source["pinned_splits"], str) or not source["pinned_splits"]):
+            raise ValueError("pinned_splits must be a prepared run directory")
+        if type(source.get("authoritative", False)) is not bool:
+            raise ValueError("authoritative must be a boolean")
 
 
 def audit_counts(images, annotations):
@@ -163,9 +178,16 @@ def scan_sources(config, archives, work):
     for source in sorted(config["sources"], key=lambda item: item["id"]):
         source_id = source["id"]
         with zipfile.ZipFile(archives[source_id]) as archive:
-            members = [item.filename for item in archive.infolist() if not item.is_dir()]
-            if len(set(members)) != len(members):
-                raise ValueError(f"{source_id}: duplicate ZIP member paths")
+            entries = defaultdict(list)
+            for item in archive.infolist():
+                if not item.is_dir():
+                    entries[item.filename].append(item)
+            # Some exports repeat a member (e.g. data.yaml); only byte-identical repeats are unambiguous.
+            for items in entries.values():
+                if len(items) > 1 and (any(item.file_size > MAX_IMAGE_BYTES for item in items)
+                                       or len({digest(archive.open(item).read()) for item in items}) > 1):
+                    raise ValueError(f"{source_id}: duplicate ZIP member paths with different content")
+            members = list(entries)
             yaml_member = source["yaml"]
             if archive.getinfo(yaml_member).file_size > 1024 * 1024:
                 raise ValueError("data.yaml too large")
@@ -215,6 +237,8 @@ def scan_sources(config, archives, work):
                         record["size"] = list(image.size)
                         record["pixel_sha256"] = pixel_hash(image)
                         record["dhash"] = difference_hash(image)
+                        if source.get("grouping", {}).get("similar"):
+                            record["dhash_mirror"] = difference_hash(ImageOps.mirror(image))
                     except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
                         record["issues"].append("unreadable_image:" + type(exc).__name__)
                     label_text = ""
@@ -305,7 +329,8 @@ def annotation_signature(rows):
     return sorted(json.dumps([a["canonical_class"], a["bbox_normalized"], sorted(a["issues"]), a["raw_label"] if a["issues"] else None], sort_keys=True) for a in rows)
 
 
-def reconcile(images, annotations, review):
+def reconcile(images, annotations, review, links=(), trusted=frozenset()):
+    """Group, deduplicate and quarantine. Annotations of `trusted` (pinned or authoritative) sources win over other copies."""
     by_image = defaultdict(list)
     image_lookup = {i["image_id"]: i for i in images}
     annotation_lookup = {a["annotation_id"]: a for a in annotations}
@@ -315,12 +340,14 @@ def reconcile(images, annotations, review):
             grouping.union(ids)
     for group in review.get("same_vehicle_groups", []):
         grouping.union([annotation_lookup[key]["image_id"] for key in group])
+    for ids in links:
+        grouping.union(ids)
     for a in annotations:
         decision = review.get("annotations", {}).get(a["annotation_id"], {})
         a["review"] = decision
         a["canonical_class"] = decision.get("canonical_class", a["canonical_class"])
         a["label_confirmed"] = decision.get("confirmed", False)
-        a["disposition"] = "invalid" if a["issues"] else "candidate"
+        a["disposition"] = "invalid" if a["issues"] else "excluded_by_class_map" if a["canonical_class"] is None else "candidate"
         if decision.get("exclude") or review.get("images", {}).get(a["image_id"], {}).get("exclude"):
             a["disposition"] = "excluded_by_review"
         by_image[a["image_id"]].append(a)
@@ -329,21 +356,29 @@ def reconcile(images, annotations, review):
     for ids in duplicate_groups(images, "pixel_sha256"):
         active = [key for key in ids if not review.get("images", {}).get(key, {}).get("exclude")]
         signatures = {key: annotation_signature([a for a in by_image[key] if a["disposition"] != "excluded_by_review"]) for key in ids}
+        basis = [key for key in active if image_lookup[key]["source_dataset"] in trusted] or active
         conflict = len({json.dumps(signatures[key]) for key in ids}) > 1
-        unresolved = len({json.dumps(signatures[key]) for key in active}) > 1
+        unresolved = len({json.dumps(signatures[key]) for key in basis}) > 1
         if conflict:
+            resolved = "resolved_by_authoritative_source" if len({json.dumps(signatures[key]) for key in active}) > 1 else "resolved_by_explicit_review"
             conflicts.append({"images": ids, "signatures": signatures, "unresolved": unresolved,
-                              "action": "quarantine_active_annotations" if unresolved else "resolved_by_explicit_review"})
+                              "action": "quarantine_active_annotations" if unresolved else resolved})
         if unresolved:
             for key in active:
                 for a in by_image[key]:
                     if a["disposition"] == "candidate":
                         a["disposition"] = "quarantined_duplicate_annotation_conflict"
         elif active:
-            keeper = min(active, key=lambda key: (image_lookup[key]["source_dataset"], image_lookup[key]["source_image"]))
+            keeper = min(basis, key=lambda key: (image_lookup[key]["source_dataset"], image_lookup[key]["source_image"]))
             keep_rows = [a for a in by_image[keeper] if a["disposition"] != "excluded_by_review"]
             for key in active:
                 if key == keeper:
+                    continue
+                if signatures[key] != signatures[keeper]:
+                    # An untrusted copy disagreeing with the authoritative annotations is never kept.
+                    for a in by_image[key]:
+                        if a["disposition"] == "candidate":
+                            a["disposition"] = "quarantined_duplicate_annotation_conflict"
                     continue
                 deduplications.append({"image_id": key, "kept_image_id": keeper, "reason": "identical_pixels_and_annotation_multiset"})
                 for a in by_image[key]:
@@ -358,9 +393,11 @@ def reconcile(images, annotations, review):
     for rows in crop_buckets.values():
         grouping.union([a["image_id"] for a in rows])
         candidates = [a for a in rows if a["disposition"] == "candidate"]
-        if len({a["canonical_class"] for a in candidates}) > 1:
+        classes = {a["canonical_class"] for a in candidates if a["source_dataset"] in trusted} or {a["canonical_class"] for a in candidates}
+        conflicting = candidates if len(classes) > 1 else [a for a in candidates if a["canonical_class"] not in classes]
+        if conflicting:
             crop_conflicts.append([a["annotation_id"] for a in candidates])
-            for a in candidates:
+            for a in conflicting:
                 a["disposition"] = "quarantined_crop_label_conflict"
     for image in images:
         image["group_id"] = "group-" + grouping.find(image["image_id"])
@@ -370,18 +407,20 @@ def reconcile(images, annotations, review):
     return conflicts, deduplications, crop_conflicts
 
 
-def assign_splits(rows, ratios, seed):
+def assign_splits(rows, ratios, seed, forced=None):
     """Deterministic group-level greedy stratification with coverage preference.
 
     Never split a group to achieve ratios. Coverage is best effort, reported below.
+    `forced` fixes some groups' splits; they count toward the ratios before the rest are placed.
     """
+    forced = forced or {}
     groups = defaultdict(Counter)
     for a in rows:
         groups[a["group_id"]][a["canonical_class"]] += 1
     totals = Counter(a["canonical_class"] for a in rows)
     independent = {name: sum(name in counts for counts in groups.values()) for name in totals}
     rng = random.Random(seed)
-    keys = sorted(groups)
+    keys = sorted(set(groups) - set(forced))
     rng.shuffle(keys)
     # Scarce classes first, then larger groups. Random shuffle deterministically breaks ties.
     keys.sort(key=lambda key: (min(independent[c] for c in groups[key]), -sum(groups[key].values())))
@@ -389,6 +428,11 @@ def assign_splits(rows, ratios, seed):
     group_counts = Counter()
     assignments = {}
     remaining = Counter(independent)
+    for key in sorted(set(groups) & set(forced)):
+        assignments[key] = forced[key]
+        counts[forced[key]].update(groups[key])
+        group_counts[forced[key]] += 1
+        remaining.subtract(groups[key].keys())
     for key in keys:
         current = groups[key]
         scores = {}
@@ -402,7 +446,7 @@ def assign_splits(rows, ratios, seed):
                 missing = [s for s in wanted if counts[s][name] == 0]
                 if split in missing:
                     score -= 10_000 if remaining[name] <= len(missing) else 1
-            target_groups = len(keys) * ratios[split]
+            target_groups = len(groups) * ratios[split]
             score += 0.2 * ((group_counts[split] + 1 - target_groups) ** 2 - (group_counts[split] - target_groups) ** 2) / max(target_groups, 1)
             scores[split] = score
         chosen = min(SPLITS, key=lambda split: scores[split])
@@ -413,18 +457,58 @@ def assign_splits(rows, ratios, seed):
     return assignments
 
 
-def find_similar(images, threshold):
+def find_similar(images, threshold, flagged=frozenset()):
+    """Propose dHash pairs. Pairs touching a `flagged` source also match mirrored copies and are marked auto_linked."""
     result = []
     valid = [i for i in images if i.get("pixel_sha256")]
-    for position, first in enumerate(valid):
-        for second in valid[position + 1:]:
+    hashes = [i["dhash"] for i in valid]
+    mirrors = [i["dhash_mirror"] if i["source_dataset"] in flagged else None for i in valid]
+    flagged_positions = [q for q, mirror in enumerate(mirrors) if mirror is not None]
+    for p, first in enumerate(valid):
+        value, size = hashes[p], len(valid)
+        distances = {q: (value ^ hashes[q]).bit_count() for q in range(p + 1, size) if (value ^ hashes[q]).bit_count() <= threshold}
+        if mirrors[p] is not None:
+            mirror = mirrors[p]
+            mirrored = {q: (mirror ^ hashes[q]).bit_count() for q in range(p + 1, size) if (mirror ^ hashes[q]).bit_count() <= threshold}
+        else:
+            mirrored = {q: (value ^ mirrors[q]).bit_count() for q in flagged_positions if q > p and (value ^ mirrors[q]).bit_count() <= threshold}
+        for q, distance in mirrored.items():
+            distances[q] = min(distance, distances.get(q, distance))
+        for q, distance in sorted(distances.items()):
+            second = valid[q]
             if first["pixel_sha256"] == second["pixel_sha256"]:
                 continue
-            distance = (first["dhash"] ^ second["dhash"]).bit_count()
-            if distance <= threshold:
-                result.append({"images": sorted([first["image_id"], second["image_id"]]), "dhash_distance": distance,
-                               "meaning": "heuristic_candidate_only_not_identity_evidence"})
+            pair = {"images": sorted([first["image_id"], second["image_id"]]), "dhash_distance": distance,
+                    "meaning": "heuristic_candidate_only_not_identity_evidence"}
+            if mirrors[p] is not None or mirrors[q] is not None:
+                pair["auto_linked"] = True
+            result.append(pair)
     return sorted(result, key=lambda pair: (pair["dhash_distance"], pair["images"]))
+
+
+def source_links(images, sources):
+    """Image-ID sets a source's grouping policy keeps together, e.g. Roboflow augmented copies or video frames."""
+    policies = {s["id"]: s.get("grouping", {}) for s in sources}
+    buckets = defaultdict(list)
+    for image in images:
+        policy = policies[image["source_dataset"]]
+        name = PurePosixPath(image["source_image"]).name
+        if policy.get("roboflow_stem") and ".rf." in name:
+            buckets[(image["source_dataset"], "stem", name.split(".rf.")[0])].append(image["image_id"])
+        for pattern in policy.get("filename_patterns", []):
+            if re.search(pattern, name):
+                buckets[(image["source_dataset"], "pattern", pattern)].append(image["image_id"])
+    return [ids for _, ids in sorted(buckets.items()) if len(ids) > 1]
+
+
+def load_pinned(root, source_id, archive_sha256):
+    """Annotations of a verified earlier run whose splits a source keeps unchanged."""
+    if not (root / "COMPLETE").is_file():
+        raise ValueError(f"{source_id}: pinned_splits must be a complete prepared run")
+    verify_output(root)
+    if json.loads((root / "reproducibility.json").read_text(encoding="utf-8"))["source_sha256"].get(source_id) != archive_sha256:
+        raise ValueError(f"{source_id}: pinned run was prepared from a different archive")
+    return {a["annotation_id"]: a for a in read_jsonl(root / "manifest.jsonl") if a["source_dataset"] == source_id}
 
 
 def leakage_report(rows, images):
@@ -477,7 +561,12 @@ def prepare(config_path, output, review_path=None, overrides=None):
     review_raw = review_path.read_bytes() if review_path else b"{}"
     # A content-addressed immutable run: exact reruns verify and reuse, never append crops.
     code_hash = digest(Path(__file__).read_bytes() + Path(__file__).with_name("gallery.py").read_bytes())
-    fingerprint = digest(json_bytes([config, source_hashes, digest(review_raw), code_hash, PIL.__version__, yaml.__version__]))
+    pinned_roots = {s["id"]: (config_path.parent / s["pinned_splits"]).resolve() for s in config["sources"] if "pinned_splits" in s}
+    pinned = {key: load_pinned(root, key, source_hashes[key]) for key, root in pinned_roots.items()}
+    identity = [config, source_hashes, digest(review_raw), code_hash, PIL.__version__, yaml.__version__]
+    if pinned_roots:
+        identity.append({key: digest((root / "manifest.jsonl").read_bytes()) for key, root in pinned_roots.items()})
+    fingerprint = digest(json_bytes(identity))
     run = output / ("run-" + fingerprint[:20])
     if run.exists():
         if not (run / "COMPLETE").is_file():
@@ -490,20 +579,73 @@ def prepare(config_path, output, review_path=None, overrides=None):
         (run / folder).mkdir(parents=True)
     images, annotations, sources, file_issues = scan_sources(config, archives, run)
     before_rows = copy.deepcopy(annotations)
-    original_conflicts, _, original_crop_conflicts = reconcile(copy.deepcopy(images), copy.deepcopy(annotations), {})
-    class_names = sorted({name for s in config["sources"] for name in s["class_map"].values()})
+    image_lookup = {i["image_id"]: i for i in images}
+    trusted = frozenset(pinned)
+    # Authoritative sources win duplicate reconciliation like pinned ones, so a run that later seeds their pinned
+    # single-source snapshot gives them the same dispositions; split handling stays limited to pinned sources.
+    authoritative = trusted | {s["id"] for s in config["sources"] if s.get("authoritative")}
+    flagged = {s["id"] for s in config["sources"] if s.get("grouping", {}).get("similar")}
+    similar = find_similar(images, config.get("similar_dhash_max_distance", 6), flagged)
+    class_names = sorted({name for s in config["sources"] for name in s["class_map"].values() if name})
     review = load_review(review_path, images, annotations, class_names)
-    conflicts, deduplications, crop_conflicts = reconcile(images, annotations, review)
-    similar = find_similar(images, config.get("similar_dhash_max_distance", 6))
     reviewed_pairs = {tuple(sorted(p["images"])): p for p in review.get("similar_pairs", [])}
+    # Unreviewed sources are grouped conservatively; links to pinned images constrain splits instead of merging groups.
+    # A reviewed "distinct" decision overrides the heuristic link.
+    auto_pairs = [p for p in similar if p.get("auto_linked") and reviewed_pairs.get(tuple(p["images"]), {}).get("decision") != "distinct"]
+    pinned_sides = [sum(image_lookup[key]["source_dataset"] in trusted for key in p["images"]) for p in auto_pairs]
+    links = source_links(images, config["sources"]) + [p["images"] for p, side in zip(auto_pairs, pinned_sides, strict=True) if side == 0]
+    pinned_pairs = [p for p, side in zip(auto_pairs, pinned_sides, strict=True) if side == 1]
+    original_conflicts, _, original_crop_conflicts = reconcile(copy.deepcopy(images), copy.deepcopy(annotations), {}, links, authoritative)
+    conflicts, deduplications, crop_conflicts = reconcile(images, annotations, review, links, authoritative)
     for pair in similar:
         pair["review"] = reviewed_pairs.get(tuple(pair["images"]), {})
         if pair["review"].get("decision") == "same_vehicle_grouped":
             groups = {i["group_id"] for i in images if i["image_id"] in pair["images"]}
             if len(groups) > 1:
                 raise ValueError("Pair marked same_vehicle_grouped without a linking same_vehicle_groups entry")
-    candidates = [a for a in annotations if a["disposition"] == "candidate"]
-    assignments = assign_splits(candidates, config["ratios"], config["seed"])
+    fixed = {}
+    for source_id, prior in pinned.items():
+        rows = {a["annotation_id"]: a for a in annotations if a["source_dataset"] == source_id}
+        if set(rows) != set(prior) or any((a["disposition"] == "candidate") != (prior[key]["disposition"] == "included")
+                                          or (a["disposition"] == "candidate" and a["canonical_class"] != prior[key]["canonical_class"])
+                                          for key, a in rows.items()):
+            raise ValueError(f"{source_id}: annotations or decisions differ from its pinned run; prepare without pinned_splits instead")
+        fixed.update({key: prior[key]["split"] for key, a in rows.items() if a["disposition"] == "candidate"})
+    pinned_groups = defaultdict(set)
+    for a in annotations:
+        if a["annotation_id"] in fixed:
+            pinned_groups[a["group_id"]].add(fixed[a["annotation_id"]])
+    if any(len(splits) > 1 for splits in pinned_groups.values()):
+        raise ValueError("Added sources link pinned groups from different splits; review the duplicate evidence")
+    required = {group_id: set(splits) for group_id, splits in pinned_groups.items()}
+    for pair in pinned_pairs:
+        first, second = (image_lookup[key] for key in pair["images"])
+        pinned_image, other = (first, second) if first["source_dataset"] in trusted else (second, first)
+        required.setdefault(other["group_id"], set()).update(pinned_groups.get(pinned_image["group_id"], set()))
+    train_only_splits = {s["id"]: set(s.get("train_only_splits", [])) for s in config["sources"]}
+    train_only = {i["image_id"] for i in images if i["original_split"] in train_only_splits[i["source_dataset"]]}
+    unpinned = defaultdict(list)
+    for a in annotations:
+        if a["disposition"] == "candidate" and a["annotation_id"] not in fixed:
+            unpinned[a["group_id"]].append(a)
+    forced, train_only_groups = {}, set()
+    for group_id, rows in unpinned.items():
+        splits = required.get(group_id, set())
+        if splits:
+            forced[group_id] = min(splits)
+        elif any(a["image_id"] in train_only for a in rows):
+            train_only_groups.add(group_id)
+        for a in rows:
+            # Pre-augmented (train-only) copies never enter val/test, and conflicting pinned links leave nothing safe.
+            if len(splits) > 1 or (forced.get(group_id, "train") != "train" and a["image_id"] in train_only):
+                a["disposition"] = "quarantined_pinned_split_link"
+    candidates = [a for group_id, rows in unpinned.items() if group_id not in train_only_groups
+                  for a in rows if a["disposition"] == "candidate"]
+    assignments = {group_id: min(splits) for group_id, splits in pinned_groups.items()}
+    # Train-only groups stay in train outside the ratio pass, so supplementary pre-augmented data never shrinks the
+    # train share of the other sources. A pinned run seeded from this run sees a subset of these groups.
+    assignments.update(dict.fromkeys(train_only_groups, "train"))
+    assignments.update(assign_splits(candidates, config["ratios"], config["seed"], forced))
     for image in images:
         image["assigned_split"] = assignments.get(image["group_id"])
     for a in annotations:
@@ -519,7 +661,6 @@ def prepare(config_path, output, review_path=None, overrides=None):
             a["classification_path"] = relative
     included = [a for a in annotations if a["disposition"] == "included"]
     byte_groups, pixel_groups = duplicate_groups(images, "byte_sha256"), duplicate_groups(images, "pixel_sha256")
-    image_lookup = {i["image_id"]: i for i in images}
     def crosses(ids):
         return len({image_lookup[key]["original_split"] for key in ids}) > 1
     before = {"totals": {"images": len(images), "annotation_lines": len(annotations), "valid_boxes": sum(not a["issues"] for a in before_rows),
@@ -556,6 +697,10 @@ def prepare(config_path, output, review_path=None, overrides=None):
                    "Class names are source labels, not verified manufacturer/model-year identities or measured dimensions.",
                    "Group-stratified ratios are approximate. No augmentation, oversampling, or training is performed.",
                    "Public-source images do not establish performance on the ParkMap camera or parking-space safety."]
+    if pinned or forced or train_only_groups:
+        limitations.append("Pinned sources keep their earlier run's splits. Groups with pre-augmented (train_only_splits) images stay "
+                           "in train and do not count toward the ratios, which apply to the remaining groups. auto_linked dHash pairs "
+                           "are grouped or split-constrained, not reviewed.")
     after = {"status": "provisional", "ready_for_production": False, "seed": config["seed"], "target_ratios": config["ratios"],
              "classification_crops": len(included), "unique_source_images_included": len({a["image_id"] for a in included}),
              "known_groups_included": len(assignments), "classes": classes,
@@ -563,10 +708,14 @@ def prepare(config_path, output, review_path=None, overrides=None):
              "dispositions": dict(Counter(a["disposition"] for a in annotations)),
              "quarantined_annotations": sum(a["disposition"].startswith("quarantined") for a in annotations),
              "unconfirmed_included_annotations": sum(not a["label_confirmed"] for a in included),
-             "similar_pairs_proposed": len(similar), "similar_pairs_pending": sum(p["review"].get("decision") not in {"distinct", "same_vehicle_grouped"} for p in similar),
+             "similar_pairs_proposed": len(similar), "similar_pairs_pending": sum(p["review"].get("decision") not in {"distinct", "same_vehicle_grouped"} and not p.get("auto_linked") for p in similar),
              "similar_pairs_cross_split_proposed": sum(len({image_lookup[key]["assigned_split"] for key in p["images"]} - {None}) > 1 for p in similar),
              "effective_duplicate_annotation_conflicts": conflicts, "effective_crop_label_conflicts": crop_conflicts,
              "deduplications": deduplications, "leakage": leakage, "limitations": limitations}
+    if pinned or forced or train_only_groups:
+        after["split_constraints"] = {"pinned_sources": sorted(pinned),
+                                      "forced_groups": dict(Counter([*forced.values(), *["train"] * len(train_only_groups)])),
+                                      "auto_linked_pairs": len(auto_pairs), "pinned_split_links": len(pinned_pairs)}
     write_json(run / "audit_before.json", before)
     write_json(run / "audit_after.json", after)
     write_json(run / "images.json", images)
@@ -579,7 +728,9 @@ def prepare(config_path, output, review_path=None, overrides=None):
     (run / "manifest.jsonl").write_text("".join(json.dumps(a, ensure_ascii=False) + "\n" for a in annotations), encoding="utf-8")
     from gallery import render_gallery, write_report
 
-    render_gallery(run, images, annotations, before, after, similar)
+    # Auto-linked pairs within unreviewed sources can number in the hundreds of thousands; only pinned links need a reviewer.
+    render_gallery(run, images, annotations, before, after,
+                   [p for p in similar if not p.get("auto_linked") or any(image_lookup[key]["source_dataset"] in trusted for key in p["images"])])
     write_report(run, before, after)
     integrity = {p.relative_to(run).as_posix(): digest(p.read_bytes()) for p in sorted(run.rglob("*")) if p.is_file()}
     write_json(run / "integrity.json", integrity)

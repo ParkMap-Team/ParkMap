@@ -1,16 +1,32 @@
 # Train the motorcycle model-family classifier
 
-From the **ParkMap repository root** in VS Code Terminal, run:
+Use one of the three reviewed **top-10 configs** (2026-11-06, six review rounds;
+see [CURATION.md](CURATION.md) section 3). All three share one satayu val/test
+split, so their val/test scores are directly comparable:
+
+| config | train data | snapshot |
+|---|---|---|
+| `training.top10.json` | satayu only | `prepared/run-55cada0d50ef35e3bc26` |
+| `training.top10-external.json` | satayu + external Roboflow sources | `prepared/run-e8ffb080512c136efe75` |
+| `training.top10-external-weighted.json` | same, `pre_augmented_copies: 3` | `prepared/run-e8ffb080512c136efe75` |
+
+From the **ParkMap repository root** in VS Code Terminal, run for example:
 
 ```powershell
-uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py
+uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --config tools/yolo-training/classification/training.top10-external.json
 ```
 
-This is the command that actually starts training. The default configuration is
-already pinned to the reviewed dataset: **46 classes, 1,019 train / 222 val / 220
-test crops**, `prepared/run-4cb0b6637def7634bde2`. It deliberately does not follow
-the moving `prepared/latest.json` pointer. A later review/preparation run therefore
-cannot silently change the data for this experiment.
+This is the command that actually starts training. Each config is pinned to an
+immutable snapshot and deliberately does not follow the moving
+`prepared/latest.json` pointer, so a later review/preparation run cannot silently
+change the data for an experiment.
+
+Running `train.py` without `--config` uses the older `training.json`
+(`prepared/run-4cb0b6637def7634bde2`, 46 classes), and `training.honda2.json`
+points to `prepared/combined-honda2/run-a38f82ba9eebc8f5b871`. Neither snapshot
+exists any more, so both configs fail validation; they are kept only as history.
+Scores from models trained on earlier snapshots are not comparable with the
+current test split.
 
 Training uses the project's locked Python 3.12 environment, which already has
 Torch, Torchvision and Pillow. If that environment is missing, first install it
@@ -25,7 +41,7 @@ To verify the real snapshot without loading Torch, downloading weights, creating
 a run or training, use:
 
 ```powershell
-uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --validate-only
+uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --config tools/yolo-training/classification/training.top10-external.json --validate-only
 ```
 
 The script verifies all prepared file hashes, crop/manifest alignment, class order,
@@ -33,13 +49,13 @@ decoding, required splits and known exact-image/group leakage. It refuses change
 snapshots and classes with no train samples. Empty val/test class coverage is
 retained in the dataset metadata and metrics, never silently relabelled/dropped.
 
-This dataset remains **provisional**: all included labels have confirmation flags
-from the supplied review, but 298 similar-image pairs remain unchecked, including
-150 crossing the current splits. `training.json` explicitly sets
-`allow_provisional: true` for exploratory baseline training. Validation metrics
-may be optimistic until those relationships are reviewed. They do not establish
-accuracy for the ParkMap camera or safe parking availability. Model-family
-classification does not measure vehicle dimensions.
+These snapshots remain **provisional**: a few similar-image pairs, one label and
+four quality flags were left unreviewed at the freeze (listed in CURATION.md), and
+at most 3 crop pairs may still cross splits. The top-10 configs explicitly set
+`allow_provisional: true`. Some classes have very small val/test sets (xmax 5/4,
+grand_filano 7/7, super_cub 7/7 crops), so per-class scores are noisy. Metrics do
+not establish accuracy for the ParkMap camera or safe parking availability.
+Model-family classification does not measure vehicle dimensions.
 
 ## Baseline and settings
 
@@ -57,7 +73,8 @@ For offline training, provide the original Torchvision ImageNet ResNet18
 ParkMap trained classifier checkpoint or YOLO detector weights. The initial
 weights' full SHA-256 is saved in run metadata.
 
-Defaults in `training.json`:
+Defaults in `training.json`. The top-10 configs differ: 20 epochs, learning rate
+0.0001 and `fine_tune: true` (the backbone is trained too).
 
 - 10 epochs, batch size 16, 224×224 model input, AdamW learning rate 0.001.
 - Two CPU threads and zero data-loader workers for a modest Windows default.
@@ -66,9 +83,22 @@ Defaults in `training.json`:
 - Each full crop is scaled proportionally and padded to a square; there is no
   center crop or stretching. Padding is RGB 124/116/104 and normalization is the
   ImageNet mean/std, recorded as `letterbox_rgb_v1` in checkpoints.
-- Mild horizontal flips/color jitter apply **only to train**. Val/test use
-  deterministic letterboxing and normalization. No val/test augmentation,
-  oversampling, synthetic examples, or split reassignment is performed.
+- `augment: "mild"` applies horizontal flips/color jitter **only to train**.
+  `"strong"` adds square random crops (70-100% area), small rotation/shift,
+  occasional downscale-then-upscale and blur (many source crops are small),
+  stronger color jitter and random erasing; `"none"` disables augmentation.
+  Val/test always use deterministic letterboxing and normalization. No val/test
+  augmentation, oversampling, synthetic examples, or split reassignment is
+  performed.
+- `label_smoothing: 0.0` uses plain cross-entropy for training; a value in
+  [0, 1) smooths training targets. Val loss is always unsmoothed.
+- `pre_augmented_copies: 1` samples every train crop equally. A value N > 1
+  gives crops from a source's `train_only_splits` (Roboflow exports with N
+  augmented versions per photo) weight 1/N, so each source photo counts once.
+  Epoch length is unchanged; train sampling becomes weighted with replacement
+  and the run prints each source's sampling share. Val/test are unaffected.
+  Roboflow file stems are not unique per photo (e.g. two `27.jpg` photos), so
+  copies are down-weighted rather than deleted by name.
 - The source export was already stretched before preparation; this preprocessing
   cannot recover its original aspect ratio.
 
@@ -77,12 +107,35 @@ Optional overrides:
 ```powershell
 uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --epochs 20 --batch-size 8 --device cpu
 uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --fine-tune --learning-rate 0.0001
+uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --augment strong --label-smoothing 0.1
 ```
 
 To use another prepared snapshot, pass `--dataset "<prepared-run-directory>"` or
 edit the config. Pass the parent run directory containing COMPLETE and the
 manifest, **not** its classification subfolder. Training output must stay outside
 that immutable snapshot.
+
+## Supported model subset
+
+`classes` in the config is `null` (every snapshot class) or a list of class names
+to train on. `training.top10.json` keeps the 10 classes with at least 30 crops in
+the Roboflow snapshot `prepared/run-55cada0d50ef35e3bc26` (re-split after the
+sixth 2026-11-06 review and pinned to the combined run of
+`training.top10-external.json`, so both share one test split; models trained on
+earlier, now deleted runs such as `run-71a1fa00b3a2357ae77d` and
+`run-06a05f38ab75dc156741` used different test splits, so their results are not
+directly comparable):
+
+```powershell
+uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --config tools/yolo-training/classification/training.top10.json
+```
+
+The whole snapshot is still verified, and the splits are unchanged; crops of the
+other classes are left out of train, val and test. `run.json` records them as
+`excluded_classes` and adds a limitation. The model supports only the kept
+classes and is still closed-set, so a crop of an excluded model is predicted as
+one of the kept classes. Its metrics cannot be compared directly with a model
+trained on every class.
 
 ## Progress and outputs
 
@@ -118,6 +171,12 @@ website. API model weights and the deployed detector are never replaced.
 Ctrl+C leaves checkpoints from completed epochs and marks the run interrupted.
 No test predictions or test metrics are produced by the training command.
 
+When a snapshot has several sources (see `config.external.json` in README),
+`metrics.json` adds `by_source` with the same metrics per source, and
+`mistakes.html` and the test command print them. A pinned source keeps its
+earlier splits, so its `by_source` test result is the one comparable with models
+trained on that source alone. `best.pt` is still chosen on the combined val.
+
 ## Held-out test, later
 
 After reviewing identity leakage and selecting a checkpoint using val, evaluate
@@ -134,6 +193,24 @@ pickled custom model. The classifier is closed-set: it chooses among its learned
 classes; its softmax score is not calibrated certainty and there is no trained
 unknown class. Do not use test to choose hyperparameters/checkpoints or infer
 real-camera performance from this public-image experiment.
+
+## Evaluate on a real lot
+
+To measure a trained checkpoint on human-labelled crops from a real lot (for
+example the private `spu-motorcycles-20261103` dataset), run:
+
+```powershell
+uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/evaluate_lot.py --checkpoint "<training-run>/best.pt" --lot "<lot-dataset>" --labeler <name>
+```
+
+The lot supplies `crops.jsonl` and `labels/<name>.jsonl`; only that labeler's
+file is read and the latest row per crop wins. Crop hashes are verified. `unknown`,
+`ambiguous`, `not_motorcycle`, unlabelled crops and labels outside the checkpoint's
+classes are counted under `excluded`, never scored; report them with top-1 because
+the real camera produces such crops too. Each split (`--splits`, default
+`val,test`) gets its own `runs/lot-.../<split>/` report in the format above. Nothing
+is trained or selected here, so a checkpoint chosen on the lot's val must be
+judged on its test only.
 
 ## Verification
 
