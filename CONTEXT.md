@@ -12,6 +12,7 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 - **Virtual row**: operator-defined analysis region with an internal ID. It is not a painted or numbered stall.
 - **Occupied footprint**: estimated ground area taken by a detected motorcycle, with calibration and uncertainty.
 - **Candidate space**: ground region where a motorcycle footprint might fit. Candidates are not reserved stalls.
+- **Family fit**: advisory verdict, `FITS`, `UNCERTAIN` or `DOES_NOT_FIT`, saying whether a motorcycle family's sourced nominal dimensions fit a measured gap, given the gap's uncertainty (ADR 0015, proposed). It never changes availability status and is not a guarantee.
 - **Available**: current evidence supports fitting without obstruction.
 - **Almost available**: fitting may be possible after moving another motorcycle; advisory only.
 - **Unknown**: stale, occluded, uncalibrated, or low-confidence evidence. Never show as green.
@@ -59,7 +60,7 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 1. A recorded video from one fixed viewpoint stands in for the camera on the hidden parking area; the final deliverable is this replay, not an installed camera (ADR 0005). A separate entrance view may estimate incoming motorcycle dimensions.
 2. An inference worker processes frames, applies camera calibration and parking geometry, and publishes a timestamped state with confidence and evidence freshness.
 3. A student opens the web app from the LINE Official Account rich menu via LIFF and sees a surveyed map with green candidate regions, yellow advisory regions, and unknown regions. In the demo the video plays separately on the presenter's screen and the LIFF app shows the video time of the analysed frame, never the footage (ADR 0005).
-4. Deferred beyond the first release: a dimension estimate from the entrance view may rank compatible candidate regions. Brand recognition alone cannot establish physical dimensions, and matching an entrance observation to the student viewing LIFF is unresolved. Until then, candidates are ranked for a standard motorcycle footprint.
+4. Proposed (ADR 0015): each `AVAILABLE` candidate space lists the motorcycle families that fit, using parked motorcycles' classified families and a sourced nominal-dimension table. The suggestion belongs to the space, not to a student, so no entrance matching is needed. A family name alone never establishes dimensions. Availability itself is still computed for a standard motorcycle footprint, and LIFF shows no family suggestions until the table, verdicts and evaluation exist.
 5. Proposed for the final, pending advisor approval (ADR 0010): a student who registered a plate opens "where I parked" and sees their parking record on the lot model, or, without one, the reason and their entrance sighting. The student marks nothing.
 
 ## Recommended deployable processes
