@@ -32,7 +32,7 @@ uv sync --project tools/yolo-training/classification/curation --locked
 
 ## 2. What the audit does
 
-`curate.py` reads a prepared run (default `prepared/run-c2809f621c207077a0a7`)
+`curate.py` reads a prepared run (default `prepared/run-e8ffb080512c136efe75`)
 and the handoff class list in `training.top10-external.json`:
 
 1. **Integrity**: the same `validate_run` check training uses (file hashes,
@@ -66,37 +66,43 @@ uv run --project tools/yolo-training/classification/curation --no-sync python to
 
 ## 3. Results
 
-### Current handoff: run-c2809f621c207077a0a7
+### Current handoff: run-e8ffb080512c136efe75
 
-Two review rounds on 2026-11-06 are applied (`external.review.json`: 344
-same-vehicle groups, 425 similar-pair decisions, 49 annotation decisions; 9
+Six review rounds on 2026-11-06 are applied (`external.review.json`: 365
+same-vehicle groups, 460 similar-pair decisions, 69 annotation decisions; 11
 satayu crops excluded). All sources were re-split together as in section 5, and
-the satayu-only snapshot `run-b3119d538da84aefcf5b` (`training.top10.json`) is
+the satayu-only snapshot `run-55cada0d50ef35e3bc26` (`training.top10.json`) is
 pinned to it: every satayu crop has the same split in both. Integrity and
 leakage checks pass (0 known cross-split groups, images or crops).
 
 | split | crops (10 classes) | satayu crops | known groups |
 |---|---:|---:|---:|
-| train | 8463 | 677 | 1091 |
-| val | 182 | 129 | 136 |
-| test | 185 | 136 | 141 |
+| train | 8463 | 663 | 1080 |
+| val | 183 | 137 | 133 |
+| test | 182 | 140 | 135 |
 
-- satayu is close to its own 70/15/15. External val/test now hold only crops
-  from the sources' original valid/test splits (arfah 53 / 49); the earlier
-  snapshots had more because pre-augmented train crops counted toward the
-  ratios.
-- Smallest satayu val/test classes: nmax 4 / 3 (val/test crops in total
-  14 / 15 with arfah), xmax 5 / 5, super_cub 7 / 7. Per-class val/test metrics
-  for these are noisy.
+- satayu (all classes 1036 / 219 / 223) is close to its own 70/15/15. External
+  val/test hold only crops from the sources' original valid/test splits (arfah
+  46 / 42); a valid/test crop linked to a pre-augmented train copy stays in train.
+- Smallest val/test classes: xmax 5 / 4, grand_filano 7 / 7, super_cub 7 / 7
+  (satayu only); nmax has 7 / 4 satayu crops (14 / 14 with arfah). Per-class
+  val/test metrics for these are noisy.
 - Test splits differ from every earlier snapshot, so earlier test scores are
   not comparable.
 
-Audit `runs/curation-20261106T042612Z-4ca1ba82` (seed 20261105, "satayu" is
-`thai-motorcycle-v1-top1k`): 36 cross-split embedding pairs (20 already decided
-D in earlier rounds, 16 new), 8 pending cross-split dHash pairs (6 queued
-separately, the rest overlap embedding pairs), 21 suspected labels (4 without an
-earlier decision), 4 quality flags (kept earlier). The new pairs come from the
-reshuffle (section 5). Probe out-of-fold top-1 0.980.
+Audit `runs/curation-20261106T080704Z-ef9a58a4` (seed 20261105, "satayu" is
+`thai-motorcycle-v1-top1k`): 54 queue items, 46 already decided in earlier
+rounds. Not reviewed when the snapshot was frozen: 1 embedding pair
+(grand_filano train/val, cosine 0.951), 2 dHash pairs at distance 6 (wave/pcx,
+wave/wave), 1 suspected label (`732153269e3dea01fd560c6f:1`, click, probe
+suggests aerox) and the 4 quality flags kept in earlier rounds. Each round with
+**S** decisions re-split satayu and created new cross-split pairs (new pairs per
+round 16, 6, 3, 5, 3), so the review stopped here; at most 3 crop pairs may
+still cross splits. Probe out-of-fold top-1 0.982.
+
+Four pairs an earlier round marked **D** were marked **S** in a later round
+(before the review page showed earlier decisions); the later, leakage-safe **S**
+was kept.
 
 ### Baseline before review: run-b59a0ba61dc9f30406a3
 
@@ -164,7 +170,11 @@ Open `runs/curation-.../review.html` in a browser (offline; it reads crops from
 the snapshot through relative links, so keep the folders in place).
 
 - Tabs: **รูปซ้ำข้าม split**, **label น่าสงสัย**, **คุณภาพรูป**, each with a
-  remaining/total counter and an "undecided only" filter.
+  remaining/total counter and an "undecided only" filter (on by default).
+- Items an earlier round already decided are read from the snapshot's
+  `review_applied.json`, counted as decided and hidden by the filter; untick it
+  to see or change them ("ตัดสินรอบก่อน"). Quality **K** leaves no record in the
+  review schema, so kept quality flags are asked again.
 - Pairs: **S** same vehicle (must share a split), **D** different vehicles,
   **U** uncertain. Same model in a similar pose is still **D**.
 - Labels: **K** label is correct, **A** accept the suggested class, **X** exclude,
@@ -174,9 +184,10 @@ the snapshot through relative links, so keep the folders in place).
 - Arrow keys move between items. A blank reason uses a Thai default reason.
 - Decisions autosave in that browser. **Export decisions log** backs them up or
   moves them to another machine (**นำเข้า log**).
-- **Export review.json**: first choose the base review (`external.review.json`),
-  so earlier decisions are kept. The export is in the schema `prepare.py --review`
-  accepts (tested against `prepare.load_review`).
+- **Export review.json** merges this page's decisions onto the snapshot's
+  `review_applied.json`, so earlier decisions are kept without choosing a file.
+  The export is in the schema `prepare.py --review` accepts (tested against
+  `prepare.load_review`).
 
 Optional visual exploration for presentations:
 

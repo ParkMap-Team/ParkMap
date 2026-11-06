@@ -102,8 +102,8 @@ that immutable snapshot.
 
 `classes` in the config is `null` (every snapshot class) or a list of class names
 to train on. `training.top10.json` keeps the 10 classes with at least 30 crops in
-the Roboflow snapshot `prepared/run-b3119d538da84aefcf5b` (re-split after the
-second 2026-11-06 review and pinned to the combined run of
+the Roboflow snapshot `prepared/run-55cada0d50ef35e3bc26` (re-split after the
+sixth 2026-11-06 review and pinned to the combined run of
 `training.top10-external.json`, so both share one test split; models trained on
 earlier, now deleted runs such as `run-71a1fa00b3a2357ae77d` and
 `run-06a05f38ab75dc156741` used different test splits, so their results are not

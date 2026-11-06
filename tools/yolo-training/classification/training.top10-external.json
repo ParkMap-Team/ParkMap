@@ -1,5 +1,5 @@
 {
-  "dataset": "prepared/run-c2809f621c207077a0a7",
+  "dataset": "prepared/run-e8ffb080512c136efe75",
   "output": "runs",
   "architecture": "resnet18",
   "image_size": 224,

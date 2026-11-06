@@ -15,7 +15,7 @@ from uuid import uuid4
 
 import numpy as np
 from classifier_data import validate_run
-from curate_page import render_review
+from curate_page import prior_decisions, render_review
 from prepare import SPLITS
 
 EMBEDDING_MODEL = "facebook/dinov2-small"  # Apache-2.0, safetensors weights
@@ -299,6 +299,9 @@ def write_markdown(path, report):
               + "; ".join(f"{k} {v}" for k, v in a["label_issues_by_source"].items()) + ".",
               f"- Image-quality flags (CleanVision): **{a['quality_flagged_crops']}** crops"
               + ("; " + ", ".join(f"{k} {v}" for k, v in a["quality_counts"].items()) if a["quality_counts"] else "") + ".",
+              f"- Already decided in an earlier review round (hidden by default in `review.html`): "
+              f"**{sum(a['queue_items_decided_before'].values())}** of {sum(a['queue_items'].values())} queue items"
+              + (" (" + ", ".join(f"{k} {v}" for k, v in sorted(a["queue_items_decided_before"].items())) + ")" if a["queue_items_decided_before"] else "") + ".",
               "", "## Limitations", ""] + [f"- {text}" for text in report["limitations"]] + [""]
     lines += eda_markdown("Appendix: every snapshot class", report["eda"]["all_classes"])
     path.write_text("\n".join(lines), encoding="utf-8")
@@ -306,7 +309,7 @@ def write_markdown(path, report):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dataset", type=Path, default=Path(__file__).with_name("prepared") / "run-c2809f621c207077a0a7",
+    parser.add_argument("--dataset", type=Path, default=Path(__file__).with_name("prepared") / "run-e8ffb080512c136efe75",
                         help="Prepared run directory containing COMPLETE")
     parser.add_argument("--config", type=Path, default=Path(__file__).with_name("training.top10-external.json"),
                         help="Training config whose `classes` (null = all) defines the handoff subset audited")
@@ -357,7 +360,8 @@ def main(argv=None):
     print(f"Label audit: {args.folds}-fold group-aware probe + cleanlab...", flush=True)
     probabilities = out_of_fold_probabilities(embeddings, labels, photos, len(classes), args.folds, args.seed)
     issues = suspected_labels(labels, probabilities)
-    items = queue_items(root, run, rows, classes, embeddings, photos, near, dhash, issues, flags, pinned)
+    applied_review = json.loads((root / "review_applied.json").read_text(encoding="utf-8"))
+    items = prior_decisions(queue_items(root, run, rows, classes, embeddings, photos, near, dhash, issues, flags, pinned), applied_review)
     pair_sources = Counter(" / ".join(sorted(f"{rows[k]['source_dataset']}:{rows[k]['split']}" for k in (i, j))) for i, j, _ in near)
     quality_counts = Counter(name for found in flags.values() for name in found)
     report = {
@@ -376,14 +380,15 @@ def main(argv=None):
                   "dhash_pairs_pending_cross_split": len(dhash), "label_issues": len(issues), "probe_folds": args.folds,
                   "probe_out_of_fold_top1": float((probabilities.argmax(axis=1) == np.asarray(labels)).mean()),
                   "quality_flagged_crops": len(flags), "quality_counts": dict(sorted(quality_counts.items())),
-                  "queue_items": dict(Counter(item["kind"] for item in items))},
+                  "queue_items": dict(Counter(item["kind"] for item in items)),
+                  "queue_items_decided_before": dict(Counter(item["kind"] for item in items if "prior" in item))},
         "pinned_sources": sorted(pinned),
         "limitations": audit_limitations(pinned),
     }
     (run / "audit.json").write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
     write_markdown(run / "AUDIT.md", report)
     (run / "queue.json").write_text(json.dumps(items, ensure_ascii=False), encoding="utf-8")
-    render_review(run / "review.html", items, all_summary["classes"], report)
+    render_review(run / "review.html", items, all_summary["classes"], report, applied_review)
     print(json.dumps(report["audit"], indent=2), flush=True)
     print(f"Report: {run / 'AUDIT.md'}\nReview queue: {run / 'review.html'}", flush=True)
     return 0

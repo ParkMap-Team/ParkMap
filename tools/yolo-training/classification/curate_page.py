@@ -1,5 +1,5 @@
 """Offline keyboard-driven review queue for curate.py findings. It exports a review.json in the
-schema prepare.py --review accepts (merged onto the base review) plus a decision log for the record."""
+schema prepare.py --review accepts (merged onto the review the snapshot applied) plus a decision log for the record."""
 
 import json
 from pathlib import Path
@@ -111,10 +111,9 @@ kbd { border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; 
   <h1>Dataset review queue <span class="muted" id="fingerprint"></span></h1>
   <div class="row" id="tabs"></div>
   <div class="row" style="margin-top:6px">
-    <label><input type="checkbox" id="undecided"> เฉพาะที่ยังไม่ตัดสิน</label>
+    <label><input type="checkbox" id="undecided" checked> เฉพาะที่ยังไม่ตัดสิน</label>
     <span id="progress" class="muted"></span>
     <span style="flex:1"></span>
-    <label class="muted">base review <input type="file" id="base" accept=".json"></label>
     <label class="muted">นำเข้า log <input type="file" id="log" accept=".json"></label>
     <button id="export">Export review.json</button>
     <button id="export-log">Export decisions log</button>
@@ -138,8 +137,10 @@ const ACTIONS = {
   label: [["keep", "K", "label ถูก"], ["relabel", "A", "เปลี่ยนเป็นที่แนะนำ"], ["exclude", "X", "ตัดออก"]],
   quality: [["quality_keep", "K", "เก็บไว้"], ["quality_exclude", "X", "ตัดออก"]],
 };
-let state = { decisions: {}, base: null, baseName: "" };
+let state = { decisions: {} };
 try { state = Object.assign(state, JSON.parse(localStorage.getItem(STORE) || "{}")); } catch (e) { /* storage unavailable */ }
+// A decision made on this page wins; otherwise the one an earlier round recorded in the applied review.
+const decisionOf = (item) => state.decisions[item.id] || item.prior;
 let kind = "pair", position = 0, dirty = false;
 const save = () => { dirty = true; try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* storage unavailable */ } };
 const el = (tag, attrs = {}, ...children) => {
@@ -148,7 +149,7 @@ const el = (tag, attrs = {}, ...children) => {
   for (const child of children) if (child !== null && child !== undefined) node.append(child);
   return node;
 };
-const queue = () => DATA.items.filter((i) => i.kind === kind && (!document.getElementById("undecided").checked || !state.decisions[i.id] || i === current()));
+const queue = () => DATA.items.filter((i) => i.kind === kind && (!document.getElementById("undecided").checked || !decisionOf(i) || i === current()));
 let currentId = null;
 const current = () => DATA.items.find((i) => i.id === currentId);
 
@@ -194,21 +195,22 @@ function render() {
   const items = queue();
   if (!current() || current().kind !== kind) currentId = items.length ? items[0].id : null;
   const all = DATA.items.filter((i) => i.kind === kind);
-  const done = all.filter((i) => state.decisions[i.id]).length;
+  const done = all.filter(decisionOf).length;
   const resplit = DATA.items.filter((i) => needsResplit(i, state.decisions[i.id])).length;
   document.getElementById("progress").textContent = `${done}/${all.length} ตัดสินแล้ว` + (resplit ? ` | ${resplit} รายการต้อง re-split แบบไม่ pin` : "");
   const tabs = document.getElementById("tabs");
   tabs.replaceChildren(...Object.entries(KINDS).map(([k, label]) => {
     const total = DATA.items.filter((i) => i.kind === k).length;
-    const left = DATA.items.filter((i) => i.kind === k && !state.decisions[i.id]).length;
+    const left = DATA.items.filter((i) => i.kind === k && !decisionOf(i)).length;
     return el("button", { class: k === kind ? "on" : "", onclick: () => { kind = k; currentId = null; render(); } }, `${label} (${left} เหลือ / ${total})`);
   }));
   const item = current();
   if (!item) { view.replaceChildren(el("p", {}, all.length ? "ตัดสินครบแล้วในหมวดนี้" : "ไม่มีรายการในหมวดนี้")); renderList(all); return; }
-  const d = state.decisions[item.id];
+  const d = state.decisions[item.id], shown = decisionOf(item);
   const head = el("div", { class: "row" }, el("strong", {}, `${all.indexOf(item) + 1} / ${all.length}`),
     el("span", { class: "chip" }, item.method ? `${item.method} ${item.score}` : `score ${item.score}`),
-    d ? el("span", { class: "status-done" }, "ตัดสินแล้ว: " + d.action + (d.canonical_class ? " -> " + d.canonical_class : "")) : el("span", { class: "muted" }, "ยังไม่ตัดสิน"),
+    shown ? el("span", { class: "status-done" }, (d ? "ตัดสินแล้ว: " : "ตัดสินรอบก่อน: ") + shown.action + (shown.canonical_class ? " -> " + shown.canonical_class : ""))
+      : el("span", { class: "muted" }, "ยังไม่ตัดสิน"),
     needsResplit(item, d) ? el("span", { class: "warn" }, "ต้อง re-split: source นี้ pin splits ไว้") : null);
   const parts = [head];
   if (item.kind === "pair") {
@@ -230,7 +232,7 @@ function render() {
   const reason = el("input", { type: "text", id: "reason", placeholder: "เหตุผล (เว้นว่าง = ใช้ค่าเริ่มต้น)" });
   reason.value = d ? d.reason || "" : "";
   const actions = el("div", { class: "row actions" }, ...ACTIONS[item.kind].map(([action, key, label]) =>
-    el("button", { class: d && d.action === action ? "on" : "", onclick: () => decide(action) }, el("kbd", {}, key), " " + label)));
+    el("button", { class: shown && shown.action === action ? "on" : "", onclick: () => decide(action) }, el("kbd", {}, key), " " + label)));
   if (item.kind === "label") {
     const select = el("select", { "aria-label": "เลือก class อื่น" }, el("option", { value: "" }, "class อื่น..."),
       ...DATA.classes.map((c) => el("option", { value: c }, c)));
@@ -246,7 +248,7 @@ function render() {
 function renderList(all) {
   const list = document.getElementById("list");
   list.replaceChildren(...all.map((i, n) => el("button", {
-    class: (state.decisions[i.id] ? "done " : "") + (i.id === currentId ? "current" : ""),
+    class: (decisionOf(i) ? "done " : "") + (i.id === currentId ? "current" : ""),
     title: i.id, onclick: () => { currentId = i.id; render(); } }, String(n + 1))));
 }
 
@@ -263,17 +265,12 @@ function readJson(input, apply) {
   file.text().then((text) => apply(JSON.parse(text), file.name)).catch((e) => alert("อ่านไฟล์ไม่ได้: " + e.message));
 }
 
-document.getElementById("base").addEventListener("change", (e) => readJson(e.target, (value, name) => {
-  if (value.version !== 1) throw new Error("ไม่ใช่ review.json version 1");
-  state.base = value; state.baseName = name; save(); render(); showBase();
-}));
 document.getElementById("log").addEventListener("change", (e) => readJson(e.target, (value) => {
   if (value.fingerprint !== DATA.fingerprint) throw new Error("log นี้เป็นของ snapshot อื่น");
   Object.assign(state.decisions, Object.fromEntries(value.decisions.map(({ id, ...d }) => [id, d]))); save(); render();
 }));
 document.getElementById("export").addEventListener("click", () => {
-  if (!state.base && !confirm("ยังไม่ได้เลือก base review (" + DATA.base_review + ") จะ export เฉพาะการตัดสินในหน้านี้ ต่อหรือไม่?")) return;
-  download("review.json", buildReview(state.base, DATA.items, state.decisions)); dirty = false;
+  download("review.json", buildReview(DATA.base, DATA.items, state.decisions)); dirty = false;
 });
 document.getElementById("export-log").addEventListener("click", () => {
   download("decisions.json", { fingerprint: DATA.fingerprint, audit_run: DATA.audit_run, exported_at: new Date().toISOString(),
@@ -282,8 +279,9 @@ document.getElementById("export-log").addEventListener("click", () => {
   dirty = false;
 });
 function showBase() {
-  document.getElementById("base-status").textContent = state.base ? `base review: ${state.baseName}` :
-    `ยังไม่ได้เลือก base review: เลือก ${DATA.base_review} เพื่อรวมการตัดสินเดิม (export จะไม่ทับของเดิม)`;
+  const prior = DATA.items.filter((i) => i.prior).length;
+  document.getElementById("base-status").textContent = `${prior}/${DATA.items.length} รายการตัดสินไว้แล้วในรอบก่อน (ซ่อนไว้; เอาติ๊กออกเพื่อดูหรือแก้). `
+    + "Export review.json รวมการตัดสินเดิมของ snapshot นี้ให้อัตโนมัติ";
 }
 window.addEventListener("beforeunload", (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
 document.addEventListener("keydown", (e) => {
@@ -308,9 +306,45 @@ render();
 """
 
 
-def render_review(path, items, classes, report, base_review="external.review.json"):
-    """Write the standalone review page; image links stay relative to the prepared snapshot."""
-    payload = {"fingerprint": report["dataset"]["fingerprint"], "audit_run": Path(path).parent.name, "base_review": base_review,
+PRIOR_PAIR_ACTIONS = {"same_vehicle_grouped": "same", "distinct": "distinct", "uncertain": "uncertain"}
+
+
+def prior_decisions(items, review):
+    """Attach to each queue item the decision an earlier round recorded in `review`, the inverse of buildReview.
+
+    Quality "keep" leaves no record in the review schema, so those items are asked again."""
+    pairs = {frozenset(p["images"]): p for p in review["similar_pairs"]}
+    groups = [set(g) for g in review["same_vehicle_groups"]]
+    for item in items:
+        a = item["crops"][0]
+        prior = None
+        if item["kind"] == "pair":
+            b = item["crops"][1]
+            pair = pairs.get(frozenset((a["image_id"], b["image_id"])))
+            if pair and pair.get("decision") in PRIOR_PAIR_ACTIONS:
+                prior = {"action": PRIOR_PAIR_ACTIONS[pair["decision"]], "reason": pair.get("reason", "")}
+            elif any(a["annotation_id"] in g and b["annotation_id"] in g for g in groups):
+                prior = {"action": "same", "reason": ""}
+        else:
+            entry = review["annotations"].get(a["annotation_id"], {})
+            if entry.get("exclude"):
+                prior = {"action": "exclude" if item["kind"] == "label" else "quality_exclude"}
+            elif item["kind"] == "label" and entry.get("canonical_class"):
+                prior = {"action": "relabel", "canonical_class": entry["canonical_class"]}
+            elif item["kind"] == "label" and entry.get("confirmed"):
+                prior = {"action": "keep"}
+            if prior:
+                prior["reason"] = entry.get("reason", "")
+        if prior:
+            item["prior"] = prior
+    return items
+
+
+def render_review(path, items, classes, report, base):
+    """Write the standalone review page; image links stay relative to the prepared snapshot.
+
+    `base` is the review the snapshot applied; the export merges new decisions onto it."""
+    payload = {"fingerprint": report["dataset"]["fingerprint"], "audit_run": Path(path).parent.name, "base": base,
                "classes": classes, "items": items}
     # Escaping "<" keeps "</script>" in any string from closing the JSON block.
     text = PAGE.replace("__PAYLOAD__", json.dumps(payload, ensure_ascii=False).replace("<", "\\u003c"))

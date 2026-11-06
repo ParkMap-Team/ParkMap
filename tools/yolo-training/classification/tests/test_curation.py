@@ -179,6 +179,22 @@ process.stdout.write(JSON.stringify({review: buildReview(input.base, input.items
         self.assertNotIn("a1", review["annotations"])
         self.assertEqual(result["resplit"], ["pair:a5|a6", "label:a7"])
 
+    def test_prior_decisions_mark_items_an_earlier_round_decided(self):
+        items = self.queue() + [{"id": "pair:a1|a3", "kind": "pair", "crops": [{"annotation_id": "a1", "image_id": "i1"},
+                                                                               {"annotation_id": "a3", "image_id": "i3"}]}]
+        review = {"version": 1, "images": {}, "same_vehicle_groups": [["a1", "a2", "x"]],
+                  "similar_pairs": [{"images": ["i4", "i3"], "decision": "distinct", "reason": "ต่างคัน"}],
+                  "annotations": {"a7": {"canonical_class": "wave", "confirmed": True, "reason": "r7"}, "a8": {"confirmed": True},
+                                  "a3": {"exclude": True}, "a9": {"exclude": False}}}
+        priors = {i["id"]: i.get("prior") for i in curate_page.prior_decisions(items, review)}
+        self.assertEqual(priors["pair:a1|a2"], {"action": "same", "reason": ""})
+        self.assertEqual(priors["dhash:i3|i4"], {"action": "distinct", "reason": "ต่างคัน"})
+        self.assertEqual(priors["label:a7"], {"action": "relabel", "canonical_class": "wave", "reason": "r7"})
+        self.assertEqual(priors["label:a8"], {"action": "keep", "reason": ""})
+        self.assertEqual(priors["quality:a3"], {"action": "quality_exclude", "reason": ""})
+        for undecided in ("pair:a5|a6", "label:a9", "quality:a1", "pair:a1|a3"):
+            self.assertIsNone(priors[undecided])
+
     def test_pinned_limitation_appears_only_with_pinned_sources(self):
         self.assertFalse(any("pinned" in text for text in curate.audit_limitations(set())))
         self.assertIn("Decisions about pinned sources (a, b)", curate.audit_limitations({"b", "a"})[-1])
@@ -194,10 +210,12 @@ process.stdout.write(JSON.stringify({review: buildReview(input.base, input.items
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "review.html"
             items = [{"id": "label:x", "kind": "label", "suggested": "</script><b>", "crops": []}]
-            curate_page.render_review(path, items, ["click"], {"dataset": {"fingerprint": "abc"}})
+            base = {"version": 1, "annotations": {"x": {"exclude": True, "reason": "</script>"}}}
+            curate_page.render_review(path, items, ["click"], {"dataset": {"fingerprint": "abc"}}, base)
             text = path.read_text(encoding="utf-8")
-        payload = re.search(r'<script type="application/json" id="payload">(.*?)</script>', text, re.DOTALL).group(1)
-        self.assertEqual(json.loads(payload)["items"][0]["suggested"], "</script><b>")
+        payload = json.loads(re.search(r'<script type="application/json" id="payload">(.*?)</script>', text, re.DOTALL).group(1))
+        self.assertEqual(payload["items"][0]["suggested"], "</script><b>")
+        self.assertEqual(payload["base"], base)
         self.assertIn("function buildReview", text)
 
 
