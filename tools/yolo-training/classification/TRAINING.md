@@ -1,16 +1,32 @@
 # Train the motorcycle model-family classifier
 
-From the **ParkMap repository root** in VS Code Terminal, run:
+Use one of the three reviewed **top-10 configs** (2026-11-06, six review rounds;
+see [CURATION.md](CURATION.md) section 3). All three share one satayu val/test
+split, so their val/test scores are directly comparable:
+
+| config | train data | snapshot |
+|---|---|---|
+| `training.top10.json` | satayu only | `prepared/run-55cada0d50ef35e3bc26` |
+| `training.top10-external.json` | satayu + external Roboflow sources | `prepared/run-e8ffb080512c136efe75` |
+| `training.top10-external-weighted.json` | same, `pre_augmented_copies: 3` | `prepared/run-e8ffb080512c136efe75` |
+
+From the **ParkMap repository root** in VS Code Terminal, run for example:
 
 ```powershell
-uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py
+uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --config tools/yolo-training/classification/training.top10-external.json
 ```
 
-This is the command that actually starts training. The default configuration is
-already pinned to the reviewed dataset: **46 classes, 1,019 train / 222 val / 220
-test crops**, `prepared/run-4cb0b6637def7634bde2`. It deliberately does not follow
-the moving `prepared/latest.json` pointer. A later review/preparation run therefore
-cannot silently change the data for this experiment.
+This is the command that actually starts training. Each config is pinned to an
+immutable snapshot and deliberately does not follow the moving
+`prepared/latest.json` pointer, so a later review/preparation run cannot silently
+change the data for an experiment.
+
+Running `train.py` without `--config` uses the older `training.json`
+(`prepared/run-4cb0b6637def7634bde2`, 46 classes), and `training.honda2.json`
+points to `prepared/combined-honda2/run-a38f82ba9eebc8f5b871`. Neither snapshot
+exists any more, so both configs fail validation; they are kept only as history.
+Scores from models trained on earlier snapshots are not comparable with the
+current test split.
 
 Training uses the project's locked Python 3.12 environment, which already has
 Torch, Torchvision and Pillow. If that environment is missing, first install it
@@ -25,7 +41,7 @@ To verify the real snapshot without loading Torch, downloading weights, creating
 a run or training, use:
 
 ```powershell
-uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --validate-only
+uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --config tools/yolo-training/classification/training.top10-external.json --validate-only
 ```
 
 The script verifies all prepared file hashes, crop/manifest alignment, class order,
@@ -33,13 +49,13 @@ decoding, required splits and known exact-image/group leakage. It refuses change
 snapshots and classes with no train samples. Empty val/test class coverage is
 retained in the dataset metadata and metrics, never silently relabelled/dropped.
 
-This dataset remains **provisional**: all included labels have confirmation flags
-from the supplied review, but 298 similar-image pairs remain unchecked, including
-150 crossing the current splits. `training.json` explicitly sets
-`allow_provisional: true` for exploratory baseline training. Validation metrics
-may be optimistic until those relationships are reviewed. They do not establish
-accuracy for the ParkMap camera or safe parking availability. Model-family
-classification does not measure vehicle dimensions.
+These snapshots remain **provisional**: a few similar-image pairs, one label and
+four quality flags were left unreviewed at the freeze (listed in CURATION.md), and
+at most 3 crop pairs may still cross splits. The top-10 configs explicitly set
+`allow_provisional: true`. Some classes have very small val/test sets (xmax 5/4,
+grand_filano 7/7, super_cub 7/7 crops), so per-class scores are noisy. Metrics do
+not establish accuracy for the ParkMap camera or safe parking availability.
+Model-family classification does not measure vehicle dimensions.
 
 ## Baseline and settings
 
@@ -57,7 +73,8 @@ For offline training, provide the original Torchvision ImageNet ResNet18
 ParkMap trained classifier checkpoint or YOLO detector weights. The initial
 weights' full SHA-256 is saved in run metadata.
 
-Defaults in `training.json`:
+Defaults in `training.json`. The top-10 configs differ: 20 epochs, learning rate
+0.0001 and `fine_tune: true` (the backbone is trained too).
 
 - 10 epochs, batch size 16, 224×224 model input, AdamW learning rate 0.001.
 - Two CPU threads and zero data-loader workers for a modest Windows default.
