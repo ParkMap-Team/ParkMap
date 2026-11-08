@@ -5,7 +5,10 @@
 # =====================================================================================
 
 # ---------- ข้อมูลและที่เก็บผลลัพธ์ ----------
-dataset: ../datasets/spu-park-split   # โฟลเดอร์ dataset ที่มี train/ val/ test/ (images + labels) และ sessions.json
+dataset: ../datasets/spu-park-split-real   # หรือ ../datasets/spu-park-split-roi (ระบายนอก ROI เป็นสีเทา สร้างด้วย make_split.py --roi roi.json)
+                                      # โฟลเดอร์ dataset ที่มี train/ val/ test/ (images + labels) และ sessions.json
+segment_dataset: ../datasets/spu-park-split-seg   # dataset ของโมเดล task: segment (label เป็น polygon ไม่ใช่กล่อง)
+                                      # แบ่ง train/val/test เหมือน dataset ด้านบนทุกภาพ สร้างด้วย make_split.py --seg
 output: runs                          # ผลการเทรนทุกรอบ: runs/<model>/round-NN_<วันที่>_<เวลา>/
 weights_dir: weights                  # ที่เก็บ pretrained weights ที่โหลดอัตโนมัติครั้งแรก
 
@@ -17,13 +20,13 @@ classes:                              # class id -> ชื่อ; label ที�
 # โมเดลใดต้องการค่าต่างไป ให้ใส่ใน "train:" ของโมเดลนั้นด้านล่าง (จะทับค่าที่นี่)
 train:
   # --- รอบการเทรน ---
-  epochs: 150            # จำนวนรอบสูงสุดที่เทรนผ่านข้อมูล train ทั้งชุด
+  epochs: 300           # จำนวนรอบสูงสุดที่เทรนผ่านข้อมูล train ทั้งชุด
   patience: 0          # หยุดก่อนถ้า val mAP ไม่ดีขึ้นติดต่อกันกี่ epoch (0 = ไม่หยุดก่อน)
 
   # --- ขนาดภาพ / หน่วยความจำ ---
-  imgsz: 960            # ขนาดด้านยาวของภาพตอนเทรน (px) ภาพ SPU กว้าง 3400; ค่าน้อยรถจะเล็กจนหาไม่เจอ
+  imgsz: 1600          # ขนาดด้านยาวของภาพตอนเทรน (px) ภาพ SPU กว้าง 3400; ค่าน้อยรถจะเล็กจนหาไม่เจอ
                          #   API ต้องใช้ค่าเดียวกันตอนใช้งาน (PARKMAP_MODEL_IMGSZ)
-  batch: 4               # จำนวนภาพต่อ step; out of memory ให้ลดเป็น 2 หรือ 1
+  batch: 2              # จำนวนภาพต่อ step; out of memory ให้ลดเป็น 2 หรือ 1
   device: auto           # auto = ใช้ GPU ถ้ามี ไม่งั้น CPU; หรือระบุ cpu / 0 (GPU ตัวแรก)
   workers: 2             # จำนวน process โหลดภาพคู่ขนาน (Windows แนะนำ 0-2)
   cache: false           # true = เก็บภาพไว้ใน RAM ให้เร็วขึ้น แต่ใช้ RAM มาก
@@ -40,6 +43,11 @@ train:
   weight_decay: 0.0005   # ลงโทษน้ำหนักที่ใหญ่เกินไป ช่วยลด overfitting
   warmup_epochs: 3.0     # จำนวน epoch แรกที่ค่อยๆ เพิ่ม learning rate จาก 0 ขึ้นไปถึง lr0
   cos_lr: false          # true = ลด learning rate แบบโค้ง cosine แทนเส้นตรง
+  nbs: 4                 # nominal batch size: Ultralytics รวม gradient จนครบ nbs ภาพก่อนอัปเดตน้ำหนัก 1 ครั้ง
+                         #   ค่าเริ่มต้นของ Ultralytics คือ 64 แต่ train มีภาพจริงแค่ 18 ภาพ (+ synthetic 26) จะอัปเดตน้อยเกินไป
+                         #   (ค่า val ใน results.csv จึงซ้ำกันหลาย epoch) ตั้งให้เท่ากับ batch = อัปเดตทุก step
+  warmup_bias_lr: 0.002  # learning rate เริ่มต้นของ bias ช่วง warmup (ค่าเริ่มต้น Ultralytics 0.1 ออกแบบมาสำหรับ SGD
+                         #   ใช้กับ AdamW แรงเกินจน mAP ตกเกือบ 0 ช่วงต้น) ตั้งเท่ากับ lr0
 
   # --- การตรวจจับ ---
   max_det: 300           # จำนวนกล่องสูงสุดต่อภาพ (ลาน SPU มีได้ราว 150 คัน)
@@ -74,6 +82,8 @@ test:
 # weights:     ไฟล์ .pt = เริ่มจาก pretrained weights (โหลดอัตโนมัติ)
 #              ไฟล์ .yaml = สร้างโครงโมเดลเปล่า (ไม่ pretrain) เริ่มจากค่าสุ่ม
 # family:      yolo (ค่าเริ่มต้น) หรือ rtdetr
+# task:        detect (ค่าเริ่มต้น: หากล่อง ใช้ dataset) หรือ segment (หากล่อง + ขอบรถเป็น mask ใช้ segment_dataset)
+#              โมเดล segment ต้องใช้ weights ที่ลงท้าย -seg และเลือก best.pt จาก mAP ของกล่องเหมือนโมเดล detect จึงเทียบกันได้
 # description: ข้อความที่แสดงในเมนู
 # train:       (ไม่บังคับ) ค่าที่ต่างจากบล็อก train ด้านบนสำหรับโมเดลนี้
 # COCO = ชุดภาพ 118k ภาพ 80 คลาส (มีคลาส motorcycle) โมเดล pretrain จึงรู้จักรถอยู่แล้ว
@@ -113,5 +123,24 @@ models:
     train: {batch: 1}
   yolo26s-scratch:
     weights: yolo26s.yaml
-    description: "[ไม่ Pretrain] YOLO26 Small เริ่มจากค่าสุ่ม ใช้เปรียบเทียบว่า pretrain ช่วยแค่ไหน คาดว่าแม่นต่ำมากกับข้อมูล 18 ภาพ"
+    description: "[ไม่ Pretrain] YOLO26 Small เริ่มจากค่าสุ่ม ใช้เปรียบเทียบว่า pretrain ช่วยแค่ไหน คาดว่าแม่นต่ำมากกับข้อมูลภาพจริง 18 ภาพ"
     train: {pretrained: false, epochs: 300, patience: 60}
+
+  # ----- Segmentation: ทายกล่อง + mask ขอบรถทีละคัน (เรียนจาก polygon ที่ติด label ไว้) -----
+  # กล่องที่ได้ใช้นับรถได้เหมือนโมเดล detect; mask ช่วยแยกรถที่จอดชิดกัน แต่เทรนช้ากว่าและใช้ GPU memory มากกว่า
+  yolo26s-seg:
+    weights: yolo26s-seg.pt
+    task: segment
+    description: "[Pretrained COCO] YOLO26 Small Segmentation 11.5M params. คู่เทียบของ yolo26s ได้ mask รายคันเพิ่ม"
+  yolo26n-seg:
+    weights: yolo26n-seg.pt
+    task: segment
+    description: "[Pretrained COCO] YOLO26 Nano Segmentation 3.1M params. เล็กสุดของ YOLO26 seg เหมาะถ้า API รันบน CPU"
+  yolo11s-seg:
+    weights: yolo11s-seg.pt
+    task: segment
+    description: "[Pretrained COCO] YOLO11 Small Segmentation 10.1M params. Baseline segmentation ที่ใช้กันแพร่หลาย"
+  yolo11n-seg:
+    weights: yolo11n-seg.pt
+    task: segment
+    description: "[Pretrained COCO] YOLO11 Nano Segmentation 2.9M params. เล็กและเร็ว คู่เทียบของ yolo11n"

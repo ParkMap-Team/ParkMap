@@ -120,7 +120,14 @@ data. All workspace images, SQLite databases, labels and exports are ignored by 
 
 The SPU photo set in `../datasets/SPU Park Label/by_date/` (polygon labels) is converted into the day-grouped
 detection export `../datasets/spu-park-split/` by `../datasets/SPU Park Label/make_split.py`; edit its `DAYS` table to
-move a day to another split, delete the old export and run it again.
+move a day to another split, delete the old export and run it again. `make_split.py --roi roi.json` builds `../datasets/spu-park-split-roi/` instead: everything outside the
+parking ROI is painted grey and motorcycles whose polygon centroid lies outside it are dropped. A model trained on it
+must receive ROI-masked images at inference too.
+
+`spu-park-split/train/` also holds 26 synthetic top-down images (`synthetic_*.jpg`, 3197 boxes) copied from the
+`Synthentic_Data_Lebel` set. They are train-only so val and test stay real SPU photos; `sessions.json` groups
+near-duplicate synthetic images into `synthetic-scene-NN`. `make_split.py` does not add them, so copy them in again after
+re-exporting.
 
 ## Optional Colab notebook
 

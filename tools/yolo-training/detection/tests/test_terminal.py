@@ -24,19 +24,26 @@ class TerminalDatasetTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
-        sessions = {}
-        for index, split in enumerate(("train", "val", "test")):
-            (self.root / split / "images").mkdir(parents=True)
-            (self.root / split / "labels").mkdir()
-            Image.new("RGB", (20, 20), (index * 60, 1, 1)).save(self.root / split / "images" / f"image-{index}.png")
-            (self.root / split / "labels" / f"image-{index}.txt").write_text("0 0.5 0.5 0.2 0.2\n")
-            sessions[f"image-{index}"] = f"session-{index}"
-        (self.root / "sessions.json").write_text(json.dumps(sessions))
+        self.root = Path(self.temp.name) / "detect"
+        self.seg = Path(self.temp.name) / "segment"
+        self.make_dataset(self.root, "0 0.5 0.5 0.2 0.2\n")
+        self.make_dataset(self.seg, "0 0.4 0.4 0.6 0.4 0.6 0.6 0.4 0.6\n")
         config = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
-        config.update(dataset=str(self.root), output=str(self.root / "runs"), weights_dir=str(self.root / "weights"))
+        config.update(dataset=str(self.root), segment_dataset=str(self.seg), output=str(self.root / "runs"),
+                      weights_dir=str(self.root / "weights"))
         self.config = self.root / "config.yaml"
         self.config.write_text(yaml.safe_dump(config, allow_unicode=True), encoding="utf-8")
+
+    @staticmethod
+    def make_dataset(root, label):
+        sessions = {}
+        for index, split in enumerate(("train", "val", "test")):
+            (root / split / "images").mkdir(parents=True)
+            (root / split / "labels").mkdir()
+            Image.new("RGB", (20, 20), (index * 60, 1, 1)).save(root / split / "images" / f"image-{index}.png")
+            (root / split / "labels" / f"image-{index}.txt").write_text(label)
+            sessions[f"image-{index}"] = f"session-{index}"
+        (root / "sessions.json").write_text(json.dumps(sessions))
 
     def test_check_cli_does_not_load_yolo_or_train(self):
         result = subprocess.run([sys.executable, str(ROOT / "train.py"), "--config", str(self.config), "--check"],
@@ -93,3 +100,44 @@ class TerminalDatasetTests(unittest.TestCase):
         (self.root / "val").rename(self.root / "hidden-val")
         with self.assertRaises(ValueError):
             module.validate_dataset(self.root)
+
+    def test_each_task_accepts_only_its_label_shape(self):
+        self.assertEqual(module.validate_dataset(self.root)["train"]["boxes"], 1)
+        self.assertEqual(module.validate_dataset(self.seg, task="segment")["train"]["boxes"], 1)
+        with self.assertRaisesRegex(ValueError, "detect labels need"):
+            module.validate_dataset(self.seg)
+        with self.assertRaisesRegex(ValueError, "segment labels need"):
+            module.validate_dataset(self.root, task="segment")
+        with self.assertRaises(ValueError):
+            module.validate_dataset(self.root, task="pose")
+
+    def test_segment_models_use_seg_weights_and_their_own_dataset(self):
+        config = train.load_config(self.config)
+        segment = [n for n, e in config["models"].items() if train.model_task(e) == "segment"]
+        self.assertGreaterEqual(len(segment), 1)
+        for name in segment:
+            self.assertTrue(config["models"][name]["weights"].endswith("-seg.pt"), name)
+        run = self.root / "runs" / "m" / "round-01_x"
+        run.mkdir(parents=True)
+        self.assertEqual(yaml.safe_load(train.data_yaml(config, run, "segment").read_text())["path"], str(self.seg.resolve()))
+        self.assertEqual(yaml.safe_load(train.data_yaml(config, run, "detect").read_text())["path"], str(self.root.resolve()))
+
+    def test_config_rejects_unknown_task_or_missing_segment_dataset(self):
+        config = yaml.safe_load(self.config.read_text(encoding="utf-8"))
+        config["models"]["yolo26s"]["task"] = "pose"
+        self.config.write_text(yaml.safe_dump(config, allow_unicode=True), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "unknown task"):
+            train.load_config(self.config)
+        del config["models"]["yolo26s"]["task"], config["segment_dataset"]
+        self.config.write_text(yaml.safe_dump(config, allow_unicode=True), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "segment_dataset"):
+            train.load_config(self.config)
+
+    def test_best_val_keeps_mask_metrics_of_segment_runs(self):
+        run = self.root / "runs" / "m" / "round-01_x"
+        run.mkdir(parents=True)
+        head = ["epoch", "metrics/precision(B)", "metrics/recall(B)", "metrics/mAP50(B)", "metrics/mAP50-95(B)",
+                "metrics/mAP50(M)", "metrics/mAP50-95(M)"]
+        (run / "results.csv").write_text(",".join(head) + "\n1,0.8,0.7,0.9,0.5,0.85,0.4\n2,0.8,0.8,0.9,0.6,0.86,0.45\n")
+        best = train.best_val(run)
+        self.assertEqual((best["best_epoch"], best["val_map50_95"], best["val_mask_map50_95"]), (2, 0.6, 0.45))

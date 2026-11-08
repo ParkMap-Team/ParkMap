@@ -1,4 +1,4 @@
-"""Train or test YOLO motorcycle detectors. Every setting comes from config.yaml; the API's weights are never touched.
+"""Train or test YOLO motorcycle detectors and segmenters. Every setting comes from config.yaml; the API's weights are never touched.
 
   python train.py                      menu: pick model(s), then train each
   python train.py --model yolo26s      skip the menu (repeat --model for several, or --model all)
@@ -25,6 +25,7 @@ from dataset_check import validate_dataset
 
 HERE = Path(__file__).resolve().parent
 ROUND = re.compile(r"^round-(\d+)_")
+TASKS = {"detect": "dataset", "segment": "segment_dataset"}  # model task -> config key of its dataset
 
 
 class Tee:
@@ -60,10 +61,26 @@ def load_config(path):
             raise ValueError(f"config is missing '{key}'")
     if not config["models"]:
         raise ValueError("config has no models")
+    for name, entry in config["models"].items():
+        task = entry.get("task", "detect")
+        if task not in TASKS:
+            raise ValueError(f"model '{name}': unknown task '{task}'; use {' or '.join(TASKS)}")
+        if TASKS[task] not in config:
+            raise ValueError(f"model '{name}' is a {task} model but config is missing '{TASKS[task]}'")
     base = path.parent
     config["_source"] = path
-    config["_paths"] = {key: (base / config[key]).resolve() for key in ("dataset", "output", "weights_dir")}
+    config["_paths"] = {key: (base / config[key]).resolve()
+                        for key in ("dataset", "segment_dataset", "output", "weights_dir") if key in config}
     return config
+
+
+def model_task(entry):
+    """'detect' (boxes) or 'segment' (boxes + masks); a summary.json written before tasks existed is detect."""
+    return entry.get("task", "detect")
+
+
+def dataset_path(config, task):
+    return config["_paths"][TASKS[task]]
 
 
 def model_settings(config, name):
@@ -157,10 +174,10 @@ def with_log(run_dir, log_name, work):
         Tee.log = None
 
 
-def data_yaml(config, run_dir):
+def data_yaml(config, run_dir, task):
     path = run_dir / "data.yaml"
     names = {int(k): v for k, v in config["classes"].items()}
-    path.write_text(yaml.safe_dump({"path": str(config["_paths"]["dataset"]), "train": "train/images",
+    path.write_text(yaml.safe_dump({"path": str(dataset_path(config, task)), "train": "train/images",
                                     "val": "val/images", "test": "test/images", "names": names}), encoding="utf-8")
     return path
 
@@ -199,10 +216,13 @@ def best_val(run_dir):
         rows = [{k.strip(): v for k, v in row.items()} for row in csv.DictReader(stream)]
     if not rows:
         return {}
-    best = max(rows, key=lambda r: float(r["metrics/mAP50-95(B)"]))
-    return {"best_epoch": int(float(best["epoch"])), "epochs_run": len(rows),
-            "val_map50": float(best["metrics/mAP50(B)"]), "val_map50_95": float(best["metrics/mAP50-95(B)"]),
-            "val_precision": float(best["metrics/precision(B)"]), "val_recall": float(best["metrics/recall(B)"])}
+    best = max(rows, key=lambda r: float(r["metrics/mAP50-95(B)"]))  # box metric, so detect and segment runs compare
+    result = {"best_epoch": int(float(best["epoch"])), "epochs_run": len(rows),
+              "val_map50": float(best["metrics/mAP50(B)"]), "val_map50_95": float(best["metrics/mAP50-95(B)"]),
+              "val_precision": float(best["metrics/precision(B)"]), "val_recall": float(best["metrics/recall(B)"])}
+    if "metrics/mAP50-95(M)" in best:  # segment runs also report mask metrics at the same epoch
+        result.update(val_mask_map50=float(best["metrics/mAP50(M)"]), val_mask_map50_95=float(best["metrics/mAP50-95(M)"]))
+    return result
 
 
 def train_one(config, name, dataset_summary):
@@ -210,12 +230,13 @@ def train_one(config, name, dataset_summary):
     run_dir = next_run_dir(output, name)
     settings = model_settings(config, name)
     entry = config["models"][name]
+    task = model_task(entry)
 
     def work():
         settings["device"] = resolve_device(settings["device"])
-        summary = {"model": name, "description": entry.get("description", ""), "run": run_dir.name,
+        summary = {"model": name, "task": task, "description": entry.get("description", ""), "run": run_dir.name,
                    "status": "running", "started": f"{datetime.now():%Y-%m-%d %H:%M:%S}",
-                   "environment": environment(), "dataset": {"path": str(config["_paths"]["dataset"]), **dataset_summary},
+                   "environment": environment(), "dataset": {"path": str(dataset_path(config, task)), **dataset_summary},
                    "weights": entry["weights"], "family": entry.get("family", "yolo"),
                    "pretrained": not entry["weights"].endswith((".yaml", ".yml")), "train": settings}
         (run_dir / "config_used.yaml").write_text(config["_source"].read_text(encoding="utf-8"), encoding="utf-8")
@@ -224,7 +245,7 @@ def train_one(config, name, dataset_summary):
         started = time.time()
         try:
             model = load_model(entry, weights_source(config, entry))
-            model.train(data=str(data_yaml(config, run_dir)), project=str(run_dir.parent), name=run_dir.name,
+            model.train(data=str(data_yaml(config, run_dir, task)), project=str(run_dir.parent), name=run_dir.name,
                         exist_ok=True, **settings)
             best = Path(model.trainer.best)
             summary.update(status="complete", checkpoint=str(best), checkpoint_sha256=sha256(best))
@@ -258,9 +279,10 @@ def finished_runs(output):
     return runs
 
 
-def test_one(config, key, dataset_summary):
+def test_one(config, key, datasets):
     run_dir = config["_paths"]["output"] / key
     summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    dataset_summary = datasets(model_task(summary))
     if "test" in summary:
         raise SystemExit(f"{key} was already tested; the held-out split is used once per run.")
 
@@ -273,6 +295,8 @@ def test_one(config, key, dataset_summary):
         summary["test"] = {"map50": float(metrics.box.map50), "map50_95": float(metrics.box.map),
                            "precision": float(metrics.box.mp), "recall": float(metrics.box.mr),
                            "dataset": dataset_summary["test"], "args": args, "at": f"{datetime.now():%Y-%m-%d %H:%M:%S}"}
+        if model_task(summary) == "segment":
+            summary["test"].update(mask_map50=float(metrics.seg.map50), mask_map50_95=float(metrics.seg.map))
         write_json(run_dir / "summary.json", summary)
         update_history(config["_paths"]["output"], key, summary["test"]["map50"])
         print(json.dumps(summary["test"], indent=2, default=str))
@@ -290,17 +314,29 @@ def main():
     args = parser.parse_args()
     if not isinstance(sys.stdout, Tee):
         sys.stdout, sys.stderr = Tee(sys.stdout), Tee(sys.stderr)
+    checked = {}
+
+    def datasets(task):
+        """Validate the dataset of a task once, when a model of that task is first needed."""
+        if task not in checked:
+            try:
+                checked[task] = validate_dataset(dataset_path(config, task), config["classes"], task)
+            except (TypeError, ValueError, OSError, KeyError) as error:
+                parser.exit(2, f"Rejected {task} dataset: {error}\n")
+            print(json.dumps({"task": task, "dataset": str(dataset_path(config, task)), **checked[task]}, indent=2))
+        return checked[task]
+
     try:
         config = load_config(args.config)
-        dataset = validate_dataset(config["_paths"]["dataset"], config["classes"])
     except (TypeError, ValueError, OSError, KeyError) as error:
         parser.exit(2, f"Rejected: {error}\n")
-    print(json.dumps({"dataset": str(config["_paths"]["dataset"]), **dataset}, indent=2))
     models = config["models"]
     if args.check:
+        for task in dict.fromkeys(model_task(m) for m in models.values()):
+            datasets(task)
         for name in models:
             settings = model_settings(config, name)
-            print(f"  {name:<12} epochs={settings['epochs']} imgsz={settings['imgsz']} batch={settings['batch']}  {models[name].get('description', '')}")
+            print(f"  {name:<16} {model_task(models[name]):<7} epochs={settings['epochs']} imgsz={settings['imgsz']} batch={settings['batch']}  {models[name].get('description', '')}")
         print("Check passed.")
         return 0
     if args.test:
@@ -308,7 +344,7 @@ def main():
         if not runs:
             parser.exit(1, "No finished run to test.\n")
         for key in choose(runs, "Test which run", allow_all=False):
-            test_one(config, key, dataset)
+            test_one(config, key, datasets)
         return 0
     if args.model:
         names = list(models) if args.model == ["all"] else args.model
@@ -318,8 +354,10 @@ def main():
     else:
         print("Models in config.yaml:")
         names = choose({n: m.get("description", "") for n, m in models.items()}, "Train which model", allow_all=True)
+    for task in dict.fromkeys(model_task(models[n]) for n in names):  # reject a bad dataset before any run starts
+        datasets(task)
     for name in names:
-        train_one(config, name, dataset)
+        train_one(config, name, datasets(model_task(models[name])))
     return 0
 
 
