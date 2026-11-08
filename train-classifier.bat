@@ -1,10 +1,10 @@
 @echo off
 setlocal
-rem Short entry point for the motorcycle-family classifier. Settings: tools\yolo-training\classification\experiments.json
+rem Short entry point for the motorcycle-family classifier. Settings: tools\yolo-training\classification\experiments.yaml
 rem Details: tools\yolo-training\classification\TRAINING.md
 set "CLS=%~dp0tools\yolo-training\classification"
 set "GPU_ENV=%~dp0tools\yolo-training\.venv-gpu"
-set "CONFIG=%CLS%\experiments.json"
+set "CONFIG=%CLS%\experiments.yaml"
 rem Prefer the CUDA environment; fall back to the API environment (CPU-only PyTorch).
 set "PY=%GPU_ENV%\Scripts\python.exe"
 if not exist "%PY%" set "PY=%~dp0apps\vision-api\.venv\Scripts\python.exe"
@@ -42,7 +42,7 @@ echo   run [model]    pick a model from a menu, or name it (the name all trains 
 echo   test [model]   evaluate the newest run (of that model) on the held-out test split, once
 echo   setup          create the CUDA environment for the GPU (one time, needs internet)
 echo.
-echo Models, patience, epochs and the rest are edited in one place: %CLS%\experiments.json
+echo Models, patience, epochs and the rest are edited in one place: %CLS%\experiments.yaml
 echo Results: %CLS%\runs\summary.csv (one row per finished run) and one folder per run.
 echo Examples: train-classifier run
 echo           train-classifier run yolo26n
@@ -73,7 +73,11 @@ exit /b %ERRORLEVEL%
 
 :test
 set "PATTERN=train-*"
-if defined MODEL set "PATTERN=train-*-%MODEL:_=-%-*"
+rem Fixed-width date, time and id: "convnext_tiny" must not also match a run of another model ending in "convnext_tiny".
+if defined MODEL set "PATTERN=train-????????-??????-%MODEL:_=-%-??????"
+set "MODELARG="
+rem The model name picks its settings (and dataset, if it sets its own) from experiments.yaml.
+if defined MODEL set "MODELARG=--model %MODEL%"
 set "LATEST="
 for /f "delims=" %%d in ('dir /b /ad /o-d "%CLS%\runs\%PATTERN%" 2^>nul') do if not defined LATEST set "LATEST=%%d"
 if not defined LATEST (
@@ -85,7 +89,7 @@ if not exist "%CLS%\runs\%LATEST%\best.pt" (
     exit /b 1
 )
 echo Held-out test evaluation of %LATEST%
-"%PY%" "%CLS%\train.py" --config "%CONFIG%" --evaluate-test --checkpoint "%CLS%\runs\%LATEST%\best.pt" %EXTRA%
+"%PY%" "%CLS%\train.py" --config "%CONFIG%" %MODELARG% --evaluate-test --checkpoint "%CLS%\runs\%LATEST%\best.pt" %EXTRA%
 exit /b %ERRORLEVEL%
 
 :setup

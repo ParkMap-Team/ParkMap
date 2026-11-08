@@ -6,6 +6,7 @@ import html
 import json
 import math
 import os
+from collections import Counter
 from pathlib import Path, PurePosixPath
 from urllib.parse import quote
 
@@ -26,7 +27,18 @@ def sha256(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def validate_run(root, allow_provisional=False, *, warm_start=None, evaluation_only=False):
+def balanced_weights(rows):
+    """Per-crop draw weights: every class equally likely, and within a class every known group equally likely.
+
+    A class with thousands of crops, or one group of thousands of video frames, then weighs the same as a rare class or a
+    single photograph. Keyed by (class, group) because one source image may hold several classes.
+    """
+    groups = Counter((row["canonical_class"], row["group_id"]) for row in rows)
+    groups_per_class = Counter(name for name, _ in groups)
+    return [1.0 / (groups_per_class[row["canonical_class"]] * groups[(row["canonical_class"], row["group_id"])]) for row in rows]
+
+
+def validate_run(root, allow_provisional=False, *, evaluation_only=False):
     root = Path(root).resolve()
     if not (root / "COMPLETE").is_file():
         raise ValueError("Use the prepared run directory containing COMPLETE, not its classification subfolder")
@@ -63,18 +75,15 @@ def validate_run(root, allow_provisional=False, *, warm_start=None, evaluation_o
     if not all(samples.values()):
         raise ValueError("Train, val and test must each have at least one crop")
     absent = set(classes) - {r["canonical_class"] for r in samples["train"]}
-    if absent and not (warm_start or evaluation_only):
+    if absent and not evaluation_only:
         raise ValueError(f"Classes without training examples: {sorted(absent)}; review grouping/data first")
     metadata = json.loads((root / "reproducibility.json").read_text(encoding="utf-8"))
-    parent = metadata.get("warm_start_parent")
-    if warm_start and (not parent or parent["classes"] != classes or sha256(warm_start) != parent["checkpoint_sha256"]):
-        raise ValueError("Warm-start checkpoint does not match the snapshot's verified parent")
     return {"snapshot": str(root), "fingerprint": metadata["fingerprint"], "manifest_sha256": sha256(root / "manifest.jsonl"),
             "classes": classes, "split_crops": {s: len(v) for s, v in samples.items()}, "status": audit["status"],
             "similar_pairs_pending": audit["similar_pairs_pending"],
             "similar_pairs_cross_split_proposed": audit.get("similar_pairs_cross_split_proposed", 0),
             "unconfirmed_included_annotations": audit["unconfirmed_included_annotations"], "leakage": leakage,
-            "class_coverage": audit["classes"], "warm_start_parent": parent,
+            "class_coverage": audit["classes"],
             "missing_training_classes": sorted(absent)}, samples
 
 

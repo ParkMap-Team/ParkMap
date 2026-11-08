@@ -8,24 +8,33 @@ From the repository root:
 .\train-classifier setup          # once, needs internet: CUDA PyTorch environment for the GPU
 .\train-classifier check          # GPU or CPU, every model's settings, dataset summary; trains nothing
 .\train-classifier run            # menu: pick one model, several ("1 3 4") or a = all, trained one after another
-.\train-classifier run yolo26n    # skip the menu: train one model by its name in experiments.json
+.\train-classifier run yolo26n    # skip the menu: train one model by its name in experiments.yaml
 .\train-classifier run all        # every model in turn, then print them ranked by val macro-F1
 .\train-classifier test yolo26n   # held-out test of that model's newest run; do it once, after choosing by val
 ```
 
-**All settings are in [experiments.json](experiments.json)**, the only file to edit. `dataset` and `output` are shared;
+**All settings are in [experiments.yaml](experiments.yaml)**, the only file to edit. Every parameter is commented there; YAML anchors (`&run1` / `*run1`) reuse a value. `dataset` and `output` are shared;
 `defaults` holds `epochs`, `patience` (0 turns early stopping off), `batch_size`, `learning_rate`, `seed`, `device`,
 `fine_tune` and the rest; each entry under `models` names a model and sets its `architecture` plus anything that should
 differ from `defaults`. The order of the entries is the order of the `run` menu, and an optional `note` is the hint shown
 there. Names use letters, digits, `-` or `_`. Options typed after the name win over the file for that run, e.g.
-`.\train-classifier run resnet18 --epochs 10 --device cpu`. The older single-experiment `training*.json` files still work
-with `train.py --config`.
+`.\train-classifier run resnet18 --epochs 10 --device cpu`. A flat one-experiment JSON config (no `models` section) still
+works with `train.py --config`.
 
 Three optional keys fight overfitting (they go in `defaults` or in one model's block; leaving them out gives the earlier behaviour):
 `"augmentation": "strong"` adds random shift, scale (0.85-1.1), tilt (up to 10 degrees) and stronger colour jitter to **train** images only
 (`"basic"`, the default, is flip plus mild jitter); `"weight_decay"` (default 0.01, AdamW's own) and `"label_smoothing"` (default 0,
 applied to the training loss only, so val loss stays comparable). `convnext_aug`, `convnext_reg` and `convnext_aug_reg` test each change on
 ConvNeXt-Tiny, alone and together, against the plain `convnext_tiny` run; `summary.csv` records the three settings per run.
+
+`"sampling": "balanced"` (now in `defaults`) draws **train** crops with replacement so every class is equally likely and,
+within a class, every known group (one photo, or one whole video clip) is equally likely; an epoch keeps its usual number of
+draws. `"shuffle"`, the code default, is the earlier plain shuffle. Val/test are never resampled. `summary.csv` records it.
+
+**Dataset.** `dataset` is `datasets/Classify/parkmap-classifier-run-1/run1`: the Thai Motorcycle data plus four external
+Roboflow sets (46 families; train 9,047 / val 265 / test 265 crops). Almost all external crops are train-only and include one
+video group of ~5k frames, which is why `sampling: balanced` is the default. Each epoch is ~9x larger than the Thai-only set,
+so `epochs` defaults to 30.
 
 Models available out of the box (all except YOLO12 start from ImageNet-pretrained weights and train the last layer only):
 
@@ -37,7 +46,7 @@ Models available out of the box (all except YOLO12 start from ImageNet-pretraine
 | `mobilenet_v3` | `mobilenet_v3_large` | 5.5M parameters; recommended for fast CPU inference in the API |
 | `efficientnet`, `resnet18` | `efficientnet_b0`, `resnet18` | Earlier baselines |
 
-Other YOLO sizes need only a new line: `"yolo26s": { "architecture": "yolo26s_cls" }` (`n`, `s`, `m`, `l`, `x` for YOLO11,
+Other YOLO sizes need only a new entry: `yolo26s: {architecture: yolo26s_cls}` (`n`, `s`, `m`, `l`, `x` for YOLO11,
 YOLO12 and YOLO26; larger ones train slower). The Parking page lists any completed run of these architectures. Which model is
 best on this data is for the comparison to show: pretrained transfer usually matters more than the newest architecture.
 
@@ -51,92 +60,77 @@ The commands call Python directly, so `uv` need not be on PATH except for `setup
 the pretrained weights; the script uses certifi's CA bundle for that because the Windows store on some machines lacks
 github.com's root. Details and the long forms follow.
 
-## Long form
+## Long form (without the .bat)
 
-From the **ParkMap repository root** in VS Code Terminal, run:
+From the **ParkMap repository root**, the same script runs directly; `--config` defaults to `experiments.yaml` and
+`--model` picks the entry (and therefore its dataset):
 
 ```powershell
-uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py
+uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --model convnext_tiny --validate-only
+uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --model convnext_tiny
+uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --model convnext_tiny --epochs 20 --batch-size 8 --device cpu
 ```
-
-This is the command that actually starts training. The default configuration is
-already pinned to the reviewed dataset: **46 classes, 1,019 train / 222 val / 220
-test crops**, `prepared/run-4cb0b6637def7634bde2`. It deliberately does not follow
-the moving `prepared/latest.json` pointer. A later review/preparation run therefore
-cannot silently change the data for this experiment.
 
 Training uses the project's locked Python 3.12 environment, which already has
 Torch, Torchvision and Pillow. If that environment is missing, first install it
 with `uv sync --project apps/vision-api --locked --all-groups`. The project lock
 uses CPU PyTorch on Windows; `auto` will select CPU there. The `setup` environment
-from the quick start runs the same script on CUDA (`auto` picks it); it was verified for
-all three architectures and `--fine-tune` on an RTX 4070 SUPER. Colab has not been
-tested. No new web page or training service is used.
+from the quick start runs the same script on CUDA (`auto` picks it); it was verified
+on an RTX 4070 SUPER. Colab has not been tested. No web page or training service is used.
 
 ## Before training
 
-To verify the real snapshot without loading Torch, downloading weights, creating
-a run or training, use:
+`check` (or `--validate-only`) verifies the real snapshot without loading Torch,
+downloading weights, creating a run or training. It verifies all prepared file hashes,
+crop/manifest alignment, class order, decoding, required splits and known
+exact-image/group leakage. It refuses changed snapshots and classes with no train
+samples. Empty val/test class coverage is retained in the dataset metadata and
+metrics, never silently relabelled/dropped.
 
-```powershell
-uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --validate-only
-```
+Both datasets are **provisional**: most labels are not individually confirmed and
+some similar-image pairs crossing the splits remain unchecked. `allow_provisional: true`
+in `experiments.yaml` allows exploratory training on them. Validation metrics may be
+optimistic until those relationships are reviewed. They do not establish accuracy
+for the ParkMap camera or safe parking availability. Model-family classification
+does not measure vehicle dimensions.
 
-The script verifies all prepared file hashes, crop/manifest alignment, class order,
-decoding, required splits and known exact-image/group leakage. It refuses changed
-snapshots and classes with no train samples. Empty val/test class coverage is
-retained in the dataset metadata and metrics, never silently relabelled/dropped.
+## Pretrained start and preprocessing
 
-This dataset remains **provisional**: all included labels have confirmation flags
-from the supplied review, but 298 similar-image pairs remain unchecked, including
-150 crossing the current splits. `training.json` explicitly sets
-`allow_provisional: true` for exploratory baseline training. Validation metrics
-may be optimistic until those relationships are reviewed. They do not establish
-accuracy for the ParkMap camera or safe parking availability. Model-family
-classification does not measure vehicle dimensions.
-
-## Baseline and settings
-
-The baseline is [Torchvision ResNet18](https://docs.pytorch.org/vision/stable/models/generated/torchvision.models.resnet18.html)
-with `IMAGENET1K_V1` pretrained weights and a new head for the dataset classes,
-following the [PyTorch transfer-learning approach](https://docs.pytorch.org/tutorials/beginner/transfer_learning_tutorial.html).
-By default only the classifier head is trained; backbone parameters **and BatchNorm
-running statistics** are frozen. This establishes a simple baseline before full
-fine-tuning or architectural comparisons.
+Every model except YOLO12 starts from ImageNet-pretrained weights with a new head for
+the dataset classes, following the
+[PyTorch transfer-learning approach](https://docs.pytorch.org/tutorials/beginner/transfer_learning_tutorial.html).
+With `fine_tune: false` only the classifier head is trained; backbone parameters
+**and BatchNorm running statistics** are frozen. See [ARCHITECTURES.md](ARCHITECTURES.md).
 
 The **first actual training command** downloads the original pretrained weights
 to ignored `classification/weights/`. It does not happen for `--validate-only`.
-For offline training, provide the original Torchvision ImageNet ResNet18
-`state_dict` with `--initial-weights <local-file.pth>`; this is different from a
+For offline training, provide the original ImageNet `state_dict` matching the
+architecture with `--initial-weights <local-file.pth>`; this is different from a
 ParkMap trained classifier checkpoint or YOLO detector weights. The initial
 weights' full SHA-256 is saved in run metadata.
 
-Defaults in `training.json`:
+For every model:
 
-- 10 epochs, batch size 16, 224×224 model input, AdamW learning rate 0.001.
-- Two CPU threads and zero data-loader workers for a modest Windows default.
-- Seed 20261102; deterministic Torch algorithms requested. Results are not
-  guaranteed bit-for-bit identical across devices or dependency versions.
 - Each full crop is scaled proportionally and padded to a square; there is no
   center crop or stretching. Padding is RGB 124/116/104 and normalization is the
-  ImageNet mean/std, recorded as `letterbox_rgb_v1` in checkpoints.
-- Mild horizontal flips/color jitter apply **only to train**. Val/test use
-  deterministic letterboxing and normalization. No val/test augmentation,
-  oversampling, synthetic examples, or split reassignment is performed.
-- The source export was already stretched before preparation; this preprocessing
-  cannot recover its original aspect ratio.
+  ImageNet mean/std (YOLO: RGB 0..1), recorded as `letterbox_rgb_v1` in checkpoints.
+- Augmentation applies **only to train**. Val/test use deterministic letterboxing
+  and normalization, with no augmentation, resampling or split reassignment.
+- Deterministic Torch algorithms are requested with the configured seed. Results are
+  not guaranteed bit-for-bit identical across devices or dependency versions.
+- The Thai Motorcycle export was already stretched to 416x416 before preparation;
+  this preprocessing cannot recover its original aspect ratio.
 
-Optional overrides:
+To use another prepared snapshot, change `dataset` in `experiments.yaml` (or one
+model's own `dataset`), or pass `--dataset "<snapshot>"`. Pass the directory
+containing COMPLETE and the manifest, **not** its classification subfolder.
+Training output must stay outside that immutable snapshot.
 
-```powershell
-uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --epochs 20 --batch-size 8 --device cpu
-uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --fine-tune --learning-rate 0.0001
-```
-
-To use another prepared snapshot, pass `--dataset "<prepared-run-directory>"` or
-edit the config. Pass the parent run directory containing COMPLETE and the
-manifest, **not** its classification subfolder. Training output must stay outside
-that immutable snapshot.
+To continue a run's weights on the same snapshot, pass
+`--continue-from "<training-run>/last.pt" --epochs <additional epochs>`. It checks the
+snapshot fingerprint, class order, architecture and image size, keeps the starting
+model eligible as best at epoch 0, and starts a fresh optimizer in a new run; the
+original checkpoint is never overwritten.
 
 ## Progress and outputs
 
@@ -179,7 +173,7 @@ After reviewing identity leakage and selecting a checkpoint using val, evaluate
 test explicitly:
 
 ```powershell
-uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --evaluate-test --checkpoint "<training-run>/best.pt"
+uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --model <name> --evaluate-test --checkpoint "<training-run>/best.pt"
 ```
 
 It writes a new `runs/test-.../` report using that checkpoint's exact class order

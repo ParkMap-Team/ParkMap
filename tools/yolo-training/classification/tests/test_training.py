@@ -15,6 +15,10 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+# One flat training config (formerly training.json), for tests that call fit() directly or read a flat config.
+BASE_OPTIONS = {"dataset": "data", "output": "runs", "architecture": "resnet18", "image_size": 224, "epochs": 10, "batch_size": 16,
+                "learning_rate": 0.001, "seed": 20261102, "device": "auto", "threads": 2, "workers": 0, "fine_tune": False,
+                "augment": True, "allow_provisional": True}
 
 
 class ClassifierTests(unittest.TestCase):
@@ -48,6 +52,11 @@ class ClassifierTests(unittest.TestCase):
             run = prepare(path, self.root / "prepared", review)
         return run
 
+    def flat_config(self):
+        path = self.root / "flat-training.json"
+        path.write_text(json.dumps(BASE_OPTIONS), encoding="utf-8")
+        return path
+
     def module(self, name):
         spec = importlib.util.spec_from_file_location(name, ROOT / f"{name}.py")
         module = importlib.util.module_from_spec(spec)
@@ -74,7 +83,7 @@ class ClassifierTests(unittest.TestCase):
         blocker.mkdir()
         (blocker / "torch.py").write_text("raise RuntimeError('validate-only must not import Torch')")
         output = self.root / "runs"
-        result = subprocess.run([sys.executable, str(ROOT / "train.py"), "--validate-only", "--dataset", str(run), "--output", str(output)],
+        result = subprocess.run([sys.executable, str(ROOT / "train.py"), "--config", str(self.flat_config()), "--validate-only", "--dataset", str(run), "--output", str(output)],
                                 env={**os.environ, "PYTHONPATH": str(blocker)}, capture_output=True, text=True, timeout=30, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
         summary = json.loads(result.stdout)
@@ -110,7 +119,7 @@ class ClassifierTests(unittest.TestCase):
 
         run = self.dataset()
         summary, samples = validate_run(run, allow_provisional=True)
-        options = json.loads((ROOT / "training.json").read_text())
+        options = dict(BASE_OPTIONS)
         options.update(epochs=1, image_size=64, batch_size=2, seed=42, threads=1, device="cpu")
         seed_everything(42, 1)
         model = build_model(summary["classes"], weights_dir=None, pretrained=False)
@@ -149,7 +158,7 @@ class ClassifierTests(unittest.TestCase):
                           for p in (ROOT / "weights").rglob("*") if p.is_file()}
         torch.save(resnet18(weights=None).state_dict(), initial)
         output = self.root / "cli-runs"
-        result = subprocess.run([sys.executable, str(ROOT / "train.py"), "--dataset", str(run), "--output", str(output),
+        result = subprocess.run([sys.executable, str(ROOT / "train.py"), "--config", str(self.flat_config()), "--dataset", str(run), "--output", str(output),
                                  "--initial-weights", str(initial), "--epochs", "1", "--image-size", "64", "--batch-size", "2", "--device", "cpu"],
                                 capture_output=True, text=True, timeout=120, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -165,7 +174,7 @@ class ClassifierTests(unittest.TestCase):
         self.assertEqual(weights_before, weights_after, "Synthetic/offline training does not download or replace weights")
         self.assertRegex(directories[0].name, r"^train-\d{8}-\d{6}-resnet18-[0-9a-f]{6}$")
         # The test report is named for the checkpoint's model even when the config requests another one.
-        evaluated = subprocess.run([sys.executable, str(ROOT / "train.py"), "--dataset", str(run), "--output", str(output),
+        evaluated = subprocess.run([sys.executable, str(ROOT / "train.py"), "--config", str(self.flat_config()), "--dataset", str(run), "--output", str(output),
                                     "--evaluate-test", "--checkpoint", str(directories[0] / "best.pt"), "--architecture", "efficientnet_b0",
                                     "--batch-size", "2", "--device", "cpu"],
                                    capture_output=True, text=True, timeout=120, check=False)
@@ -174,39 +183,18 @@ class ClassifierTests(unittest.TestCase):
         self.assertEqual(len(reports), 1)
         self.assertRegex(reports[0].name, r"^test-\d{8}-\d{6}-resnet18-[0-9a-f]{6}$")
 
-    def test_40_warm_start_keeps_parent_classes_and_uses_incoming_only(self):
-        from classifier_data import sha256, validate_run
-        from classifier_engine import build_model, fit, seed_everything
-        from prepare_transfer import build_transfer
+    def test_41_early_stopping_counts_ties_and_resets_on_improvement(self):
+        from training_control import EarlyStopping
 
-        parent = self.dataset(reviewed=True)
-        summary, samples = validate_run(parent, True)
-        options = json.loads((ROOT / "training.json").read_text())
-        options.update(epochs=1, image_size=64, batch_size=2, threads=1, seed=42, device="cpu")
-        seed_everything(42, 1)
-        trained = fit(build_model(summary["classes"], None, pretrained=False), samples, summary, options, self.root / "parent-model")
-        checkpoint = trained / "best.pt"
-        before = sha256(checkpoint)
-        incoming = self.dataset(source="incoming", color_offset=1, reviewed=True, one_class=True)
-        transfer = build_transfer(parent, incoming, checkpoint, "incoming", self.root / "transfer")
-        with self.assertRaisesRegex(ValueError, "Classes without training"):
-            validate_run(transfer, True)
-        checked, selected = validate_run(transfer, True, warm_start=checkpoint)
-        self.assertEqual(checked["classes"], ["a", "b"])
-        self.assertEqual(checked["missing_training_classes"], ["b"])
-        self.assertTrue(all(r["source_dataset"] == "incoming" for r in selected["train"]))
-        output = self.root / "transfer-models"
-        result = subprocess.run([sys.executable, str(ROOT / "train.py"), "--dataset", str(transfer), "--output", str(output),
-                                 "--warm-start", str(checkpoint), "--epochs", "1", "--patience", "2", "--image-size", "64", "--batch-size", "2", "--device", "cpu"],
-                                capture_output=True, text=True, timeout=120, check=False)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        run = next(path for path in output.iterdir() if path.is_dir())
-        metadata = json.loads((run / "run.json").read_text())
-        self.assertEqual(metadata["options"]["initial_weights_sha256"], before)
-        self.assertEqual(metadata["dataset"]["classes"], ["a", "b"])
-        self.assertTrue((run / "initial_val/metrics.json").is_file())
-        self.assertFalse(metadata["test_evaluated"])
-        self.assertEqual(sha256(checkpoint), before)
+        stop = EarlyStopping(3)
+        self.assertFalse(stop.update(.4))
+        self.assertFalse(stop.update(.4))
+        self.assertFalse(stop.update(.5))
+        self.assertFalse(stop.update(.49))
+        self.assertFalse(stop.update(.5))
+        self.assertTrue(stop.update(.5))
+        disabled = EarlyStopping(0)
+        self.assertFalse(any(disabled.update(.5) for _ in range(20)))
 
     def test_50_efficientnet_trains_offline_and_keeps_backbone_frozen(self):
         import torch
@@ -215,7 +203,7 @@ class ClassifierTests(unittest.TestCase):
 
         snapshot = self.dataset()
         summary, samples = validate_run(snapshot, True)
-        options = json.loads((ROOT / "training.json").read_text())
+        options = dict(BASE_OPTIONS)
         options.update(architecture="efficientnet_b0", epochs=1, image_size=64, batch_size=2, threads=1, seed=42, device="cpu")
         seed_everything(42, 1)
         model = build_model(summary["classes"], None, pretrained=False, architecture="efficientnet_b0")
@@ -231,7 +219,7 @@ class ClassifierTests(unittest.TestCase):
 
         digest = sha256(output / "last.pt")
         continued = self.root / "continued-runs"
-        result = subprocess.run([sys.executable, str(ROOT / "train.py"), "--dataset", str(snapshot), "--output", str(continued),
+        result = subprocess.run([sys.executable, str(ROOT / "train.py"), "--config", str(self.flat_config()), "--dataset", str(snapshot), "--output", str(continued),
                                  "--architecture", "efficientnet_b0", "--continue-from", str(output / "last.pt"),
                                  "--epochs", "1", "--image-size", "64", "--batch-size", "2", "--device", "cpu"],
                                 capture_output=True, text=True, timeout=120, check=False)
@@ -253,7 +241,7 @@ class ClassifierTests(unittest.TestCase):
 
         snapshot = self.dataset()
         summary, samples = validate_run(snapshot, True)
-        options = json.loads((ROOT / "training.json").read_text())
+        options = dict(BASE_OPTIONS)
         options.update(architecture="yolo11n_cls", epochs=1, image_size=64, batch_size=2, threads=1, seed=42, device="cpu")
         seed_everything(42, 1)
         model = build_model(summary["classes"], None, pretrained=False, architecture="yolo11n_cls")
@@ -324,10 +312,48 @@ class ClassifierTests(unittest.TestCase):
         self.assertEqual(read_options(config, self.cli_args(evaluate_test=True))["experiment"], "fast")  # a test report needs shared settings only
         with self.assertRaisesRegex(ValueError, "cannot be 'all'"):
             read_options(self.experiments(models={"all": {"architecture": "resnet18"}}), self.cli_args(model="all"))
-        flat = ROOT / "training.json"  # Existing one-experiment configs keep working.
+        flat = self.root / "training.json"  # One-experiment JSON configs keep working.
+        flat.write_text(json.dumps(BASE_OPTIONS), encoding="utf-8")
         self.assertEqual(read_options(flat, self.cli_args())["patience"], 0)
         with self.assertRaisesRegex(ValueError, "models"):
             read_options(flat, self.cli_args(model="fast"))
+
+    def test_03b_commented_yaml_config_matches_json_and_the_real_file_is_valid(self):
+        from train import model_names, read_options
+
+        json_config = self.experiments(models={"a": {"architecture": "resnet18"}, "b": {"architecture": "resnet18", "dataset": "other"}})
+        yaml_config = self.root / "experiments.yaml"
+        yaml_config.write_text("""# comment
+dataset: data   # shared snapshot
+output: runs
+defaults:
+  image_size: 64
+  epochs: 3          # inline comment
+  patience: 4
+  batch_size: 2
+  learning_rate: 0.01
+  seed: 1
+  device: cpu
+  threads: 1
+  workers: 0
+  fine_tune: false
+  augment: false
+  allow_provisional: true
+models:
+  a:
+    architecture: resnet18
+  b:
+    architecture: resnet18
+    dataset: &other other   # anchor reused below
+    note: *other
+""", encoding="utf-8")
+        self.assertEqual(model_names(yaml_config), model_names(json_config))
+        for name in ("a", "b"):
+            self.assertEqual(read_options(yaml_config, self.cli_args(model=name)), read_options(json_config, self.cli_args(model=name)))
+        real = ROOT / "experiments.yaml"  # The file train-classifier.bat uses: every model's options must validate.
+        for name in model_names(real):
+            with self.subTest(model=name):
+                self.assertEqual(read_options(real, self.cli_args(model=name))["experiment"], name)
 
     def test_04_supported_architectures_and_scratch_models_need_full_training(self):
         from architectures import has_pretrained, is_supported, yolo_asset
@@ -416,6 +442,26 @@ class ClassifierTests(unittest.TestCase):
         self.assertEqual([row["run"] for row in rows], ["train-old", "train-new"])
         self.assertEqual((rows[0]["val_top1"], rows[0]["augmentation"]), ("0.8178", ""))
         self.assertEqual((rows[1]["augmentation"], rows[1]["weight_decay"], rows[1]["label_smoothing"]), ("strong", "0.05", "0.1"))
+
+    def test_09_balanced_sampling_equalizes_classes_and_groups_and_is_opt_in(self):
+        from classifier_data import balanced_weights
+        from train import read_options
+
+        # Class "big": one 6-frame video group plus two single photos; class "rare": one photo.
+        rows = ([{"canonical_class": "big", "group_id": "video"}] * 6 + [{"canonical_class": "big", "group_id": "p1"},
+                {"canonical_class": "big", "group_id": "p2"}, {"canonical_class": "rare", "group_id": "p3"}])
+        weights = balanced_weights(rows)
+        mass = lambda test: sum(w for w, row in zip(weights, rows) if test(row))
+        self.assertAlmostEqual(mass(lambda r: r["canonical_class"] == "big"), mass(lambda r: r["canonical_class"] == "rare"))
+        self.assertAlmostEqual(mass(lambda r: r["group_id"] == "video"), mass(lambda r: r["group_id"] == "p1"))
+        plain = read_options(self.experiments(models={"x": {"architecture": "resnet18"}}), self.cli_args(model="x"))
+        self.assertEqual(plain["sampling"], "shuffle")  # older configs train exactly as before
+        config = self.experiments(models={"x": {"architecture": "resnet18"}, "y": {"architecture": "resnet18", "dataset": "other"}},
+                                  sampling="balanced")
+        self.assertEqual(read_options(config, self.cli_args(model="x"))["sampling"], "balanced")
+        self.assertEqual(Path(read_options(config, self.cli_args(model="y"))["dataset"]).name, "other")  # a model may use its own snapshot
+        with self.assertRaisesRegex(ValueError, "sampling"):
+            read_options(self.experiments(models={"x": {"architecture": "resnet18", "sampling": "oversample"}}), self.cli_args(model="x"))
 
     def test_33_choose_menu_trains_the_picked_models_and_rejects_bad_input(self):
         import csv

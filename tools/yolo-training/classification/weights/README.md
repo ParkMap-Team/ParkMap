@@ -7,4 +7,4 @@ Pretrained starting weights downloaded on the first real training run. Git-ignor
 
 These are **not** ParkMap-trained models; those are `best.pt` files in [`../runs/`](../runs/README.md).
 Deleting this folder is safe: the next run downloads the files again (internet needed). For offline training pass
-`--initial-weights <file>`; see [../TRAINING.md](../TRAINING.md) and [../YOLO-CLASSIFICATION.md](../YOLO-CLASSIFICATION.md).
+`--initial-weights <file>`; see [../TRAINING.md](../TRAINING.md) and [../ARCHITECTURES.md](../ARCHITECTURES.md).

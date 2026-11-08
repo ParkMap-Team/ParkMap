@@ -11,14 +11,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
+import yaml
 from architectures import SUPPORTED_TEXT, has_pretrained, is_supported
 from classifier_data import sha256, validate_run
 
 REQUIRED = {"dataset", "output", "architecture", "image_size", "epochs", "batch_size", "learning_rate", "seed",
             "device", "threads", "workers", "fine_tune", "augment", "allow_provisional"}
-OPTIONAL = {"patience", "experiment", "augmentation", "weight_decay", "label_smoothing"}
+OPTIONAL = {"patience", "experiment", "augmentation", "weight_decay", "label_smoothing", "sampling"}
 SUMMARY_FIELDS = ["finished", "run", "model", "architecture", "best_epoch", "epochs_planned", "patience", "batch_size",
-                  "learning_rate", "fine_tune", "augmentation", "weight_decay", "label_smoothing",
+                  "learning_rate", "fine_tune", "augmentation", "weight_decay", "label_smoothing", "sampling",
                   "val_top1", "val_macro_f1", "val_loss"]
 
 
@@ -28,10 +29,19 @@ def run_name(kind, architecture, now, token):
     return f"{kind}-{now:%Y%m%d-%H%M%S}-{architecture.replace('_', '-')}-{token}"
 
 
+def load_config(config_path):
+    """experiments.yaml (commented) or an older JSON config; both give the same plain dictionary."""
+    text = Path(config_path).read_text(encoding="utf-8")
+    config = yaml.safe_load(text) if Path(config_path).suffix.lower() in {".yaml", ".yml"} else json.loads(text)
+    if not isinstance(config, dict):
+        raise TypeError(f"{Path(config_path).name} must contain key: value settings at the top level")
+    return config
+
+
 def model_names(config_path):
-    models = json.loads(Path(config_path).read_text(encoding="utf-8")).get("models")
+    models = load_config(config_path).get("models")
     if not isinstance(models, dict) or not models:
-        raise ValueError("This config has no 'models' section; use a models config such as experiments.json")
+        raise ValueError("This config has no 'models' section; use a models config such as experiments.yaml")
     return list(models)
 
 
@@ -52,7 +62,7 @@ def merge_model(raw, name):
 
 def read_options(config_path, args, model=None):
     config_path = config_path.resolve()
-    options = json.loads(config_path.read_text(encoding="utf-8"))
+    options = load_config(config_path)
     model = model or args.model
     if "models" in options:
         # A test report only needs the shared settings (batch size, device); the checkpoint decides the model.
@@ -65,6 +75,9 @@ def read_options(config_path, args, model=None):
     options.setdefault("augmentation", "basic")
     options.setdefault("weight_decay", 0.01)  # AdamW's own default, so older configs train exactly as before
     options.setdefault("label_smoothing", 0.0)
+    options.setdefault("sampling", "shuffle")  # plain shuffled epochs, exactly as before
+    if options["sampling"] not in {"shuffle", "balanced"}:
+        raise ValueError('sampling must be "shuffle" or "balanced"')
     if options["augmentation"] not in {"basic", "strong"}:
         raise ValueError('augmentation must be "basic" or "strong"')
     if not isinstance(options["weight_decay"], (int, float)) or isinstance(options["weight_decay"], bool) or not 0 <= options["weight_decay"] < 1:
@@ -126,7 +139,7 @@ def record_summary(path, run, options):
            "best_epoch": meta.get("best_epoch"), "epochs_planned": options["epochs"], "patience": options["patience"],
            "batch_size": options["batch_size"], "learning_rate": options["learning_rate"], "fine_tune": options["fine_tune"],
            "augmentation": options["augmentation"] if options["augment"] else "off", "weight_decay": options["weight_decay"],
-           "label_smoothing": options["label_smoothing"], "val_top1": round(val["top1"], 4), "val_macro_f1": round(val["macro_f1"], 4), "val_loss": round(val.get("loss", math.nan), 4)}
+           "label_smoothing": options["label_smoothing"], "sampling": options.get("sampling", "shuffle"), "val_top1": round(val["top1"], 4), "val_macro_f1": round(val["macro_f1"], 4), "val_loss": round(val.get("loss", math.nan), 4)}
     # Older files lack the newer columns: rewrite them once with blanks rather than append misaligned rows.
     rows = summary_rows(path) + [row]
     with path.open("w", encoding="utf-8", newline="") as stream:
@@ -149,13 +162,13 @@ def check_all(args):
         augmentation = options["augmentation"] if options["augment"] else "off"
         print(f"  {name:<18}{options['architecture']:<20}epochs {options['epochs']:<5}patience {options['patience']:<4}"
               f"batch {options['batch_size']:<4}lr {options['learning_rate']:<8}{'full network' if options['fine_tune'] else 'head only':<13}"
-              f"aug {augmentation:<7}wd {options['weight_decay']:<6}smooth {options['label_smoothing']}")
+              f"aug {augmentation:<7}wd {options['weight_decay']:<6}smooth {options['label_smoothing']:<5}sampling {options['sampling']}")
     return 0
 
 
 def choose_models(config_path):
     """Menu of the config's models; returns the chosen names in menu order."""
-    models = json.loads(Path(config_path).read_text(encoding="utf-8"))["models"]
+    models = load_config(config_path)["models"]
     names = model_names(config_path)
     print("Choose a model to train:")
     for number, name in enumerate(names, start=1):
@@ -218,7 +231,7 @@ def train_all(args, argv, names=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, default=Path(__file__).with_name("training.json"))
+    parser.add_argument("--config", type=Path, default=Path(__file__).with_name("experiments.yaml"))
     parser.add_argument("--model", help="Model name from the config's 'models' section, or 'all' to train each in turn")
     parser.add_argument("--choose", action="store_true", help="Pick the model(s) from a menu instead of naming one")
     parser.add_argument("--dataset", type=Path, help="Prepared run directory, not classification/ and not latest.json")
@@ -233,24 +246,21 @@ def main(argv=None):
     parser.add_argument("--fine-tune", action="store_true", help="Update the whole network instead of just its classifier head")
     parser.add_argument("--no-augment", action="store_true")
     parser.add_argument("--patience", type=int, help="Stop after this many epochs without better validation Macro F1; 0 disables (default: the config's value)")
-    parser.add_argument("--warm-start", type=Path, help="Verified parent ParkMap best.pt for an incoming-only transfer snapshot")
     parser.add_argument("--continue-from", type=Path, help="Continue weights on the exact same snapshot with a fresh optimizer in a new run")
     parser.add_argument("--initial-weights", type=Path, help="Optional original torchvision ImageNet state_dict matching --architecture for offline training")
     parser.add_argument("--evaluate-test", action="store_true", help="Explicit held-out test evaluation, after val-based model selection")
     parser.add_argument("--checkpoint", type=Path, help="ParkMap classifier best.pt; only with --evaluate-test")
     args = parser.parse_args(argv)
-    if args.continue_from and (args.warm_start or args.initial_weights or args.evaluate_test):
-        parser.error("--continue-from cannot be combined with --warm-start, --initial-weights or --evaluate-test")
+    if args.continue_from and (args.initial_weights or args.evaluate_test):
+        parser.error("--continue-from cannot be combined with --initial-weights or --evaluate-test")
     if args.evaluate_test != bool(args.checkpoint):
         parser.error("--evaluate-test and --checkpoint must be supplied together")
     if args.initial_weights and args.evaluate_test:
         parser.error("--initial-weights is for training, not test evaluation")
-    if args.warm_start and (args.initial_weights or args.evaluate_test):
-        parser.error("--warm-start cannot be combined with --initial-weights or --evaluate-test")
-    if args.model == "all" and (args.evaluate_test or args.warm_start or args.continue_from):
-        parser.error("--model all trains every model from its pretrained weights; it cannot be combined with --evaluate-test, --warm-start or --continue-from")
-    if args.choose and (args.model or args.validate_only or args.evaluate_test or args.warm_start or args.continue_from):
-        parser.error("--choose picks models to train; it cannot be combined with --model, --validate-only, --evaluate-test, --warm-start or --continue-from")
+    if args.model == "all" and (args.evaluate_test or args.continue_from):
+        parser.error("--model all trains every model from its pretrained weights; it cannot be combined with --evaluate-test or --continue-from")
+    if args.choose and (args.model or args.validate_only or args.evaluate_test or args.continue_from):
+        parser.error("--choose picks models to train; it cannot be combined with --model, --validate-only, --evaluate-test or --continue-from")
     try:
         if args.choose:
             chosen = choose_models(args.config)
@@ -260,10 +270,10 @@ def main(argv=None):
         if args.model == "all":
             return check_all(args) if args.validate_only else train_all(args, list(sys.argv[1:] if argv is None else argv))
         options = read_options(args.config, args)
-        summary, samples = validate_run(options["dataset"], options["allow_provisional"], warm_start=args.warm_start, evaluation_only=args.evaluate_test)
+        summary, samples = validate_run(options["dataset"], options["allow_provisional"], evaluation_only=args.evaluate_test)
         if args.initial_weights and not args.initial_weights.is_file():
             raise ValueError("Initial weights file does not exist")
-        console_summary = {key: value for key, value in summary.items() if key not in {"class_coverage", "classes", "warm_start_parent", "missing_training_classes"}}
+        console_summary = {key: value for key, value in summary.items() if key not in {"class_coverage", "classes", "missing_training_classes"}}
         console_summary["class_count"] = len(summary["classes"])
         console_summary["missing_training_class_count"] = len(summary["missing_training_classes"])
         print(json.dumps({"dataset": console_summary, "options": options, "validate_only": args.validate_only}, indent=2), flush=True)
@@ -292,21 +302,18 @@ def main(argv=None):
             print(f"Test top1: {metrics['top1']:.3f} | macro F1: {metrics['macro_f1']:.3f}\nReport: {run}", flush=True)
         else:
             weights_dir = Path(__file__).with_name("weights")
-            if args.warm_start or args.continue_from:
-                starting_path = (args.warm_start or args.continue_from).resolve()
-                checkpoint = load_checkpoint(starting_path, summary["warm_start_parent"] if args.warm_start else summary)
+            if args.continue_from:
+                starting_path = args.continue_from.resolve()
+                checkpoint = load_checkpoint(starting_path, summary)
                 if checkpoint["architecture"] != options["architecture"]:
-                    raise ValueError("Warm-start architecture must match the parent checkpoint")
+                    raise ValueError("--continue-from architecture must match the checkpoint")
                 if checkpoint["image_size"] != options["image_size"]:
-                    raise ValueError("Warm-start image size must match the parent checkpoint")
+                    raise ValueError("--continue-from image size must match the checkpoint")
                 model = build_model(summary["classes"], weights_dir=None, fine_tune=options["fine_tune"], pretrained=False, architecture=options["architecture"])
                 model.load_state_dict(checkpoint["state_dict"], strict=True)
                 options.update(initial_weights=str(starting_path), initial_weights_source="ParkMap classifier",
                                initial_weights_sha256=sha256(starting_path))
-                if args.warm_start:
-                    options["warm_start_checkpoint"] = str(starting_path)
-                else:
-                    options.update(continued_from_checkpoint=str(starting_path), continued_from_epoch=checkpoint["epoch"], optimizer_restored=False)
+                options.update(continued_from_checkpoint=str(starting_path), continued_from_epoch=checkpoint["epoch"], optimizer_restored=False)
             else:
                 model = build_model(summary["classes"], weights_dir, options["fine_tune"], args.initial_weights, architecture=options["architecture"])
                 options.update(initial_weights_metadata(weights_dir, args.initial_weights, architecture=options["architecture"]))

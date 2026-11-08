@@ -13,7 +13,7 @@ A complete snapshot contains `COMPLETE`, `REPORT.md` (audit and per-class covera
 crops), `manifest.jsonl`, `integrity.json`, `reproducibility.json`, audit and review JSON files and `index.html`.
 A folder without `COMPLETE` was interrupted and is never reused.
 
-Training reads the snapshot named by `dataset` in [`../experiments.json`](../experiments.json), not `latest.json`,
+Training reads the snapshot named by `dataset` in [`../experiments.yaml`](../experiments.yaml), not `latest.json`,
 so a new preparation never changes an existing experiment. Check a snapshot before training:
 
 ```powershell

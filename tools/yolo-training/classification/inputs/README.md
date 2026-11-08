@@ -13,4 +13,4 @@ Add another archive either by dropping it here or by passing it directly:
 uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/prepare.py --source "<name>=<absolute-path-to-zip>"
 ```
 
-Nothing here is modified by the scripts. Details: [../README.md](../README.md), audit notes: [../AUDIT.md](../AUDIT.md).
+Nothing here is modified by the scripts. Details: [../README.md](../README.md).

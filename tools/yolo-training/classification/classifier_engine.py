@@ -16,13 +16,14 @@ from architectures import has_pretrained, is_supported, is_yolo
 from classifier_data import (
     PREPROCESSING,
     PadResize,
+    balanced_weights,
     classification_metrics,
     sha256,
     write_evaluation,
 )
 from PIL import Image
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from torchvision import models, transforms
 from training_control import EarlyStopping
 
@@ -146,8 +147,13 @@ class CropDataset(Dataset):
 def loader(root, rows, classes, options, training=False):
     dataset = CropDataset(root, rows, classes, options["image_size"], training and options["augment"], options["architecture"],
                           options.get("augmentation", "basic"))
+    generator = torch.Generator().manual_seed(options["seed"])
+    if training and options.get("sampling", "shuffle") == "balanced":
+        # Same number of draws per epoch, with replacement, so rare classes and small groups are seen as often as large ones.
+        sampler = WeightedRandomSampler(balanced_weights(rows), num_samples=len(rows), replacement=True, generator=generator)
+        return DataLoader(dataset, batch_size=options["batch_size"], sampler=sampler, num_workers=options["workers"])
     return DataLoader(dataset, batch_size=options["batch_size"], shuffle=training, num_workers=options["workers"],
-                      generator=torch.Generator().manual_seed(options["seed"]))
+                      generator=generator)
 
 
 def train_epoch(model, batches, optimizer, device, fine_tune, epoch, epochs, label_smoothing=0.0):
@@ -251,7 +257,7 @@ def fit(model, samples, summary, options, output):
     metadata["early_stopping"] = {"metric": "val_macro_f1", "patience": stopper.patience, "stopped_early": False}
     started = time.monotonic()
     try:
-        if options.get("warm_start_checkpoint") or options.get("continued_from_checkpoint"):
+        if options.get("continued_from_checkpoint"):
             initial, predictions, scores = evaluate(model, val_loader, device, summary["classes"])
             metadata["initial_validation"] = {"top1": initial["top1"], "macro_f1": initial["macro_f1"], "loss": initial["loss"]}
             metadata["selection"] += "; includes starting checkpoint at epoch 0 of this run"

@@ -5,7 +5,7 @@ Two separate jobs, each with its own folder, single settings file, menu and run 
 | Folder | Job | Entry point | Settings |
 | --- | --- | --- | --- |
 | [`detection/`](detection/README.md) | find every motorcycle in a parking photo (boxes) | `.\train-detector` | `detection/config.yaml` |
-| [`classification/`](classification/README.md) | name the model family of a cropped motorcycle | `.\train-classifier` | `classification/experiments.json` ([training](classification/TRAINING.md)) |
+| [`classification/`](classification/README.md) | name the model family of a cropped motorcycle | `.\train-classifier` | `classification/experiments.yaml` ([training](classification/TRAINING.md)) |
 
 Shared, Git-ignored folders:
 

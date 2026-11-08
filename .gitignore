@@ -68,8 +68,6 @@ tools/yolo-training/detection/runs/*
 !tools/yolo-training/detection/runs/README.md
 tools/yolo-training/detection/weights/*
 !tools/yolo-training/detection/weights/README.md
-tools/yolo-training/classification/_eval_transfer/*
-!tools/yolo-training/classification/_eval_transfer/README.md
 # Ultralytics downloads its AMP-check model here when training starts from the repository root
 /weights/
 

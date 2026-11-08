@@ -1,0 +1,102 @@
+# =====================================================================================
+# ไฟล์ตั้งค่าเดียวของงาน Classification (จำแนกรุ่นรถจากภาพ crop ของรถแต่ละคัน)
+# ใช้กับ .\train-classifier check | run | test   (รายละเอียด: TRAINING.md)
+# path ทุกตัวนับจากโฟลเดอร์ของไฟล์นี้ (tools/yolo-training/classification/)
+# ลำดับการใช้ค่า: บล็อก defaults -> บล็อกของโมเดล (ทับ defaults) -> option ที่พิมพ์ต่อท้ายคำสั่ง (ทับทั้งหมด)
+#   เช่น .\train-classifier run resnet18 --epochs 10 --device cpu
+# =====================================================================================
+
+# ---------- ข้อมูลและที่เก็บผลลัพธ์ (ใช้ร่วมกันทุกโมเดล) ----------
+dataset: ../datasets/Classify/parkmap-classifier-run-1/run1
+                        # โฟลเดอร์ snapshot ที่มีไฟล์ COMPLETE (ไม่ใช่โฟลเดอร์ classification/ ข้างใน)
+                        #   run-1 = Thai Motorcycle (ข้อมูลเดียวกับ run-2) + ชุดภายนอก 4 ชุด, 46 รุ่น
+                        #   train 9,047 / val 265 / test 265 crops; รุ่นรถไม่สมดุลมาก จึงใช้ sampling: balanced ด้านล่าง
+output: runs            # ผลการเทรนทุกรอบ: runs/train-<วันที่>-<เวลา>-<ชื่อโมเดล>-<id>/ และ runs/summary.csv
+
+# ---------- ค่าการเทรนที่ใช้ร่วมกันทุกโมเดล ----------
+# โมเดลใดต้องการค่าต่างไป ให้ใส่ key เดียวกันในบล็อกของโมเดลนั้นด้านล่าง
+defaults:
+  # --- รอบการเทรน ---
+  epochs: 50              # จำนวนรอบสูงสุดที่เทรนผ่านข้อมูล train ทั้งชุด
+                          #   run-1 มีภาพ train ~9,000 ภาพต่อ epoch: 30 epoch ≈ 3 เท่าของจำนวนภาพที่เห็นใน 100 epoch บน run-2
+  patience: 0             # หยุดก่อนถ้า val macro-F1 ไม่ดีขึ้นติดต่อกันกี่ epoch (0 = ไม่หยุดก่อน)
+                          #   เก็บ best.pt จาก epoch ที่ val macro-F1 สูงสุดเสมอ ไม่ว่าค่านี้เป็นเท่าไร
+
+  # --- ขนาดภาพ / หน่วยความจำ ---
+  image_size: 224         # ด้านของภาพสี่เหลี่ยมที่ป้อนโมเดล (px, 64-1024); ย่อแบบรักษาสัดส่วนแล้วเติมขอบ (letterbox)
+                          #   API ใช้ค่าที่บันทึกใน checkpoint เอง ไม่ต้องตั้งซ้ำ
+  batch_size: 8           # จำนวนภาพต่อ step; out of memory ให้ลดลง
+  device: auto            # auto = ใช้ GPU ถ้ามี ไม่งั้น CPU; หรือระบุ cpu / cuda / cuda:0 / mps
+  threads: 2              # จำนวน thread ของ PyTorch ตอนคำนวณบน CPU
+  workers: 0              # จำนวน process โหลดภาพคู่ขนาน (Windows แนะนำ 0-2; 0 = โหลดใน process หลัก)
+
+  # --- Optimizer (AdamW) ---
+  learning_rate: 0.001    # learning rate ของ AdamW (คงที่ตลอดการเทรน)
+  # weight_decay: 0.01    # (ไม่ใส่ = 0.01 ค่าเริ่มต้นของ AdamW) ลงโทษน้ำหนักที่ใหญ่เกินไป ช่วยลด overfitting
+  # label_smoothing: 0.0  # (ไม่ใส่ = 0) 0-1; ทำให้โมเดลไม่มั่นใจเกินไป ใช้กับ train loss เท่านั้น val loss เทียบกันได้เหมือนเดิม
+
+  # --- ส่วนของโมเดลที่เทรน ---
+  fine_tune: false        # false = เทรนแค่ชั้นสุดท้าย (classifier head) บน backbone ที่ pretrained มาแล้ว
+                          # true  = เทรนทั้งเครือข่าย (ช้ากว่า เสี่ยง overfit กับข้อมูลน้อย; YOLO12 ต้องเป็น true)
+
+  # --- Data augmentation (สุ่มดัดแปลงภาพ train เท่านั้น ไม่แตะ val/test) ---
+  augment: true           # false = ไม่ดัดแปลงภาพเลย
+  # augmentation: basic   # (ไม่ใส่ = basic) basic = กลับซ้าย-ขวา + ปรับสีเล็กน้อย
+                          #   strong = เพิ่มเลื่อน/ย่อขยาย 0.85-1.1/หมุน ±10 องศา และปรับสีแรงขึ้น
+
+  # --- การสุ่มภาพ train ในแต่ละ epoch ---
+  sampling: balanced      # balanced = ทุกรุ่นรถถูกสุ่มเท่ากัน และในรุ่นเดียวกันทุก group (รูปเดียว หรือวิดีโอทั้งคลิป) ถูกสุ่มเท่ากัน
+                          #   จำนวนภาพต่อ epoch เท่าเดิม สุ่มแบบซ้ำได้ (ชุดที่รุ่นรถไม่สมดุลมาก เช่น run-1 ต้องใช้ค่านี้)
+                          # shuffle  = สลับลำดับธรรมดา ทุกภาพเห็นครั้งเดียวต่อ epoch
+
+  # --- ทำซ้ำได้ / ความปลอดภัยของข้อมูล ---
+  seed: 20261102          # เลขสุ่มตั้งต้น ให้ผลเทรนซ้ำได้
+  allow_provisional: true # true = ยอมเทรนบน dataset ที่ label ยังไม่ได้ยืนยันครบ (สถานะ provisional)
+                          #   ผลที่ได้เป็นการทดลอง ไม่ใช่หลักฐานความแม่นยำบนกล้องจริง
+
+# ---------- รายชื่อโมเดล (ลำดับนี้ = ลำดับในเมนู run) ----------
+# ชื่อโมเดล: ตัวอักษร ตัวเลข - _ (ห้ามชื่อ all); ใช้เรียกใน .\train-classifier run <ชื่อ> และ test <ชื่อ>
+# ในแต่ละโมเดล:
+#   architecture = สถาปัตยกรรม (resnet18, efficientnet_b0, mobilenet_v3_large, convnext_tiny, yolo<11|12|26><n|s|m|l|x>_cls)
+#   note         = คำอธิบายที่แสดงในเมนูเท่านั้น ไม่มีผลกับการเทรน
+#   key อื่น       = ทับค่าใน defaults (หรือ dataset) เฉพาะโมเดลนี้
+models:
+  yolo26n:
+    architecture: yolo26n_cls
+    note: YOLO26 nano, pretrained, newest
+  yolo11n:
+    architecture: yolo11n_cls
+    note: YOLO11 nano, pretrained
+  yolo12n:
+    architecture: yolo12n_cls
+    fine_tune: true       # YOLO12 ไม่มี pretrained weights ของ classification ต้องเทรนทั้งเครือข่ายจากศูนย์
+    note: "YOLO12 nano, NO pretrained weights: from scratch, weak"
+  convnext_tiny:
+    architecture: convnext_tiny
+    note: "ConvNeXt-Tiny 28M, pretrained, recommended: accuracy"
+  mobilenet_v3:
+    architecture: mobilenet_v3_large
+    note: "MobileNetV3-Large 5.5M, pretrained, recommended: fast on CPU"
+  efficientnet:
+    architecture: efficientnet_b0
+    note: EfficientNet-B0 5.3M, pretrained
+  resnet18:
+    architecture: resnet18
+    note: ResNet18 11.7M, pretrained, simple baseline
+
+  # --- ทดลองลด overfitting บน ConvNeXt-Tiny (เทียบกับ convnext_tiny ด้านบน) ---
+  convnext_aug:
+    architecture: convnext_tiny
+    augmentation: strong
+    note: convnext_tiny + strong augmentation only (shift/scale/tilt/colour)
+  convnext_reg:
+    architecture: convnext_tiny
+    weight_decay: 0.05
+    label_smoothing: 0.1
+    note: convnext_tiny + weight decay 0.05 + label smoothing 0.1 only
+  convnext_aug_reg:
+    architecture: convnext_tiny
+    augmentation: strong
+    weight_decay: 0.05
+    label_smoothing: 0.1
+    note: convnext_tiny + strong augmentation + regularization (both)
