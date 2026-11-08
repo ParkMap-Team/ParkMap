@@ -1,7 +1,8 @@
 # Train the motorcycle model-family classifier
 
 Use one of the three reviewed **top-10 configs** (2026-11-06, six review rounds;
-see [CURATION.md](CURATION.md) section 3). All three share one satayu val/test
+see [CURATION.md](CURATION.md) section 3). Despite the file names they train 9
+classes: `super_cub` was dropped from the class list on 2026-11-08. All three share one satayu val/test
 split, so their val/test scores are directly comparable:
 
 | config | train data | snapshot |
@@ -53,7 +54,7 @@ These snapshots remain **provisional**: a few similar-image pairs, one label and
 four quality flags were left unreviewed at the freeze (listed in CURATION.md), and
 at most 3 crop pairs may still cross splits. The top-10 configs explicitly set
 `allow_provisional: true`. Some classes have very small val/test sets (xmax 5/4,
-grand_filano 7/7, super_cub 7/7 crops), so per-class scores are noisy. Metrics do
+grand_filano 7/7 crops), so per-class scores are noisy. Metrics do
 not establish accuracy for the ParkMap camera or safe parking availability.
 Model-family classification does not measure vehicle dimensions.
 
@@ -118,8 +119,9 @@ that immutable snapshot.
 ## Supported model subset
 
 `classes` in the config is `null` (every snapshot class) or a list of class names
-to train on. `training.top10.json` keeps the 10 classes with at least 30 crops in
-the Roboflow snapshot `prepared/run-55cada0d50ef35e3bc26` (re-split after the
+to train on. `training.top10.json` keeps the classes with at least 30 crops,
+except `super_cub` (dropped 2026-11-08), in the Roboflow snapshot
+`prepared/run-55cada0d50ef35e3bc26` (re-split after the
 sixth 2026-11-06 review and pinned to the combined run of
 `training.top10-external.json`, so both share one test split; models trained on
 earlier, now deleted runs such as `run-71a1fa00b3a2357ae77d` and

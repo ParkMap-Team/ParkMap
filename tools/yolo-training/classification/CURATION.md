@@ -75,6 +75,9 @@ the satayu-only snapshot `run-55cada0d50ef35e3bc26` (`training.top10.json`) is
 pinned to it: every satayu crop has the same split in both. Integrity and
 leakage checks pass (0 known cross-split groups, images or crops).
 
+Counts below are for the 10 classes at the freeze. `super_cub` (31 / 7 / 7, all
+satayu) was dropped from the training class list on 2026-11-08, leaving 9.
+
 | split | crops (10 classes) | satayu crops | known groups |
 |---|---:|---:|---:|
 | train | 8463 | 663 | 1080 |
