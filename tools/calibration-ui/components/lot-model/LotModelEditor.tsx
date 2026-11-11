@@ -24,6 +24,13 @@ async function request<T>(operation: string, site = '', method = 'GET', body?: u
   const payload: unknown = await response.json();
   if (!response.ok) {
     const detail = payload && typeof payload === 'object' && 'detail' in payload ? payload.detail : undefined;
+    if (operation === 'calibration-roi' && typeof detail === 'string') {
+      if (detail.includes('recalculate') || detail.includes('validate') || detail.includes('calculate it first')) {
+        throw new Error('กรุณาบันทึก ROI ในกล้อง แล้วคำนวณและตรวจ calibration ใหม่ให้ผ่านก่อนนำมาใช้ในแผนผัง');
+      }
+      if (detail.includes('preserve this ROI placement')) throw new Error('ตำแหน่ง ROI ฉบับนี้ไม่ตรงกับ calibration ที่ลงทะเบียนไว้ กรุณาโหลดเวอร์ชัน LIFF ก่อนนำ ROI ใหม่เข้า');
+      if (detail.includes('does not belong')) throw new Error('กล้องใน calibration ไม่ได้อยู่ในสถานที่ที่เลือก');
+    }
     if (typeof detail === 'string' && detail.includes('must lie inside the lot outline')) {
       throw new Error('ROI บางส่วนอยู่นอกขอบลานสีเทา เลือก ROI แล้วกด “ใช้ ROI นี้เป็นขอบลาน” หากต้องการให้ขอบลานตรงกับ ROI ที่ปรับ หรือย้าย/ลดขนาด ROI ให้กลับเข้าขอบลานเดิม');
     }
@@ -159,6 +166,18 @@ export function LotModelEditor() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'ทำสำเนาไม่ได้'); }
   }
 
+  async function importCalibrationRoi() {
+    if (!model || !siteId || busy || stale) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const updated = await request<LotModelDefinition>('calibration-roi', siteId, 'POST', model);
+      commit(model, definitionOnly(updated));
+      setEditRoi(true); setMode('2d'); setSelectedId(roiObjects(updated)[0]?.landmark_id ?? null);
+      setNotice('นำ ROI จาก calibration มาแล้ว ตรวจกรอบฟ้าก่อนบันทึกฉบับร่างและเปิดใช้งาน · ยังไม่เปลี่ยน LIFF · หากขนาดหรือรูปทรงเปลี่ยน ต้องลงทะเบียน calibration ปัจจุบันหลังเปิดใช้งาน');
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'นำ ROI จาก calibration ไม่สำเร็จ'); }
+    finally { setBusy(false); }
+  }
+
   async function save() {
     if (!model || !server || busy || stale || !form.current?.reportValidity()) return;
     setBusy(true); setError(''); setNotice('');
@@ -259,6 +278,7 @@ export function LotModelEditor() {
         <div className="flex gap-2"><button type="button" className={button} aria-label="ย้อนกลับ" disabled={busy || !history.past.length} onClick={undo}><Undo2 size={16} /></button>
           <button type="button" className={button} aria-label="ทำซ้ำ" disabled={busy || !history.future.length} onClick={redo}><Redo2 size={16} /></button></div>
       </div>
+      <button type="button" className={button} disabled={busy || !siteId || stale} onClick={importCalibrationRoi}>อัปเดต ROI จาก calibration</button>
       <label className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
         <input type="checkbox" checked={editRoi} disabled={busy} onChange={(event) => {
           setEditRoi(event.target.checked); if (isRoiId(selectedId)) setSelectedId(null); setMode('2d');

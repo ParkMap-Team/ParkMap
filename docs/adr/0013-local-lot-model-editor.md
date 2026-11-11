@@ -64,3 +64,15 @@ Rejected: editing the student-facing LIFF renderer, storing client-only width an
 length fields in the API geometry, or activating on every save. They either put
 authoring in the student flow, break the existing schema, or expose unfinished
 geometry. The cost is a small draft migration and an explicit save/activate step.
+
+## Importing the current camera ROI
+
+Setup provides an explicit calibration-ROI preview action. Python requires a
+current validated homography, matching camera/site, unchanged projected image
+ROI and a compatible registered camera-to-lot placement. It replaces only the
+matching area polygon; the outline follows only when it already equals a sole
+ROI. Landmarks and unrelated areas stay unchanged. The private same-origin
+proxy protects this read-only POST. The browser applies the returned definition
+as an undoable local edit; it does not save, activate or register calibration.
+The operator reviews, saves and activates separately. Resized/re-shaped areas
+still require registering the matching calibration before LIFF can show state.

@@ -5327,6 +5327,75 @@
         ]
       }
     },
+    "/api/operator/lot-model/sites/{site_id}/calibration-roi": {
+      "post": {
+        "operationId": "post_calibration_roi_api_operator_lot_model_sites__site_id__calibration_roi_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Site Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LotModelDefinition"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotModelDefinition"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Calibration Roi",
+        "tags": [
+          "Lot model editor"
+        ]
+      }
+    },
     "/api/operator/lot-model/sites/{site_id}/draft": {
       "get": {
         "operationId": "get_draft_api_operator_lot_model_sites__site_id__draft_get",

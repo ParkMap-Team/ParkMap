@@ -449,6 +449,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operator/lot-model/sites/{site_id}/calibration-roi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Calibration Roi */
+        post: operations["post_calibration_roi_api_operator_lot_model_sites__site_id__calibration_roi_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operator/lot-model/sites/{site_id}/draft": {
         parameters: {
             query?: never;
@@ -2977,6 +2994,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LotModelDraftState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_calibration_roi_api_operator_lot_model_sites__site_id__calibration_roi_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LotModelDefinition"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LotModelDefinition"];
                 };
             };
             /** @description Validation Error */
