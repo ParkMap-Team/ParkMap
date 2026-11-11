@@ -1,12 +1,15 @@
-# Local YOLO11m-seg image comparison
+# Local segmentation primary analysis
 
-In local Calibration UI **Parking**, select an image and enable
-**เปรียบเทียบ YOLO11m-seg และแสดง polygon · ทดลอง**, then press **Analyze**.
-The existing detector/classifier/parking pipeline runs as before; a second,
-optional YOLO11m-seg inference supplies a separate image-mask panel. Counts and
-inference times are shown for inspection. They are not an accuracy evaluation:
-the models may detect different vehicles and both misses and false detections
-need human review. First-request timing can include model loading.
+In Calibration UI Parking, choose an image or video and press Analyze.
+The configured Seg model is now the primary model; there is no classifier panel or comparison
+switch. A single Seg inference supplies image boxes, masks, physical-map
+references and the rectangular gap analysis. Inference time may include loading
+on the first request. These outputs require human review, not accuracy claims.
+
+Detected image uses the normalized Seg preview with cyan mask polygons and
+dashed yellow box fallback when a mask is missing. For videos, the player stays
+separate from the latest analyzed still frame so masks are not drawn over a
+different playback time.
 
 The cyan polygons are normalized image masks of visible motorcycle appearance,
 not ground footprints, measurements, recovered occluded shape or empty-space
@@ -15,8 +18,8 @@ not projected through the ground homography and never enter classification
 crops, parking geometry, reference-size analysis, worker or LIFF. Model outputs
 are not paired across detectors simply by their list index.
 
-The optional [gap/clearance experiment](segmentation-gaps.md) returns separate
-standard-target FIT candidates from calibrated reference footprints. It uses
+The default [gap/clearance analysis](segmentation-gaps.md) returns rectangular
+width candidates from calibrated reference footprints. It uses
 image masks/boxes to withhold potentially occluded ground, not as ground shapes.
 
 Install the fixed official model once from the repository root:
