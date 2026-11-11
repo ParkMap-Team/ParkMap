@@ -39,7 +39,7 @@ export async function proxyLotModelRequest(request: Request, options: ProxyOptio
   if (!options.token) return reply(503, 'ยังไม่ได้เปิดระบบแก้แผนผัง กรุณาเปิดบริการผ่าน start-dev.bat ใหม่');
   const operation = url.searchParams.get('op');
   const site = url.searchParams.get('site') ?? '';
-  const siteOperations = ['draft', 'activate', 'active'];
+  const siteOperations = ['draft', 'activate', 'active', 'calibration-roi'];
   if (operation && siteOperations.includes(operation) && !/^[a-z0-9][a-z0-9-]{0,62}$/.test(site)) {
     return reply(400, 'รหัสสถานที่ไม่ถูกต้อง');
   }
@@ -51,6 +51,7 @@ export async function proxyLotModelRequest(request: Request, options: ProxyOptio
     'PUT:draft': `/api/operator/lot-model/sites/${site}/draft`,
     'POST:activate': `/api/operator/lot-model/sites/${site}/activate`,
     'POST:validate': '/api/operator/lot-model/validate',
+    'POST:calibration-roi': `/api/operator/lot-model/sites/${site}/calibration-roi`,
   };
   const path = routes[`${request.method}:${operation}`];
   if (!path) return reply(405, 'คำสั่งนี้ไม่รองรับ');

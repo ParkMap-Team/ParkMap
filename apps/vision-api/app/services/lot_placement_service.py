@@ -6,7 +6,12 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from app.models import MetricGroundPoint, MetricPolygon, ParkingAreaLiveState
+from app.models import (
+    LotModelDefinition,
+    MetricGroundPoint,
+    MetricPolygon,
+    ParkingAreaLiveState,
+)
 
 
 @dataclass(frozen=True)
@@ -73,3 +78,16 @@ def place_area_state(state: ParkingAreaLiveState, payload: dict[str, Any], targe
             "heading_rad": math.atan2(math.sin(motorcycle.heading_rad + placement.angle), math.cos(motorcycle.heading_rad + placement.angle)),
         }) for motorcycle in state.motorcycles],
     })
+
+
+def replace_calibration_roi(definition: LotModelDefinition, area_id: str, points: list[MetricGroundPoint], placement: RigidPlacement) -> LotModelDefinition:
+    """Preview only: retain the map placement, landmarks and unrelated geometry."""
+    result = definition.model_copy(deep=True)
+    area = next((area for area in result.parking_areas if area.parking_area_id == area_id), None)
+    if area is None:
+        raise ValueError("The calibrated parking area is not in this lot model")
+    follows_roi = len(result.parking_areas) == 1 and result.outline == area.polygon
+    area.polygon = [[placement.point(point) for point in points]]
+    if follows_roi:
+        result.outline = area.polygon
+    return result

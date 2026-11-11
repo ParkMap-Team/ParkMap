@@ -14,6 +14,22 @@ SOURCE = polygon([(0, 0), (4, 0), (4, 2), (0, 2)])
 PAYLOAD = {"ground_plane_homography.json": {"roi_metric": {"points": [p.model_dump() for p in SOURCE[0]]}}}
 
 
+def test_calibration_roi_preview_preserves_placement_landmarks_and_original():
+    from app.models import LotModelDefinition
+    from app.services.lot_placement_service import replace_calibration_roi
+
+    target = polygon([(10, 5), (10, 9), (8, 9), (8, 5)])
+    definition = LotModelDefinition(outline=target, parking_areas=[{"parking_area_id": "area", "polygon": target}],
+        landmarks=[{"landmark_id": "tree", "kind": "TREE", "position": {"x_m": 6, "y_m": 6}, "height_m": 3, "radius_m": 1, "measurement_source": "ESTIMATED"}])
+    placement = rigid_placement(SOURCE, target)
+    changed = polygon([(0, 0), (6, 0), (6, 2), (0, 2)])[0]
+    preview = replace_calibration_roi(definition, "area", changed, placement)
+    assert preview.parking_areas[0].polygon[0][1].y_m == pytest.approx(11)
+    assert preview.outline == preview.parking_areas[0].polygon
+    assert preview.landmarks == definition.landmarks
+    assert definition.parking_areas[0].polygon == target
+
+
 @pytest.mark.parametrize("points", [
     [(0, 0), (8, 0), (8, 4), (0, 4)],  # scaling
     [(0, 0), (-4, 0), (-4, 2), (0, 2)],  # reflection
