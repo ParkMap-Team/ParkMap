@@ -1531,11 +1531,15 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "AVAILABLE" | "ALMOST_AVAILABLE" | "UNKNOWN";
+            kind: "AVAILABLE" | "ALMOST_AVAILABLE" | "UNKNOWN" | "WIDTH_SUFFICIENT" | "OCCUPIED";
             /** Polygon */
             polygon: components["schemas"]["MetricGroundPoint"][][];
+            /** Reasons */
+            reasons?: string[];
             /** Row Id */
             row_id?: string | null;
+            /** Width M */
+            width_m?: number | null;
         };
         /**
          * LotLandmark

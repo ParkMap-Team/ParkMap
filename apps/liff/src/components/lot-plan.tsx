@@ -226,7 +226,7 @@ export default function LotPlan({ map, labels, selection, onSelect, ref }: MapVi
                   d={pathOf(view, size, region.polygon)}
                   fill={region.kind === "UNKNOWN" ? "url(#plan-hatch)" : COLORS[region.kind]}
                   fillOpacity={region.kind === "UNKNOWN" ? 1 : 0.9}
-                  stroke={region.kind === "AVAILABLE" ? COLORS.AVAILABLE_STROKE : region.kind === "ALMOST_AVAILABLE" ? COLORS.ALMOST_AVAILABLE_STROKE : COLORS.UNKNOWN_HATCH}
+                  stroke={region.kind === "OCCUPIED" ? COLORS.OCCUPIED : (region.kind === "AVAILABLE" || region.kind === "WIDTH_SUFFICIENT") ? COLORS.AVAILABLE_STROKE : region.kind === "ALMOST_AVAILABLE" ? COLORS.ALMOST_AVAILABLE_STROKE : COLORS.UNKNOWN_HATCH}
                   strokeWidth={region.kind === "UNKNOWN" ? 1 : 2}
                   strokeDasharray={region.kind === "ALMOST_AVAILABLE" ? "6 4" : undefined}
                   fillRule="evenodd"
@@ -234,7 +234,7 @@ export default function LotPlan({ map, labels, selection, onSelect, ref }: MapVi
               ))}
               {area.motorcycles.map(({ proxy, footprint }) => (
                 <g key={proxy.detection_id}>
-                  <path d={pathOf(view, size, footprint)} fill={COLORS.OCCUPIED} fillOpacity={0.85} />
+                  {!area.regions.some(region => region.kind === "OCCUPIED") && <path d={pathOf(view, size, footprint)} fill={COLORS.OCCUPIED} fillOpacity={0.85} />}
                   <MotorcycleIcon proxy={proxy} view={view} size={size} />
                 </g>
               ))}

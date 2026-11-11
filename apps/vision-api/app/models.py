@@ -1,8 +1,9 @@
-from datetime import datetime
 import re
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
+
 
 def _row_number(row_id: str) -> int:
     match = re.fullmatch(r"row_([1-9][0-9]*)", row_id)
@@ -295,7 +296,7 @@ class MotorcycleFittingResponse(BaseModel):
 IDENTIFIER_PATTERN = r"^[a-z0-9][a-z0-9-]{0,62}$"
 MetricRing = list[MetricGroundPoint]
 MetricPolygon = list[MetricRing]
-LiveRegionKind = Literal["AVAILABLE", "ALMOST_AVAILABLE", "UNKNOWN"]
+LiveRegionKind = Literal["AVAILABLE", "ALMOST_AVAILABLE", "UNKNOWN", "WIDTH_SUFFICIENT", "OCCUPIED"]
 StateSourceKind = Literal["LIVE_CAMERA", "RECORDED_REPLAY", "STILL_IMAGE_LOOP", "SYNTHETIC_FIXTURE"]
 # DEMO is a fresh STILL_IMAGE_LOOP state: current processing of recorded photos, never the lot right now.
 AreaLiveStatus = Literal["LIVE", "DEMO", "STALE", "NO_DATA", "NOT_CALIBRATED", "CALIBRATION_MISMATCH"]
@@ -311,10 +312,14 @@ class LiveRegion(BaseModel):
     kind: LiveRegionKind
     row_id: str | None = None
     polygon: MetricPolygon
+    width_m: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+    reasons: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_polygon(self) -> "LiveRegion":
         _validate_polygon(self.polygon)
+        if self.kind == "WIDTH_SUFFICIENT" and self.width_m is None:
+            raise ValueError("Width-only preview requires a measured width")
         return self
 
 

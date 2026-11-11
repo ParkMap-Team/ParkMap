@@ -63,7 +63,7 @@ parking-state summary and bottom Summary section are removed from Parking;
 the Seg camera overlay and metric top-down gap map remain. Classifier controls and
 class-derived size experiments are removed from the web flow. Local trained
 classifier artifacts and legacy operator APIs remain available separately;
-worker/LIFF detector settings are unchanged. A missing Seg model fails explicitly
+the worker now uses Seg for standard-size proxies and UNKNOWN row publication. A missing Seg model fails explicitly
 rather than silently substituting the original detector.
 Active Seg gap ownership uses IMAGE_NEAREST_LOWER_EDGE. The bbox bottom-centre
 selects the nearest finite lower row edge in image pixels, within that edge's
@@ -72,7 +72,7 @@ smaller candidate row's image depth (polygon area / edge length). Ties remain
 unresolved. Points outside calibrated ROI by more than 0.40 m are excluded.
 Inside ROI there is no 20 cm cutoff or mask-overlap ownership gate. One detection
 reserves one owner band, remains uncertain, and all masks/bbox fallbacks remain
-image occluders. Saved geometry and worker/LIFF are unchanged.
+image occluders. Saved geometry is unchanged; the worker uses this same ownership policy.
 The metric map shows red lateral occupancy bands extended over each row's depth
 by default; these are display-only and never replace the original vehicle
 footprints used for inspection. In active rectangular gap analysis, references
@@ -138,3 +138,24 @@ The 3D map is a static surveyed lot model with detections drawn as motorcycle pr
 ## Open product inputs
 
 The Sripatum demo video (a fixed phone recording, ADR 0005) and surveyed dimensions and reference points of its parking area, acceptable update delay, acceptable false-green rate, and whether students need LINE messages in addition to opening LIFF. These are required for the demo, not for the workspace setup.
+
+The frame worker now uses Seg inference and the operator nearest-image-lower-edge
+association for publication. The existing LIFF contract carries assigned Seg
+standard-size proxies and UNKNOWN row regions, since width-only diagnostics do
+not establish full fitting. No width-preview green/yellow is published as
+availability. Calibration fingerprints, freshness and source semantics remain.
+
+LIFF now supports a separate WIDTH_SUFFICIENT preview region kind, rendered
+solid light green and labelled width-only experimental rather than AVAILABLE.
+Python publishes the same sufficient-width candidates as the tool preview,
+retaining numeric width and uncertainty reasons for selection. UNKNOWN row
+background remains underneath; stale/calibration gates still remove previews.
+LIVE_CAMERA with estimated calibration publishes UNKNOWN only.
+
+LIFF now receives explicit OCCUPIED reference bands from the same row-depth/ROI
+geometries shown in Calibration UI, separately from motorcycle proxies. Both
+renderers suppress the old red proxy-footprint background when occupied bands
+are supplied. Horizontal-image reference hypotheses inside calibrated ROI also
+feed display-only proxies (one ID once, including aisle references); they do not
+change gap fitting, occupancy decisions or availability. Their heading and size
+remain approximate standard references rather than measured Seg dimensions.

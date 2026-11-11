@@ -281,3 +281,12 @@ is rejected; there is no 20 cm cutoff inside ROI and no mask ownership gate.
 Each detection owns at most one reference-width band; uncertainty and camera
 occlusion gates remain. Chosen-row metric witnesses match the owner; metre
 values are diagnostic. No saved row, ROI, worker or LIFF behavior changes.
+
+Update 2026-11-11: the operator authorizes the frame worker to use the same Seg
+inference and nearest-lower-image-edge ownership as Parking. The existing live
+contract carries standard-size proxies for assigned detections and UNKNOWN row
+regions. Width-only green/yellow diagnostics never become AVAILABLE or
+ALMOST_AVAILABLE publication. Calibration fingerprints and changes during
+analysis, freshness, source kind and lot-placement checks remain mandatory.
+The LIFF renderer and DB schema are unchanged. A local/current ROI incompatible
+with the active lot model remains CALIBRATION_MISMATCH until explicitly aligned.
