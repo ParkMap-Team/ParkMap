@@ -100,6 +100,7 @@ export function timeLines(area: ParkingAreaLiveState | null, receivedAt: number 
  * red: planting is a muted sage, and every status layer is drawn over the surroundings.
  */
 export const COLORS = {
+  WIDTH_SUFFICIENT: "#4ade80",
   AVAILABLE: "#16a34a",
   AVAILABLE_STROKE: "#166534",
   ALMOST_AVAILABLE: "#facc15",

@@ -2499,7 +2499,9 @@
             "enum": [
               "AVAILABLE",
               "ALMOST_AVAILABLE",
-              "UNKNOWN"
+              "UNKNOWN",
+              "WIDTH_SUFFICIENT",
+              "OCCUPIED"
             ],
             "title": "Kind",
             "type": "string"
@@ -2514,6 +2516,13 @@
             "title": "Polygon",
             "type": "array"
           },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
           "row_id": {
             "anyOf": [
               {
@@ -2524,6 +2533,18 @@
               }
             ],
             "title": "Row Id"
+          },
+          "width_m": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width M"
           }
         },
         "required": [

@@ -21,13 +21,24 @@ from pathlib import Path
 import cv2
 import httpx
 from dotenv import load_dotenv
-
 from pydantic import ValidationError
 
-from app.models import ParkingCalibration, ParkingStatePublish, StateSourceKind
-from app.services.cv_service import ModelUnavailableError, cv_service
-from app.services.live_state_service import CalibrationFilesUnavailableError, build_state_publish, calibration_identity
-from app.services.parking_analysis_service import ParkingCalibrationUnavailableError, parking_analysis_service
+from app.models import (
+    Detection,
+    DetectionResponse,
+    ParkingCalibration,
+    ParkingStatePublish,
+    StateSourceKind,
+)
+from app.services.cv_service import ModelUnavailableError
+from app.services.live_state_service import (
+    CalibrationFilesUnavailableError,
+    build_segmentation_state_publish,
+    calibration_identity,
+)
+from app.services.parking_analysis_service import ParkingCalibrationUnavailableError
+from app.services.segmentation_experiment_service import segmentation_experiment_service
+from app.services.segmentation_gap_service import analyze_segmentation_gaps
 from app.worker.frames import Frame, FrameGrabber, LatestFrameSlot
 from app.worker.publisher import StatePublisher
 from app.worker.still_images import StillImageError, StillImageLoop, load_still_images
@@ -71,10 +82,24 @@ def analyze_frame(frame: Frame, *, parking_area_id: str, source: StateSourceKind
     encoded, jpeg = cv2.imencode(".jpg", frame.image)
     if not encoded:
         raise ValueError("Frame could not be encoded.")
-    detection = cv_service.analyze_image(jpeg.tobytes())
-    analysis = parking_analysis_service.analyze(detection)
-    return build_state_publish(
-        analysis,
+    segmented = segmentation_experiment_service.analyze_image(jpeg.tobytes())
+    detection = DetectionResponse(image_width=segmented.image_width, image_height=segmented.image_height,
+        model={"name": segmented.model}, inference={"imgsz": segmented.imgsz,
+            "confidence_threshold": segmentation_experiment_service.confidence,
+            "nms_iou": segmentation_experiment_service.iou, "processing_time_ms": segmented.processing_time_ms},
+        detections=[Detection(class_id=segmentation_experiment_service.class_id, class_name="motorcycle",
+            confidence=item.confidence, bbox=item.bbox) for item in segmented.detections])
+    gaps = analyze_segmentation_gaps(detection, segmented, visible_free_shapes=False,
+        bottom_edge_assignment=True, image_row_assignment=True)
+    try:
+        camera = ParkingCalibration.model_validate_json((CONFIG_DIRECTORY / "parking_calibration.json").read_bytes()).camera_id
+    except (OSError, ValidationError) as error:
+        raise CalibrationFilesUnavailableError("Parking calibration is unavailable or invalid") from error
+    if calibration_identity(CONFIG_DIRECTORY) != (version, provenance):
+        raise CalibrationFilesUnavailableError("Calibration changed during worker analysis")
+    return build_segmentation_state_publish(
+        segmented, gaps,
+        camera_id=camera,
         parking_area_id=parking_area_id,
         source=source,
         observed_at=frame.captured_at,

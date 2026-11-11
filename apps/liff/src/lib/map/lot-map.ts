@@ -10,7 +10,7 @@ import { type Bounds, boundsOf, labelPoint, pointInPolygon, proxyFootprint } fro
  * What a place on the map shows. OCCUPIED is a detected motorcycle's footprint. MONITORED is ground
  * with a current state that the API marked neither as a candidate space nor as unknown.
  */
-export type MapStatus = "AVAILABLE" | "ALMOST_AVAILABLE" | "OCCUPIED" | "UNKNOWN" | "MONITORED" | "UNMONITORED";
+export type MapStatus = "AVAILABLE" | "WIDTH_SUFFICIENT" | "ALMOST_AVAILABLE" | "OCCUPIED" | "UNKNOWN" | "MONITORED" | "UNMONITORED";
 
 /** Why ground is unknown: no state yet, the API returned the region as UNKNOWN, or the area has no current state. */
 export type UnknownReason = "LOADING" | "UNPROVEN" | Exclude<AreaLiveStatus, "LIVE" | "DEMO">;
@@ -71,7 +71,7 @@ export function buildLotMap(lotModel: LotModel, states: ParkingAreaLiveState[] |
   };
 }
 
-export type MapHit = { status: MapStatus; polygon: MetricPolygon; area: MapArea | null; unknownReason: UnknownReason | null };
+export type MapHit = { status: MapStatus; polygon: MetricPolygon; area: MapArea | null; unknownReason: UnknownReason | null; region?: LiveRegion };
 
 /** What the map shows at a ground point, in drawing order from the top; null outside the lot. */
 export function hitTest(map: LotMap, point: MetricPoint): MapHit | null {
@@ -79,11 +79,11 @@ export function hitTest(map: LotMap, point: MetricPoint): MapHit | null {
     if (!pointInPolygon(point, area.polygon)) continue;
     if (area.unknownReason) return { status: "UNKNOWN", polygon: area.polygon, area, unknownReason: area.unknownReason };
     const motorcycle = area.motorcycles.find(({ footprint }) => pointInPolygon(point, footprint));
-    if (motorcycle) return { status: "OCCUPIED", polygon: motorcycle.footprint, area, unknownReason: null };
+    if (motorcycle && !area.regions.some(region => region.kind === "OCCUPIED")) return { status: "OCCUPIED", polygon: motorcycle.footprint, area, unknownReason: null };
     for (let index = area.regions.length - 1; index >= 0; index--) {
       const region = area.regions[index];
       if (pointInPolygon(point, region.polygon)) {
-        return { status: region.kind, polygon: region.polygon, area, unknownReason: region.kind === "UNKNOWN" ? "UNPROVEN" : null };
+        return { status: region.kind, polygon: region.polygon, area, unknownReason: region.kind === "UNKNOWN" ? "UNPROVEN" : null, region };
       }
     }
     return { status: "MONITORED", polygon: area.polygon, area, unknownReason: null };

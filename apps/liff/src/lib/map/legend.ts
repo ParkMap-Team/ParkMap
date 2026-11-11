@@ -10,6 +10,11 @@ import type { LotMap, MapStatus, MapSummary, UnknownReason } from "./lot-map.ts"
 export type StatusMark = "solid" | "dashed" | "motorcycle" | "hatch" | "dots" | "plain";
 
 export const STATUS_TEXT: Record<MapStatus, { label: string; detail: string; mark: StatusMark }> = {
+  WIDTH_SUFFICIENT: {
+    label: "กว้างพอ (ทดลอง)",
+    detail: "กว้างพอตามแบบจำลอง ยังไม่ตรวจความยาวและทางเข้า–ออก อาจมีการบังหรือความไม่แน่นอน ไม่ใช่การยืนยันว่าจอดได้",
+    mark: "solid",
+  },
   AVAILABLE: {
     label: "มีพื้นที่จอด",
     detail: "ระบบพบพื้นที่ว่างพอสำหรับรถจักรยานยนต์ ณ เวลาที่ประมวลผล อาจเปลี่ยนไปก่อนที่คุณจะไปถึง",
@@ -43,7 +48,7 @@ export const STATUS_TEXT: Record<MapStatus, { label: string; detail: string; mar
 };
 
 /** The legend lists what can appear on the map, in the order a student reads it. */
-export const LEGEND_ORDER: MapStatus[] = ["AVAILABLE", "ALMOST_AVAILABLE", "OCCUPIED", "UNKNOWN", "UNMONITORED"];
+export const LEGEND_ORDER: MapStatus[] = ["AVAILABLE", "WIDTH_SUFFICIENT", "ALMOST_AVAILABLE", "OCCUPIED", "UNKNOWN", "UNMONITORED"];
 
 /** Why ground is unknown, only as far as the API says; an UNKNOWN region carries no reason. */
 export function unknownReasonText(reason: UnknownReason): string | null {
@@ -94,9 +99,10 @@ export function headline(summary: MapSummary, connectionLost: boolean): string {
 }
 
 /** The status the headline names, so its swatch matches; null when it names none. */
-export function headlineStatus(summary: MapSummary): "AVAILABLE" | "ALMOST_AVAILABLE" | null {
+export function headlineStatus(summary: MapSummary): "AVAILABLE" | "WIDTH_SUFFICIENT" | "ALMOST_AVAILABLE" | null {
   if (summary.loading || summary.currentAreas === 0) return null;
   if (summary.present.has("AVAILABLE")) return "AVAILABLE";
+  if (summary.present.has("WIDTH_SUFFICIENT")) return "WIDTH_SUFFICIENT";
   if (summary.present.has("ALMOST_AVAILABLE")) return "ALMOST_AVAILABLE";
   return null;
 }

@@ -479,7 +479,7 @@ function Ground({ map, onSelect, onReady }: { map: LotMap; onSelect(point: Metri
                 <Outline
                   polygon={region.polygon}
                   height={HEIGHT.region}
-                  color={region.kind === "AVAILABLE" ? COLORS.AVAILABLE_STROKE : COLORS.ALMOST_AVAILABLE_STROKE}
+                  color={region.kind === "OCCUPIED" ? COLORS.OCCUPIED : (region.kind === "AVAILABLE" || region.kind === "WIDTH_SUFFICIENT") ? COLORS.AVAILABLE_STROKE : COLORS.ALMOST_AVAILABLE_STROKE}
                   width={2}
                   dashed={region.kind === "ALMOST_AVAILABLE"}
                   statusOrder={STATUS_ORDER.regionStroke}
@@ -489,7 +489,7 @@ function Ground({ map, onSelect, onReady }: { map: LotMap; onSelect(point: Metri
           ))}
         </group>
       ))}
-      <Footprints proxies={proxies} />
+      <Footprints proxies={map.areas.filter(area => !area.regions.some(region => region.kind === "OCCUPIED")).flatMap(area => area.motorcycles.map(({ proxy }) => proxy))} />
       {/* The model loads behind Suspense; the rest of the map shows at once. */}
       <Suspense fallback={null}>
         <Motorcycles proxies={proxies} onReady={onReady} />

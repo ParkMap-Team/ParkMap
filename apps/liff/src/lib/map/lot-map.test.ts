@@ -8,6 +8,31 @@ const rect = (x0: number, y0: number, x1: number, y1: number) => [
   [{ x_m: x0, y_m: y0 }, { x_m: x1, y_m: y0 }, { x_m: x1, y_m: y1 }, { x_m: x0, y_m: y1 }],
 ];
 
+test("width-only green keeps its limitations and never becomes available", () => {
+  const region = { kind: "WIDTH_SUFFICIENT" as const, row_id: "r", polygon: rect(3, 2, 5, 3),
+    width_m: 1.2, reasons: ["GROUND_MAY_BE_OCCLUDED"] };
+  const map = buildLotMap(lotModel, [live({ regions: [region], motorcycles: [] })]);
+  const hit = hitTest(map, { x_m: 4, y_m: 2.5 });
+  assert.equal(hit?.status, "WIDTH_SUFFICIENT");
+  assert.equal(hit?.region?.width_m, 1.2);
+  assert.deepEqual(hit?.region?.reasons, ["GROUND_MAY_BE_OCCLUDED"]);
+  assert.equal(headlineStatus(summarize(map)), "WIDTH_SUFFICIENT");
+  assert.equal(summarize(map).present.has("AVAILABLE"), false);
+  assert.equal(hitTest(buildLotMap(lotModel, [live({ status: "STALE", regions: [region] })]), { x_m: 4, y_m: 2.5 })?.status, "UNKNOWN");
+});
+
+test("explicit row occupancy wins over the generic motorcycle footprint", () => {
+  const map = buildLotMap(lotModel, [live({
+    regions: [
+      { kind: "WIDTH_SUFFICIENT", polygon: rect(4, 2, 5, 3), width_m: 1 },
+      { kind: "OCCUPIED", polygon: rect(3, 2, 4, 3) },
+    ],
+    motorcycles: [{ detection_id: "d1", center: { x_m: 4, y_m: 2.5 }, heading_rad: 0, length_m: 2, width_m: .66, confidence: .9 }],
+  })]);
+  assert.equal(hitTest(map, { x_m: 3.5, y_m: 2.5 })?.status, "OCCUPIED");
+  assert.equal(hitTest(map, { x_m: 4.5, y_m: 2.5 })?.status, "WIDTH_SUFFICIENT");
+});
+
 const lotModel: LotModel = {
   site_id: "site",
   schema_version: 1,
