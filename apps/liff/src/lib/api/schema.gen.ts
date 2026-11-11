@@ -618,6 +618,11 @@ export interface components {
         };
         /** Body_analyze_api_operator_classifier_analyze_post */
         Body_analyze_api_operator_classifier_analyze_post: {
+            /**
+             * Clearance Margin M
+             * @default 0
+             */
+            clearance_margin_m: number;
             /** Image */
             image: string;
             /**
@@ -642,6 +647,12 @@ export interface components {
              * @default
              */
             model_id: string;
+            /**
+             * Primary Detector
+             * @default standard
+             * @enum {string}
+             */
+            primary_detector: "standard" | "segmentation";
         };
         /** Body_analyze_auto_parking_api_auto_parking_analyze_post */
         Body_analyze_auto_parking_api_auto_parking_analyze_post: {
@@ -814,6 +825,52 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** GapBackgroundRegion */
+        GapBackgroundRegion: {
+            /**
+             * Depth Blockers
+             * @default []
+             */
+            depth_blockers: components["schemas"]["GapImageSource"][];
+            /**
+             * Depth Blockers Truncated
+             * @default false
+             */
+            depth_blockers_truncated: boolean;
+            /**
+             * Detection Ids
+             * @default []
+             */
+            detection_ids: string[];
+            geometry: components["schemas"]["GapMetricGeometry"];
+            /** Id */
+            id: string;
+            image_geometry?: components["schemas"]["GapImageGeometry"] | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "OCCUPIED_REFERENCE" | "NOT_EVALUATED";
+            /**
+             * Occlusion Evidence
+             * @default []
+             */
+            occlusion_evidence: components["schemas"]["GapOcclusionEvidence"][];
+            /**
+             * Occlusion Evidence Available
+             * @default false
+             */
+            occlusion_evidence_available: boolean;
+            /**
+             * Occlusion Evidence Truncated
+             * @default false
+             */
+            occlusion_evidence_truncated: boolean;
+            /** Reasons */
+            reasons: string[];
+            /** Row Id */
+            row_id: string;
+        };
         /** GapCandidate */
         GapCandidate: {
             /**
@@ -821,16 +878,43 @@ export interface components {
              * @default []
              */
             compatible_families: components["schemas"]["GapFamilyRecommendation"][];
+            /** Depth At Width Midpoint M */
+            depth_at_width_midpoint_m?: number | null;
+            /** Depth Line Image */
+            depth_line_image?: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Depth Line Metric
+             * @default []
+             */
+            depth_line_metric: components["schemas"]["MetricGroundPoint"][];
             /** Gap Width M */
             gap_width_m: number;
+            geometry_image?: components["schemas"]["GapImageGeometry"] | null;
+            geometry_metric?: components["schemas"]["GapMetricGeometry"] | null;
             /** Id */
             id: string;
             label_image: components["schemas"]["MaskPoint"] | null;
             label_metric?: components["schemas"]["MetricGroundPoint"] | null;
+            near_fit?: components["schemas"]["GapNearFit"] | null;
             /** Nearest Clearance M */
             nearest_clearance_m: number | null;
             /** Nearest Line Image */
             nearest_line_image: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Occlusion Evidence
+             * @default []
+             */
+            occlusion_evidence: components["schemas"]["GapOcclusionEvidence"][];
+            /**
+             * Occlusion Evidence Available
+             * @default false
+             */
+            occlusion_evidence_available: boolean;
+            /**
+             * Occlusion Evidence Truncated
+             * @default false
+             */
+            occlusion_evidence_truncated: boolean;
             /** Polygon Image */
             polygon_image: components["schemas"]["MaskPoint"][] | null;
             /**
@@ -850,7 +934,29 @@ export interface components {
              * State
              * @enum {string}
              */
-            state: "FIT" | "WIDTH_SUFFICIENT" | "SLOT_CLEAR" | "INSUFFICIENT_WIDTH" | "UNKNOWN";
+            state: "FIT" | "WIDTH_SUFFICIENT" | "SLOT_CLEAR" | "INSUFFICIENT_WIDTH" | "ALMOST_AVAILABLE" | "UNKNOWN";
+            /**
+             * Uncertain Detection Ids
+             * @default []
+             */
+            uncertain_detection_ids: string[];
+            /**
+             * Visibility
+             * @default UNCONFIRMED
+             * @enum {string}
+             */
+            visibility: "VISIBLE" | "OCCLUDED" | "UNCONFIRMED";
+            /**
+             * Width Blocking Detection Ids
+             * @default []
+             */
+            width_blocking_detection_ids: string[];
+            /**
+             * Width Check
+             * @default NOT_EVALUATED
+             * @enum {string}
+             */
+            width_check: "SUFFICIENT" | "INSUFFICIENT" | "NOT_EVALUATED";
             /** Width Line Image */
             width_line_image: components["schemas"]["MaskPoint"][] | null;
             /**
@@ -858,6 +964,30 @@ export interface components {
              * @default []
              */
             width_line_metric: components["schemas"]["MetricGroundPoint"][];
+        };
+        /** GapDetectionRowAssignment */
+        GapDetectionRowAssignment: {
+            /** Assigned Row Id */
+            assigned_row_id?: string | null;
+            /** Detection Id */
+            detection_id: string;
+            /** Distance Line Image */
+            distance_line_image?: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Distance Line Metric
+             * @default []
+             */
+            distance_line_metric: components["schemas"]["MetricGroundPoint"][];
+            /** Distance M */
+            distance_m?: number | null;
+            ground_point?: components["schemas"]["MetricGroundPoint"] | null;
+            /** Nearest Row Id */
+            nearest_row_id?: string | null;
+            /**
+             * Reason
+             * @default UNRESOLVED
+             */
+            reason: string;
         };
         /** GapFamilyRecommendation */
         GapFamilyRecommendation: {
@@ -870,6 +1000,26 @@ export interface components {
             /** Width M */
             width_m: number;
         };
+        /** GapImageGeometry */
+        GapImageGeometry: {
+            /**
+             * Polygons
+             * @default []
+             */
+            polygons: components["schemas"]["MaskPoint"][][][];
+        };
+        /** GapImageSource */
+        GapImageSource: {
+            /** Detection Id */
+            detection_id: string;
+            /** Detection Index */
+            detection_index: number;
+            /**
+             * Source Kind
+             * @enum {string}
+             */
+            source_kind: "MASK" | "BBOX_FALLBACK";
+        };
         /** GapMetricGeometry */
         GapMetricGeometry: {
             /**
@@ -878,20 +1028,113 @@ export interface components {
              */
             polygons: components["schemas"]["MetricGroundPoint"][][][];
         };
-        /** GapOccupancyLayer */
-        GapOccupancyLayer: {
+        /** GapNearFit */
+        GapNearFit: {
+            /** Conflicting Detection Ids */
+            conflicting_detection_ids: string[];
+            /**
+             * Movement Status
+             * @default NOT_COMPUTED
+             * @constant
+             */
+            movement_status: "NOT_COMPUTED";
+            /** Occupied Overlap Ratio */
+            occupied_overlap_ratio: number;
+            /** Required Extra Width M */
+            required_extra_width_m: number;
+            /** Target Polygon Image */
+            target_polygon_image: components["schemas"]["MaskPoint"][];
+            /** Target Polygon Metric */
+            target_polygon_metric: components["schemas"]["MetricGroundPoint"][];
+        };
+        /** GapOcclusionEvidence */
+        GapOcclusionEvidence: {
+            /** Candidate Overlap Ratio */
+            candidate_overlap_ratio: number;
             /** Detection Id */
             detection_id: string;
+            /** Detection Index */
+            detection_index: number;
+            overlap_image: components["schemas"]["GapImageGeometry"];
+            /**
+             * Source Kind
+             * @enum {string}
+             */
+            source_kind: "MASK" | "BBOX_FALLBACK";
+        };
+        /** GapOccupancyLayer */
+        GapOccupancyLayer: {
+            /** Assigned Row Id */
+            assigned_row_id?: string | null;
+            /** Detection Id */
+            detection_id: string;
+            /** Detection Index */
+            detection_index?: number | null;
             geometry: components["schemas"]["GapMetricGeometry"];
             roi_geometry: components["schemas"]["GapMetricGeometry"];
+            /** Row Assignment Distance M */
+            row_assignment_distance_m?: number | null;
+            /**
+             * Row Assignment Reason
+             * @default UNRESOLVED
+             */
+            row_assignment_reason: string;
+            /**
+             * Row Assignment Source
+             * @default UNRESOLVED
+             * @enum {string}
+             */
+            row_assignment_source: "BOTTOM_CENTRE" | "NEAREST_APPROXIMATE" | "BOTTOM_EDGE_APPROXIMATE" | "MASK_SUPPORTED_NEAREST_EDGE" | "IMAGE_POINT" | "IMAGE_MASK" | "IMAGE_NEAREST_EDGE" | "UNRESOLVED";
+            row_depth_geometry?: components["schemas"]["GapMetricGeometry"] | null;
             /**
              * Source
              * @enum {string}
              */
             source: "PRIMARY" | "SEGMENTATION";
         };
+        /** GapOrientationHypothesis */
+        GapOrientationHypothesis: {
+            /**
+             * Basis
+             * @default PIXEL_BBOX_RATIO_NOT_GROUND_HEADING
+             * @constant
+             */
+            basis: "PIXEL_BBOX_RATIO_NOT_GROUND_HEADING";
+            /** Detection Id */
+            detection_id: string;
+            /** Detection Index */
+            detection_index: number;
+            geometry?: components["schemas"]["GapMetricGeometry"] | null;
+            image_geometry?: components["schemas"]["GapImageGeometry"] | null;
+            /**
+             * Image Orientation
+             * @enum {string}
+             */
+            image_orientation: "HORIZONTAL_IMAGE" | "VERTICAL_IMAGE" | "AMBIGUOUS_IMAGE";
+            /** Pixel Aspect Ratio */
+            pixel_aspect_ratio: number;
+            /** Proposed Rotation Deg */
+            proposed_rotation_deg: (0 | 90) | null;
+        };
         /** GapRow */
         GapRow: {
+            /**
+             * Affected Detection Ids
+             * @default []
+             */
+            affected_detection_ids: string[];
+            /**
+             * Almost Count
+             * @default 0
+             */
+            almost_count: number;
+            /** Bottom Edge Image */
+            bottom_edge_image?: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Bottom Edge Metric
+             * @default []
+             */
+            bottom_edge_metric: components["schemas"]["MetricGroundPoint"][];
             /** Fit Count */
             fit_count: number;
             label_image?: components["schemas"]["MaskPoint"] | null;
@@ -903,15 +1146,34 @@ export interface components {
              * @default []
              */
             polygon_metric: components["schemas"]["MetricGroundPoint"][];
+            /**
+             * Reasons
+             * @default []
+             */
+            reasons: string[];
             /** Row Id */
             row_id: string;
             /**
              * State
              * @enum {string}
              */
-            state: "FIT" | "WIDTH_SUFFICIENT" | "SLOT_CLEAR" | "UNKNOWN" | "NO_FIT";
+            state: "FIT" | "WIDTH_SUFFICIENT" | "SLOT_CLEAR" | "ALMOST_AVAILABLE" | "UNKNOWN" | "NO_FIT";
+            /**
+             * Uncertainty Scope
+             * @default ROW
+             * @enum {string}
+             */
+            uncertainty_scope: "ROW" | "LOCAL_REFERENCE_ENVELOPE" | "NONE";
             /** Unknown Count */
             unknown_count: number;
+        };
+        /** GapUncertaintyRegion */
+        GapUncertaintyRegion: {
+            /** Detection Id */
+            detection_id: string;
+            geometry: components["schemas"]["GapMetricGeometry"];
+            /** Reasons */
+            reasons: string[];
         };
         /** GroundControlPoint */
         GroundControlPoint: {
@@ -1153,10 +1415,82 @@ export interface components {
              */
             status: "ok";
         };
+        /** HorizontalVehicleClearance */
+        HorizontalVehicleClearance: {
+            /**
+             * Basis
+             * @default STANDARD_REFERENCE_PIXEL_ORIENTATION_NOT_MEASURED
+             * @constant
+             */
+            basis: "STANDARD_REFERENCE_PIXEL_ORIENTATION_NOT_MEASURED";
+            /** Clearance M */
+            clearance_m?: number | null;
+            /** Detection Id */
+            detection_id: string;
+            /** Detection Index */
+            detection_index: number;
+            /**
+             * Display Only
+             * @default true
+             * @constant
+             */
+            display_only: true;
+            /**
+             * Excluded Neighbor Count
+             * @default 0
+             */
+            excluded_neighbor_count: number;
+            /** Line Image */
+            line_image?: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Line Metric
+             * @default []
+             */
+            line_metric: components["schemas"]["MetricGroundPoint"][];
+            /**
+             * Measurement Status
+             * @default NO_COMPARABLE_NEIGHBOR
+             * @enum {string}
+             */
+            measurement_status: "APPROXIMATE_REFERENCE" | "OUTSIDE_CALIBRATED_ROI" | "PROJECTION_UNAVAILABLE" | "NO_COMPARABLE_NEIGHBOR";
+            /** Nearest Detection Id */
+            nearest_detection_id?: string | null;
+            /** Neighbor Polygon Image */
+            neighbor_polygon_image?: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Neighbor Polygon Metric
+             * @default []
+             */
+            neighbor_polygon_metric: components["schemas"]["MetricGroundPoint"][];
+            /** Pixel Aspect Ratio */
+            pixel_aspect_ratio: number;
+            /** Polygon Image */
+            polygon_image?: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Polygon Metric
+             * @default []
+             */
+            polygon_metric: components["schemas"]["MetricGroundPoint"][];
+            /**
+             * Reference Length M
+             * @default 2
+             */
+            reference_length_m: number;
+            /**
+             * Reference Width M
+             * @default 0.66
+             */
+            reference_width_m: number;
+        };
         /** IncomingVehicleRecommendation */
         IncomingVehicleRecommendation: {
             /** Allocation Width M */
             allocation_width_m: number;
+            /**
+             * Almost Count
+             * @default 0
+             */
+            almost_count: number;
             /** Candidates */
             candidates: components["schemas"]["GapCandidate"][];
             /**
@@ -1616,6 +1950,26 @@ export interface components {
              */
             access_status: "NOT_EVALUATED";
             /**
+             * Advisory Max Extra Width M
+             * @default 0.1
+             */
+            advisory_max_extra_width_m: number;
+            /**
+             * Advisory Max Overlap Ratio
+             * @default 0.1
+             */
+            advisory_max_overlap_ratio: number;
+            /**
+             * Almost Count
+             * @default 0
+             */
+            almost_count: number;
+            /**
+             * Background Regions
+             * @default []
+             */
+            background_regions: components["schemas"]["GapBackgroundRegion"][];
+            /**
              * Calibration Source
              * @default UNKNOWN
              * @enum {string}
@@ -1634,11 +1988,21 @@ export interface components {
              */
             clearance_margin_m: number;
             /**
+             * Detection Row Assignments
+             * @default []
+             */
+            detection_row_assignments: components["schemas"]["GapDetectionRowAssignment"][];
+            /**
              * Evaluation Mode
              * @default FULL_FOOTPRINT
              * @enum {string}
              */
-            evaluation_mode: "FULL_FOOTPRINT" | "WIDTH_ONLY" | "VIRTUAL_SLOTS";
+            evaluation_mode: "FULL_FOOTPRINT" | "WIDTH_ONLY" | "VIRTUAL_SLOTS" | "CONTINUOUS_GAPS" | "VISIBLE_FREE_SHAPES";
+            /**
+             * Excluded Detection Ids
+             * @default []
+             */
+            excluded_detection_ids: string[];
             /** Family Recommendation Error */
             family_recommendation_error?: string | null;
             /**
@@ -1646,6 +2010,11 @@ export interface components {
              * @default 0
              */
             green_count: number;
+            /**
+             * Horizontal Vehicles
+             * @default []
+             */
+            horizontal_vehicles: components["schemas"]["HorizontalVehicleClearance"][];
             incoming_vehicle?: components["schemas"]["IncomingVehicleRecommendation"] | null;
             /**
              * Measured Gaps
@@ -1660,17 +2029,50 @@ export interface components {
              */
             narrow_count: number;
             /**
+             * Occupancy Scope
+             * @default REFERENCE_OVERLAP
+             * @enum {string}
+             */
+            occupancy_scope: "REFERENCE_OVERLAP" | "GROUND_ANCHOR_IN_ROW_AND_ROI" | "GROUND_ANCHOR_OR_ROW_MASK" | "BOTTOM_EDGE_ANCHOR" | "IMAGE_ROW_POINT_OR_MASK" | "IMAGE_NEAREST_LOWER_EDGE";
+            /**
+             * Occupancy Source
+             * @default COMBINED
+             * @enum {string}
+             */
+            occupancy_source: "COMBINED" | "SEGMENTATION_ONLY";
+            /**
              * Occupied Layers
              * @default []
              */
             occupied_layers: components["schemas"]["GapOccupancyLayer"][];
             occupied_metric?: components["schemas"]["GapMetricGeometry"] | null;
+            /**
+             * Orientation Display Only
+             * @default true
+             * @constant
+             */
+            orientation_display_only: true;
+            /**
+             * Orientation Hypotheses
+             * @default []
+             */
+            orientation_hypotheses: components["schemas"]["GapOrientationHypothesis"][];
+            /**
+             * Orientation Ratio Threshold
+             * @default 1.15
+             */
+            orientation_ratio_threshold: number;
             parking_roi_metric?: components["schemas"]["GapMetricGeometry"] | null;
             /**
              * Reasons
              * @default []
              */
             reasons: string[];
+            /**
+             * Row Owned References
+             * @default false
+             */
+            row_owned_references: boolean;
             /**
              * Rows
              * @default []
@@ -1698,6 +2100,16 @@ export interface components {
              */
             truncated: boolean;
             /**
+             * Uncertain Reference Ids
+             * @default []
+             */
+            uncertain_reference_ids: string[];
+            /**
+             * Uncertainty Regions
+             * @default []
+             */
+            uncertainty_regions: components["schemas"]["GapUncertaintyRegion"][];
+            /**
              * Unknown Count
              * @default 0
              */
@@ -1707,7 +2119,7 @@ export interface components {
              * @default FULL_DEPTH
              * @enum {string}
              */
-            width_measurement: "ROW_MIDLINE_BAND" | "FULL_DEPTH";
+            width_measurement: "ROW_MIDLINE_BAND" | "FULL_DEPTH" | "VISIBLE_PATCH_CROSS_SECTION";
         };
         /** SegmentedMotorcycle */
         SegmentedMotorcycle: {

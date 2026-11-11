@@ -13,6 +13,57 @@ from app import classifier
 from app.main import app
 
 
+def test_segmentation_primary_skips_standard_detector_and_classifier(monkeypatch):
+    from app.services.segmentation_experiment_service import (
+        SegmentationExperimentResult,
+    )
+    from app.services.segmentation_gap_service import SegmentationGapResult
+
+    monkeypatch.setenv("PARKMAP_EDITOR_TOKEN", "test-key")
+    def forbidden(*args, **kwargs):
+        pytest.fail("Segmentation mode must not invoke detection or classification models")
+    monkeypatch.setattr(classifier.cv_service, "analyze_image", forbidden)
+    monkeypatch.setattr(classifier, "classify", forbidden)
+    calls = []
+    def segment(raw):
+        calls.append(raw)
+        return SegmentationExperimentResult(model="yolo11m-seg.pt", image_width=40, image_height=20,
+            processing_time_ms=5, imgsz=960, detections=[{"bbox": {"x": .1, "y": .2, "width": .3, "height": .4}, "confidence": .9}])
+    monkeypatch.setattr(classifier.segmentation_experiment_service, "analyze_image", segment)
+    def gaps(detection, segmented, **kwargs):
+        assert detection.model.name == "yolo11m-seg.pt"
+        assert detection.detections[0].bbox == segmented.detections[0].bbox
+        assert kwargs["incoming_width_m"] == .75
+        assert kwargs["clearance_margin_m"] == .1
+        assert kwargs["visible_free_shapes"] is False
+        assert kwargs["bottom_edge_assignment"] is True
+        assert kwargs["image_row_assignment"] is True
+        return SegmentationGapResult(evaluation_mode="CONTINUOUS_GAPS")
+    monkeypatch.setattr(classifier, "analyze_segmentation_gaps", gaps)
+    stream = io.BytesIO()
+    Image.new("RGB", (40, 20)).save(stream, "PNG")
+    client = TestClient(app, headers={"Authorization": "Bearer test-key"})
+    result = client.post("/api/operator/classifier/analyze", data={"primary_detector": "segmentation",
+        "model_id": "ignored-old-selection", "include_parking": "false", "incoming_width_m": ".75", "clearance_margin_m": ".1"},
+        files={"image": ("frame.png", stream.getvalue(), "image/png")})
+    assert result.status_code == 200
+    payload = result.json()
+    assert len(calls) == 1
+    assert payload["classification"] is None
+    assert payload["classification_error"] is None
+    assert payload["reference_size_experiment"] is None
+    assert len(payload["detection"]["detections"]) == 1
+    assert payload["segmentation"]["preview_url"].startswith("data:image/jpeg;base64,")
+    assert payload["segmentation_gaps"]["evaluation_mode"] == "CONTINUOUS_GAPS"
+    def missing(raw):
+        raise classifier.ModelUnavailableError("missing segmentation")
+    monkeypatch.setattr(classifier.segmentation_experiment_service, "analyze_image", missing)
+    failed = client.post("/api/operator/classifier/analyze", data={"primary_detector": "segmentation"},
+        files={"image": ("frame.png", stream.getvalue(), "image/png")})
+    assert failed.status_code == 503
+    assert "Segmentation unavailable" in failed.json()["detail"]
+
+
 @pytest.mark.parametrize("width", ["0", "-1", "nan", "inf", "5.01", "not-a-number"])
 def test_incoming_width_rejects_invalid_input_before_detection(monkeypatch, width):
     monkeypatch.setenv("PARKMAP_EDITOR_TOKEN", "test-key")
@@ -22,6 +73,19 @@ def test_incoming_width_rejects_invalid_input_before_detection(monkeypatch, widt
     Image.new("RGB", (40, 20)).save(image, "PNG")
     client = TestClient(app, headers={"Authorization": "Bearer test-key"})
     result = client.post("/api/operator/classifier/analyze", data={"incoming_width_m": width}, files={"image": ("a.png", image.getvalue(), "image/png")})
+    assert result.status_code == 422
+    assert calls == []
+
+
+@pytest.mark.parametrize("margin", ["-0.01", "1.01", "nan", "inf", "bad"])
+def test_clearance_margin_rejects_invalid_input_before_detection(monkeypatch, margin):
+    monkeypatch.setenv("PARKMAP_EDITOR_TOKEN", "test-key")
+    calls = []
+    monkeypatch.setattr(classifier.cv_service, "analyze_image", lambda raw: calls.append(raw))
+    image = io.BytesIO()
+    Image.new("RGB", (40, 20)).save(image, "PNG")
+    client = TestClient(app, headers={"Authorization": "Bearer test-key"})
+    result = client.post("/api/operator/classifier/analyze", data={"clearance_margin_m": margin}, files={"image": ("a.png", image.getvalue(), "image/png")})
     assert result.status_code == 422
     assert calls == []
 
@@ -176,9 +240,11 @@ def test_optional_segmentation_never_replaces_standard_detections(monkeypatch):
         assert standard.detections == []
         assert len(segmented.detections) == 1
         assert kwargs["incoming_width_m"] == 1.2
+        assert kwargs["clearance_margin_m"] == .1
+        assert kwargs["visible_free_shapes"] is False
         return SegmentationGapResult(status="EXPERIMENTAL")
     monkeypatch.setattr(classifier, "analyze_segmentation_gaps", gaps)
-    only_gaps = client.post("/api/operator/classifier/analyze", data={"include_parking": "false", "incoming_width_m": "1.2"}, files={"image": ("a.png", stream.getvalue(), "image/png")})
+    only_gaps = client.post("/api/operator/classifier/analyze", data={"include_parking": "false", "incoming_width_m": "1.2", "clearance_margin_m": ".1"}, files={"image": ("a.png", stream.getvalue(), "image/png")})
     assert only_gaps.status_code == 200
     assert only_gaps.json()["segmentation_gaps"]["status"] == "EXPERIMENTAL"
     assert only_gaps.json()["detection"]["detections"] == []

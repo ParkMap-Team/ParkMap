@@ -1,4 +1,4 @@
-"""Local image-mask comparison; never feeds parking geometry or live state."""
+"""Local Seg inference; operator consumers use boxes and image masks separately."""
 
 import math
 import os
