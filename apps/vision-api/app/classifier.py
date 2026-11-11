@@ -15,7 +15,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from app.models import DetectionResponse
+from app.models import Detection, DetectionResponse
 from app.operator_auth import require_editor_token
 from app.services.cv_service import ModelUnavailableError, cv_service
 from app.services.motorcycle_reference_sizes import (
@@ -32,10 +32,10 @@ from app.services.segmentation_experiment_service import (
     segmentation_experiment_service,
 )
 from app.services.segmentation_gap_service import (
-    VIRTUAL_SLOT_WIDTH_M,
     SegmentationGapResult,
     analyze_segmentation_gaps,
 )
+from app.services.virtual_fitting_service import WIDTH_M
 
 router = APIRouter(prefix="/api/operator/classifier", tags=["Classifier experiment"], dependencies=[Depends(require_editor_token)])
 API_ROOT = Path(__file__).resolve().parent.parent
@@ -249,12 +249,14 @@ async def predict(image: Annotated[UploadFile, File()], model_id: Annotated[str,
 
 
 @router.post("/analyze", response_model=ParkingClassifierResult)
-async def analyze(image: Annotated[UploadFile, File()], response: Response, model_id: str = Form(""), include_parking: bool = Form(True), include_segmentation: bool = Form(False), include_segmentation_gaps: bool = Form(False), incoming_width_m: Annotated[float | None, Form(gt=0, le=5, allow_inf_nan=False)] = None):
+async def analyze(image: Annotated[UploadFile, File()], response: Response, model_id: str = Form(""), include_parking: bool = Form(True), include_segmentation: bool = Form(False), include_segmentation_gaps: bool = Form(False), incoming_width_m: Annotated[float | None, Form(gt=0, le=5, allow_inf_nan=False)] = None, clearance_margin_m: Annotated[float, Form(ge=0, le=1, allow_inf_nan=False)] = 0., primary_detector: Literal["standard", "segmentation"] = Form("standard")):
     response.headers["Cache-Control"] = "no-store"
     decoded = await read_image(image)
     try:
         stream = io.BytesIO()
         decoded.save(stream, "PNG")
+        if primary_detector == "segmentation":
+            return await analyze_segmentation_primary(decoded, stream.getvalue(), include_parking, incoming_width_m, clearance_margin_m)
         try:
             detection = await run_in_threadpool(cv_service.analyze_image, stream.getvalue())
         except ModelUnavailableError as error:
@@ -292,13 +294,37 @@ async def analyze(image: Annotated[UploadFile, File()], response: Response, mode
                 result.segmentation = await run_in_threadpool(segmentation_experiment_service.analyze_image, stream.getvalue())
                 result.segmentation.preview_url = encode_preview(decoded)
             except (ModelUnavailableError, OSError, ValueError, RuntimeError):
-                result.segmentation_error = "Segmentation unavailable. Install models/yolo11m-seg.pt with python scripts/download_segmentation_weights.py; the standard analysis remains available."
+                result.segmentation_error = "Segmentation unavailable. Verify configured local segmentation weights and settings; the standard analysis remains available."
         if include_segmentation_gaps or incoming_width_m is not None:
             if result.segmentation is None:
-                result.segmentation_gaps = SegmentationGapResult(status="UNKNOWN", evaluation_mode="VIRTUAL_SLOTS", target_width_m=VIRTUAL_SLOT_WIDTH_M, target_length_m=None, reasons=["SEGMENTATION_UNAVAILABLE"])
+                result.segmentation_gaps = SegmentationGapResult(status="UNKNOWN", occupancy_source="SEGMENTATION_ONLY", evaluation_mode="CONTINUOUS_GAPS", width_measurement="FULL_DEPTH", target_width_m=incoming_width_m if incoming_width_m is not None else WIDTH_M, clearance_margin_m=clearance_margin_m, target_length_m=None, reasons=["SEGMENTATION_UNAVAILABLE"])
             else:
                 references = result.reference_size_experiment.sizes if result.reference_size_experiment else None
-                result.segmentation_gaps = await run_in_threadpool(analyze_segmentation_gaps, detection, result.segmentation, reference_sizes=references, incoming_width_m=incoming_width_m)
+                result.segmentation_gaps = await run_in_threadpool(analyze_segmentation_gaps, detection, result.segmentation, reference_sizes=references, incoming_width_m=incoming_width_m, clearance_margin_m=clearance_margin_m, visible_free_shapes=False, bottom_edge_assignment=True, image_row_assignment=True)
         return result
     finally:
         decoded.close()
+
+
+async def analyze_segmentation_primary(decoded, raw, include_parking, incoming_width_m, clearance_margin_m):
+    """One Seg inference supplies every operator Parking view; no classifier."""
+    try:
+        segmented = await run_in_threadpool(segmentation_experiment_service.analyze_image, raw)
+    except (ModelUnavailableError, OSError, ValueError, RuntimeError) as error:
+        raise HTTPException(503, "Segmentation unavailable; verify configured local segmentation weights and settings.") from error
+    segmented.preview_url = encode_preview(decoded)
+    detection = DetectionResponse(image_width=segmented.image_width, image_height=segmented.image_height,
+        model={"name": segmented.model}, inference={"imgsz": segmented.imgsz,
+            "confidence_threshold": segmentation_experiment_service.confidence,
+            "nms_iou": segmentation_experiment_service.iou, "processing_time_ms": segmented.processing_time_ms},
+        detections=[Detection(class_id=segmentation_experiment_service.class_id, class_name="motorcycle",
+            confidence=item.confidence, bbox=item.bbox) for item in segmented.detections])
+    result = ParkingClassifierResult(detection=detection, segmentation=segmented)
+    if include_parking:
+        try:
+            detection.parking_analysis = await run_in_threadpool(parking_analysis_service.analyze, detection)
+        except ParkingCalibrationUnavailableError:
+            result.parking_error = "Parking calibration is unavailable; segmentation remains usable."
+    result.segmentation_gaps = await run_in_threadpool(analyze_segmentation_gaps, detection, segmented,
+        incoming_width_m=incoming_width_m, clearance_margin_m=clearance_margin_m, visible_free_shapes=False, bottom_edge_assignment=True, image_row_assignment=True)
+    return result

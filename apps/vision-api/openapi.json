@@ -104,6 +104,13 @@
       },
       "Body_analyze_api_operator_classifier_analyze_post": {
         "properties": {
+          "clearance_margin_m": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Clearance Margin M",
+            "type": "number"
+          },
           "image": {
             "contentMediaType": "application/octet-stream",
             "title": "Image",
@@ -140,6 +147,15 @@
           "model_id": {
             "default": "",
             "title": "Model Id",
+            "type": "string"
+          },
+          "primary_detector": {
+            "default": "standard",
+            "enum": [
+              "standard",
+              "segmentation"
+            ],
+            "title": "Primary Detector",
             "type": "string"
           }
         },
@@ -611,6 +627,94 @@
         "title": "DetectionResponse",
         "type": "object"
       },
+      "GapBackgroundRegion": {
+        "properties": {
+          "depth_blockers": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GapImageSource"
+            },
+            "title": "Depth Blockers",
+            "type": "array"
+          },
+          "depth_blockers_truncated": {
+            "default": false,
+            "title": "Depth Blockers Truncated",
+            "type": "boolean"
+          },
+          "detection_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Detection Ids",
+            "type": "array"
+          },
+          "geometry": {
+            "$ref": "#/components/schemas/GapMetricGeometry"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "image_geometry": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GapImageGeometry"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "enum": [
+              "OCCUPIED_REFERENCE",
+              "NOT_EVALUATED"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "occlusion_evidence": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GapOcclusionEvidence"
+            },
+            "title": "Occlusion Evidence",
+            "type": "array"
+          },
+          "occlusion_evidence_available": {
+            "default": false,
+            "title": "Occlusion Evidence Available",
+            "type": "boolean"
+          },
+          "occlusion_evidence_truncated": {
+            "default": false,
+            "title": "Occlusion Evidence Truncated",
+            "type": "boolean"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "row_id": {
+            "title": "Row Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "row_id",
+          "kind",
+          "reasons",
+          "geometry"
+        ],
+        "title": "GapBackgroundRegion",
+        "type": "object"
+      },
       "GapCandidate": {
         "properties": {
           "compatible_families": {
@@ -621,9 +725,62 @@
             "title": "Compatible Families",
             "type": "array"
           },
+          "depth_at_width_midpoint_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depth At Width Midpoint M"
+          },
+          "depth_line_image": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MaskPoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depth Line Image"
+          },
+          "depth_line_metric": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MetricGroundPoint"
+            },
+            "title": "Depth Line Metric",
+            "type": "array"
+          },
           "gap_width_m": {
             "title": "Gap Width M",
             "type": "number"
+          },
+          "geometry_image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GapImageGeometry"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "geometry_metric": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GapMetricGeometry"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "id": {
             "title": "Id",
@@ -643,6 +800,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/MetricGroundPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "near_fit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GapNearFit"
               },
               {
                 "type": "null"
@@ -673,6 +840,24 @@
               }
             ],
             "title": "Nearest Line Image"
+          },
+          "occlusion_evidence": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GapOcclusionEvidence"
+            },
+            "title": "Occlusion Evidence",
+            "type": "array"
+          },
+          "occlusion_evidence_available": {
+            "default": false,
+            "title": "Occlusion Evidence Available",
+            "type": "boolean"
+          },
+          "occlusion_evidence_truncated": {
+            "default": false,
+            "title": "Occlusion Evidence Truncated",
+            "type": "boolean"
           },
           "polygon_image": {
             "anyOf": [
@@ -735,9 +920,46 @@
               "WIDTH_SUFFICIENT",
               "SLOT_CLEAR",
               "INSUFFICIENT_WIDTH",
+              "ALMOST_AVAILABLE",
               "UNKNOWN"
             ],
             "title": "State",
+            "type": "string"
+          },
+          "uncertain_detection_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Uncertain Detection Ids",
+            "type": "array"
+          },
+          "visibility": {
+            "default": "UNCONFIRMED",
+            "enum": [
+              "VISIBLE",
+              "OCCLUDED",
+              "UNCONFIRMED"
+            ],
+            "title": "Visibility",
+            "type": "string"
+          },
+          "width_blocking_detection_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Width Blocking Detection Ids",
+            "type": "array"
+          },
+          "width_check": {
+            "default": "NOT_EVALUATED",
+            "enum": [
+              "SUFFICIENT",
+              "INSUFFICIENT",
+              "NOT_EVALUATED"
+            ],
+            "title": "Width Check",
             "type": "string"
           },
           "width_line_image": {
@@ -778,6 +1000,89 @@
         "title": "GapCandidate",
         "type": "object"
       },
+      "GapDetectionRowAssignment": {
+        "properties": {
+          "assigned_row_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Row Id"
+          },
+          "detection_id": {
+            "title": "Detection Id",
+            "type": "string"
+          },
+          "distance_line_image": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MaskPoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance Line Image"
+          },
+          "distance_line_metric": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MetricGroundPoint"
+            },
+            "title": "Distance Line Metric",
+            "type": "array"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "ground_point": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetricGroundPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nearest_row_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nearest Row Id"
+          },
+          "reason": {
+            "default": "UNRESOLVED",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detection_id"
+        ],
+        "title": "GapDetectionRowAssignment",
+        "type": "object"
+      },
       "GapFamilyRecommendation": {
         "properties": {
           "basis": {
@@ -806,6 +1111,53 @@
         "title": "GapFamilyRecommendation",
         "type": "object"
       },
+      "GapImageGeometry": {
+        "properties": {
+          "polygons": {
+            "default": [],
+            "items": {
+              "items": {
+                "items": {
+                  "$ref": "#/components/schemas/MaskPoint"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "Polygons",
+            "type": "array"
+          }
+        },
+        "title": "GapImageGeometry",
+        "type": "object"
+      },
+      "GapImageSource": {
+        "properties": {
+          "detection_id": {
+            "title": "Detection Id",
+            "type": "string"
+          },
+          "detection_index": {
+            "title": "Detection Index",
+            "type": "integer"
+          },
+          "source_kind": {
+            "enum": [
+              "MASK",
+              "BBOX_FALLBACK"
+            ],
+            "title": "Source Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detection_id",
+          "detection_index",
+          "source_kind"
+        ],
+        "title": "GapImageSource",
+        "type": "object"
+      },
       "GapMetricGeometry": {
         "properties": {
           "polygons": {
@@ -826,17 +1178,164 @@
         "title": "GapMetricGeometry",
         "type": "object"
       },
-      "GapOccupancyLayer": {
+      "GapNearFit": {
         "properties": {
+          "conflicting_detection_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicting Detection Ids",
+            "type": "array"
+          },
+          "movement_status": {
+            "const": "NOT_COMPUTED",
+            "default": "NOT_COMPUTED",
+            "title": "Movement Status",
+            "type": "string"
+          },
+          "occupied_overlap_ratio": {
+            "title": "Occupied Overlap Ratio",
+            "type": "number"
+          },
+          "required_extra_width_m": {
+            "title": "Required Extra Width M",
+            "type": "number"
+          },
+          "target_polygon_image": {
+            "items": {
+              "$ref": "#/components/schemas/MaskPoint"
+            },
+            "title": "Target Polygon Image",
+            "type": "array"
+          },
+          "target_polygon_metric": {
+            "items": {
+              "$ref": "#/components/schemas/MetricGroundPoint"
+            },
+            "title": "Target Polygon Metric",
+            "type": "array"
+          }
+        },
+        "required": [
+          "required_extra_width_m",
+          "occupied_overlap_ratio",
+          "conflicting_detection_ids",
+          "target_polygon_metric",
+          "target_polygon_image"
+        ],
+        "title": "GapNearFit",
+        "type": "object"
+      },
+      "GapOcclusionEvidence": {
+        "properties": {
+          "candidate_overlap_ratio": {
+            "title": "Candidate Overlap Ratio",
+            "type": "number"
+          },
           "detection_id": {
             "title": "Detection Id",
             "type": "string"
+          },
+          "detection_index": {
+            "title": "Detection Index",
+            "type": "integer"
+          },
+          "overlap_image": {
+            "$ref": "#/components/schemas/GapImageGeometry"
+          },
+          "source_kind": {
+            "enum": [
+              "MASK",
+              "BBOX_FALLBACK"
+            ],
+            "title": "Source Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detection_id",
+          "detection_index",
+          "source_kind",
+          "candidate_overlap_ratio",
+          "overlap_image"
+        ],
+        "title": "GapOcclusionEvidence",
+        "type": "object"
+      },
+      "GapOccupancyLayer": {
+        "properties": {
+          "assigned_row_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Row Id"
+          },
+          "detection_id": {
+            "title": "Detection Id",
+            "type": "string"
+          },
+          "detection_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detection Index"
           },
           "geometry": {
             "$ref": "#/components/schemas/GapMetricGeometry"
           },
           "roi_geometry": {
             "$ref": "#/components/schemas/GapMetricGeometry"
+          },
+          "row_assignment_distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Assignment Distance M"
+          },
+          "row_assignment_reason": {
+            "default": "UNRESOLVED",
+            "title": "Row Assignment Reason",
+            "type": "string"
+          },
+          "row_assignment_source": {
+            "default": "UNRESOLVED",
+            "enum": [
+              "BOTTOM_CENTRE",
+              "NEAREST_APPROXIMATE",
+              "BOTTOM_EDGE_APPROXIMATE",
+              "MASK_SUPPORTED_NEAREST_EDGE",
+              "IMAGE_POINT",
+              "IMAGE_MASK",
+              "IMAGE_NEAREST_EDGE",
+              "UNRESOLVED"
+            ],
+            "title": "Row Assignment Source",
+            "type": "string"
+          },
+          "row_depth_geometry": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GapMetricGeometry"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "source": {
             "enum": [
@@ -856,8 +1355,118 @@
         "title": "GapOccupancyLayer",
         "type": "object"
       },
+      "GapOrientationHypothesis": {
+        "properties": {
+          "basis": {
+            "const": "PIXEL_BBOX_RATIO_NOT_GROUND_HEADING",
+            "default": "PIXEL_BBOX_RATIO_NOT_GROUND_HEADING",
+            "title": "Basis",
+            "type": "string"
+          },
+          "detection_id": {
+            "title": "Detection Id",
+            "type": "string"
+          },
+          "detection_index": {
+            "title": "Detection Index",
+            "type": "integer"
+          },
+          "geometry": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GapMetricGeometry"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "image_geometry": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GapImageGeometry"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "image_orientation": {
+            "enum": [
+              "HORIZONTAL_IMAGE",
+              "VERTICAL_IMAGE",
+              "AMBIGUOUS_IMAGE"
+            ],
+            "title": "Image Orientation",
+            "type": "string"
+          },
+          "pixel_aspect_ratio": {
+            "title": "Pixel Aspect Ratio",
+            "type": "number"
+          },
+          "proposed_rotation_deg": {
+            "anyOf": [
+              {
+                "enum": [
+                  0,
+                  90
+                ],
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposed Rotation Deg"
+          }
+        },
+        "required": [
+          "detection_id",
+          "detection_index",
+          "pixel_aspect_ratio",
+          "image_orientation",
+          "proposed_rotation_deg"
+        ],
+        "title": "GapOrientationHypothesis",
+        "type": "object"
+      },
       "GapRow": {
         "properties": {
+          "affected_detection_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Affected Detection Ids",
+            "type": "array"
+          },
+          "almost_count": {
+            "default": 0,
+            "title": "Almost Count",
+            "type": "integer"
+          },
+          "bottom_edge_image": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MaskPoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bottom Edge Image"
+          },
+          "bottom_edge_metric": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MetricGroundPoint"
+            },
+            "title": "Bottom Edge Metric",
+            "type": "array"
+          },
           "fit_count": {
             "title": "Fit Count",
             "type": "integer"
@@ -904,6 +1513,14 @@
             "title": "Polygon Metric",
             "type": "array"
           },
+          "reasons": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
           "row_id": {
             "title": "Row Id",
             "type": "string"
@@ -913,10 +1530,21 @@
               "FIT",
               "WIDTH_SUFFICIENT",
               "SLOT_CLEAR",
+              "ALMOST_AVAILABLE",
               "UNKNOWN",
               "NO_FIT"
             ],
             "title": "State",
+            "type": "string"
+          },
+          "uncertainty_scope": {
+            "default": "ROW",
+            "enum": [
+              "ROW",
+              "LOCAL_REFERENCE_ENVELOPE",
+              "NONE"
+            ],
+            "title": "Uncertainty Scope",
             "type": "string"
           },
           "unknown_count": {
@@ -931,6 +1559,31 @@
           "unknown_count"
         ],
         "title": "GapRow",
+        "type": "object"
+      },
+      "GapUncertaintyRegion": {
+        "properties": {
+          "detection_id": {
+            "title": "Detection Id",
+            "type": "string"
+          },
+          "geometry": {
+            "$ref": "#/components/schemas/GapMetricGeometry"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "detection_id",
+          "reasons",
+          "geometry"
+        ],
+        "title": "GapUncertaintyRegion",
         "type": "object"
       },
       "GroundControlPoint": {
@@ -1578,11 +2231,166 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "HorizontalVehicleClearance": {
+        "properties": {
+          "basis": {
+            "const": "STANDARD_REFERENCE_PIXEL_ORIENTATION_NOT_MEASURED",
+            "default": "STANDARD_REFERENCE_PIXEL_ORIENTATION_NOT_MEASURED",
+            "title": "Basis",
+            "type": "string"
+          },
+          "clearance_m": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clearance M"
+          },
+          "detection_id": {
+            "title": "Detection Id",
+            "type": "string"
+          },
+          "detection_index": {
+            "title": "Detection Index",
+            "type": "integer"
+          },
+          "display_only": {
+            "const": true,
+            "default": true,
+            "title": "Display Only",
+            "type": "boolean"
+          },
+          "excluded_neighbor_count": {
+            "default": 0,
+            "title": "Excluded Neighbor Count",
+            "type": "integer"
+          },
+          "line_image": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MaskPoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Image"
+          },
+          "line_metric": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MetricGroundPoint"
+            },
+            "title": "Line Metric",
+            "type": "array"
+          },
+          "measurement_status": {
+            "default": "NO_COMPARABLE_NEIGHBOR",
+            "enum": [
+              "APPROXIMATE_REFERENCE",
+              "OUTSIDE_CALIBRATED_ROI",
+              "PROJECTION_UNAVAILABLE",
+              "NO_COMPARABLE_NEIGHBOR"
+            ],
+            "title": "Measurement Status",
+            "type": "string"
+          },
+          "nearest_detection_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nearest Detection Id"
+          },
+          "neighbor_polygon_image": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MaskPoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Neighbor Polygon Image"
+          },
+          "neighbor_polygon_metric": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MetricGroundPoint"
+            },
+            "title": "Neighbor Polygon Metric",
+            "type": "array"
+          },
+          "pixel_aspect_ratio": {
+            "title": "Pixel Aspect Ratio",
+            "type": "number"
+          },
+          "polygon_image": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MaskPoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polygon Image"
+          },
+          "polygon_metric": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MetricGroundPoint"
+            },
+            "title": "Polygon Metric",
+            "type": "array"
+          },
+          "reference_length_m": {
+            "default": 2.0,
+            "title": "Reference Length M",
+            "type": "number"
+          },
+          "reference_width_m": {
+            "default": 0.66,
+            "title": "Reference Width M",
+            "type": "number"
+          }
+        },
+        "required": [
+          "detection_id",
+          "detection_index",
+          "pixel_aspect_ratio"
+        ],
+        "title": "HorizontalVehicleClearance",
+        "type": "object"
+      },
       "IncomingVehicleRecommendation": {
         "properties": {
           "allocation_width_m": {
             "title": "Allocation Width M",
             "type": "number"
+          },
+          "almost_count": {
+            "default": 0,
+            "title": "Almost Count",
+            "type": "integer"
           },
           "candidates": {
             "items": {
@@ -2912,6 +3720,29 @@
             "title": "Access Status",
             "type": "string"
           },
+          "advisory_max_extra_width_m": {
+            "default": 0.1,
+            "title": "Advisory Max Extra Width M",
+            "type": "number"
+          },
+          "advisory_max_overlap_ratio": {
+            "default": 0.1,
+            "title": "Advisory Max Overlap Ratio",
+            "type": "number"
+          },
+          "almost_count": {
+            "default": 0,
+            "title": "Almost Count",
+            "type": "integer"
+          },
+          "background_regions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GapBackgroundRegion"
+            },
+            "title": "Background Regions",
+            "type": "array"
+          },
           "calibration_source": {
             "default": "UNKNOWN",
             "enum": [
@@ -2946,15 +3777,33 @@
             "title": "Clearance Margin M",
             "type": "number"
           },
+          "detection_row_assignments": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GapDetectionRowAssignment"
+            },
+            "title": "Detection Row Assignments",
+            "type": "array"
+          },
           "evaluation_mode": {
             "default": "FULL_FOOTPRINT",
             "enum": [
               "FULL_FOOTPRINT",
               "WIDTH_ONLY",
-              "VIRTUAL_SLOTS"
+              "VIRTUAL_SLOTS",
+              "CONTINUOUS_GAPS",
+              "VISIBLE_FREE_SHAPES"
             ],
             "title": "Evaluation Mode",
             "type": "string"
+          },
+          "excluded_detection_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Excluded Detection Ids",
+            "type": "array"
           },
           "family_recommendation_error": {
             "anyOf": [
@@ -2971,6 +3820,14 @@
             "default": 0,
             "title": "Green Count",
             "type": "integer"
+          },
+          "horizontal_vehicles": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/HorizontalVehicleClearance"
+            },
+            "title": "Horizontal Vehicles",
+            "type": "array"
           },
           "incoming_vehicle": {
             "anyOf": [
@@ -3006,6 +3863,28 @@
             "title": "Narrow Count",
             "type": "integer"
           },
+          "occupancy_scope": {
+            "default": "REFERENCE_OVERLAP",
+            "enum": [
+              "REFERENCE_OVERLAP",
+              "GROUND_ANCHOR_IN_ROW_AND_ROI",
+              "GROUND_ANCHOR_OR_ROW_MASK",
+              "BOTTOM_EDGE_ANCHOR",
+              "IMAGE_ROW_POINT_OR_MASK",
+              "IMAGE_NEAREST_LOWER_EDGE"
+            ],
+            "title": "Occupancy Scope",
+            "type": "string"
+          },
+          "occupancy_source": {
+            "default": "COMBINED",
+            "enum": [
+              "COMBINED",
+              "SEGMENTATION_ONLY"
+            ],
+            "title": "Occupancy Source",
+            "type": "string"
+          },
           "occupied_layers": {
             "default": [],
             "items": {
@@ -3024,6 +3903,25 @@
               }
             ]
           },
+          "orientation_display_only": {
+            "const": true,
+            "default": true,
+            "title": "Orientation Display Only",
+            "type": "boolean"
+          },
+          "orientation_hypotheses": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GapOrientationHypothesis"
+            },
+            "title": "Orientation Hypotheses",
+            "type": "array"
+          },
+          "orientation_ratio_threshold": {
+            "default": 1.15,
+            "title": "Orientation Ratio Threshold",
+            "type": "number"
+          },
           "parking_roi_metric": {
             "anyOf": [
               {
@@ -3041,6 +3939,11 @@
             },
             "title": "Reasons",
             "type": "array"
+          },
+          "row_owned_references": {
+            "default": false,
+            "title": "Row Owned References",
+            "type": "boolean"
           },
           "rows": {
             "default": [],
@@ -3082,6 +3985,22 @@
             "title": "Truncated",
             "type": "boolean"
           },
+          "uncertain_reference_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Uncertain Reference Ids",
+            "type": "array"
+          },
+          "uncertainty_regions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GapUncertaintyRegion"
+            },
+            "title": "Uncertainty Regions",
+            "type": "array"
+          },
           "unknown_count": {
             "default": 0,
             "title": "Unknown Count",
@@ -3091,7 +4010,8 @@
             "default": "FULL_DEPTH",
             "enum": [
               "ROW_MIDLINE_BAND",
-              "FULL_DEPTH"
+              "FULL_DEPTH",
+              "VISIBLE_PATCH_CROSS_SECTION"
             ],
             "title": "Width Measurement",
             "type": "string"
