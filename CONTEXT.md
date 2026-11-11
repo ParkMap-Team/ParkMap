@@ -47,6 +47,64 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 
 ## Current implementation
 
+Local Parking's active segmentation free-space experiment displays rectangular
+continuous intervals over each row's depth, including sub-metre gaps.
+Each uninterrupted free interval stays whole, with a total metre witness;
+uncertainty is attached to that interval rather than dividing it into slots.
+It compares manual incoming width plus an explicit total lateral margin (default zero).
+Occluded or uncertain intervals remain UNKNOWN. It does not evaluate vehicle
+length or access paths, and does not change worker/LIFF fitting. The irregular
+visible-patch experiment is retained as an inactive diagnostic, not the operator
+Analyze default. See docs/segmentation-gaps.md.
+Parking Analyze now uses the configured Seg model as its primary detector by default for both
+images and video frames. One segmentation inference feeds the image boxes,
+masks and rectangular-gap diagnostics. The former Physical Map / Camera View,
+parking-state summary and bottom Summary section are removed from Parking;
+the Seg camera overlay and metric top-down gap map remain. Classifier controls and
+class-derived size experiments are removed from the web flow. Local trained
+classifier artifacts and legacy operator APIs remain available separately;
+worker/LIFF detector settings are unchanged. A missing Seg model fails explicitly
+rather than silently substituting the original detector.
+Active Seg gap ownership uses IMAGE_NEAREST_LOWER_EDGE. The bbox bottom-centre
+selects the nearest finite lower row edge in image pixels, within that edge's
+width span. The closest edge must lead the runner-up by more than 5% of the
+smaller candidate row's image depth (polygon area / edge length). Ties remain
+unresolved. Points outside calibrated ROI by more than 0.40 m are excluded.
+Inside ROI there is no 20 cm cutoff or mask-overlap ownership gate. One detection
+reserves one owner band, remains uncertain, and all masks/bbox fallbacks remain
+image occluders. Saved geometry and worker/LIFF are unchanged.
+The metric map shows red lateral occupancy bands extended over each row's depth
+by default; these are display-only and never replace the original vehicle
+footprints used for inspection. In active rectangular gap analysis, references
+with accepted Python row assignments reserve only their owner row. Ambiguous
+references and real image occlusion remain conservative across rows. Worker/LIFF
+and the inactive irregular-shape diagnostic keep their existing policy.
+Unresolved references are retained, never replaced with empty occupied geometry.
+Metric lower-edge distances are diagnostic in this mode; the image-pixel
+comparison chooses the owner. Teal lines show the reference edges. All new assignments retain
+uncertainty. Legacy distance-gated helpers and worker/LIFF remain unchanged.
+Each accepted vehicle now reserves a single owner-row band, centred at its
+projected point, using the existing standard width 0.66 m and full row depth.
+The old footprint need not intersect the owner row. Original references remain
+available for inspection; no band is copied into a neighbour row. All Seg IDs
+have explicit assignment reasons/distances in the click inspector.
+Its gap calculation now uses Seg detections only, valid image masks with box
+fallback, and reference-size all-heading envelopes to localize resolvable
+assignment uncertainty. Unbounded or other uncertainty keeps row/global gates.
+Visible small one-vehicle width conflicts may be yellow ALMOST_AVAILABLE
+advisories (at most 0.10 m width deficit and shared 10% overlap threshold).
+Movement feasibility is not computed and yellow never counts as green.
+An optional bbox pixel-aspect preview proposes 0/90-degree reference rotations
+and leaves near-square boxes ambiguous. It is display-only; the current occupied
+geometry, fitting and published state do not consume these heading hypotheses.
+
+Parking also shows horizontal-image Seg detections outside row ownership as
+orange dashed standard 2.00-by-0.66 m references. A separate Python diagnostic
+estimates nearest comparable-reference distance inside calibrated ROI; ambiguous,
+outside or invalid neighbors are excluded and disclosed. Labels say approximate:
+pixel aspect, bbox anchors and standard dimensions are not measured geometry.
+These results never feed availability, incoming fitting, worker or LIFF.
+
 `tools/calibration-ui/` is the calibration, lot-model authoring, and uploaded-image POC built with vinext/Vite. It is not the student app, and it is the repository's only calibration tool. Its local operator lot-model editor starts from the SPU camera fixture, saves drafts separately, and explicitly activates validated versions for LIFF. A separate ROI edit mode moves, rotates, and reshapes metric parking-area polygons; rigid moves/rotations also place motorcycles, headings and analysis regions through a Python camera-ground-to-lot transform, while reshaping/resizing deactivates calibration until reviewed (ADR 0013). For a single ROI the operator may explicitly replace the lot outline with that ROI after moving or rotating it; other outline edits stay locked.
 
 `apps/liff/` is the student-facing LIFF app: site list, a navigable 3D view of the lot model with live regions and motorcycle proxies, and freshness and source notices.

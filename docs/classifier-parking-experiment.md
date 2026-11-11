@@ -1,3 +1,5 @@
+> Legacy experiment: the classifier and class-size controls have been removed from Parking. The current web flow uses Seg only. Training artifacts and explicit legacy operator APIs are retained; the UI instructions below describe the earlier experiment.
+
 # Test motorcycle-family classifiers in Parking
 
 Start local development with `start-dev.bat`, open Calibration UI at

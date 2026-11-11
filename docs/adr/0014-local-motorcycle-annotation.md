@@ -2,6 +2,42 @@
 
 Status: accepted, 2026-11-01. Extends ADR 0013 and the detector evaluation protocol.
 
+Update 2026-11-09: the local operator route now supersedes the 1 m slot experiment
+below with `CONTINUOUS_GAPS`. It displays each full-depth free interval, including
+widths below 1 m, and compares actual entered width plus an explicit total lateral
+margin (default zero). The interval count is not vehicle capacity. Legacy slot
+helpers remain diagnostics only. Row uncertainty reasons/detection IDs are exposed;
+occlusion and uncertainty continue to withhold green. No automatic motorcycle
+heading or access-path checking is implemented. See the current
+[gap contract](../segmentation-gaps.md).
+
+The local gap route additionally uses Seg detections only, standard occupied
+references and image masks with conservative box fallback. Assignment-only row
+uncertainty is bounded by all-heading reference-size envelopes around valid
+anchors and applied to intersecting candidate pieces, including neighboring rows.
+Unresolved or non-assignment uncertainty keeps the row/global gate. The bounds
+are approximate reference geometry, not inferred actual vehicle headings.
+Worker, standard fitting and LIFF semantics remain unchanged.
+
+An opt-in local width preview can hatch UNKNOWN regions green when Python's
+separate width check passes, labelled as unconfirmed parking. This changes only
+display: UNKNOWN, reasons, green counts and recommendation eligibility are retained.
+The switch defaults off and is never a publication override.
+
+A separate opt-in bbox-orientation display experiment now proposes 0/90-degree
+reference rotations from pixel aspect ratios, keeping near-square boxes ambiguous.
+Proposals rotate about the original footprint centre, carry an explicit heuristic
+basis and never replace occupancy, fitting, worker/LIFF headings or availability.
+They are overlaid as dashed cyan comparisons for operator review only.
+
+Local Seg intervals can additionally carry ALMOST_AVAILABLE yellow advisories
+for visible, unambiguous one-vehicle occupied conflicts: target extra width at
+most 0.10 m and occupied overlap at most the shared experimental 10% threshold.
+This is advisory geometry only; movement assignment/path remains NOT_COMPUTED.
+Yellow is counted separately, never as green or a family-compatible ready space.
+
+Historical slot experiment:
+
 The local segmentation overlay divides free intervals into virtual slots 1 m
 wide and as deep as their calibrated row. A 6 m interval can yield six slots;
 fractions below 1 m do not create extra slots. Green `SLOT_CLEAR` requires
@@ -122,3 +158,126 @@ optional outside-ROI and detector layers. Each free interval over the row depth
 is divided into whole 1 m widths; remainder does not create an extra slot. Image
 occlusion and row uncertainty are checked per slot and continue to withhold green.
 The per-family recommendation still checks width only, not vehicle length/access.
+
+An earlier local Seg-only gap prototype used `VISIBLE_FREE_SHAPES`: row/ROI minus
+canonical reference occupancy, partitioned into visible, occluded and uncertain
+polygon parts with holes preserved. Only visible evidence-clear parts with a
+contained width witness may be green. Midpoint depth is context, not full-vehicle
+fitting or access verification. Legacy full-depth/1 m slot helpers above remain
+diagnostics; the operator Analyze route no longer uses them. No worker/LIFF state
+is changed. See the current segmentation gap contract for limitations.
+
+After operator review, Analyze returns to CONTINUOUS_GAPS rectangular regions
+over row depth. Irregular visible-patch evaluation remains inactive diagnostic
+code; it is not the default. Occlusion/uncertainty gates remain conservative.
+
+The default metric display extends each reference's intersecting lateral span
+over the row depth as a red band clipped to row/ROI. Python supplies this separate
+display geometry. Original reference footprints still govern all computation;
+the bands are not claims about vehicle length or real occupied ground.
+
+Parking now selects segmentation as the primary detector on every Analyze,
+including captured video frames. The private Analyze API accepts
+`primary_detector=segmentation`; this path skips the original detector and all
+classification/reference-size inference, returns Seg boxes for existing map
+consumers and supplies masks/gaps from the same inference. Seg failures return
+503 with no detector substitution. Classifier controls and the class-size toggle
+are removed from Parking. Trained artifacts, legacy explicit classifier APIs,
+Label's detector assistance and worker/LIFF settings are retained. Gap uncertainty
+and standard footprint semantics are unchanged.
+
+Parking removes the former Physical Map / Camera View toggle, legacy Parking
+map, parking-state summary and final Summary panel. The Seg image overlay and
+metric top-down gap view remain the active presentation. This removes display
+sections only, not backend availability or uncertainty checks.
+
+The active rectangular width experiment now limits accepted POINT_ASSIGNED and
+FOOTPRINT_ASSIGNED references to their owner rows for interval calculation and
+red depth-band display. Per-row obstacle sets avoid transferring ownership
+through small configured row overlaps. Original complete references remain
+available for inspection. Ambiguous/unassigned references, image occluders and
+all calibration/evidence gates remain conservative. This operator width model
+does not estimate physical cross-row intrusion and never changes worker/LIFF.
+
+Confirmed width ownership now requires an anchor in exactly one selected metric
+row. Dominant image-mask association may supply a fallback row, retaining
+uncertainty. Unresolved references keep their complete conservative footprints;
+they must never disappear by being replaced with empty geometry. No mask is
+treated as a measured ground footprint. See segmentation-gaps.md for association
+thresholds and the separate interval-boundary vehicle diagnostics.
+
+Review of 20260925_1521 shows three masks split roughly 52/42 or 54/38 percent
+across adjacent image rows, while four outside vehicles only touch 3–7 percent
+of selected rows. Experimental mask association now requires a majority and a
+10 percentage point lead (still uncertain), while mask-only inclusion requires
+10% total area in selected rows. Every mask remains an image occluder. A unique
+containing ground-anchor row scopes width even for an ambiguous footprint
+assignment, without clearing its uncertainty. These are local experimental
+association rules, not validated physical ground truth or safety tolerances.
+
+After operator review of incorrect mask-majority assignment, row ownership now
+uses only projected YOLO bbox bottom-centre containment in exactly one metric
+row inside ROI. Mask association cannot choose a row or break ties. Outside or
+multi-row anchors remain unresolved with conservative reference/uncertainty
+retained. Masks still support eligibility and image occlusion, not ground
+position measurement. Image views show a yellow anchor dot.
+
+The operator may now try a bounded nearest-row fallback for bottom-centre points
+inside ROI but just outside all metric rows: distance <= 0.20 m and runner-up
+separation >= 0.10 m, with positive reference/row intersection. It preserves
+uncertainty and records NEAREST_APPROXIMATE plus distance. It does not move the
+anchor, resize ROI/rows, resolve overlapping containing rows, or affect worker/LIFF.
+These constants are initial experimental limits pending measured error review.
+
+The operator later settles on nearest lower-edge, one-row-per-detection width
+bookkeeping. Active Analyze now requires the anchor association itself, never
+mask eligibility, and constructs a standard-width (0.66 m), full-row-depth band
+in that owner row. It removes the old positive-footprint-intersection requirement
+which could discard an accepted anchor when the original reference pointed away.
+ROI/span, 0.20 m distance, 0.10 m lead, uncertainty and image-occlusion gates remain.
+Every original Seg ID reports an association or exclusion reason and distance.
+Legacy diagnostics and worker/LIFF are unaffected; this is not fixed physical
+stall creation or a validated footprint reconstruction.
+
+Operator review finds the strict 20 cm gate removes visible row_5 vehicles.
+A bounded mask-supported nearest-edge fallback now accepts only an anchor inside
+its nearest row/ROI/span, with a valid mask overlapping that row by at least 10%,
+distance at most half the row depth and unchanged 10 cm runner-up lead. It cannot
+switch owners by mask overlap. Each detection still reserves one band only, and
+MASK_SUPPORTED_NEAREST_EDGE retains uncertainty. Invalid masks/outside anchors
+remain excluded from this fallback and all image-occlusion gates stay active.
+
+Two reviewed motorcycles (detection_7 and detection_10 in 20260925_1521) have
+valid masks in row_1 but bbox anchors just outside ROI. The operator authorizes
+an experimental 0.40 m outer-ROI exception supported by a valid mask in the same
+nearest row (>=10%). Distances to ROI, owner polygon and finite lower edge must
+all be <=0.40 m; span/tie gates remain. ASSIGNED_NEAR_ROI_WITH_MASK is uncertain
+and reserves only an owner-row/ROI-clipped band. No ROI expansion, mask repair,
+threshold relaxation for invalid masks, worker or LIFF change is included.
+
+The operator requests lower-row-edge association instead of polygon containment.
+Analyze now compares projected bbox bottom-centres with finite lower longitudinal
+edges of saved quadrilateral image rows, selecting the larger-image-Y edge
+independent of winding. Within ROI/span, <=0.20 m and >=0.10 m lead produces
+BOTTOM_EDGE_APPROXIMATE with uncertainty retained. Teal lines display the exact
+references. No ROI/row resize or saved calibration mutation is performed. Legacy
+containment helpers remain tested diagnostics; worker/LIFF remain unchanged.
+
+Update 2026-11-11: operator-authorized image-point ownership supersedes the
+active distance-gated experiment above. IMAGE_ROW_POINT_OR_MASK assigns a bbox
+bottom-centre inside exactly one image-row polygon directly. Outside points
+require a validated mask with >=10% overlap; the nearest supported row polygon
+in image pixels wins, exact ties remain unresolved. Rows are clipped to ROI.
+Metric 20/40 cm thresholds are diagnostic only in this mode. Each detection
+reserves at most one owner band, retains uncertainty, and all masks/bbox fallbacks
+remain image occluders. Geometry, calibration, worker and LIFF are unchanged.
+
+Update 2026-11-11 (supersedes the image-containment experiment): the operator
+requests association to the nearest lower row line. IMAGE_NEAREST_LOWER_EDGE
+ranks finite lower segments in image pixels with an in-span perpendicular foot.
+It requires a lead greater than 5% of the smaller candidate image-row depth,
+otherwise ownership stays unresolved. A point outside ROI by more than 0.40 m
+is rejected; there is no 20 cm cutoff inside ROI and no mask ownership gate.
+Each detection owns at most one reference-width band; uncertainty and camera
+occlusion gates remain. Chosen-row metric witnesses match the owner; metre
+values are diagnostic. No saved row, ROI, worker or LIFF behavior changes.
