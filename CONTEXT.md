@@ -159,3 +159,14 @@ are supplied. Horizontal-image reference hypotheses inside calibrated ROI also
 feed display-only proxies (one ID once, including aisle references); they do not
 change gap fitting, occupancy decisions or availability. Their heading and size
 remain approximate standard references rather than measured Seg dimensions.
+
+Local Setup now has a mobile-camera pairing tab. A single-use two-minute QR
+opens the separate LIFF /mobile-camera page over an operator-chosen HTTPS origin.
+A scoped thirty-minute memory-only phone credential can send serial latest
+frames, not edit calibration. The operator must review a recent preview against
+saved rows before enabling LIVE_CAMERA publication through the shared Python
+frame analysis service. Approved sessions suppress background worker writes for
+that area; freshness still removes stale results and Stop clears phone regions.
+This single-API-process development feature does not correct camera movement.
+Public HTTPS access is explicit and never launched automatically. See
+docs/mobile-camera.md for access scope, privacy, setup and verification limits.

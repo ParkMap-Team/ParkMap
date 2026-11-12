@@ -102,6 +102,7 @@ def test_worker_analyzes_seg_once_and_publishes_the_matching_gap_result(tmp_path
 
     import numpy as np
 
+    import app.services.frame_analysis_service as analyzer
     import app.worker.__main__ as worker
     from app.services.cv_service import cv_service
     from app.worker.frames import Frame
@@ -111,9 +112,9 @@ def test_worker_analyzes_seg_once_and_publishes_the_matching_gap_result(tmp_path
     (tmp_path / "parking_calibration.json").write_text(json.dumps({"camera_id": "camera-1",
         "reference_image": {"width": 100, "height": 100}, "parking_roi": {"polygon": polygon},
         "rows": [{"id": "row_1", "name": "Row", "polygon": polygon}]}))
-    monkeypatch.setattr(worker, "CONFIG_DIRECTORY", tmp_path)
+    monkeypatch.setattr(analyzer, "CONFIG_DIRECTORY", tmp_path)
     versions = iter([("v1", "MEASURED"), ("v2" if calibration_changed else "v1", "MEASURED")])
-    monkeypatch.setattr(worker, "calibration_identity", lambda _: next(versions))
+    monkeypatch.setattr(analyzer, "calibration_identity", lambda _: next(versions))
     calls = []
 
     def segmented(raw):
@@ -132,9 +133,9 @@ def test_worker_analyzes_seg_once_and_publishes_the_matching_gap_result(tmp_path
         raise AssertionError("The standard detector must not run")
 
     monkeypatch.setattr(cv_service, "analyze_image", forbidden)
-    monkeypatch.setattr(worker, "segmentation_experiment_service", SimpleNamespace(analyze_image=segmented, class_id=0,
+    monkeypatch.setattr(analyzer, "segmentation_experiment_service", SimpleNamespace(analyze_image=segmented, class_id=0,
         confidence=.25, iou=.5), raising=False)
-    monkeypatch.setattr(worker, "analyze_segmentation_gaps", analyze, raising=False)
+    monkeypatch.setattr(analyzer, "analyze_segmentation_gaps", analyze, raising=False)
     frame = Frame(image=np.zeros((100, 100, 3), dtype=np.uint8), captured_at=NOW)
     if calibration_changed:
         with pytest.raises(worker.CalibrationFilesUnavailableError, match="changed during"):
