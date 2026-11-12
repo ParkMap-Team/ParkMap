@@ -102,6 +102,20 @@
         "title": "AnnotationWrite",
         "type": "object"
       },
+      "ApproveRequest": {
+        "properties": {
+          "preview_revision": {
+            "minimum": 1.0,
+            "title": "Preview Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "preview_revision"
+        ],
+        "title": "ApproveRequest",
+        "type": "object"
+      },
       "Body_analyze_api_operator_classifier_analyze_post": {
         "properties": {
           "clearance_margin_m": {
@@ -338,6 +352,21 @@
           "name"
         ],
         "title": "CalibrationRow",
+        "type": "object"
+      },
+      "ClaimRequest": {
+        "properties": {
+          "pairing_token": {
+            "maxLength": 100,
+            "minLength": 20,
+            "title": "Pairing Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pairing_token"
+        ],
+        "title": "ClaimRequest",
         "type": "object"
       },
       "ClassifiedCrop": {
@@ -3135,6 +3164,26 @@
         "title": "MotorcycleProxy",
         "type": "object"
       },
+      "PairRequest": {
+        "properties": {
+          "mobile_origin": {
+            "maxLength": 250,
+            "title": "Mobile Origin",
+            "type": "string"
+          },
+          "parking_area_id": {
+            "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+            "title": "Parking Area Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "parking_area_id",
+          "mobile_origin"
+        ],
+        "title": "PairRequest",
+        "type": "object"
+      },
       "ParkingAreaLiveState": {
         "properties": {
           "age_s": {
@@ -4625,6 +4674,196 @@
         "summary": "Ingest Parking State"
       }
     },
+    "/api/mobile-camera/claim": {
+      "post": {
+        "operationId": "claim_api_mobile_camera_claim_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Claim",
+        "tags": [
+          "Mobile camera"
+        ]
+      }
+    },
+    "/api/mobile-camera/frame": {
+      "post": {
+        "operationId": "frame_api_mobile_camera_frame_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-frame-sequence",
+            "required": true,
+            "schema": {
+              "minimum": 0,
+              "title": "X-Frame-Sequence",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Frame",
+        "tags": [
+          "Mobile camera"
+        ]
+      }
+    },
+    "/api/mobile-camera/status": {
+      "get": {
+        "operationId": "phone_status_api_mobile_camera_status_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Phone Status",
+        "tags": [
+          "Mobile camera"
+        ]
+      }
+    },
+    "/api/mobile-camera/stop": {
+      "post": {
+        "operationId": "phone_stop_api_mobile_camera_stop_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Phone Stop",
+        "tags": [
+          "Mobile camera"
+        ]
+      }
+    },
     "/api/motorcycle-fitting": {
       "get": {
         "operationId": "get_motorcycle_fitting_api_motorcycle_fitting_get",
@@ -5627,6 +5866,241 @@
         "summary": "Validate Definition",
         "tags": [
           "Lot model editor"
+        ]
+      }
+    },
+    "/api/operator/mobile-camera/sessions": {
+      "post": {
+        "operationId": "create_pair_api_operator_mobile_camera_sessions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Pair",
+        "tags": [
+          "Mobile camera"
+        ]
+      }
+    },
+    "/api/operator/mobile-camera/sessions/{key}": {
+      "get": {
+        "operationId": "operator_status_api_operator_mobile_camera_sessions__key__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Operator Status",
+        "tags": [
+          "Mobile camera"
+        ]
+      }
+    },
+    "/api/operator/mobile-camera/sessions/{key}/approve": {
+      "post": {
+        "operationId": "approve_api_operator_mobile_camera_sessions__key__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve",
+        "tags": [
+          "Mobile camera"
+        ]
+      }
+    },
+    "/api/operator/mobile-camera/sessions/{key}/stop": {
+      "post": {
+        "operationId": "operator_stop_api_operator_mobile_camera_sessions__key__stop_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Operator Stop",
+        "tags": [
+          "Mobile camera"
         ]
       }
     },

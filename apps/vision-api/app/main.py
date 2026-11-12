@@ -1,36 +1,83 @@
 import hmac
 import json
 import os
-from pathlib import Path as FilePath
 from datetime import UTC, datetime
 from io import BytesIO
+from pathlib import Path as FilePath
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Path, Response, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    Header,
+    HTTPException,
+    Path,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
+from app.annotations import router as annotations_router
+from app.classifier import router as classifier_router
 from app.db import repository
 from app.db.session import get_session
 from app.db.tables import ParkingArea, Site
 from app.lot_model_editor import router as lot_model_editor_router
-from app.annotations import router as annotations_router
-from app.classifier import router as classifier_router
-from app.models import IDENTIFIER_PATTERN, DetectionResponse, GroundPlaneCalibration, GroundPlaneCalibrationResponse, GroundPlaneHomographyResponse, HealthResponse, LotModelDefinition, LotModelResponse, MotorcycleFittingConfiguration, MotorcycleFittingResponse, ParkingCalibration, ParkingStatePublish, PhysicalRowGeometryConfig, SiteParkingStateResponse, SiteSummary
+from app.mobile_camera import operator_router as mobile_operator_router
+from app.mobile_camera import public_router as mobile_public_router
+from app.models import (
+    IDENTIFIER_PATTERN,
+    DetectionResponse,
+    GroundPlaneCalibration,
+    GroundPlaneCalibrationResponse,
+    GroundPlaneHomographyResponse,
+    HealthResponse,
+    LotModelDefinition,
+    LotModelResponse,
+    MotorcycleFittingConfiguration,
+    MotorcycleFittingResponse,
+    ParkingCalibration,
+    ParkingStatePublish,
+    PhysicalRowGeometryConfig,
+    SiteParkingStateResponse,
+    SiteSummary,
+)
+from app.services.auto_parking_service import analyze_detections
 from app.services.calibration_service import calibration_service
 from app.services.cv_service import ModelUnavailableError, cv_service
-from app.services.motorcycle_fitting_service import motorcycle_fitting_service
-from app.services.ground_plane_calibration_service import ground_plane_calibration_service
-from app.services.ground_plane_homography_service import HomographyInputError, ground_plane_homography_service
-from app.services.physical_row_geometry_service import measurement_fingerprint, physical_row_geometry_service
-from app.services.parking_analysis_service import ParkingCalibrationUnavailableError, parking_analysis_service
-from app.services.auto_parking_service import analyze_detections
-from app.services.live_state_service import MAX_FUTURE_SKEW_S, evaluate_area_state, unmonitored_polygons
+from app.services.ground_plane_calibration_service import (
+    ground_plane_calibration_service,
+)
+from app.services.ground_plane_homography_service import (
+    HomographyInputError,
+    ground_plane_homography_service,
+)
+from app.services.live_state_service import (
+    MAX_FUTURE_SKEW_S,
+    evaluate_area_state,
+    unmonitored_polygons,
+)
 from app.services.lot_placement_service import place_area_state
+from app.services.mobile_camera_sessions import MobileSessionError, mobile_sessions
+from app.services.motorcycle_fitting_service import motorcycle_fitting_service
+from app.services.parking_analysis_service import (
+    ParkingCalibrationUnavailableError,
+    parking_analysis_service,
+)
+from app.services.physical_row_geometry_service import (
+    measurement_fingerprint,
+    physical_row_geometry_service,
+)
+
+SessionDependency = Depends(get_session)
+ImageFile = File(...)
 
 load_dotenv()
 
@@ -38,6 +85,14 @@ app = FastAPI(title="ParkMap API", version="0.2.0", description="API boundary fo
 app.include_router(lot_model_editor_router)
 app.include_router(annotations_router)
 app.include_router(classifier_router)
+app.include_router(mobile_operator_router)
+app.include_router(mobile_public_router)
+
+
+@app.exception_handler(MobileSessionError)
+async def mobile_session_error(_request, error):
+    return JSONResponse({"detail": str(error)}, status_code=error.status)
+
 
 allowed_origins = [origin.strip() for origin in os.getenv("PARKMAP_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",") if origin.strip()]
 app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_credentials=True, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
@@ -75,12 +130,12 @@ def _require_site_areas(session: Session, site_id: str) -> list[ParkingArea]:
 
 
 @app.get("/api/sites", response_model=list[SiteSummary])
-def list_sites(session: Session = Depends(get_session)) -> list[SiteSummary]:
+def list_sites(session: Session = SessionDependency) -> list[SiteSummary]:
     return [SiteSummary(site_id=site.id, name=site.name, latitude=site.latitude, longitude=site.longitude) for site in repository.list_sites(session)]
 
 
 @app.get("/api/sites/{site_id}/lot-model", response_model=LotModelResponse)
-def get_lot_model(site_id: str = SiteId, session: Session = Depends(get_session)) -> LotModelResponse:
+def get_lot_model(site_id: str = SiteId, session: Session = SessionDependency) -> LotModelResponse:
     _require_site_areas(session, site_id)
     lot_model = repository.active_lot_model(session, site_id)
     if lot_model is None:
@@ -90,7 +145,7 @@ def get_lot_model(site_id: str = SiteId, session: Session = Depends(get_session)
 
 
 @app.get("/api/sites/{site_id}/parking-state", response_model=SiteParkingStateResponse)
-def get_site_parking_state(site_id: str = SiteId, session: Session = Depends(get_session)) -> SiteParkingStateResponse:
+def get_site_parking_state(site_id: str = SiteId, session: Session = SessionDependency) -> SiteParkingStateResponse:
     area_ids = [area.id for area in _require_site_areas(session, site_id)]
     calibrations = repository.active_calibrations(session, area_ids)
     lot_model = repository.active_lot_model(session, site_id)
@@ -110,7 +165,7 @@ def get_site_parking_state(site_id: str = SiteId, session: Session = Depends(get
 
 
 @app.post("/api/internal/parking-states", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_worker_token)])
-def ingest_parking_state(publish: ParkingStatePublish, session: Session = Depends(get_session)) -> Response:
+def ingest_parking_state(publish: ParkingStatePublish, session: Session = SessionDependency) -> Response:
     area = session.get(ParkingArea, publish.parking_area_id)
     if area is None:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown parking area.")
@@ -118,11 +173,14 @@ def ingest_parking_state(publish: ParkingStatePublish, session: Session = Depend
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="camera_id does not belong to this parking area.")
     if (publish.processed_at - datetime.now(UTC)).total_seconds() > MAX_FUTURE_SKEW_S:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="processed_at is in the future.")
-    repository.insert_state(session, publish)
-    try:
-        session.commit()
-    except IntegrityError as error:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Parking state could not be stored.") from error
+    with mobile_sessions.lock:
+        if mobile_sessions.owns_area(publish.parking_area_id):
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
+        repository.insert_state(session, publish)
+        try:
+            session.commit()
+        except IntegrityError as error:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Parking state could not be stored.") from error
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -242,7 +300,7 @@ def save_motorcycle_fitting(configuration: MotorcycleFittingConfiguration) -> Mo
 
 
 @app.post("/api/detection/analyze", response_model=DetectionResponse)
-async def analyze_detection(image: UploadFile = File(...), include_parking: bool = True) -> DetectionResponse:
+async def analyze_detection(image: UploadFile = ImageFile, include_parking: bool = True) -> DetectionResponse:
     if image.content_type not in SUPPORTED_IMAGE_TYPES:
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Supported image types are JPEG, PNG, and WebP.")
 
@@ -282,7 +340,7 @@ async def analyze_detection(image: UploadFile = File(...), include_parking: bool
 
 
 @app.post("/api/auto-parking/analyze")
-async def analyze_auto_parking(images: list[UploadFile] = File(...)) -> dict[str, object]:
+async def analyze_auto_parking(images: list[UploadFile] = ImageFile) -> dict[str, object]:
     """Experimental structure discovery from multiple images of one camera."""
     if not images:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="At least one image is required.")
@@ -404,7 +462,7 @@ def _normalized_point_in_polygon(x: float, y: float, polygon: list[object]) -> b
     return inside
 
 @app.post("/api/hybrid-parking/analyze")
-async def analyze_hybrid_parking(image: UploadFile = File(...)) -> dict[str, object]:
+async def analyze_hybrid_parking(image: UploadFile = ImageFile) -> dict[str, object]:
     """Run YOLO and return detections classified only against backend ROI."""
     calibration = calibration_service.load()
     if calibration is None:

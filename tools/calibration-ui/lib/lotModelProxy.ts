@@ -39,11 +39,17 @@ export async function proxyLotModelRequest(request: Request, options: ProxyOptio
   if (!options.token) return reply(503, 'ยังไม่ได้เปิดระบบแก้แผนผัง กรุณาเปิดบริการผ่าน start-dev.bat ใหม่');
   const operation = url.searchParams.get('op');
   const site = url.searchParams.get('site') ?? '';
+  const session = url.searchParams.get('session') ?? '';
+  if (operation?.startsWith('mobile-') && operation !== 'mobile-create' && !/^[A-Za-z0-9_-]{20,50}$/.test(session)) return reply(400, 'Invalid camera session');
   const siteOperations = ['draft', 'activate', 'active', 'calibration-roi'];
   if (operation && siteOperations.includes(operation) && !/^[a-z0-9][a-z0-9-]{0,62}$/.test(site)) {
     return reply(400, 'รหัสสถานที่ไม่ถูกต้อง');
   }
   const routes: Record<string, string> = {
+    'POST:mobile-create': '/api/operator/mobile-camera/sessions',
+    'GET:mobile-status': `/api/operator/mobile-camera/sessions/${session}`,
+    'POST:mobile-approve': `/api/operator/mobile-camera/sessions/${session}/approve`,
+    'POST:mobile-stop': `/api/operator/mobile-camera/sessions/${session}/stop`,
     'GET:template': '/api/operator/lot-model/template',
     'GET:sites': '/api/sites',
     'GET:active': `/api/sites/${site}/lot-model`,
