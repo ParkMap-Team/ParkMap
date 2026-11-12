@@ -45,7 +45,7 @@ def test_editor_template_preserves_the_requested_fixture(monkeypatch, no_databas
     assert response.status_code == 200
     expected = LotModelDefinition.model_validate(json.loads(FIXTURE.read_text(encoding="utf-8")))
     assert response.json() == expected.model_dump(mode="json")
-    assert any(landmark.kind == "TREE" for landmark in expected.landmarks)
+    assert any(landmark.facade is not None for landmark in expected.landmarks)
 
 
 def test_saved_draft_survives_reload_without_changing_the_liff_model(seeded, client):
