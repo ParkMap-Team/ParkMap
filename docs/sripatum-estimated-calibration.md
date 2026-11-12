@@ -1,6 +1,6 @@
 # Sripatum estimated calibration
 
-Status: `ESTIMATED`, 2026-10-15 (#26). It makes no distance or accuracy claim (ADR 0004, ADR 0011). #17 replaces every value below with a survey.
+Status: superseded on 2026-11-12 by the [measured calibration](sripatum-measured-calibration.md). Kept as the record of the first demo. It was `ESTIMATED`, 2026-10-15 (#26), and makes no distance or accuracy claim (ADR 0004, ADR 0011).
 
 ## Identity
 
@@ -11,7 +11,7 @@ Status: `ESTIMATED`, 2026-10-15 (#26). It makes no distance or accuracy claim (A
 | Camera | `sripatum-camera-1` |
 | Reference photo | `20260925_0931` (4032 x 3024, the least occluded of the seven) |
 | Calibration files | `ground_plane_calibration.json`, `ground_plane_homography.json`, `parking_calibration.json`, kept on the team Drive, never in Git |
-| Lot model | [`apps/vision-api/fixtures/spu-cam-01-lot-model.json`](../apps/vision-api/fixtures/spu-cam-01-lot-model.json) is active in production; [`sripatum-lot-model.json`](../apps/vision-api/fixtures/sripatum-lot-model.json) keeps the first whole-lot model and its satellite-derived landmarks |
+| Lot model | [`apps/vision-api/fixtures/sripatum-lot-model.json`](../apps/vision-api/fixtures/sripatum-lot-model.json); the editor's [`spu-cam-01-lot-model.json`](../apps/vision-api/fixtures/spu-cam-01-lot-model.json) is active in production |
 
 ## Ground frame
 
@@ -62,7 +62,7 @@ Every row spans the ROI width (17.25 m) and is `ESTIMATED` with 1.0 m uncertaint
 
 The outline is the whole lot, `x` -8.35 to 37.5, `y` -14.7 to 14.08: from the west planters to the hedge curb, and from the covered walkway to the far end of the lot. The parking area is the Parking ROI. The rest of the outline, including the half of the lot the camera does not see, is `UNMONITORED`.
 
-`spu-cam-01-lot-model.json`, the lot model active in production, carries the surroundings an operator drew in the lot model editor (2026-10-30) instead of the landmarks below: 15 landmarks, with the trees, lawns, west sidewalk and Building 9 podium left out, separate `entrance-1` and `exit-1`, and Building 9 as one 55 m block. Its outline is only the parking area. The operator's own ROI came from a different local calibration (camera `SPU_CAM_01`, a six-vertex ROI) and was rotated 180°, which the registered calibration cannot place rigidly. The fixture therefore uses the exact `roi_metric` corners from `ground_plane_homography.json`, translated without rotation by `x` +6.42 m and `y` +3.92 m (`x` 10.35 to 27.6, `y` 5.04 to 18.0): its hedge-curb edge meets the editor's hedge, centred where the operator placed the lot. The API accepts only such a rigid placement; a reshaped, resized or mirrored ROI deactivates the calibration. The editor's surroundings put the near planters 18 m from the hedge, against 13.1 m in this calibration, so the ROI's camera-side edge stands 5 m short of `central-planters`. Treat that gap as the editor sketch's error, not unmonitored parking, until the survey (#17) or a reviewed redraw replaces it.
+`spu-cam-01-lot-model.json` keeps the same landmarks. Its outline is only the parking area, which is the calibrated Parking ROI shifted 7.29 m west (`x` -3.36 to 13.89), so its top edge is centred where the operator placed the lot in the editor. `y` is unchanged, so the ROI still ends at the hedge curb and above the near planters. It copies the exact `roi_metric` corners from `ground_plane_homography.json`, because the API accepts only a rigid placement of those corners; a reshaped or resized ROI deactivates the calibration.
 
 Every landmark is `ESTIMATED` from a satellite image of the campus and the team's site photos, not surveyed. The team marked the lot, the camera's view, and the shared entrance and exit on the satellite image. Its scale was set from the lot's painted stall grid (about 0.069 m per pixel, uncertain by up to 30 %), and it was aligned to the ground frame by the hedge curb (`y` 14.08) and the near planter tops (`y` 0.96):
 
