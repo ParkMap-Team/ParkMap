@@ -6,6 +6,7 @@ Database commands need DATABASE_URL and a migrated schema (`alembic upgrade head
 """
 
 import argparse
+import hashlib
 import json
 import logging
 import os
@@ -26,8 +27,19 @@ from sqlalchemy.orm import Session
 from app.db import repository
 from app.db.session import DatabaseNotConfiguredError, open_session
 from app.db.tables import ParkingArea, Site
-from app.models import IDENTIFIER_PATTERN, LiveRegion, LotModelDefinition, MotorcycleProxy, ParkingStatePublish, SiteSummary
-from app.services.live_state_service import CALIBRATION_FILES, CalibrationFilesUnavailableError, calibration_version
+from app.models import (
+    IDENTIFIER_PATTERN,
+    LiveRegion,
+    LotModelDefinition,
+    MotorcycleProxy,
+    ParkingStatePublish,
+    SiteSummary,
+)
+from app.services.live_state_service import (
+    CALIBRATION_FILES,
+    CalibrationFilesUnavailableError,
+    calibration_version,
+)
 from app.services.lot_model_editor_service import validate_site_definition
 from app.worker.publisher import StatePublisher
 
@@ -107,6 +119,45 @@ def register_calibration(session: Session, args: argparse.Namespace) -> str:
         raise CommandError(f"Calibration is for camera {camera_id!r}, but {area.id} uses camera {area.camera_id!r}.")
     repository.activate_calibration(session, area.id, version, payload)
     return f"Activated calibration {version} for {area.id}."
+
+
+def restore_seed_calibration(session: Session, args: argparse.Namespace) -> str:
+    """Explicitly restore shared snapshot bytes; never overwrite operator files."""
+    area = _require_area(session, args.parking_area_id)
+    active = repository.active_calibrations(session, [area.id]).get(area.id)
+    snapshot_path = Path(__file__).resolve().parents[1] / "migrations/data/0004_sripatum_setup.json"
+    snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    saved = next((item for item in snapshot["calibrations"] if item["parking_area_id"] == area.id), None)
+    if active is None or saved is None or active.version != saved["version"]:
+        raise CommandError("The active calibration does not match this shared snapshot; no files restored.")
+    files = saved["config_files"]
+    if set(files) != set(CALIBRATION_FILES):
+        raise CommandError("Shared snapshot has an unexpected calibration file list.")
+    raw_files = {name: files[name].encode("utf-8") for name in CALIBRATION_FILES}
+    digest = hashlib.sha256()
+    for name, raw in raw_files.items():
+        digest.update(name.encode())
+        digest.update(len(raw).to_bytes(8, "big"))
+        digest.update(raw)
+    if (f"files-sha256:{digest.hexdigest()}" != active.version
+            or {name: json.loads(raw) for name, raw in raw_files.items()} != active.payload
+            or active.payload["parking_calibration.json"]["camera_id"] != area.camera_id):
+        raise CommandError("Shared calibration identity mismatch; no files restored.")
+    directory = Path(args.output_dir)
+    conflicts = [name for name, raw in raw_files.items()
+                 if (directory / name).exists() and (directory / name).read_bytes() != raw]
+    if conflicts:
+        raise CommandError("Existing calibration differs; back it up and choose an empty directory first: " + ", ".join(conflicts))
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        for name, raw in raw_files.items():
+            target = directory / name
+            if not target.exists():
+                with target.open("xb") as stream:
+                    stream.write(raw)
+    except OSError as error:
+        raise CommandError("Unable to restore calibration files; check the output directory.") from error
+    return f"Restored matching calibration files for {area.id}; database settings were unchanged."
 
 
 def seed_dev(session: Session, args: argparse.Namespace) -> str:
@@ -227,6 +278,11 @@ def build_parser() -> argparse.ArgumentParser:
     command.add_argument("--parking-area-id", type=identifier, required=True)
     command.add_argument("--config-dir", default=str(CONFIG_DIRECTORY))
     command.set_defaults(handler=register_calibration)
+
+    command = commands.add_parser("restore-seed-calibration", help="restore shared snapshot files matching the active calibration without overwriting existing files")
+    command.add_argument("--parking-area-id", type=identifier, required=True)
+    command.add_argument("--output-dir", required=True)
+    command.set_defaults(handler=restore_seed_calibration)
 
     command = commands.add_parser("seed-dev", help="create the fake development site (never in production)")
     command.set_defaults(handler=seed_dev)
