@@ -66,9 +66,11 @@ In the `parkmap-api` terminal, once:
 ```sh
 python -m app.manage create-site --site-id sripatum --name "Sripatum University" --latitude <lat> --longitude <lng>
 python -m app.manage create-parking-area --site-id sripatum --parking-area-id sripatum-near-lot --camera-id sripatum-camera-1 --name "Near lot"
-python -m app.manage set-lot-model --site-id sripatum --file fixtures/sripatum-lot-model.json
+python -m app.manage set-lot-model --site-id sripatum --file fixtures/spu-cam-01-lot-model.json
 python -m app.manage register-calibration --parking-area-id sripatum-near-lot
 ```
+
+A deploy does not activate fixture changes. After a pull request changes `fixtures/spu-cam-01-lot-model.json` and its API deploy finishes, run the `set-lot-model` line again. It prints `Activated lot model version N` even when the new ROI is not a rigid placement of the registered calibration, which silently deactivates that calibration. Check <https://app.parkmap.dev/sites/sripatum> afterwards: motorcycles must show and the area must not report `NOT_CALIBRATED` or `CALIBRATION_MISMATCH`.
 
 After any change to `/srv/parkmap-demo/config`, run `register-calibration` again, then restart `parkmap-worker`. Until both happen, the area reports `CALIBRATION_MISMATCH`. The values and their basis are in [sripatum-estimated-calibration.md](sripatum-estimated-calibration.md).
 
