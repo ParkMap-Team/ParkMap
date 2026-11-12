@@ -64,7 +64,7 @@ python -m app.manage purge-states --older-than-days 30               # schedule 
 python -m app.manage remove-site --site-id <id> --confirm <id>       # deletes the site and everything it owns
 ```
 
-Run `python -m app.manage <command> --help` for exact arguments. The Sripatum demo site and its estimated calibration are described in [docs/sripatum-estimated-calibration.md](../../docs/sripatum-estimated-calibration.md).
+Run `python -m app.manage <command> --help` for exact arguments. The Sripatum demo site and its calibration are described in [docs/sripatum-measured-calibration.md](../../docs/sripatum-measured-calibration.md).
 
 Worker, on a machine that can reach the camera:
 
