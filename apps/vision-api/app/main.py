@@ -77,7 +77,8 @@ from app.services.physical_row_geometry_service import (
 )
 
 SessionDependency = Depends(get_session)
-ImageFile = File(...)
+ImageFile = File(..., alias="image")
+ImagesFile = File(..., alias="images")
 
 load_dotenv()
 
@@ -340,7 +341,7 @@ async def analyze_detection(image: UploadFile = ImageFile, include_parking: bool
 
 
 @app.post("/api/auto-parking/analyze")
-async def analyze_auto_parking(images: list[UploadFile] = ImageFile) -> dict[str, object]:
+async def analyze_auto_parking(images: list[UploadFile] = ImagesFile) -> dict[str, object]:
     """Experimental structure discovery from multiple images of one camera."""
     if not images:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="At least one image is required.")

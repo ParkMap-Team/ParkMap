@@ -53,6 +53,12 @@ def test_api_rejects_zero_images():
     assert TestClient(app).post("/api/auto-parking/analyze").status_code == 422
 
 
+def test_multi_image_upload_does_not_accept_the_single_image_field():
+    response = TestClient(app).post("/api/auto-parking/analyze", files={"image": ("bad.png", b"not-an-image", "image/png")})
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "images"]
+
+
 def test_api_rejects_invalid_image():
     response = TestClient(app).post("/api/auto-parking/analyze", files={"images": ("bad.png", b"not-an-image", "image/png")})
     assert response.status_code == 400
