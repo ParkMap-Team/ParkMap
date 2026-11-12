@@ -33,7 +33,6 @@ export function SegmentationTopDown({ gaps, selectedId, onSelect, incomingSelect
   const [detector, setDetector] = useState('SEGMENTATION');
   const clipId = useId();
   const rowClipId = useId();
-  const widthPatternId = useId();
   const roi = gaps.parking_roi_metric;
   const fullFit = gaps.evaluation_mode === 'FULL_FOOTPRINT';
   const slots = gaps.evaluation_mode === 'VIRTUAL_SLOTS';
@@ -85,7 +84,6 @@ export function SegmentationTopDown({ gaps, selectedId, onSelect, incomingSelect
         <g transform={`translate(0 ${2*minY+height}) scale(1 -1)`}>
         <defs><clipPath id={clipId}>{roi.polygons.map((polygon, index) => <path key={index} d={path(polygon)} clipRule="evenodd" />)}</clipPath>
           <clipPath id={rowClipId} clipPathUnits="userSpaceOnUse">{gaps.rows.map(row => <polygon key={row.row_id} points={points(row.polygon_metric)} />)}</clipPath>
-          <pattern id={widthPatternId} patternUnits="userSpaceOnUse" width={unit*.7} height={unit*.7} patternTransform="rotate(45)"><rect width={unit*.7} height={unit*.7} fill="#dcfce7" /><line x1="0" y1="0" x2="0" y2={unit*.7} stroke="#15803d" strokeWidth={unit*.22} /></pattern>
         </defs>
         {roi.polygons.map((polygon, index) => <path key={index} d={path(polygon)} fill="#f1f5f9" fillRule="evenodd" stroke="#475569" strokeWidth={unit*.1} />)}
         {gaps.background_regions.map(region => <path key={region.id} data-background-id={region.id} data-background-kind={region.kind} d={region.geometry.polygons.map(rings => path(rings)).join(' ')} fill="transparent" fillRule="evenodd" stroke="none" pointerEvents="fill" className="cursor-help"
@@ -100,7 +98,7 @@ export function SegmentationTopDown({ gaps, selectedId, onSelect, incomingSelect
         {gaps.candidates.map(item => <g key={item.id}>
           {item.id === selected?.id && <path d={metricGapPath(item)} fill="none" stroke="#2563eb" strokeWidth={unit*(rectangles ? .35 : .95)} className="pointer-events-none" />}
           <path data-state={item.state} data-visibility={item.visibility} data-occlusion-count={item.occlusion_evidence.length} data-width-check={item.width_check} data-width-preview={isWidthPreview(item, previewWidthOnly)} data-gap-id={item.id} data-slot-width={slots ? item.gap_width_m : undefined} data-slot-length={item.slot_length_m ?? undefined} d={metricGapPath(item)} fillRule="evenodd"
-          fill={isWidthPreview(item, previewWidthOnly) ? `url(#${widthPatternId})` : item.state === 'UNKNOWN' ? 'transparent' : gapPresentation[item.state].fill} fillOpacity={rectangles ? .65 : 1} stroke={item.state === 'UNKNOWN' && !isWidthPreview(item, previewWidthOnly) ? 'none' : gapPresentation[item.state].color} strokeWidth={unit*(rectangles ? .1 : .5)}
+          fill={isWidthPreview(item, previewWidthOnly) ? '#4ade80' : item.state === 'UNKNOWN' ? 'transparent' : gapPresentation[item.state].fill} fillOpacity={isWidthPreview(item, previewWidthOnly) ? 1 : rectangles ? .65 : 1} stroke={item.state === 'UNKNOWN' && !isWidthPreview(item, previewWidthOnly) ? 'none' : gapPresentation[item.state].color} strokeWidth={unit*(rectangles ? .1 : .5)}
           tabIndex={0} role="button" aria-label={`2D ${item.id} ${item.gap_width_m.toFixed(2)} เมตร`}
           onClick={() => selectGap(item.id)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectGap(item.id); } }}>
           <title>{item.row_id} · {item.gap_width_m.toFixed(2)} ม. · {gapPresentation[item.state].label}{isWidthPreview(item, previewWidthOnly) ? ` · ${widthPreviewLabel}` : ''}</title>

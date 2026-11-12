@@ -217,7 +217,7 @@ def process_frame(raw, item, sequence, received_at, session):
         inverse = json.loads((CONFIG / "ground_plane_homography.json").read_text())["inverse_matrix"]
         overlays = []
         for region in state.regions:
-            rings = [[transform_point(p.x_m, p.y_m, inverse) for p in ring] for ring in region.polygon]
+            rings = [[transform_point(p.x_m, p.y_m, inverse) for p in ring] for ring in (region.display_polygon or region.polygon)]
             if all(p is not None and all(0 <= value <= 1 for value in p) for ring in rings for p in ring):
                 overlays.append({"kind": region.kind, "rings": rings})
         item.result = {"cars": len(state.motorcycles), "green_count": sum(r.kind == "WIDTH_SUFFICIENT" for r in state.regions),

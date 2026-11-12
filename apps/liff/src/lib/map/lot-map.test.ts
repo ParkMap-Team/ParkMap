@@ -27,10 +27,33 @@ test("explicit row occupancy wins over the generic motorcycle footprint", () => 
       { kind: "WIDTH_SUFFICIENT", polygon: rect(4, 2, 5, 3), width_m: 1 },
       { kind: "OCCUPIED", polygon: rect(3, 2, 4, 3) },
     ],
-    motorcycles: [{ detection_id: "d1", center: { x_m: 4, y_m: 2.5 }, heading_rad: 0, length_m: 2, width_m: .66, confidence: .9 }],
+    motorcycles: [{ detection_id: "d1", center: { x_m: 4, y_m: 2.5 }, heading_rad: 0, length_m: 2, width_m: .66, confidence: .9, display_scale: 1 }],
   })]);
   assert.equal(hitTest(map, { x_m: 3.5, y_m: 2.5 })?.status, "OCCUPIED");
   assert.equal(hitTest(map, { x_m: 4.5, y_m: 2.5 })?.status, "WIDTH_SUFFICIENT");
+});
+
+test("ROI display clipping preserves the analysis colour and width without drawing outside its display shape", () => {
+  const region = { kind: "WIDTH_SUFFICIENT" as const, polygon: rect(1, 2, 6, 3),
+    display_polygon: rect(3, 2, 5, 3), width_m: 5, reasons: ["GROUND_MAY_BE_OCCLUDED"] };
+  const map = buildLotMap(lotModel, [live({ regions: [region], motorcycles: [] })]);
+  assert.equal(hitTest(map, { x_m: 4, y_m: 2.5 })?.status, "WIDTH_SUFFICIENT");
+  assert.equal(hitTest(map, { x_m: 4, y_m: 2.5 })?.region?.width_m, 5);
+  assert.equal(hitTest(map, { x_m: 2.5, y_m: 2.5 })?.status, "MONITORED");
+  assert.deepEqual(region.polygon, rect(1, 2, 6, 3));
+  assert.equal(hitTest(buildLotMap(lotModel, [live({ status: "STALE", regions: [region] })]), { x_m: 4, y_m: 2.5 })?.status, "UNKNOWN");
+});
+
+test("display scale sizes the symbol while retaining physical proxy dimensions", () => {
+  const proxy = { detection_id: "d1", center: { x_m: 4, y_m: 4 }, heading_rad: 0,
+    length_m: 2, width_m: .66, confidence: .9, display_scale: 1.5 };
+  const map = buildLotMap(lotModel, [live({ regions: [], motorcycles: [proxy] })]);
+  const car = map.areas[0].motorcycles[0];
+  assert.equal(car.proxy.length_m, 2);
+  assert.equal(car.proxy.width_m, .66);
+  assert.equal(car.displayProxy.length_m, 3);
+  assert.equal(car.displayProxy.width_m, .99);
+  assert.equal(hitTest(map, { x_m: 5.4, y_m: 4 })?.status, "OCCUPIED");
 });
 
 const lotModel: LotModel = {
@@ -72,7 +95,7 @@ function live(overrides: Partial<ParkingAreaLiveState> = {}): ParkingAreaLiveSta
       { kind: "ALMOST_AVAILABLE", row_id: "row_1", polygon: rect(6, 2, 8, 3) },
       { kind: "UNKNOWN", row_id: "row_2", polygon: rect(3, 5, 17, 7) },
     ],
-    motorcycles: [{ detection_id: "m1", center: { x_m: 12, y_m: 2.5 }, heading_rad: 0, length_m: 2, width_m: 0.66, confidence: 0.9 }],
+    motorcycles: [{ detection_id: "m1", center: { x_m: 12, y_m: 2.5 }, heading_rad: 0, length_m: 2, width_m: 0.66, confidence: 0.9, display_scale: 1 }],
     ...overrides,
   };
 }

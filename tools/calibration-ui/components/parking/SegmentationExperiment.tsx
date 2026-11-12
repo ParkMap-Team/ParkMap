@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import type { components } from '@/types/api.gen';
 import { imageGapPath } from '@/lib/gapGeometry';
 import { SegmentationTopDown } from './SegmentationTopDown';
@@ -30,7 +30,6 @@ export function SegmentationExperiment({ result, error, gaps, standardCount = 0,
   const [chosenHorizontal, setChosenHorizontal] = useState<{ result: Gaps; id: string } | null>(null);
   const [chosenOrientation, setChosenOrientation] = useState('');
   const [inspectedBackground, setInspectedBackground] = useState<{ result: Gaps; region: Background } | null>(null);
-  const widthPatternId = useId();
   const currentGap = gaps?.candidates.find(item => item.id === chosenGap) ?? gaps?.candidates.find(item => item.state === 'FIT' || item.state === 'SLOT_CLEAR' || item.state === 'WIDTH_SUFFICIENT') ?? gaps?.candidates.find(item => item.state === 'ALMOST_AVAILABLE') ?? gaps?.candidates[0];
   const fullFit = gaps?.evaluation_mode === 'FULL_FOOTPRINT';
   const slots = gaps?.evaluation_mode === 'VIRTUAL_SLOTS';
@@ -99,9 +98,8 @@ export function SegmentationExperiment({ result, error, gaps, standardCount = 0,
         {result.detections.map((item, index) => <circle key={`anchor-${index}`} data-ground-anchor={`detection_${index+1}`} cx={item.bbox.x+item.bbox.width/2} cy={item.bbox.y+item.bbox.height} r=".003" fill="#facc15" stroke="#0f172a" strokeWidth=".001"><title>จุดกึ่งกลางล่าง · detection_{index+1} · {gaps?.occupied_layers.find(layer => layer.detection_index === index)?.assigned_row_id ?? 'ยังระบุแถวไม่ได้'}</title></circle>)}
       </svg>
       {gaps && <svg viewBox="0 0 1 1" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full" aria-label="Segmentation free-space candidates">
-        <defs><pattern id={widthPatternId} patternUnits="userSpaceOnUse" width=".012" height=".012" patternTransform="rotate(45)"><rect width=".012" height=".012" fill="#dcfce7" /><line x1="0" y1="0" x2="0" y2=".012" stroke="#15803d" strokeWidth=".004" /></pattern></defs>
         {gaps.candidates.map(item => imageGapPath(item) && <path key={item.id} data-state={item.state} role="button" tabIndex={0} aria-label={`ตำแหน่งทดลอง ${item.id} ${item.state}`} pointerEvents="all"
-          data-width-preview={isWidthPreview(item, previewWidthOnly)} d={imageGapPath(item)} fillRule="evenodd" fill={isWidthPreview(item, previewWidthOnly) ? `url(#${widthPatternId})` : gapPresentation[item.state].fill} fillOpacity={isWidthPreview(item, previewWidthOnly) ? .7 : .35}
+          data-width-preview={isWidthPreview(item, previewWidthOnly)} d={imageGapPath(item)} fillRule="evenodd" fill={isWidthPreview(item, previewWidthOnly) ? '#4ade80' : gapPresentation[item.state].fill} fillOpacity={isWidthPreview(item, previewWidthOnly) ? .7 : .35}
           stroke={gapPresentation[item.state].color} strokeWidth={item.id === currentGap?.id ? '.005' : '.003'}
           onClick={() => selectGap(item.id)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectGap(item.id); } }}><title>{item.id} · {item.state} · {item.gap_width_m.toFixed(2)} ม.{isWidthPreview(item, previewWidthOnly) ? ` · ${widthPreviewLabel}` : ''}</title></path>)}
         {currentGap?.width_line_image?.length === 2 && <line x1={currentGap.width_line_image[0].x} y1={currentGap.width_line_image[0].y} x2={currentGap.width_line_image[1].x} y2={currentGap.width_line_image[1].y} stroke={gapPresentation[currentGap.state].color} strokeWidth=".003" />}

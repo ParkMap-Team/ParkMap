@@ -430,7 +430,7 @@ function Landmark({ landmark, facades }: { landmark: LotLandmark; facades: Recor
 
 function Ground({ map, onSelect, onReady }: { map: LotMap; onSelect(point: MetricPoint | null): void; onReady(): void }) {
   const { hatch, dots, facades } = usePatterns();
-  const proxies = useMemo(() => map.areas.flatMap((area) => area.motorcycles.map(({ proxy }) => proxy)), [map]);
+  const proxies = useMemo(() => map.areas.flatMap((area) => area.motorcycles.map(({ displayProxy }) => displayProxy)), [map]);
   const trees = useMemo(() => map.landmarks.filter((landmark) => landmark.kind === "TREE"), [map.landmarks]);
   const shelters = useMemo(() => map.landmarks.filter((landmark) => landmark.kind === "SHELTER" && landmark.polygon && landmark.height_m), [map.landmarks]);
   const invalidate = useThree((state) => state.invalidate);
@@ -489,7 +489,7 @@ function Ground({ map, onSelect, onReady }: { map: LotMap; onSelect(point: Metri
           ))}
         </group>
       ))}
-      <Footprints proxies={map.areas.filter(area => !area.regions.some(region => region.kind === "OCCUPIED")).flatMap(area => area.motorcycles.map(({ proxy }) => proxy))} />
+      <Footprints proxies={map.areas.filter(area => !area.regions.some(region => region.kind === "OCCUPIED")).flatMap(area => area.motorcycles.map(({ displayProxy }) => displayProxy))} />
       {/* The model loads behind Suspense; the rest of the map shows at once. */}
       <Suspense fallback={null}>
         <Motorcycles proxies={proxies} onReady={onReady} />

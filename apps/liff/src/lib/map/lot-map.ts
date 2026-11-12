@@ -1,6 +1,7 @@
 import type { AreaLiveStatus, LandmarkKind, LiveRegion, LotLandmark, LotModel, MetricPoint, MetricPolygon, MotorcycleProxy, ParkingAreaLiveState } from "../api/types.ts";
 import { showsRegions } from "../parking/presentation.ts";
 import { type Bounds, boundsOf, labelPoint, pointInPolygon, proxyFootprint } from "./geometry.ts";
+import { fitProxyDisplay } from './proxy-display.ts';
 
 // One map model for both renderers: static place geometry from the lot model, with the API's
 // current state laid over it. The browser never decides what is available; it only places what
@@ -23,7 +24,7 @@ export type MapArea = {
   /** Set when the whole area is unknown because it has no current state. */
   unknownReason: UnknownReason | null;
   regions: LiveRegion[];
-  motorcycles: { proxy: MotorcycleProxy; footprint: MetricPolygon }[];
+  motorcycles: { proxy: MotorcycleProxy; displayProxy: MotorcycleProxy; footprint: MetricPolygon }[];
 };
 
 export type LotMap = {
@@ -53,13 +54,18 @@ export function buildLotMap(lotModel: LotModel, states: ParkingAreaLiveState[] |
       const unknownReason: UnknownReason = states === null ? "LOADING" : live ? (live.status as UnknownReason) : "NO_DATA";
       return { parkingAreaId: parking_area_id, polygon, live, unknownReason, regions: [], motorcycles: [] };
     }
+    const regions = (live.regions ?? []).map(region => ({ ...region, polygon: region.display_polygon ?? region.polygon }));
     return {
       parkingAreaId: parking_area_id,
       polygon,
       live,
       unknownReason: null,
-      regions: live.regions ?? [],
-      motorcycles: (live.motorcycles ?? []).map((proxy) => ({ proxy, footprint: proxyFootprint(proxy) })),
+      regions,
+      motorcycles: (live.motorcycles ?? []).map((proxy) => {
+        const scale = proxy.display_scale ?? 1;
+        const symbol = { ...proxy, length_m: proxy.length_m*scale, width_m: proxy.width_m*scale };
+        return { proxy, displayProxy: fitProxyDisplay(symbol, regions), footprint: proxyFootprint(symbol) };
+      }),
     };
   });
   return {
