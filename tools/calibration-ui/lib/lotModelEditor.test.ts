@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { insertVertex, modelBounds, moveLandmark, moveVertex, newLandmark, rectangleDimensions, removeVertex, resizeRectangle, roiObjects, replaceEditorObject, rotatePolygonObject, adoptRoiOutline } from './lotModelEditor.ts';
+import { insertVertex, modelBounds, moveLandmark, moveVertex, newLandmark, rectangleDimensions, removeVertex, resizeRectangle, roiObjects, replaceEditorObject, rotatePolygonObject, scalePolygonObject, adoptRoiOutline } from './lotModelEditor.ts';
 import type { LotLandmark, LotModelDefinition } from '../types/lotModel.ts';
 
 const walkway: LotLandmark = {
@@ -9,6 +9,22 @@ const walkway: LotLandmark = {
   polygon: [[{ x_m: 0, y_m: 0 }, { x_m: 2, y_m: 0 }, { x_m: 2, y_m: 10 }, { x_m: 0, y_m: 10 }]],
   measurement_source: 'ESTIMATED',
 };
+
+void test('uniform ROI scaling preserves centre, orientation, holes and original geometry', () => {
+  const original = { ...walkway, polygon: [...walkway.polygon!, [
+    { x_m: .5, y_m: 4 }, { x_m: 1.5, y_m: 4 }, { x_m: 1, y_m: 6 },
+  ]] };
+  const before = structuredClone(original);
+  const result = scalePolygonObject(original, 1.5);
+  assert.deepEqual(result.position, original.position);
+  assert.equal(result.polygon!.length, 2);
+  original.polygon.forEach((ring, r) => ring.forEach((p, i) => {
+    assert.equal(result.polygon![r][i].x_m-original.position.x_m, (p.x_m-original.position.x_m)*1.5);
+    assert.equal(result.polygon![r][i].y_m-original.position.y_m, (p.y_m-original.position.y_m)*1.5);
+  }));
+  assert.deepEqual(original, before);
+  for (const factor of [0, -1, Infinity, NaN]) assert.throws(() => scalePolygonObject(original, factor));
+});
 
 void test('operator can adopt the sole rotated ROI as the lot outline without moving landmarks', () => {
   const source = JSON.parse(readFileSync(new URL('../../../apps/vision-api/fixtures/spu-cam-01-lot-model.json', import.meta.url), 'utf8')) as LotModelDefinition;

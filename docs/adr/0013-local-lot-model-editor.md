@@ -71,6 +71,14 @@ geometry. The cost is a small draft migration and an explicit save/activate step
 
 ## Importing the current camera ROI
 
+The ROI properties panel also provides uniform scaling around the current bounds
+centre: 90%, 110%, or a custom percentage of the current size. Every outer/hole
+vertex receives the same positive factor, retaining shape, proportions and angle.
+It is an undoable local display edit; saving/activation remains explicit. A proven
+uniform scale moves rows and icons together without changing physical analysis.
+It is not a camera calibration adjustment. Arbitrary corner edits still fail the
+calibration compatibility check.
+
 Setup provides an explicit calibration-ROI preview action. Python requires a
 current validated homography, matching camera/site, unchanged projected image
 ROI and a compatible registered camera-to-lot placement. It replaces only the

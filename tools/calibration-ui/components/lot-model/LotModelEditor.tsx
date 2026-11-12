@@ -173,7 +173,7 @@ export function LotModelEditor() {
       const updated = await request<LotModelDefinition>('calibration-roi', siteId, 'POST', model);
       commit(model, definitionOnly(updated));
       setEditRoi(true); setMode('2d'); setSelectedId(roiObjects(updated)[0]?.landmark_id ?? null);
-      setNotice('นำ ROI จาก calibration มาแล้ว ตรวจกรอบฟ้าก่อนบันทึกฉบับร่างและเปิดใช้งาน · ยังไม่เปลี่ยน LIFF · หากขนาดหรือรูปทรงเปลี่ยน ต้องลงทะเบียน calibration ปัจจุบันหลังเปิดใช้งาน');
+      setNotice('นำ ROI จาก calibration มาแล้ว ตรวจกรอบฟ้าก่อนบันทึกฉบับร่างและเปิดใช้งาน · ยังไม่เปลี่ยน LIFF · การย่อ–ขยายเท่ากันทั้งรูปเปลี่ยนเฉพาะแผนผัง หากรูปทรงเปลี่ยนต้องตรวจ calibration ใหม่');
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'นำ ROI จาก calibration ไม่สำเร็จ'); }
     finally { setBusy(false); }
   }
@@ -191,7 +191,7 @@ export function LotModelEditor() {
   async function activate() {
     if (!server || busy || dirty || stale || !form.current?.reportValidity()) return;
     const name = sites.find((site) => site.site_id === siteId)?.name ?? siteId;
-    if (!window.confirm(`เปิดใช้ฉบับร่างของ ${name} ใน LIFF หรือไม่?\nแผนผังที่นักศึกษาเห็นจะเปลี่ยนเป็นฉบับนี้\nเมื่อมี ROI จาก calibration รถจะย้าย/หมุนตาม ROI ทั้งรูป หากเปลี่ยนขนาดหรือรูปทรง ต้องตรวจ calibration ใหม่`)) return;
+    if (!window.confirm(`เปิดใช้ฉบับร่างของ ${name} ใน LIFF หรือไม่?\nแผนผังที่นักศึกษาเห็นจะเปลี่ยนเป็นฉบับนี้\nรถและแถวจะย้าย หมุน และย่อ–ขยายตาม ROI โดยคงระยะวิเคราะห์เดิม หากรูปทรงเปลี่ยนต้องตรวจ calibration ใหม่`)) return;
     setBusy(true); setError(''); setNotice('');
     try {
       const published = await request<LotModelDraftState>('activate', siteId, 'POST', { expected_revision: server.revision, base_version: server.base_version });
