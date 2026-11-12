@@ -9,7 +9,7 @@ const square = [[{ x_m: 0, y_m: 0 }, { x_m: 4, y_m: 0 }, { x_m: 4, y_m: 4 }, { x
 const withHole = [...square, [{ x_m: 1, y_m: 1 }, { x_m: 3, y_m: 1 }, { x_m: 3, y_m: 3 }, { x_m: 1, y_m: 3 }]];
 
 function proxy(overrides: Partial<MotorcycleProxy> = {}): MotorcycleProxy {
-  return { detection_id: "d1", center: { x_m: 5, y_m: 3 }, heading_rad: 0, length_m: 2, width_m: 0.66, confidence: 0.9, ...overrides };
+  return { detection_id: "d1", center: { x_m: 5, y_m: 3 }, heading_rad: 0, length_m: 2, width_m: 0.66, confidence: 0.9, display_scale: 1, ...overrides };
 }
 
 test("points inside a hole are outside the polygon", () => {

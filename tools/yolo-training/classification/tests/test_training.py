@@ -23,7 +23,7 @@ class ClassifierTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
 
-    def dataset(self):
+    def dataset(self, source="fixture", color_offset=0, reviewed=False, one_class=False):
         from prepare import prepare
 
         archive = self.root / "source.zip"
@@ -31,15 +31,22 @@ class ClassifierTests(unittest.TestCase):
             z.writestr("data.yaml", "nc: 2\nnames: [a, b]\n")
             for index in range(12):
                 stream = io.BytesIO()
-                Image.new("RGB", (40, 20), (index * 20, 30, 50)).save(stream, "PNG")
+                Image.new("RGB", (40, 20), (index * 20 + color_offset, 30, 50)).save(stream, "PNG")
                 z.writestr(f"train/images/{index}.png", stream.getvalue())
-                z.writestr(f"train/labels/{index}.txt", f"{index % 2} 0.5 0.5 1 1")
+                z.writestr(f"train/labels/{index}.txt", f"{0 if one_class else index % 2} 0.5 0.5 1 1")
         config = {"seed": 42, "ratios": {"train": .7, "val": .15, "test": .15}, "sources": [{
-            "id": "fixture", "archive": str(archive), "yaml": "data.yaml", "splits": {"train": "train", "val": "valid", "test": "test"},
+            "id": source, "archive": str(archive), "yaml": "data.yaml", "splits": {"train": "train", "val": "valid", "test": "test"},
             "class_map": {"a": "a", "b": "b"}, "license": {"name": "test", "credit": "synthetic", "url": "local"}}]}
         path = self.root / "config.json"
         path.write_text(json.dumps(config))
-        return prepare(path, self.root / "prepared")
+        run = prepare(path, self.root / "prepared")
+        if reviewed:
+            from prepare import read_jsonl
+
+            review = self.root / f"review-{source}.json"
+            review.write_text(json.dumps({"annotations": {r["annotation_id"]: {"confirmed": True} for r in read_jsonl(run / "manifest.jsonl")}}))
+            run = prepare(path, self.root / "prepared", review)
+        return run
 
     def module(self, name):
         spec = importlib.util.spec_from_file_location(name, ROOT / f"{name}.py")
@@ -138,6 +145,8 @@ class ClassifierTests(unittest.TestCase):
 
         run = self.dataset()
         initial = self.root / "synthetic-initial-weights.pth"
+        weights_before = {p.relative_to(ROOT / "weights").as_posix(): (p.stat().st_size, p.stat().st_mtime_ns)
+                          for p in (ROOT / "weights").rglob("*") if p.is_file()}
         torch.save(resnet18(weights=None).state_dict(), initial)
         output = self.root / "cli-runs"
         result = subprocess.run([sys.executable, str(ROOT / "train.py"), "--dataset", str(run), "--output", str(output),
@@ -151,7 +160,110 @@ class ClassifierTests(unittest.TestCase):
         self.assertEqual(metadata["run_state"], "complete")
         self.assertFalse(metadata["test_evaluated"])
         self.assertIn("Epoch 1/1", result.stdout)
-        self.assertFalse((ROOT / "weights").exists(), "Synthetic/offline training does not download weights")
+        weights_after = {p.relative_to(ROOT / "weights").as_posix(): (p.stat().st_size, p.stat().st_mtime_ns)
+                         for p in (ROOT / "weights").rglob("*") if p.is_file()}
+        self.assertEqual(weights_before, weights_after, "Synthetic/offline training does not download or replace weights")
+
+    def test_40_warm_start_keeps_parent_classes_and_uses_incoming_only(self):
+        from classifier_data import sha256, validate_run
+        from classifier_engine import build_model, fit, seed_everything
+        from prepare_transfer import build_transfer
+
+        parent = self.dataset(reviewed=True)
+        summary, samples = validate_run(parent, True)
+        options = json.loads((ROOT / "training.json").read_text())
+        options.update(epochs=1, image_size=64, batch_size=2, threads=1, seed=42, device="cpu")
+        seed_everything(42, 1)
+        trained = fit(build_model(summary["classes"], None, pretrained=False), samples, summary, options, self.root / "parent-model")
+        checkpoint = trained / "best.pt"
+        before = sha256(checkpoint)
+        incoming = self.dataset(source="incoming", color_offset=1, reviewed=True, one_class=True)
+        transfer = build_transfer(parent, incoming, checkpoint, "incoming", self.root / "transfer")
+        with self.assertRaisesRegex(ValueError, "Classes without training"):
+            validate_run(transfer, True)
+        checked, selected = validate_run(transfer, True, warm_start=checkpoint)
+        self.assertEqual(checked["classes"], ["a", "b"])
+        self.assertEqual(checked["missing_training_classes"], ["b"])
+        self.assertTrue(all(r["source_dataset"] == "incoming" for r in selected["train"]))
+        output = self.root / "transfer-models"
+        result = subprocess.run([sys.executable, str(ROOT / "train.py"), "--dataset", str(transfer), "--output", str(output),
+                                 "--warm-start", str(checkpoint), "--epochs", "1", "--patience", "2", "--image-size", "64", "--batch-size", "2", "--device", "cpu"],
+                                capture_output=True, text=True, timeout=120, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        run = next(output.iterdir())
+        metadata = json.loads((run / "run.json").read_text())
+        self.assertEqual(metadata["options"]["initial_weights_sha256"], before)
+        self.assertEqual(metadata["dataset"]["classes"], ["a", "b"])
+        self.assertTrue((run / "initial_val/metrics.json").is_file())
+        self.assertFalse(metadata["test_evaluated"])
+        self.assertEqual(sha256(checkpoint), before)
+
+    def test_50_efficientnet_trains_offline_and_keeps_backbone_frozen(self):
+        import torch
+        from classifier_data import validate_run
+        from classifier_engine import build_model, fit, load_checkpoint, seed_everything
+
+        snapshot = self.dataset()
+        summary, samples = validate_run(snapshot, True)
+        options = json.loads((ROOT / "training.json").read_text())
+        options.update(architecture="efficientnet_b0", epochs=1, image_size=64, batch_size=2, threads=1, seed=42, device="cpu")
+        seed_everything(42, 1)
+        model = build_model(summary["classes"], None, pretrained=False, architecture="efficientnet_b0")
+        self.assertFalse(model.features[0][0].weight.requires_grad)
+        self.assertTrue(model.classifier[-1].weight.requires_grad)
+        before = model.features[0][1].running_mean.clone()
+        output = fit(model, samples, summary, options, self.root / "efficientnet")
+        checkpoint = load_checkpoint(output / "best.pt", summary)
+        self.assertEqual(checkpoint["architecture"], "efficientnet_b0")
+        self.assertTrue(torch.equal(before, model.features[0][1].running_mean))
+        self.assertEqual(checkpoint["state_dict"]["classifier.1.weight"].shape[0], 2)
+        from classifier_data import sha256
+
+        digest = sha256(output / "last.pt")
+        continued = self.root / "continued-runs"
+        result = subprocess.run([sys.executable, str(ROOT / "train.py"), "--dataset", str(snapshot), "--output", str(continued),
+                                 "--architecture", "efficientnet_b0", "--continue-from", str(output / "last.pt"),
+                                 "--epochs", "1", "--image-size", "64", "--batch-size", "2", "--device", "cpu"],
+                                capture_output=True, text=True, timeout=120, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        resumed = next(continued.iterdir())
+        metadata = json.loads((resumed / "run.json").read_text())
+        self.assertEqual(metadata["options"]["initial_weights_sha256"], digest)
+        self.assertEqual(metadata["options"]["continued_from_epoch"], 1)
+        self.assertEqual(metadata["options"]["optimizer_restored"], False)
+        self.assertFalse(metadata["test_evaluated"])
+        self.assertTrue((resumed / "initial_val/metrics.json").is_file())
+        self.assertEqual(sha256(output / "last.pt"), digest)
+
+
+    def test_60_yolo_classifier_roundtrip_keeps_logits_and_backbone_statistics(self):
+        import torch
+        from classifier_data import validate_run
+        from classifier_engine import build_model, fit, load_checkpoint, seed_everything
+
+        snapshot = self.dataset()
+        summary, samples = validate_run(snapshot, True)
+        options = json.loads((ROOT / "training.json").read_text())
+        options.update(architecture="yolo11n_cls", epochs=1, image_size=64, batch_size=2, threads=1, seed=42, device="cpu")
+        seed_everything(42, 1)
+        model = build_model(summary["classes"], None, pretrained=False, architecture="yolo11n_cls")
+        self.assertFalse(model.network.model[0].conv.weight.requires_grad)
+        self.assertTrue(model.classifier.weight.requires_grad)
+        before = model.network.model[0].bn.running_mean.clone()
+        output = fit(model, samples, summary, options, self.root / "yolo")
+        checkpoint = load_checkpoint(output / "best.pt", summary)
+        self.assertEqual(checkpoint["preprocessing"]["mean"], [0., 0., 0.])
+        self.assertEqual(checkpoint["architecture"], "yolo11n_cls")
+        self.assertTrue(torch.equal(before, model.network.model[0].bn.running_mean))
+        restored = build_model(summary["classes"], None, pretrained=False, architecture="yolo11n_cls")
+        restored.load_state_dict(checkpoint["state_dict"], strict=True)
+        model.eval()
+        restored.eval()
+        inputs = torch.zeros(2, 3, 64, 64)
+        with torch.inference_mode():
+            expected, actual = model(inputs), restored(inputs)
+        self.assertEqual(actual.shape, (2, 2))
+        self.assertTrue(torch.equal(expected, actual))
 
 
 if __name__ == "__main__":

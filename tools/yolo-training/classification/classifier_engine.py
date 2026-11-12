@@ -23,6 +23,7 @@ from PIL import Image
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import models, transforms
+from training_control import EarlyStopping
 
 
 def seed_everything(seed, threads):
@@ -49,40 +50,74 @@ def select_device(name):
     return device
 
 
-def build_model(classes, weights_dir, fine_tune=False, initial_weights=None, pretrained=True):
+def model_spec(architecture):
+    if architecture == "resnet18":
+        return models.resnet18, models.ResNet18_Weights.IMAGENET1K_V1
+    if architecture == "efficientnet_b0":
+        return models.efficientnet_b0, models.EfficientNet_B0_Weights.IMAGENET1K_V1
+    raise ValueError("Unsupported classifier architecture")
+
+
+def classifier_head(model):
+    return model.fc if hasattr(model, "fc") else model.classifier
+
+
+def build_model(classes, weights_dir, fine_tune=False, initial_weights=None, pretrained=True, architecture="resnet18"):
+    if architecture == "yolo11n_cls":
+        from yolo_classifier import YoloClassifier, prepare_pretrained
+
+        weights = initial_weights or (prepare_pretrained(weights_dir) if pretrained else None)
+        return YoloClassifier(classes, fine_tune, weights)
+    builder, weights = model_spec(architecture)
     if initial_weights:
-        model = models.resnet18(weights=None)
+        model = builder(weights=None)
         model.load_state_dict(torch.load(initial_weights, map_location="cpu", weights_only=True))
     else:
         if pretrained:
             Path(weights_dir).mkdir(parents=True, exist_ok=True)
             torch.hub.set_dir(str(weights_dir))
-        model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1 if pretrained else None)
+        model = builder(weights=weights if pretrained else None)
     for parameter in model.parameters():
         parameter.requires_grad = fine_tune
-    model.fc = nn.Linear(model.fc.in_features, len(classes))
+    if architecture == "resnet18":
+        model.fc = nn.Linear(model.fc.in_features, len(classes))
+    else:
+        model.classifier[-1] = nn.Linear(model.classifier[-1].in_features, len(classes))
     return model
 
 
-def initial_weights_metadata(weights_dir, initial_weights=None):
-    url = models.ResNet18_Weights.IMAGENET1K_V1.url
+def initial_weights_metadata(weights_dir, initial_weights=None, architecture="resnet18"):
+    if architecture == "yolo11n_cls":
+        from yolo_classifier import OFFICIAL_URL, initial_weights_path
+
+        path = Path(initial_weights) if initial_weights else initial_weights_path(weights_dir)
+        return {"initial_weights": str(path.resolve()), "initial_weights_source": "local state_dict" if initial_weights else OFFICIAL_URL,
+                "initial_weights_sha256": sha256(path), "ultralytics": importlib.metadata.version("ultralytics")}
+    url = model_spec(architecture)[1].url
     path = Path(initial_weights).resolve() if initial_weights else Path(weights_dir) / "checkpoints" / Path(urlparse(url).path).name
     return {"initial_weights": str(path), "initial_weights_source": "local state_dict" if initial_weights else url,
             "initial_weights_sha256": sha256(path)}
 
 
-def image_transform(size, augment=False):
+def preprocessing_for(architecture):
+    if architecture == "yolo11n_cls":
+        return {**PREPROCESSING, "mean": [0., 0., 0.], "std": [1., 1., 1.]}
+    return PREPROCESSING
+
+
+def image_transform(size, augment=False, architecture="resnet18"):
     steps = [PadResize(size)]
     if augment:
         steps += [transforms.RandomHorizontalFlip(0.5), transforms.ColorJitter(brightness=.1, contrast=.1, saturation=.05)]
-    return transforms.Compose([*steps, transforms.ToTensor(), transforms.Normalize(PREPROCESSING["mean"], PREPROCESSING["std"])])
+    preprocessing = preprocessing_for(architecture)
+    return transforms.Compose([*steps, transforms.ToTensor(), transforms.Normalize(preprocessing["mean"], preprocessing["std"])])
 
 
 class CropDataset(Dataset):
-    def __init__(self, root, rows, classes, size, augment=False):
+    def __init__(self, root, rows, classes, size, augment=False, architecture="resnet18"):
         self.root, self.rows = Path(root), rows
         self.indices = {name: index for index, name in enumerate(classes)}
-        self.transform = image_transform(size, augment)
+        self.transform = image_transform(size, augment, architecture)
 
     def __len__(self):
         return len(self.rows)
@@ -95,7 +130,7 @@ class CropDataset(Dataset):
 
 
 def loader(root, rows, classes, options, training=False):
-    dataset = CropDataset(root, rows, classes, options["image_size"], training and options["augment"])
+    dataset = CropDataset(root, rows, classes, options["image_size"], training and options["augment"], options["architecture"])
     return DataLoader(dataset, batch_size=options["batch_size"], shuffle=training, num_workers=options["workers"],
                       generator=torch.Generator().manual_seed(options["seed"]))
 
@@ -103,7 +138,7 @@ def loader(root, rows, classes, options, training=False):
 def train_epoch(model, batches, optimizer, device, fine_tune, epoch, epochs):
     # Freeze backbone BN running statistics as well as its parameters for head-only training.
     model.train() if fine_tune else model.eval()
-    model.fc.train()
+    classifier_head(model).train()
     total_loss, correct, count = 0.0, 0, 0
     for index, (images, targets) in enumerate(batches, 1):
         images, targets = images.to(device), targets.to(device)
@@ -146,7 +181,7 @@ def evaluate(model, batches, device, classes):
 
 def save_checkpoint(path, model, options, summary, epoch, metrics):
     checkpoint = {"format_version": 1, "architecture": options["architecture"], "classes": summary["classes"],
-                  "preprocessing": PREPROCESSING, "image_size": options["image_size"],
+                  "preprocessing": preprocessing_for(options["architecture"]), "image_size": options["image_size"],
                   "dataset_fingerprint": summary["fingerprint"], "manifest_sha256": summary["manifest_sha256"],
                   "epoch": epoch, "val": metrics,
                   "state_dict": {name: tensor.detach().cpu() for name, tensor in model.state_dict().items()}}
@@ -157,20 +192,20 @@ def save_checkpoint(path, model, options, summary, epoch, metrics):
 
 def load_checkpoint(path, summary):
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
-    if checkpoint.get("format_version") != 1 or checkpoint.get("architecture") != "resnet18":
-        raise ValueError("Expected a ParkMap ResNet18 classifier checkpoint, not detector weights")
+    if checkpoint.get("format_version") != 1 or checkpoint.get("architecture") not in {"resnet18", "efficientnet_b0", "yolo11n_cls"}:
+        raise ValueError("Expected a supported ParkMap classifier checkpoint, not detector weights")
     if checkpoint["classes"] != summary["classes"]:
         raise ValueError("Checkpoint classes differ from dataset class order")
     if checkpoint["dataset_fingerprint"] != summary["fingerprint"] or checkpoint["manifest_sha256"] != summary["manifest_sha256"]:
         raise ValueError("Checkpoint belongs to a different dataset snapshot")
-    if checkpoint["preprocessing"] != PREPROCESSING or not 64 <= checkpoint["image_size"] <= 1024:
+    if checkpoint["preprocessing"] != preprocessing_for(checkpoint["architecture"]) or not 64 <= checkpoint["image_size"] <= 1024:
         raise ValueError("Checkpoint preprocessing is incompatible")
     return checkpoint
 
 
 def run_metadata(summary, options, device):
     return {"dataset": summary, "options": options, "device": str(device), "status": summary["status"],
-            "preprocessing": PREPROCESSING, "torch": str(torch.__version__),
+            "preprocessing": preprocessing_for(options["architecture"]), "torch": str(torch.__version__),
             "torchvision": importlib.metadata.version("torchvision"), "python": sys.version,
             "pillow": importlib.metadata.version("pillow"), "test_evaluated": False,
             "selection": "highest val macro_f1 over supported classes; tie: lowest val loss",
@@ -195,8 +230,22 @@ def fit(model, samples, summary, options, output):
     val_loader = loader(summary["snapshot"], samples["val"], summary["classes"], options)
     optimizer = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad), lr=options["learning_rate"])
     best = (-math.inf, -math.inf)
+    stopper = EarlyStopping(options.get("patience", 0))
+    metadata["early_stopping"] = {"metric": "val_macro_f1", "patience": stopper.patience, "stopped_early": False}
     started = time.monotonic()
     try:
+        if options.get("warm_start_checkpoint") or options.get("continued_from_checkpoint"):
+            initial, predictions, scores = evaluate(model, val_loader, device, summary["classes"])
+            metadata["initial_validation"] = {"top1": initial["top1"], "macro_f1": initial["macro_f1"], "loss": initial["loss"]}
+            metadata["selection"] += "; includes starting checkpoint at epoch 0 of this run"
+            best = (initial["macro_f1"], -initial["loss"])
+            stopper.update(initial["macro_f1"])
+            metadata["best_epoch"] = 0
+            save_checkpoint(output / "best.pt", model, options, summary, 0, initial)
+            write_evaluation(output / "initial_val", summary["snapshot"], "val", samples["val"], predictions, scores, summary["classes"],
+                             {"status": summary["status"], "checkpoint_sha256": options["initial_weights_sha256"],
+                              "dataset_fingerprint": summary["fingerprint"], "loss": initial["loss"]})
+            print(f"Starting checkpoint baseline | val top1 {initial['top1']:.3f} | val macro F1 {initial['macro_f1']:.3f}", flush=True)
         with (output / "history.csv").open("w", encoding="utf-8", newline="") as stream:
             fields = ["epoch", "train_loss", "train_top1", "val_loss", "val_top1", "val_macro_f1", "elapsed_seconds"]
             writer = csv.DictWriter(stream, fieldnames=fields)
@@ -216,7 +265,12 @@ def fit(model, samples, summary, options, output):
                     metadata["best_epoch"] = epoch
                 save_checkpoint(output / "last.pt", model, options, summary, epoch, metrics)
                 metadata["completed_epochs"] = epoch
+                stop = stopper.update(metrics["macro_f1"])
+                metadata["early_stopping"].update(bad_epochs=stopper.bad_epochs, best_macro_f1=stopper.best, stopped_early=stop)
                 write_status()
+                if stop:
+                    print(f"Early stopping: no improved validation Macro F1 for {stopper.patience} epochs.", flush=True)
+                    break
         saved = torch.load(output / "best.pt", map_location=device, weights_only=True)
         model.load_state_dict(saved["state_dict"])
         metrics, predictions, scores = evaluate(model, val_loader, device, summary["classes"])
@@ -237,9 +291,9 @@ def fit(model, samples, summary, options, output):
 def evaluate_test(checkpoint_path, summary, samples, options, output):
     checkpoint = load_checkpoint(checkpoint_path, summary)
     device = select_device(options["device"])
-    model = build_model(summary["classes"], weights_dir=None, pretrained=False).to(device)
+    model = build_model(summary["classes"], weights_dir=None, pretrained=False, architecture=checkpoint["architecture"]).to(device)
     model.load_state_dict(checkpoint["state_dict"])
-    options = {**options, "image_size": checkpoint["image_size"]}
+    options = {**options, "image_size": checkpoint["image_size"], "architecture": checkpoint["architecture"]}
     batches = loader(summary["snapshot"], samples["test"], summary["classes"], options)
     metrics, predictions, scores = evaluate(model, batches, device, summary["classes"])
     return write_evaluation(output, summary["snapshot"], "test", samples["test"], predictions, scores, summary["classes"],

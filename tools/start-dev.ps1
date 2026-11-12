@@ -6,6 +6,8 @@ $composeFile = Join-Path $repoRoot 'compose.yaml'
 $dryRun = $false
 $noBrowser = $false
 $demo = $false
+$photoWorker = $true
+$photoWorkerArguments = 'run --no-sync python -m app.worker --parking-area-id sripatum-near-lot --source single-photo --hold-s 10'
 
 function Quote-Literal([string] $value) {
     return "'" + $value.Replace("'", "''") + "'"
@@ -63,11 +65,13 @@ try {
     foreach ($option in $args) {
         switch ($option) {
             '--demo' { $demo = $true }
+            '--no-worker' { $photoWorker = $false }
             '--dry-run' { $dryRun = $true }
             '--no-browser' { $noBrowser = $true }
             '--help' {
-                Write-Host 'Usage: start-dev.bat [--demo] [--no-browser] [--dry-run]'
-                Write-Host 'Starts local Postgres, migrations, Vision API, LIFF, and Calibration UI.'
+                Write-Host 'Usage: start-dev.bat [--no-worker] [--demo] [--no-browser] [--dry-run]'
+                Write-Host 'Starts local Postgres, migrations, Vision API, photo worker, LIFF, and Calibration UI.'
+                Write-Host '--no-worker skips the recorded-photo worker for sripatum-near-lot.'
                 Write-Host '--demo seeds the synthetic dev site and starts its state publisher.'
                 Write-Host '--dry-run prints the plan without starting anything or changing data.'
                 return
@@ -84,6 +88,10 @@ try {
     Write-Host 'LIFF: http://localhost:3001 (package dev script)'
     Write-Host 'Calibration UI: http://127.0.0.1:3000 (package dev script)'
     Write-Host 'Database log terminal: docker compose logs --follow --tail 50 postgres'
+    if ($photoWorker) {
+        Write-Host "Photo worker: uv $photoWorkerArguments (from apps\vision-api)"
+        Write-Host 'Worker source: single-photo; recorded-photo demo, not the current live parking state.'
+    }
     if ($demo) {
         Write-Host 'Synthetic demo: uv run --no-sync python -m app.manage seed-dev'
         Write-Host 'Dev publisher: uv run --no-sync python -m app.manage publish-dev-state'
@@ -142,12 +150,15 @@ try {
         }
     }
 
-    if ($demo) {
+    if ($photoWorker -and -not (Test-Path -LiteralPath (Join-Path $apiRoot 'single-photo') -PathType Container)) {
+        throw 'Photo worker needs apps\vision-api\single-photo. Restore the local photos or use --no-worker.'
+    }
+    if ($demo -or $photoWorker) {
         Push-Location -LiteralPath $apiRoot
         try {
             Invoke-Tool $uv @('run', '--no-sync', 'python', '-c',
                 "from dotenv import load_dotenv; import os, sys; load_dotenv('.env'); sys.exit(0 if os.getenv('PARKMAP_WORKER_TOKEN', '').strip() else 1)") `
-                -FailureMessage 'Set PARKMAP_WORKER_TOKEN in apps\vision-api\.env before using --demo.'
+                -FailureMessage 'Set PARKMAP_WORKER_TOKEN in apps\vision-api\.env before starting a worker (--no-worker skips the photo worker).'
         } finally {
             Pop-Location
         }
@@ -177,6 +188,10 @@ try {
     Open-Terminal 'Vision API :8000' $apiRoot "$uvCommand run --no-sync uvicorn app.main:app --reload --host 127.0.0.1 --port 8000" -EditorAccess
     # /api/sites verifies the database as well as the API process before starting consumers.
     Wait-ForUrl 'Vision API and database' 'http://127.0.0.1:8000/api/sites'
+    if ($photoWorker) {
+        Write-Host 'Starting recorded-photo worker for LIFF (sripatum-near-lot)...'
+        Open-Terminal 'Photo worker - recorded demo' $apiRoot "$uvCommand $photoWorkerArguments"
+    }
     if ($demo) {
         Open-Terminal 'Synthetic state publisher' $apiRoot "$uvCommand run --no-sync python -m app.manage publish-dev-state"
     }

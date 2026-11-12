@@ -94,3 +94,22 @@ Uploaded-image analysis also returns `503` when the required parking calibration
 Legacy `config/parking_roi.json` pixel coordinates are not loaded as normalized coordinates. Calibration defines the geometry consumed by the upload parking-analysis endpoint; it does not itself run inference.
 
 The intended future pipeline is: fixed camera → YOLO detection → Parking ROI → row assignment → row projection (`t`) → metric calibration → physical occupancy footprint → occupied intervals → candidate gaps → virtual motorcycle fitting → availability states. Motorcycles inside the ROI that are currently `UNASSIGNED` must remain available to future obstruction and bad-parking analysis.
+
+### Segmentation worker
+
+The worker now uses `PARKMAP_SEGMENTATION_MODEL_PATH` and the same Seg row-association
+policy as Parking Analyze. Restart the worker after changing weights or code.
+It publishes standard-size motorcycle proxies only for assigned Seg detections.
+The current analysis checks width only, so all published row regions remain
+`UNKNOWN`; width-preview green/yellow is never promoted to LIFF availability.
+Missing weights do not fall back to the original detector. Calibration fingerprint,
+recorded-photo timestamps, freshness, and source notices remain unchanged.
+
+Width previews now publish as `WIDTH_SUFFICIENT`, not `AVAILABLE`. LIFF renders
+them light green with a width-only warning and the original uncertainty reasons.
+This carries no proof of vehicle length or access, and does not clear occlusion.
+
+Seg worker publication separates `OCCUPIED` row bands from motorcycle proxies.
+Red/green region geometry matches the operator gap map. Horizontal-image
+hypotheses in calibrated ROI display as horizontal standard-size proxies, even
+without an owner row, without feeding fitting or clearing uncertainty.

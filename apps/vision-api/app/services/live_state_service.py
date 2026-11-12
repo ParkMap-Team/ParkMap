@@ -6,7 +6,7 @@ import hashlib
 import math
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from pydantic import ValidationError
@@ -25,6 +25,13 @@ from app.models import (
     ParkingStatePublish,
     StateSourceKind,
 )
+from app.services.region_clipping_service import clip_regions
+
+if TYPE_CHECKING:
+    from app.services.segmentation_experiment_service import (
+        SegmentationExperimentResult,
+    )
+    from app.services.segmentation_gap_service import SegmentationGapResult
 
 # Files consumed by parking_analysis_service, in a fixed order.
 CALIBRATION_FILES = ("ground_plane_homography.json", "ground_plane_calibration.json", "parking_calibration.json")
@@ -159,6 +166,76 @@ def build_state_publish(
         analysis_version=analysis["analysis_version"],
         regions=regions,
         motorcycles=motorcycles,
+    )
+
+
+def build_segmentation_state_publish(
+    segmentation: SegmentationExperimentResult,
+    gaps: SegmentationGapResult,
+    *,
+    camera_id: str,
+    parking_area_id: str,
+    source: StateSourceKind,
+    observed_at: datetime,
+    processed_at: datetime,
+    calibration_version: str,
+    calibration_provenance: GroundMeasurementSource,
+) -> ParkingStatePublish:
+    """Publish Seg proxies without promoting width-only evidence to availability."""
+    if gaps.status == "CALIBRATION_REQUIRED" or gaps.calibration_version != calibration_version:
+        raise ValueError("Segmentation requires current matching calibration")
+    if gaps.occupancy_source != "SEGMENTATION_ONLY":
+        raise ValueError("Worker publication requires segmentation-only evidence")
+    rows = {row.row_id for row in gaps.rows}
+    motorcycles = []
+    occupied_regions = []
+    for layer in gaps.occupied_layers:
+        index = layer.detection_index
+        if layer.source != "SEGMENTATION" or layer.assigned_row_id not in rows:
+            continue
+        if index is None or not 0 <= index < len(segmentation.detections) or layer.detection_id != f"detection_{index+1}":
+            raise ValueError("Segmentation reference does not match its source detection")
+        proxy = _proxy({"detection_id": layer.detection_id,
+            "confidence": segmentation.detections[index].confidence,
+            "canonical_footprint": layer.geometry.model_dump()})
+        if proxy is not None:
+            motorcycles.append(proxy)
+        geometry = layer.row_depth_geometry or layer.roi_geometry
+        occupied_regions.extend(LiveRegion(kind="OCCUPIED", row_id=layer.assigned_row_id, detection_id=layer.detection_id, polygon=polygon)
+            for polygon in geometry.polygons)
+    # These are image-aspect hypotheses, not measured headings or fitting inputs.
+    proxies = {proxy.detection_id: proxy for proxy in motorcycles}
+    for horizontal in gaps.horizontal_vehicles:
+        if horizontal.measurement_status in {"OUTSIDE_CALIBRATED_ROI", "PROJECTION_UNAVAILABLE"} or not horizontal.polygon_metric:
+            continue
+        index = horizontal.detection_index
+        if not 0 <= index < len(segmentation.detections) or horizontal.detection_id != f"detection_{index+1}":
+            raise ValueError("Horizontal reference does not match its source detection")
+        proxy = _proxy({"detection_id": horizontal.detection_id,
+            "confidence": segmentation.detections[index].confidence,
+            "canonical_footprint": {"polygons": [[[point.model_dump() for point in horizontal.polygon_metric]]]}})
+        if proxy is not None:
+            proxies[proxy.detection_id] = proxy
+    regions = [LiveRegion(kind="UNKNOWN", row_id=row.row_id, polygon=[row.polygon_metric]) for row in gaps.rows]
+    if not (source == "LIVE_CAMERA" and calibration_provenance == "ESTIMATED") and not gaps.truncated:
+        for gap in gaps.candidates:
+            if gap.row_id not in rows or gap.state not in {"UNKNOWN", "WIDTH_SUFFICIENT"} or gap.width_check != "SUFFICIENT":
+                continue
+            polygons = gap.geometry_metric.polygons if gap.geometry_metric else [[gap.polygon_metric]]
+            regions.extend(LiveRegion(kind="WIDTH_SUFFICIENT", row_id=gap.row_id, polygon=polygon,
+                width_m=gap.gap_width_m, reasons=gap.reasons) for polygon in polygons)
+    if not (source == "LIVE_CAMERA" and calibration_provenance == "ESTIMATED"):
+        regions.extend(occupied_regions)
+    if gaps.parking_roi_metric is not None:
+        boundary = unary_union([_shape(polygon) for polygon in gaps.parking_roi_metric.polygons])
+        regions = clip_regions(regions, boundary)
+    return ParkingStatePublish(
+        parking_area_id=parking_area_id, camera_id=camera_id, source=source,
+        observed_at=observed_at, processed_at=processed_at,
+        calibration_version=calibration_version, calibration_provenance=calibration_provenance,
+        analysis_version="segmentation-width-preview-v1",
+        regions=regions,
+        motorcycles=list(proxies.values()),
     )
 
 
