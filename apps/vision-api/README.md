@@ -66,6 +66,11 @@ python -m app.manage remove-site --site-id <id> --confirm <id>       # deletes t
 
 Run `python -m app.manage <command> --help` for exact arguments. The Sripatum demo site and its calibration are described in [docs/sripatum-measured-calibration.md](../../docs/sripatum-measured-calibration.md).
 
+Data migration `0004_sripatum_setup` seeds the explicitly shared active setup into
+a database without that site. Existing site data is preserved. See
+[shared setup migration](../../docs/site-setup-data-migration.md) for restoring
+matching worker calibration files without overwriting local files.
+
 Worker, on a machine that can reach the camera:
 
 ```sh
