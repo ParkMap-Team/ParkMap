@@ -15,3 +15,4 @@
 - [0013: Local lot model editor](0013-local-lot-model-editor.md)
 - [0014: Local motorcycle annotation workspace](0014-local-motorcycle-annotation.md)
 - [0015: Scoped mobile camera pairing](0015-mobile-camera-pairing.md)
+- [0016: Uniform ROI display scale](0016-uniform-roi-display-scale.md)

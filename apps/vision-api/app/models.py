@@ -311,15 +311,21 @@ def _validate_polygon(polygon: MetricPolygon) -> MetricPolygon:
 class LiveRegion(BaseModel):
     kind: LiveRegionKind
     row_id: str | None = None
+    detection_id: str | None = Field(default=None, min_length=1, max_length=128)
     polygon: MetricPolygon
+    display_polygon: MetricPolygon | None = Field(default=None, description="ROI-clipped display only; polygon and width_m retain the analysis result")
     width_m: float | None = Field(default=None, gt=0, allow_inf_nan=False)
     reasons: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_polygon(self) -> "LiveRegion":
         _validate_polygon(self.polygon)
+        if self.display_polygon is not None:
+            _validate_polygon(self.display_polygon)
         if self.kind == "WIDTH_SUFFICIENT" and self.width_m is None:
             raise ValueError("Width-only preview requires a measured width")
+        if self.detection_id is not None and self.kind != "OCCUPIED":
+            raise ValueError("Only occupied regions may identify a detection")
         return self
 
 
@@ -330,6 +336,7 @@ class MotorcycleProxy(BaseModel):
     length_m: float = Field(gt=0.0, allow_inf_nan=False)
     width_m: float = Field(gt=0.0, allow_inf_nan=False)
     confidence: float = Field(ge=0.0, le=1.0)
+    display_scale: float = Field(default=1.0, gt=0, allow_inf_nan=False, description="Map display scale only; length_m and width_m remain physical references")
 
 
 class ParkingStatePublish(BaseModel):

@@ -49,6 +49,8 @@ export const STATUS_TEXT: Record<MapStatus, { label: string; detail: string; mar
 
 /** The legend lists what can appear on the map, in the order a student reads it. */
 export const LEGEND_ORDER: MapStatus[] = ["AVAILABLE", "WIDTH_SUFFICIENT", "ALMOST_AVAILABLE", "OCCUPIED", "UNKNOWN", "UNMONITORED"];
+/** Compact legend requested for the student map; detailed states remain available on selection. */
+export const MAP_LEGEND_ORDER: MapStatus[] = ["AVAILABLE", "ALMOST_AVAILABLE", "OCCUPIED", "UNMONITORED"];
 
 /** Why ground is unknown, only as far as the API says; an UNKNOWN region carries no reason. */
 export function unknownReasonText(reason: UnknownReason): string | null {

@@ -1690,6 +1690,13 @@ export interface components {
         };
         /** LiveRegion */
         LiveRegion: {
+            /** Detection Id */
+            detection_id?: string | null;
+            /**
+             * Display Polygon
+             * @description ROI-clipped display only; polygon and width_m retain the analysis result
+             */
+            display_polygon?: components["schemas"]["MetricGroundPoint"][][] | null;
             /**
              * Kind
              * @enum {string}
@@ -1891,6 +1898,12 @@ export interface components {
             confidence: number;
             /** Detection Id */
             detection_id: string;
+            /**
+             * Display Scale
+             * @description Map display scale only; length_m and width_m remain physical references
+             * @default 1
+             */
+            display_scale: number;
             /** Heading Rad */
             heading_rad: number;
             /** Length M */

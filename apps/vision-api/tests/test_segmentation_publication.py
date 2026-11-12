@@ -42,12 +42,25 @@ def test_publication_uses_row_band_for_red_and_horizontal_reference_for_vehicle_
     state = publish(segmentation, gaps)
     red = [r for r in state.regions if r.kind == "OCCUPIED"]
     assert len(red) == 1
+    assert red[0].detection_id == "detection_1"
     assert red[0].polygon[0][2].y_m == pytest.approx(1.9)
     assert state.motorcycles[0].heading_rad == pytest.approx(0.)
     assert state.motorcycles[0].length_m == pytest.approx(2.)
     assert len(state.motorcycles) == 1  # one ID is never drawn twice
     gaps.occupied_layers = []
     assert len(publish(segmentation, gaps).motorcycles) == 1  # horizontal in an aisle
+
+
+def test_publication_clips_all_row_regions_to_roi_without_promoting_partial_width():
+    from shapely.geometry import Polygon
+
+    segmentation, gaps = inputs()
+    roi = [{"x_m": x, "y_m": y} for x, y in [(0, 0), (.5, 0), (.5, 1), (0, 1)]]
+    gaps = gaps.model_validate({**gaps.model_dump(), "parking_roi_metric": {"polygons": [[roi]]}})
+    state = publish(segmentation, gaps)
+    boundary = Polygon([(p["x_m"], p["y_m"]) for p in roi])
+    assert all(boundary.covers(Polygon([(p.x_m, p.y_m) for p in (r.display_polygon or r.polygon)[0]])) for r in state.regions)
+    assert next(r for r in state.regions if r.kind == "OCCUPIED").detection_id == "detection_1"
 
 
 def test_segmentation_publication_keeps_width_only_green_unknown_and_standard_car_proxy():

@@ -3,7 +3,7 @@
 import { ChevronUp, MapPin, Motorbike, X } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { LEGEND_ORDER, STATUS_TEXT, unknownReasonText } from "@/lib/map/legend";
+import { LEGEND_ORDER, MAP_LEGEND_ORDER, STATUS_TEXT, unknownReasonText } from "@/lib/map/legend";
 import type { MapHit, MapStatus } from "@/lib/map/lot-map";
 import { COLORS, type TimeLine } from "@/lib/parking/presentation";
 import { cn } from "@/lib/utils";
@@ -64,7 +64,8 @@ function Selected({ details, full, onClear }: { details: SelectedDetails; full: 
       )}
       {hit && <p className="mt-2 text-sm">{reason ?? STATUS_TEXT[hit.status].detail}</p>}
       {hit?.status === "WIDTH_SUFFICIENT" && <div className="mt-2 space-y-1 text-xs">
-        <p>ช่วงกว้าง {hit.region?.width_m?.toFixed(2)} ม.</p>
+        <p>{hit.region?.display_polygon ? 'ช่วงวิเคราะห์เดิมกว้าง' : 'ช่วงกว้าง'} {hit.region?.width_m?.toFixed(2)} ม.</p>
+        {hit.region?.display_polygon && <p>กรอบแสดงผลตัดตาม ROI · ค่าความกว้างอ้างอิงช่วงวิเคราะห์เดิม</p>}
         {!!hit.region?.reasons?.length && <p>ข้อจำกัด: {hit.region.reasons.map(code => (({
           GROUND_MAY_BE_OCCLUDED: "พื้นอาจถูกตัวรถบัง",
           LOCAL_ROW_UNCERTAINTY: "ตำแหน่งรถใกล้เคียงยังไม่แน่นอน",
@@ -93,13 +94,14 @@ function Legend({ present }: { present: Set<MapStatus> }) {
         สัญลักษณ์บนแผนที่
       </h2>
       <ul className="grid grid-cols-1 gap-1.5 text-sm min-[480px]:grid-cols-2 lg:grid-cols-1">
-        {LEGEND_ORDER.map((status) => (
-          <li key={status} className={cn("flex items-center gap-2", !present.has(status) && "text-muted-foreground")}>
-            <Swatch status={status} />
+        {MAP_LEGEND_ORDER.map((status) => (
+          <li key={status} className={cn("flex items-center gap-2", !present.has(status) && !(status === "AVAILABLE" && present.has("WIDTH_SUFFICIENT")) && "text-muted-foreground")}>
+            <Swatch status={status === "AVAILABLE" && !present.has("AVAILABLE") && present.has("WIDTH_SUFFICIENT") ? "WIDTH_SUFFICIENT" : status} />
             {STATUS_TEXT[status].label}
           </li>
         ))}
       </ul>
+      {present.has("WIDTH_SUFFICIENT") && <p className="mt-2 text-xs text-muted-foreground">สีเขียวอ่อน: ผลทดลองเฉพาะความกว้าง ยังไม่ตรวจความยาวรถและทางเข้า–ออก</p>}
     </section>
   );
 }

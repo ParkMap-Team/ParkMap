@@ -25,6 +25,7 @@ from app.models import (
     ParkingStatePublish,
     StateSourceKind,
 )
+from app.services.region_clipping_service import clip_regions
 
 if TYPE_CHECKING:
     from app.services.segmentation_experiment_service import (
@@ -200,7 +201,7 @@ def build_segmentation_state_publish(
         if proxy is not None:
             motorcycles.append(proxy)
         geometry = layer.row_depth_geometry or layer.roi_geometry
-        occupied_regions.extend(LiveRegion(kind="OCCUPIED", row_id=layer.assigned_row_id, polygon=polygon)
+        occupied_regions.extend(LiveRegion(kind="OCCUPIED", row_id=layer.assigned_row_id, detection_id=layer.detection_id, polygon=polygon)
             for polygon in geometry.polygons)
     # These are image-aspect hypotheses, not measured headings or fitting inputs.
     proxies = {proxy.detection_id: proxy for proxy in motorcycles}
@@ -225,6 +226,9 @@ def build_segmentation_state_publish(
                 width_m=gap.gap_width_m, reasons=gap.reasons) for polygon in polygons)
     if not (source == "LIVE_CAMERA" and calibration_provenance == "ESTIMATED"):
         regions.extend(occupied_regions)
+    if gaps.parking_roi_metric is not None:
+        boundary = unary_union([_shape(polygon) for polygon in gaps.parking_roi_metric.polygons])
+        regions = clip_regions(regions, boundary)
     return ParkingStatePublish(
         parking_area_id=parking_area_id, camera_id=camera_id, source=source,
         observed_at=observed_at, processed_at=processed_at,
