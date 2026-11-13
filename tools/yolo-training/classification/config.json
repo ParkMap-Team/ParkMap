@@ -67,7 +67,8 @@
         "xmax": "xmax",
         "xsr": "xsr",
         "zoomerx": "zoomerx"
-      }
+      },
+      "pinned_splits": "prepared/run-e8ffb080512c136efe75"
     }
   ]
 }

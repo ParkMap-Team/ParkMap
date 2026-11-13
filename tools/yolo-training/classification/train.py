@@ -7,31 +7,30 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from classifier_data import validate_run
+from classifier_data import AUGMENTATIONS, validate_run
 
 
 def read_options(config_path, args):
     config_path = config_path.resolve()
     options = json.loads(config_path.read_text(encoding="utf-8"))
     expected = {"dataset", "output", "architecture", "image_size", "epochs", "batch_size", "learning_rate", "seed",
-                "device", "threads", "workers", "fine_tune", "augment", "allow_provisional"}
+                "device", "threads", "workers", "fine_tune", "augment", "label_smoothing", "pre_augmented_copies",
+                "allow_provisional", "classes"}
     if set(options) != expected:
         raise ValueError(f"Training config requires exactly: {sorted(expected)}")
     dataset = Path(args.dataset).resolve() if args.dataset else (config_path.parent / options["dataset"]).resolve()
     output = Path(args.output).resolve() if args.output else (config_path.parent / options["output"]).resolve()
-    for key in ("epochs", "batch_size", "image_size", "device", "learning_rate"):
+    for key in ("epochs", "batch_size", "image_size", "device", "learning_rate", "augment", "label_smoothing"):
         value = getattr(args, key)
         if value is not None:
             options[key] = value
     if args.fine_tune:
         options["fine_tune"] = True
-    if args.no_augment:
-        options["augment"] = False
     if options["architecture"] != "resnet18":
         raise ValueError("This baseline supports architecture=resnet18")
     if not isinstance(options["device"], str):
         raise TypeError("device must be auto, cpu, cuda[:N] or mps")
-    for name in ("epochs", "batch_size", "threads"):
+    for name in ("epochs", "batch_size", "threads", "pre_augmented_copies"):
         if type(options[name]) is not int or options[name] <= 0:
             raise ValueError(f"{name} must be a positive integer")
     if type(options["image_size"]) is not int or not 64 <= options["image_size"] <= 1024:
@@ -40,9 +39,16 @@ def read_options(config_path, args):
         raise ValueError("workers must be nonnegative and seed must be an integer")
     if not isinstance(options["learning_rate"], (int, float)) or not math.isfinite(options["learning_rate"]) or options["learning_rate"] <= 0:
         raise ValueError("learning_rate must be finite and positive")
-    for key in ("fine_tune", "augment", "allow_provisional"):
+    if options["augment"] not in AUGMENTATIONS:
+        raise ValueError(f"augment must be one of {list(AUGMENTATIONS)}")
+    smoothing = options["label_smoothing"]
+    if type(smoothing) not in (int, float) or not math.isfinite(smoothing) or not 0 <= smoothing < 1:
+        raise ValueError("label_smoothing must be in [0, 1)")
+    for key in ("fine_tune", "allow_provisional"):
         if not isinstance(options[key], bool):
             raise TypeError(f"{key} must be a boolean")
+    if options["classes"] is not None and (not isinstance(options["classes"], list) or not all(isinstance(c, str) for c in options["classes"])):
+        raise TypeError("classes must be null (every snapshot class) or a list of class names")
     if output.is_relative_to(dataset):
         raise ValueError("Training output must be outside the immutable dataset snapshot")
     options.update(dataset=str(dataset), output=str(output))
@@ -61,7 +67,8 @@ def main(argv=None):
     parser.add_argument("--learning-rate", type=float)
     parser.add_argument("--device", help="auto, cpu, cuda[:N] or mps")
     parser.add_argument("--fine-tune", action="store_true", help="Update the whole network instead of just its classifier head")
-    parser.add_argument("--no-augment", action="store_true")
+    parser.add_argument("--augment", choices=AUGMENTATIONS, help="Train-only augmentation policy")
+    parser.add_argument("--label-smoothing", type=float, help="Cross-entropy label smoothing for training, in [0, 1)")
     parser.add_argument("--initial-weights", type=Path, help="Optional local original torchvision ResNet18 ImageNet state_dict for offline training")
     parser.add_argument("--evaluate-test", action="store_true", help="Explicit held-out test evaluation, after val-based model selection")
     parser.add_argument("--checkpoint", type=Path, help="ParkMap classifier best.pt; only with --evaluate-test")
@@ -72,7 +79,7 @@ def main(argv=None):
         parser.error("--initial-weights is for training, not test evaluation")
     try:
         options = read_options(args.config, args)
-        summary, samples = validate_run(options["dataset"], options["allow_provisional"])
+        summary, samples = validate_run(options["dataset"], options["allow_provisional"], options["classes"])
         if args.initial_weights and not args.initial_weights.is_file():
             raise ValueError("Initial weights file does not exist")
         console_summary = {key: value for key, value in summary.items() if key not in {"class_coverage", "classes"}}
@@ -96,7 +103,10 @@ def main(argv=None):
         print(f"Dataset status: {summary['status']} | {summary['similar_pairs_cross_split_proposed']} proposed similar pairs cross splits; results are exploratory.", flush=True)
         if args.evaluate_test:
             metrics = evaluate_test(args.checkpoint.resolve(), summary, samples, options, run)
-            print(f"Test top1: {metrics['top1']:.3f} | macro F1: {metrics['macro_f1']:.3f}\nReport: {run}", flush=True)
+            print(f"Test top1: {metrics['top1']:.3f} | macro F1: {metrics['macro_f1']:.3f}", flush=True)
+            for name, value in metrics.get("by_source", {}).items():
+                print(f"  {name}: top1 {value['top1']:.3f} | macro F1 {value['macro_f1']:.3f} | {value['samples']} crops", flush=True)
+            print(f"Report: {run}", flush=True)
         else:
             weights_dir = Path(__file__).with_name("weights")
             model = build_model(summary["classes"], weights_dir, options["fine_tune"], args.initial_weights)

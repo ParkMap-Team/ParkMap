@@ -11,6 +11,9 @@
   "threads": 2,
   "workers": 0,
   "fine_tune": false,
-  "augment": true,
-  "allow_provisional": true
+  "augment": "mild",
+  "label_smoothing": 0.0,
+  "pre_augmented_copies": 1,
+  "allow_provisional": true,
+  "classes": null
 }

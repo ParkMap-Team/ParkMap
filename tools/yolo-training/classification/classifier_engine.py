@@ -16,12 +16,13 @@ from classifier_data import (
     PREPROCESSING,
     PadResize,
     classification_metrics,
+    sampling_weights,
     sha256,
     write_evaluation,
 )
 from PIL import Image
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from torchvision import models, transforms
 
 
@@ -49,6 +50,13 @@ def select_device(name):
     return device
 
 
+class GlobalAveragePool(nn.Module):
+    """Same output as AdaptiveAvgPool2d(1); its CUDA backward is deterministic, so seeded CUDA training runs."""
+
+    def forward(self, x):
+        return x.mean(dim=(2, 3), keepdim=True)
+
+
 def build_model(classes, weights_dir, fine_tune=False, initial_weights=None, pretrained=True):
     if initial_weights:
         model = models.resnet18(weights=None)
@@ -60,6 +68,7 @@ def build_model(classes, weights_dir, fine_tune=False, initial_weights=None, pre
         model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1 if pretrained else None)
     for parameter in model.parameters():
         parameter.requires_grad = fine_tune
+    model.avgpool = GlobalAveragePool()
     model.fc = nn.Linear(model.fc.in_features, len(classes))
     return model
 
@@ -71,15 +80,25 @@ def initial_weights_metadata(weights_dir, initial_weights=None):
             "initial_weights_sha256": sha256(path)}
 
 
-def image_transform(size, augment=False):
+def image_transform(size, augment="none"):
     steps = [PadResize(size)]
-    if augment:
+    tensor_steps = [transforms.ToTensor(), transforms.Normalize(PREPROCESSING["mean"], PREPROCESSING["std"])]
+    if augment == "mild":
         steps += [transforms.RandomHorizontalFlip(0.5), transforms.ColorJitter(brightness=.1, contrast=.1, saturation=.05)]
-    return transforms.Compose([*steps, transforms.ToTensor(), transforms.Normalize(PREPROCESSING["mean"], PREPROCESSING["std"])])
+    elif augment == "strong":
+        # Square crops keep the aspect ratio; the down/up resize mimics the many low-resolution source crops.
+        fill = tuple(PREPROCESSING["padding_rgb"])
+        steps += [transforms.RandomResizedCrop(size, scale=(.7, 1), ratio=(1, 1)), transforms.RandomHorizontalFlip(0.5),
+                  transforms.RandomAffine(10, translate=(.05, .05), fill=fill),
+                  transforms.RandomApply([transforms.Resize(size // 3), transforms.Resize(size)], p=.3),
+                  transforms.RandomApply([transforms.GaussianBlur(5, sigma=(.1, 1.5))], p=.2),
+                  transforms.ColorJitter(brightness=.3, contrast=.3, saturation=.2, hue=.02)]
+        tensor_steps.append(transforms.RandomErasing(p=.25, scale=(.02, .15)))
+    return transforms.Compose([*steps, *tensor_steps])
 
 
 class CropDataset(Dataset):
-    def __init__(self, root, rows, classes, size, augment=False):
+    def __init__(self, root, rows, classes, size, augment="none"):
         self.root, self.rows = Path(root), rows
         self.indices = {name: index for index, name in enumerate(classes)}
         self.transform = image_transform(size, augment)
@@ -94,13 +113,16 @@ class CropDataset(Dataset):
         return tensor, self.indices[row["canonical_class"]]
 
 
-def loader(root, rows, classes, options, training=False):
-    dataset = CropDataset(root, rows, classes, options["image_size"], training and options["augment"])
-    return DataLoader(dataset, batch_size=options["batch_size"], shuffle=training, num_workers=options["workers"],
-                      generator=torch.Generator().manual_seed(options["seed"]))
+def loader(root, rows, classes, options, training=False, weights=None):
+    dataset = CropDataset(root, rows, classes, options["image_size"], options["augment"] if training else "none")
+    generator = torch.Generator().manual_seed(options["seed"])
+    # Weighted epochs keep their length and only change the mix; sampling is with replacement.
+    sampler = WeightedRandomSampler(weights, len(rows), replacement=True, generator=generator) if weights else None
+    return DataLoader(dataset, batch_size=options["batch_size"], shuffle=training and sampler is None, sampler=sampler,
+                      num_workers=options["workers"], generator=generator)
 
 
-def train_epoch(model, batches, optimizer, device, fine_tune, epoch, epochs):
+def train_epoch(model, batches, optimizer, device, fine_tune, epoch, epochs, label_smoothing=0.0):
     # Freeze backbone BN running statistics as well as its parameters for head-only training.
     model.train() if fine_tune else model.eval()
     model.fc.train()
@@ -109,7 +131,7 @@ def train_epoch(model, batches, optimizer, device, fine_tune, epoch, epochs):
         images, targets = images.to(device), targets.to(device)
         optimizer.zero_grad(set_to_none=True)
         logits = model(images)
-        loss = nn.functional.cross_entropy(logits, targets)
+        loss = nn.functional.cross_entropy(logits, targets, label_smoothing=label_smoothing)
         if not torch.isfinite(loss):
             raise ValueError("Non-finite training loss")
         loss.backward()
@@ -176,7 +198,9 @@ def run_metadata(summary, options, device):
             "selection": "highest val macro_f1 over supported classes; tie: lowest val loss",
             "limitations": ["Closed-set classifier; no trained unknown class or calibrated rejection threshold.",
                             "Provisional source labels/identity grouping are not real-camera accuracy evidence.",
-                            "No individual vehicle dimensions or parking availability are inferred."]}
+                            "No individual vehicle dimensions or parking availability are inferred.",
+                            *([f"Trained on a declared class subset; excluded {summary['excluded_classes']} are predicted as one of the kept classes."]
+                              if summary["excluded_classes"] else [])]}
 
 
 def fit(model, samples, summary, options, output):
@@ -191,7 +215,14 @@ def fit(model, samples, summary, options, output):
         (output / "run.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     write_status()
     (output / "classes.json").write_text(json.dumps(dict(enumerate(summary["classes"])), indent=2) + "\n", encoding="utf-8")
-    train_loader = loader(summary["snapshot"], samples["train"], summary["classes"], options, training=True)
+    weights = None
+    if options["pre_augmented_copies"] > 1:
+        weights = sampling_weights(samples["train"], summary["train_only_splits"], options["pre_augmented_copies"])
+        shares = {}
+        for row, weight in zip(samples["train"], weights):
+            shares[row["source_dataset"]] = shares.get(row["source_dataset"], 0) + weight
+        print("Train sampling share by source: " + ", ".join(f"{name} {value / sum(weights):.1%}" for name, value in sorted(shares.items())), flush=True)
+    train_loader = loader(summary["snapshot"], samples["train"], summary["classes"], options, training=True, weights=weights)
     val_loader = loader(summary["snapshot"], samples["val"], summary["classes"], options)
     optimizer = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad), lr=options["learning_rate"])
     best = (-math.inf, -math.inf)
@@ -202,7 +233,8 @@ def fit(model, samples, summary, options, output):
             writer = csv.DictWriter(stream, fieldnames=fields)
             writer.writeheader()
             for epoch in range(1, options["epochs"] + 1):
-                trained = train_epoch(model, train_loader, optimizer, device, options["fine_tune"], epoch, options["epochs"])
+                trained = train_epoch(model, train_loader, optimizer, device, options["fine_tune"], epoch, options["epochs"],
+                                      options["label_smoothing"])
                 metrics, _, _ = evaluate(model, val_loader, device, summary["classes"])
                 writer.writerow({"epoch": epoch, "train_loss": trained["loss"], "train_top1": trained["top1"],
                                  "val_loss": metrics["loss"], "val_top1": metrics["top1"], "val_macro_f1": metrics["macro_f1"],
