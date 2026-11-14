@@ -146,3 +146,13 @@
     @apply font-sans;
     }
 }
+
+@keyframes parking-destination {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.14);
+  }
+}

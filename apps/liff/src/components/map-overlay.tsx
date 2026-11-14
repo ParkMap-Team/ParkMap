@@ -31,6 +31,7 @@ export type MapViewProps = {
   /** The selected place: its outline in the current data, and where its label sits. */
   selection: { point: MetricPoint; polygon: MetricPolygon | null; text: string; destination?: boolean } | null;
   route?: readonly MetricPoint[];
+  routeReplay?: number;
   onSelect(point: MetricPoint | null): void;
   ref?: Ref<MapViewHandle>;
 };
@@ -130,7 +131,7 @@ export function LabelLayer({ labels, selection, ref }: { labels: MapLabel[]; sel
           style={{ visibility: "hidden" }}
         >
           {label.id === SELECTED_ID && selection?.destination ? (
-            <span className="relative block rounded-md bg-blue-800 px-2 py-1 text-sm font-bold text-white ring-2 ring-white">
+            <span className="relative block origin-bottom rounded-md bg-blue-800 px-2 py-1 text-sm font-bold text-white ring-2 ring-white motion-safe:animate-[parking-destination_320ms_ease-out]">
               {label.text}
               <ArrowUp className="absolute top-full left-1/2 size-5 -translate-x-1/2 rotate-180 rounded-full bg-blue-800 p-0.5 ring-2 ring-white" />
             </span>

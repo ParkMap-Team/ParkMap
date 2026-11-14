@@ -87,6 +87,7 @@ function ControlButton({ className, ...props }: ComponentProps<typeof Button>) {
 
 export function SiteView({ siteId, siteName, lotModel, guardBooth }: { siteId: string; siteName: string; lotModel: LotModel; guardBooth?: GuardBoothMode }) {
   const [classificationTest, setClassificationTest] = useState<{ mode: GuardBoothMode } | null>(null);
+  const [routeReplay, setRouteReplay] = useState(0);
   const testingClassification = guardBooth === "preview" || guardBooth === "unknown";
   const classification = testingClassification ? classificationTest?.mode ?? guardBooth : guardBooth;
   useEffect(() => {
@@ -180,7 +181,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth }: { siteId: s
   const showsThreeD = mountsThreeD(renderer);
   const destination = classification ? guardBoothPreviewDestination(map, classification) : null;
   const route = sripatumPreviewRoute(map, siteId, destination?.point);
-  const viewProps = { map, labels, selection: destination ?? mapSelection, route, onSelect, ref: view };
+  const viewProps = { map, labels, selection: destination ?? mapSelection, route, routeReplay, onSelect, ref: view };
 
   return (
     <main className={cn(
@@ -234,7 +235,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth }: { siteId: s
           )}
         </ViewErrorBoundary>
         {classification && (
-          <aside aria-label="ข้อมูลการจอด" className="pointer-events-none absolute top-2 left-2 w-[min(25rem,calc(100%-4.5rem))] space-y-2 rounded-xl border bg-background/95 p-4 text-sm leading-relaxed shadow-sm lg:p-5 lg:text-base">
+          <aside aria-label="ข้อมูลการจอด" className="pointer-events-none absolute top-2 left-2 w-[min(25rem,calc(100%-4.5rem))] space-y-2 rounded-xl border bg-background/95 p-4 text-sm leading-relaxed shadow-sm md:w-[min(25rem,26vw)] lg:p-5 lg:text-base">
             <p aria-live="polite" className="text-xl font-bold lg:text-3xl">
               {query.isPending && classification !== "unavailable" ? "กำลังโหลดสถานะลาน" : guardBoothHeadline(classification, summary.currentAreas > 0, summary.present.has("AVAILABLE"), Boolean(route))}
             </p>
@@ -248,7 +249,11 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth }: { siteId: s
             {testingClassification && (
               <div role="group" aria-label="ทดสอบสถานะจอป้อมยาม" className="pointer-events-auto flex flex-wrap gap-2 border-t pt-3">
                 {CLASSIFICATION_TESTS.map(([mode, label]) => (
-                  <Button key={mode} type="button" size="sm" variant={classification === mode ? "default" : "outline"} aria-pressed={classification === mode} onClick={() => { setSelection(null); setClassificationTest({ mode }); }}>
+                  <Button key={mode} type="button" size="sm" variant={classification === mode ? "default" : "outline"} aria-pressed={classification === mode} onClick={() => {
+                    setSelection(null);
+                    setClassificationTest({ mode });
+                    if (mode === "preview") setRouteReplay((current) => current + 1);
+                  }}>
                     {label}
                   </Button>
                 ))}

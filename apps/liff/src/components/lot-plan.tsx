@@ -4,6 +4,7 @@ import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, u
 import type { LotLandmark, MetricPolygon, MotorcycleProxy } from "@/lib/api/types";
 import { type Size, type View2D, fromScreen, overview2D, pan2D, toScreen, zoom2D } from "@/lib/map/camera";
 import { axisHeading } from "@/lib/map/geometry";
+import { useRouteReveal } from "@/lib/map/use-route-reveal";
 import { GROUND_KINDS, landmarkTop } from "@/lib/map/landmark-style";
 import { MOTORCYCLE_MODEL } from "@/lib/map/motorcycle-model";
 import { COLORS } from "@/lib/parking/presentation";
@@ -69,7 +70,9 @@ function LandmarkShape({ landmark, view, size }: { landmark: LotLandmark; view: 
   return null;
 }
 
-export default function LotPlan({ map, labels, selection, route, onSelect, ref }: MapViewProps) {
+export default function LotPlan({ map, labels, selection, route, routeReplay, onSelect, ref }: MapViewProps) {
+  const { visibleRoute, revealing } = useRouteReveal(route, routeReplay);
+  const visibleSelection = revealing && selection?.destination ? null : selection;
   const container = useRef<HTMLDivElement>(null);
   const labelLayer = useRef<LabelLayerHandle>(null);
   const [size, setSize] = useState<Size | null>(null);
@@ -184,7 +187,9 @@ export default function LotPlan({ map, labels, selection, route, onSelect, ref }
     }
   }
 
-  const routePoints = view && size && route?.map((point) => toScreen(view, size, point).join(",")).join(" ");
+  const routePoints = view && size && visibleRoute?.map((point) => toScreen(view, size, point).join(",")).join(" ");
+  const tip = revealing && visibleRoute?.at(-1);
+  const screenTip = view && size && tip ? toScreen(view, size, tip) : null;
 
   return (
     <div
@@ -243,21 +248,27 @@ export default function LotPlan({ map, labels, selection, route, onSelect, ref }
             </g>
           ))}
           {map.landmarks.map((landmark) => !underAreas(landmark) && <LandmarkShape key={landmark.landmark_id} landmark={landmark} view={view} size={size} />)}
-          {selection?.polygon && (
+          {visibleSelection?.polygon && (
             <g fill="none" strokeLinejoin="round">
-              <path d={pathOf(view, size, selection.polygon)} stroke={COLORS.SELECTED_HALO} strokeWidth={6} />
-              <path d={pathOf(view, size, selection.polygon)} stroke={COLORS.SELECTED} strokeWidth={3} />
+              <path d={pathOf(view, size, visibleSelection.polygon)} stroke={COLORS.SELECTED_HALO} strokeWidth={6} />
+              <path d={pathOf(view, size, visibleSelection.polygon)} stroke={COLORS.SELECTED} strokeWidth={3} />
             </g>
           )}
           {routePoints && (
             <g fill="none" strokeLinecap="round" strokeLinejoin="round">
               <polyline points={routePoints} stroke="white" strokeWidth={10} />
               <polyline points={routePoints} stroke={COLORS.ENTRANCE} strokeWidth={6} />
+              {screenTip && (
+                <>
+                  <circle cx={screenTip[0]} cy={screenTip[1]} r={10} fill={COLORS.ENTRANCE} fillOpacity={0.3} />
+                  <circle cx={screenTip[0]} cy={screenTip[1]} r={5} fill="white" />
+                </>
+              )}
             </g>
           )}
         </svg>
       )}
-      <LabelLayer ref={labelLayer} labels={labels} selection={selection} />
+      <LabelLayer ref={labelLayer} labels={labels} selection={visibleSelection} />
     </div>
   );
 }

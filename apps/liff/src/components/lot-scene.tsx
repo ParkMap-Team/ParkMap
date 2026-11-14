@@ -35,6 +35,7 @@ import {
   viewFrom,
 } from "@/lib/map/camera";
 import { axisHeading, boundsCenter, boundsOf, edgePoints, fromWorld, toWorld } from "@/lib/map/geometry";
+import { useRouteReveal } from "@/lib/map/use-route-reveal";
 import { FACADES, type Facade, GROUND_KINDS, landmarkTop, landmarkWall } from "@/lib/map/landmark-style";
 import { type LotMap, landmarkPoints } from "@/lib/map/lot-map";
 import { MOTORCYCLE_MODEL, motorcycleTransform } from "@/lib/map/motorcycle-model";
@@ -619,9 +620,39 @@ function CameraRig({ map, handle, labels }: { map: LotMap; handle: React.Ref<Map
   );
 }
 
-export default function LotScene({ map, labels, selection, route, onSelect, onReady, onError, ref }: MapViewProps & { onReady(): void; onError(): void }) {
+function ParkingRoute({ points, revealing }: { points: [number, number, number][] | undefined; revealing: boolean }) {
+  const invalidate = useThree((state) => state.invalidate);
+  // The canvas renders on demand. Request a frame when the route geometry changes.
+  useLayoutEffect(() => {
+    invalidate();
+  }, [points, invalidate]);
+  if (!points) return null;
+  const tip = revealing ? points.at(-1) : undefined;
+  return (
+    <>
+      <Line points={points} color="white" lineWidth={10} depthWrite={false} renderOrder={30} />
+      <Line points={points} color={COLORS.ENTRANCE} lineWidth={6} depthWrite={false} renderOrder={31} />
+      {tip && (
+        <group position={tip} rotation={[-Math.PI / 2, 0, 0]}>
+          <mesh renderOrder={32}>
+            <circleGeometry args={[0.48, 24]} />
+            <meshBasicMaterial color={COLORS.ENTRANCE} opacity={0.3} transparent depthWrite={false} />
+          </mesh>
+          <mesh renderOrder={33}>
+            <circleGeometry args={[0.24, 24]} />
+            <meshBasicMaterial color="white" depthWrite={false} />
+          </mesh>
+        </group>
+      )}
+    </>
+  );
+}
+
+export default function LotScene({ map, labels, selection, route, routeReplay, onSelect, onReady, onError, ref }: MapViewProps & { onReady(): void; onError(): void }) {
   const labelLayer = useRef<LabelLayerHandle>(null);
-  const routePoints = route?.map((point) => toWorld(point, HEIGHT.selection + 0.02));
+  const { visibleRoute, revealing } = useRouteReveal(route, routeReplay);
+  const routePoints = visibleRoute?.map((point) => toWorld(point, HEIGHT.selection + 0.02));
+  const visibleSelection = revealing && selection?.destination ? null : selection;
   return (
     <div className="relative size-full" style={{ backgroundColor: COLORS.GROUND }}>
       <Canvas
@@ -636,16 +667,11 @@ export default function LotScene({ map, labels, selection, route, onSelect, onRe
         <hemisphereLight args={["#ffffff", "#b8c2b0", SKY_INTENSITY]} />
         <Sun landmarks={map.landmarks} outline={map.outline} />
         <Ground map={map} onSelect={onSelect} onReady={onReady} />
-        {selection?.polygon && <Selection polygon={selection.polygon} />}
-        {routePoints && (
-          <>
-            <Line points={routePoints} color="white" lineWidth={10} depthWrite={false} renderOrder={30} />
-            <Line points={routePoints} color={COLORS.ENTRANCE} lineWidth={6} depthWrite={false} renderOrder={31} />
-          </>
-        )}
+        {visibleSelection?.polygon && <Selection polygon={visibleSelection.polygon} />}
+        <ParkingRoute points={routePoints} revealing={revealing} />
         <CameraRig map={map} handle={ref ?? null} labels={labelLayer} />
       </Canvas>
-      <LabelLayer ref={labelLayer} labels={labels} selection={selection} />
+      <LabelLayer ref={labelLayer} labels={labels} selection={visibleSelection} />
     </div>
   );
 }
