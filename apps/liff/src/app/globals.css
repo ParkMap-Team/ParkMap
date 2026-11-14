@@ -147,12 +147,7 @@
     }
 }
 
-@keyframes parking-destination {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  45% {
-    transform: scale(1.14);
-  }
+@keyframes parking-arrival {
+  from { opacity: 0.9; }
+  to { opacity: 0; }
 }

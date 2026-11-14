@@ -34,7 +34,7 @@ export function guardBoothPreviewDestination(map: LotMap, mode: GuardBoothMode) 
   for (const area of map.areas) {
     const placement = area.regions.find(({ kind }) => kind === "AVAILABLE");
     if (placement) {
-      return { point: labelPoint(placement.polygon), polygon: placement.polygon, text: "จุดแนะนำ", destination: true };
+      return { point: labelPoint(placement.polygon), polygon: placement.polygon, text: "จอดตรงนี้", destination: true };
     }
   }
   return null;

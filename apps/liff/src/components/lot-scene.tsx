@@ -499,7 +499,29 @@ function Ground({ map, onSelect, onReady }: { map: LotMap; onSelect(point: Metri
   );
 }
 
-function Selection({ polygon }: { polygon: MetricPolygon }) {
+function ParkingArrival({ polygon, replay }: { polygon: MetricPolygon; replay?: number }) {
+  const line = useRef<ComponentRef<typeof Line>>(null);
+  const invalidate = useThree((state) => state.invalidate);
+  const started = useRef<number | null>(null);
+  const points = useMemo(() => [...polygon[0], polygon[0][0]].map((point) => toWorld(point, HEIGHT.selection + 0.01)), [polygon]);
+  useFrame(() => {
+    if (!line.current?.visible) return;
+    if (started.current === null) {
+      if (!replay && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        line.current.visible = false;
+        return;
+      }
+      started.current = performance.now();
+    }
+    const progress = Math.min(1, (performance.now() - started.current) / 800);
+    line.current.material.opacity = 0.9 * (1 - progress) ** 2;
+    line.current.visible = progress < 1;
+    if (line.current.visible) invalidate();
+  });
+  return <Line ref={line} points={points} color="#60a5fa" lineWidth={14} transparent opacity={0} depthTest={false} depthWrite={false} renderOrder={34} />;
+}
+
+function Selection({ polygon, destination, routeReplay }: { polygon: MetricPolygon; destination?: boolean; routeReplay?: number }) {
   const invalidate = useThree((state) => state.invalidate);
   useEffect(() => {
     invalidate();
@@ -508,7 +530,8 @@ function Selection({ polygon }: { polygon: MetricPolygon }) {
   return (
     <>
       <Outline polygon={polygon} height={HEIGHT.selection} color={COLORS.SELECTED_HALO} width={6} statusOrder={STATUS_ORDER.selection} />
-      <Outline polygon={polygon} height={HEIGHT.selection + 0.005} color={COLORS.SELECTED} width={3} statusOrder={STATUS_ORDER.selection + 1} />
+      <Outline polygon={polygon} height={HEIGHT.selection + 0.005} color={destination ? COLORS.ENTRANCE : COLORS.SELECTED} width={3} statusOrder={STATUS_ORDER.selection + 1} />
+      {destination && <ParkingArrival polygon={polygon} replay={routeReplay} />}
     </>
   );
 }
@@ -667,7 +690,7 @@ export default function LotScene({ map, labels, selection, route, routeReplay, o
         <hemisphereLight args={["#ffffff", "#b8c2b0", SKY_INTENSITY]} />
         <Sun landmarks={map.landmarks} outline={map.outline} />
         <Ground map={map} onSelect={onSelect} onReady={onReady} />
-        {visibleSelection?.polygon && <Selection polygon={visibleSelection.polygon} />}
+        {visibleSelection?.polygon && <Selection polygon={visibleSelection.polygon} destination={visibleSelection.destination} routeReplay={routeReplay} />}
         <ParkingRoute points={routePoints} revealing={revealing} />
         <CameraRig map={map} handle={ref ?? null} labels={labelLayer} />
       </Canvas>

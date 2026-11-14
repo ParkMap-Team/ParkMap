@@ -251,7 +251,7 @@ export default function LotPlan({ map, labels, selection, route, routeReplay, on
           {visibleSelection?.polygon && (
             <g fill="none" strokeLinejoin="round">
               <path d={pathOf(view, size, visibleSelection.polygon)} stroke={COLORS.SELECTED_HALO} strokeWidth={6} />
-              <path d={pathOf(view, size, visibleSelection.polygon)} stroke={COLORS.SELECTED} strokeWidth={3} />
+              <path d={pathOf(view, size, visibleSelection.polygon)} stroke={visibleSelection.destination ? COLORS.ENTRANCE : COLORS.SELECTED} strokeWidth={3} />
             </g>
           )}
           {routePoints && (
@@ -265,6 +265,9 @@ export default function LotPlan({ map, labels, selection, route, routeReplay, on
                 </>
               )}
             </g>
+          )}
+          {visibleSelection?.destination && visibleSelection.polygon && (
+            <path d={pathOf(view, size, visibleSelection.polygon)} fill="none" stroke="#60a5fa" strokeWidth={14} strokeLinejoin="round" opacity={0} className={routeReplay ? "animate-[parking-arrival_800ms_ease-out]" : "motion-safe:animate-[parking-arrival_800ms_ease-out]"} />
           )}
         </svg>
       )}
