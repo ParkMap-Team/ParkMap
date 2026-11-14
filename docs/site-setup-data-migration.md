@@ -10,19 +10,46 @@ are included. Other private calibration configurations remain local.
 
 ## On a teammate's machine
 
-Use code including PR #82's uniform display-scale support. The snapshot's map
-ROI is display-scaled; physical calibration and gap dimensions are unchanged.
-From `apps/vision-api`, with Postgres running and their own `.env` configured:
+From the repository root, with Postgres running and `apps/vision-api/.env` configured:
 
 ```powershell
-uv run --no-sync python -m alembic upgrade head
-uv run --no-sync python -m app.manage restore-seed-calibration --parking-area-id sripatum-near-lot --output-dir config
+node tools/sync-local.mjs
 ```
 
-Start the API/worker and refresh LIFF. A fresh database uses lot version 1 with
-the same geometry as source version 9; database-local version numbers are not
-copied as identities. Supply authorized reference-angle images and model weights
-separately. A different camera viewpoint requires its own calibration.
+It installs locked dependencies, runs `alembic upgrade head`, restores the shared
+calibration files into `apps/vision-api/config` without overwriting, downloads the
+pinned `yolo11m-seg.pt`, then runs `python -m app.manage verify-setup`. The database
+is `DATABASE_URL` from the environment, else from `.env`; the script refuses any host
+other than `localhost`, `127.0.0.1` or `[::1]`. `--dry-run` prints the plan only.
+If `config` already holds different calibration files, the restore stops: move them
+to a backup and rerun. Then start the API/worker and refresh LIFF.
+
+A fresh database uses lot version 1 with the same geometry as source version 9;
+database-local version numbers are not copied as identities. Supply authorized
+reference-angle images separately. A different camera viewpoint requires its own
+calibration.
+
+## Verifying an environment
+
+`python -m app.manage verify-setup [--config-dir DIR]` is read-only. It checks that
+the schema is at head; site `sripatum`, its parking areas and camera match the
+snapshot; the active lot model and calibration equal the snapshot; the files in
+`config` (or `DIR`) have the snapshot's calibration fingerprint, which the worker
+publishes; and the segmentation weights (`PARKMAP_SEGMENTATION_MODEL_PATH`) have
+SHA256 `eb9a06f63e2206c35d68d839b08c362429ebecf933ad54c1ad68b2fd001c17cf`. It lists
+every difference and exits 1, or exits 0 when the environment matches this version.
+
+## On production
+
+Deploying `main` runs `alembic upgrade head` on API start. Then, in the `parkmap-api`
+container, run `python -m app.manage verify-setup`. Production already had `sripatum`
+before 0004, so the migration preserved its data; any reported difference is aligned
+only by an explicit operator step from the
+[still-image loop runbook](still-image-loop-runbook.md): replace `/srv/parkmap-demo/config`
+with the snapshot's `config_files` texts byte for byte, `register-calibration`, then
+`set-lot-model` with the snapshot's `lot_model` saved as a file, and restart the worker.
+Back up what is replaced first. Nothing is overwritten automatically. Production keeps
+`PARKMAP_STATE_FRESHNESS_S=60`, which also sets how long analysed photos are kept.
 
 The migration inserts setup only when the site is absent. Existing `sripatum`
 data is preserved, including camera identity, active layout, draft and calibration.

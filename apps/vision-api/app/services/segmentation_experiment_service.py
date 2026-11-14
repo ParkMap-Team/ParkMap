@@ -53,11 +53,18 @@ def mask_polygon(masks, index):
     return polygon if area > 1e-12 else None
 
 
+# Official Ultralytics v8.4.0 yolo11m-seg.pt, the weights every environment runs.
+SEGMENTATION_WEIGHTS_SHA256 = "eb9a06f63e2206c35d68d839b08c362429ebecf933ad54c1ad68b2fd001c17cf"
+
+
+def segmentation_model_path() -> Path:
+    configured = Path(os.getenv("PARKMAP_SEGMENTATION_MODEL_PATH", "models/yolo11m-seg.pt"))
+    return configured if configured.is_absolute() else Path(__file__).resolve().parents[2] / configured
+
+
 class SegmentationExperimentService:
     def __init__(self):
-        root = Path(__file__).resolve().parents[2]
-        configured = Path(os.getenv("PARKMAP_SEGMENTATION_MODEL_PATH", "models/yolo11m-seg.pt"))
-        self.model_path = configured if configured.is_absolute() else root / configured
+        self.model_path = segmentation_model_path()
         self.imgsz = int(os.getenv("PARKMAP_SEGMENTATION_IMGSZ", os.getenv("PARKMAP_MODEL_IMGSZ", "960")))
         self.confidence = float(os.getenv("PARKMAP_MODEL_CONF", ".25"))
         self.iou = float(os.getenv("PARKMAP_MODEL_NMS_IOU", ".50"))

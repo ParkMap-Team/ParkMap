@@ -103,3 +103,83 @@ def test_restore_seed_files_keeps_fingerprint_and_refuses_existing_different_fil
     target.write_bytes(b"operator file")
     assert manage.main(command_args) == 1
     assert target.read_bytes() == b"operator file"
+
+
+@pytest.fixture
+def seeded_setup(database, tmp_path, monkeypatch):
+    """A fresh database at head with the shared setup, its restored calibration files, and stand-in weights."""
+    import hashlib
+
+    from app import manage
+    from app.services import segmentation_experiment_service
+
+    migrate("downgrade", PREVIOUS)
+    migrate("upgrade", "head")
+    config = tmp_path / "config"
+    assert manage.main(["restore-seed-calibration", "--parking-area-id", "sripatum-near-lot", "--output-dir", str(config)]) == 0
+    weights = tmp_path / "weights.pt"
+    weights.write_bytes(b"pinned weights")
+    monkeypatch.setenv("PARKMAP_SEGMENTATION_MODEL_PATH", str(weights))
+    monkeypatch.setattr(segmentation_experiment_service, "SEGMENTATION_WEIGHTS_SHA256", hashlib.sha256(b"pinned weights").hexdigest())
+    return config
+
+
+def verify(config):
+    """The command's message: alembic's logging setup can disable app loggers, so it is not read from logs."""
+    import argparse
+
+    from app import manage
+
+    with open_session() as session:
+        try:
+            return manage.verify_setup(session, argparse.Namespace(config_dir=str(config)))
+        except manage.CommandError as error:
+            return str(error)
+
+
+def test_a_fresh_setup_matches_this_version(seeded_setup):
+    from app import manage
+
+    assert verify(seeded_setup).startswith("Setup matches this version")
+    assert manage.main(["verify-setup", "--config-dir", str(seeded_setup)]) == 0
+
+
+def test_every_difference_is_reported_and_nothing_is_changed(seeded_setup, tmp_path, monkeypatch):
+    from app import manage
+
+    with open_session() as session:
+        session.get(ParkingArea, "sripatum-near-lot").camera_id = "OTHER_CAM"
+        session.scalar(select(LotModel).where(LotModel.is_active)).payload = {"rows": []}
+        session.add(ParkingArea(id="extra-area", site_id="sripatum", camera_id="EXTRA_CAM", name="Extra"))
+        session.commit()
+    (seeded_setup / "parking_calibration.json").write_bytes(b"{}")
+    monkeypatch.setenv("PARKMAP_SEGMENTATION_MODEL_PATH", str(tmp_path / "missing.pt"))
+
+    message = verify(seeded_setup)
+    for difference in ["parking area sripatum-near-lot has camera 'OTHER_CAM'", "parking area extra-area is not in this version",
+                       "active lot model of sripatum differs", "calibration files in", "segmentation weights"]:
+        assert difference in message
+    assert manage.main(["verify-setup", "--config-dir", str(seeded_setup)]) == 1
+    with open_session() as session:
+        assert session.get(ParkingArea, "sripatum-near-lot").camera_id == "OTHER_CAM"
+    assert (seeded_setup / "parking_calibration.json").read_bytes() == b"{}"
+
+
+def test_other_weights_and_calibration_do_not_match(seeded_setup, tmp_path, monkeypatch):
+    with open_session() as session:
+        session.scalar(select(Calibration).where(Calibration.is_active)).version = "files-sha256:other"
+        session.commit()
+    other = tmp_path / "other.pt"
+    other.write_bytes(b"other weights")
+    monkeypatch.setenv("PARKMAP_SEGMENTATION_MODEL_PATH", str(other))
+
+    message = verify(seeded_setup)
+    assert "active calibration of sripatum-near-lot differs" in message
+    assert "are not the pinned yolo11m-seg.pt" in message
+
+
+def test_an_older_schema_is_reported_before_anything_else(seeded_setup):
+    migrate("downgrade", REVISION)
+
+    assert verify(seeded_setup).endswith("database schema is at 0004_sripatum_setup, expected 0005_area_frames; run alembic upgrade head")
+    migrate("upgrade", "head")
