@@ -2,6 +2,8 @@
 node_modules/
 .turbo/
 
+.env
+
 tools/calibration-ui/node_modules/
 tools/calibration-ui/.next/
 tools/calibration-ui/.vinext/
