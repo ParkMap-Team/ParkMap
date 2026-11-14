@@ -181,6 +181,9 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth }: { siteId: s
   const showsThreeD = mountsThreeD(renderer);
   const destination = classification ? guardBoothPreviewDestination(map, classification) : null;
   const route = sripatumPreviewRoute(map, siteId, destination?.point);
+  const boothHeadline = classification && (query.isPending && classification !== "unavailable"
+    ? "กำลังโหลดสถานะลาน"
+    : guardBoothHeadline(classification, summary.currentAreas > 0, summary.present.has("AVAILABLE"), Boolean(route)));
   const viewProps = { map, labels, selection: destination ?? mapSelection, route, routeReplay, onSelect, ref: view };
 
   return (
@@ -237,7 +240,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth }: { siteId: s
         {classification && (
           <aside aria-label="ข้อมูลการจอด" className="pointer-events-none absolute top-2 left-2 w-[min(25rem,calc(100%-4.5rem))] space-y-2 rounded-xl border bg-background/95 p-4 text-sm leading-relaxed shadow-sm md:w-[min(25rem,26vw)] lg:p-5 lg:text-base">
             <p aria-live="polite" className="text-xl font-bold lg:text-3xl">
-              {query.isPending && classification !== "unavailable" ? "กำลังโหลดสถานะลาน" : guardBoothHeadline(classification, summary.currentAreas > 0, summary.present.has("AVAILABLE"), Boolean(route))}
+              <span key={boothHeadline} className={routeReplay && classification === "preview" ? "animate-[parking-status-enter_200ms_ease-out]" : "motion-safe:animate-[parking-status-enter_200ms_ease-out]"}>{boothHeadline}</span>
             </p>
             {(classification === "preview" || classification === "no-fit") && <p className="font-semibold">Honda Wave 125i · ตัวอย่าง</p>}
             {classification === "unknown" && <p>ไม่ทราบรุ่นรถ</p>}

@@ -5,6 +5,7 @@ import type { LotLandmark, MetricPolygon, MotorcycleProxy } from "@/lib/api/type
 import { type Size, type View2D, fromScreen, overview2D, pan2D, toScreen, zoom2D } from "@/lib/map/camera";
 import { axisHeading } from "@/lib/map/geometry";
 import { useRouteReveal } from "@/lib/map/use-route-reveal";
+import { routeArrow } from "@/lib/map/route-reveal";
 import { GROUND_KINDS, landmarkTop } from "@/lib/map/landmark-style";
 import { MOTORCYCLE_MODEL } from "@/lib/map/motorcycle-model";
 import { COLORS } from "@/lib/parking/presentation";
@@ -188,8 +189,9 @@ export default function LotPlan({ map, labels, selection, route, routeReplay, on
   }
 
   const routePoints = view && size && visibleRoute?.map((point) => toScreen(view, size, point).join(",")).join(" ");
-  const tip = revealing && visibleRoute?.at(-1);
-  const screenTip = view && size && tip ? toScreen(view, size, tip) : null;
+  const arrowPoints = view && size && revealing && visibleRoute
+    ? routeArrow(visibleRoute)?.map((point) => toScreen(view, size, point).join(",")).join(" ")
+    : undefined;
 
   return (
     <div
@@ -258,10 +260,10 @@ export default function LotPlan({ map, labels, selection, route, routeReplay, on
             <g fill="none" strokeLinecap="round" strokeLinejoin="round">
               <polyline points={routePoints} stroke="white" strokeWidth={10} />
               <polyline points={routePoints} stroke={COLORS.ENTRANCE} strokeWidth={6} />
-              {screenTip && (
+              {arrowPoints && (
                 <>
-                  <circle cx={screenTip[0]} cy={screenTip[1]} r={10} fill={COLORS.ENTRANCE} fillOpacity={0.3} />
-                  <circle cx={screenTip[0]} cy={screenTip[1]} r={5} fill="white" />
+                  <polyline points={arrowPoints} stroke="white" strokeWidth={12} />
+                  <polyline points={arrowPoints} stroke={COLORS.ENTRANCE} strokeWidth={7} />
                 </>
               )}
             </g>
