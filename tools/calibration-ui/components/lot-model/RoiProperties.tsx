@@ -1,6 +1,7 @@
 'use client';
 
-import { editableVertices, moveLandmark, moveVertex, rectangleDimensions, resizeRectangle, rotatePolygonObject } from '../../lib/lotModelEditor';
+import { useState } from 'react';
+import { editableVertices, moveLandmark, moveVertex, rectangleDimensions, resizeRectangle, rotatePolygonObject, scalePolygonObject } from '../../lib/lotModelEditor';
 import type { LotLandmark } from '../../types/lotModel';
 import { NumberField } from './LandmarkProperties';
 
@@ -8,6 +9,9 @@ export function RoiProperties({ object, disabled, onChange, onUseAsOutline }: {
   object: LotLandmark; disabled: boolean; onChange: (object: LotLandmark) => void; onUseAsOutline?: () => void;
 }) {
   const rectangle = rectangleDimensions(object);
+  const [scalePercent, setScalePercent] = useState('100');
+  const percent = Number(scalePercent);
+  const canScale = scalePercent.trim() !== '' && Number.isFinite(percent) && percent >= 1 && percent <= 1000;
   const ring = object.polygon![0];
   const angle = Math.atan2(ring[1].y_m - ring[0].y_m, ring[1].x_m - ring[0].x_m) * 180 / Math.PI;
   return <section className="rounded-2xl border border-blue-200 bg-white p-4 shadow-sm">
@@ -23,6 +27,19 @@ export function RoiProperties({ object, disabled, onChange, onUseAsOutline }: {
         className="rounded-lg border border-blue-200 px-3 py-2 text-xs text-blue-700 disabled:opacity-40"
         onClick={() => onChange(rotatePolygonObject(object, degrees))}>{degrees > 0 ? '+' : ''}{degrees}°</button>)}</div>
       <p className="text-xs leading-relaxed text-slate-500">หมุนรอบกึ่งกลางกรอบครอบรูป ค่าบวกหมุนทวนเข็มนาฬิกา โดยคงรูปทรงและช่องว่างด้านใน</p>
+      <div className="space-y-3 rounded-xl bg-blue-50 p-3">
+        <p className="text-sm font-medium text-blue-900">ย่อ–ขยายการแสดงผลแบบคงรูป</p>
+        <div className="flex gap-2">{[90, 110].map(value => <button type="button" key={value}
+          className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs text-blue-700"
+          onClick={() => onChange(scalePolygonObject(object, value/100))}>{value === 90 ? 'ย่อ 10%' : 'ขยาย 10%'}</button>)}</div>
+        <label className="block text-xs text-slate-600">ปรับเป็น % ของขนาดปัจจุบัน
+          <input type="number" min={1} max={1000} step="any" value={scalePercent} onChange={event => setScalePercent(event.target.value)}
+            className="mt-1 w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm" />
+        </label>
+        <button type="button" disabled={!canScale} className="rounded-lg bg-blue-600 px-3 py-2 text-xs text-white disabled:opacity-40"
+          onClick={() => { if (canScale) { onChange(scalePolygonObject(object, percent/100)); setScalePercent('100'); } }}>ใช้ขนาดนี้</button>
+        <p className="text-xs leading-relaxed text-slate-500">100% เท่าขนาดปัจจุบัน · คงสัดส่วน จุดกึ่งกลาง องศา และช่องว่างด้านใน รถและแถวขยายตามบนแผนผังเท่านั้น ไม่เปลี่ยนระยะเมตรที่ใช้หาพื้นที่</p>
+      </div>
       {onUseAsOutline && <div className="space-y-2 rounded-xl bg-slate-50 p-3">
         <button type="button" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700" onClick={onUseAsOutline}>ใช้ ROI นี้เป็นขอบลาน</button>
         <p className="text-xs leading-relaxed text-slate-500">หากย้ายหรือหมุนจน ROI เลยกรอบสีเทา ให้กดปุ่มนี้ก่อนบันทึก ขอบลานจะเปลี่ยนให้ตรงกับ ROI นี้ และพื้นที่นอก ROI จะไม่รวมในลาน</p>
@@ -41,6 +58,6 @@ export function RoiProperties({ object, disabled, onChange, onUseAsOutline }: {
         </div>)}
       </details>
     </fieldset>
-    <p className="mt-4 text-xs leading-relaxed text-amber-800">ย้ายหรือหมุน ROI ทั้งรูป: รถและพื้นที่ผลวิเคราะห์จะตามไปด้วยเมื่อเปิดใช้ โดยคงขนาดเดิม หากเปลี่ยนขนาดหรือรูปทรง ต้องตรวจ calibration ใหม่ กรอบนี้เป็นพิกัดเมตรบนลาน ไม่ใช่ ROI พิกเซลในภาพกล้อง</p>
+    <p className="mt-4 text-xs leading-relaxed text-amber-800">ย้าย หมุน หรือย่อ–ขยายเท่ากันทั้งรูป: รถและพื้นที่ผลวิเคราะห์จะตามเมื่อเปิดใช้ โดยคงระยะวิเคราะห์เดิม หากขยับจุดมุมจนรูปทรงเปลี่ยนหรือยืดไม่เท่ากัน ต้องตรวจ calibration ใหม่</p>
   </section>;
 }

@@ -1,4 +1,4 @@
-import type { AreaLiveStatus, ParkingAreaLiveState, SiteParkingState, StateSourceKind } from "../api/types.ts";
+import type { AreaLiveStatus, ParkingAreaLiveState, SiteParkingState } from "../api/types.ts";
 
 /** LIVE is the lot now; DEMO is fresh processing of recorded photos. Nothing else shows regions. */
 export function showsRegions(status: AreaLiveStatus): boolean {
@@ -15,7 +15,7 @@ export function visibleAreas(state: SiteParkingState, receivedAgoS: number, conn
     if (!showsRegions(area.status)) return area;
     const ageS = (area.age_s ?? 0) + Math.max(receivedAgoS, 0);
     if (connectionLost || receivedAgoS < 0 || ageS > state.freshness_limit_s) {
-      return { ...area, status: "STALE", age_s: ageS, regions: [], motorcycles: [] };
+      return { ...area, status: "STALE", age_s: ageS, regions: [], motorcycles: [], frame: null };
     }
     return { ...area, age_s: ageS };
   });
@@ -23,45 +23,17 @@ export function visibleAreas(state: SiteParkingState, receivedAgoS: number, conn
 
 export const STATUS_LABELS: Record<AreaLiveStatus, string> = {
   LIVE: "ข้อมูลล่าสุด",
-  DEMO: "ข้อมูลสาธิต",
+  // A still-image loop reads like the lot now (ADR 0017); the API still tells them apart.
+  DEMO: "ข้อมูลล่าสุด",
   STALE: "ข้อมูลไม่เป็นปัจจุบัน",
   NO_DATA: "ยังไม่มีข้อมูล",
   NOT_CALIBRATED: "ยังไม่ได้ตั้งค่ากล้อง",
   CALIBRATION_MISMATCH: "การตั้งค่ากล้องเปลี่ยน กำลังรอข้อมูลใหม่",
 };
 
-const SOURCE_NOTICES: Partial<Record<StateSourceKind, string>> = {
-  RECORDED_REPLAY: "กำลังแสดงข้อมูลจากวิดีโอที่บันทึกไว้ ไม่ใช่ภาพสด",
-  STILL_IMAGE_LOOP: "ข้อมูลสาธิตจากภาพถ่ายที่บันทึกไว้ ไม่ใช่สถานะลานจอดปัจจุบัน",
-  SYNTHETIC_FIXTURE: "กำลังแสดงข้อมูลจำลองสำหรับการพัฒนา ไม่ใช่ข้อมูลจริง",
-};
-
-/** A notice whenever any area is not showing a live camera. Returns null only for live camera data. */
-export function sourceNotice(areas: ParkingAreaLiveState[]): string | null {
-  for (const source of ["SYNTHETIC_FIXTURE", "STILL_IMAGE_LOOP", "RECORDED_REPLAY"] as const) {
-    if (areas.some((area) => area.source === source)) return SOURCE_NOTICES[source] ?? null;
-  }
-  return null;
-}
-
-/** A short badge for where the shown state comes from. A still-image loop is never called live. */
-export function sourceBadge(areas: ParkingAreaLiveState[]): string | null {
-  if (areas.some((area) => area.source === "SYNTHETIC_FIXTURE")) return "ข้อมูลจำลอง";
-  if (areas.some((area) => area.source === "STILL_IMAGE_LOOP")) return "ข้อมูลสาธิต";
-  if (areas.some((area) => area.source === "RECORDED_REPLAY")) return "วิดีโอบันทึก";
-  if (areas.some((area) => area.source === "LIVE_CAMERA")) return "กล้องสด";
-  return null;
-}
-
-const PHOTO_TIME = new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", dateStyle: "medium", timeStyle: "short" });
 const CLOCK_TIME = new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", timeStyle: "medium" });
 
-/** When a demo photo was taken; the lot looked like this then, not now. */
-export function photoTimeLabel(observedAt: string): string {
-  return `ภาพถ่ายเมื่อ ${PHOTO_TIME.format(new Date(observedAt))}`;
-}
-
-/** A Bangkok wall-clock time; a still-image photo also needs its date, so it uses `photoTimeLabel`. */
+/** A Bangkok wall-clock time. */
 export function clockTime(at: string | number): string {
   return CLOCK_TIME.format(new Date(at));
 }
@@ -76,19 +48,21 @@ export function agoLabel(seconds: number): string {
 
 export type TimeLine = { label: string; value: string };
 
+export type AreaPhoto = { id: string; url: string; width: number; height: number };
+
+/** The photo each shown area was computed from. A stale or hidden area shows none. */
+export function areaPhotos(areas: ParkingAreaLiveState[]): AreaPhoto[] {
+  return areas.flatMap((area) => (showsRegions(area.status) && area.frame ? [{ id: area.parking_area_id, ...area.frame }] : []));
+}
+
 /**
- * The three times a reader may need, kept apart: when the picture was taken, when the API
- * processed it, and when this browser received the answer.
+ * The times a reader may need, kept apart: when the camera took the picture, when the API
+ * processed it, and when this browser received the answer. A still-image loop's photo was taken
+ * on another day, so its capture time is left out rather than shown as a time today.
  */
 export function timeLines(area: ParkingAreaLiveState | null, receivedAt: number | null): TimeLine[] {
   const lines: TimeLine[] = [];
-  if (area?.observed_at) {
-    lines.push(
-      area.source === "STILL_IMAGE_LOOP"
-        ? { label: "ภาพถ่าย", value: PHOTO_TIME.format(new Date(area.observed_at)) }
-        : { label: "ภาพจากกล้อง", value: clockTime(area.observed_at) },
-    );
-  }
+  if (area?.observed_at && area.source !== "STILL_IMAGE_LOOP") lines.push({ label: "ภาพจากกล้อง", value: clockTime(area.observed_at) });
   if (area?.processed_at) lines.push({ label: "ประมวลผล", value: clockTime(area.processed_at) });
   if (receivedAt) lines.push({ label: "รับข้อมูล", value: clockTime(receivedAt) });
   return lines;
@@ -100,24 +74,28 @@ export function timeLines(area: ParkingAreaLiveState | null, receivedAt: number 
  * red: planting is a muted sage, and every status layer is drawn over the surroundings.
  */
 export const COLORS = {
+  WIDTH_SUFFICIENT: "#4ade80",
   AVAILABLE: "#16a34a",
   AVAILABLE_STROKE: "#166534",
   ALMOST_AVAILABLE: "#facc15",
   ALMOST_AVAILABLE_STROKE: "#854d0e",
-  OCCUPIED: "#dc2626",
+  OCCUPIED: "#b91c1c",
   UNKNOWN: "#94a3b8",
-  UNKNOWN_HATCH: "#475569",
-  UNMONITORED: "#5c6168",
-  UNMONITORED_DOT: "#787d85",
-  PARKING_AREA: "#eef0f3",
+  // A mid slate on the light slate: the hatch stays distinct but recedes behind green and yellow.
+  UNKNOWN_HATCH: "#64748b",
+  UNMONITORED: "#3f444b",
+  UNMONITORED_DOT: "#9aa0a8",
+  // Paving grey, so the monitored area reads as a lot against the lighter ground.
+  PARKING_AREA: "#d5d9de",
   PARKING_AREA_STROKE: "#64748b",
   LOT: "#c9cdd3",
+  CURB: "#f8f9f6",
   MOTORCYCLE: "#64748b",
   SELECTED: "#0f172a",
   SELECTED_HALO: "#ffffff",
-  ENTRANCE: "#1d4ed8",
+  ENTRANCE: "#1e40af",
   EXIT: "#334155",
-  GUARD_BOOTH: "#7c3aed",
+  GUARD_BOOTH: "#57534e",
   BUILDING: "#bdb4a6",
   BARRIER: "#78716c",
   AISLE: "#e2e8f0",
@@ -130,10 +108,13 @@ export const COLORS = {
   TREE_TRUNK: "#8a6a4f",
   SHELTER: "#f1f5f9",
   FACADE: "#efe6d8",
-  FACADE_WINDOW: "#7f9cb8",
   BANDED_WALL: "#f5f5f2",
-  BANDED_WINDOW: "#5d7184",
   BRICK: "#9a5b45",
-  GLASS: "#4e6676",
   ROOF: "#cfd6de",
 } as const;
+
+/**
+ * Paints for the 3D motorcycle model, light to dark. Greys only, so a motorcycle never reads as a
+ * status colour; the soft occupied glow under it carries the status.
+ */
+export const MOTORCYCLE_PAINTS = ["#f0f0f0", "#c4c4c4", "#7a7a7a", "#3a3a3a"] as const;

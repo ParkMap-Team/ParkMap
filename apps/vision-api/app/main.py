@@ -1,36 +1,87 @@
 import hmac
 import json
 import os
-from pathlib import Path as FilePath
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
+from pathlib import Path as FilePath
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Path, Response, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    Header,
+    HTTPException,
+    Path,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
+from app.annotations import router as annotations_router
+from app.classifier import router as classifier_router
 from app.db import repository
 from app.db.session import get_session
 from app.db.tables import ParkingArea, Site
 from app.lot_model_editor import router as lot_model_editor_router
-from app.annotations import router as annotations_router
-from app.classifier import router as classifier_router
-from app.models import IDENTIFIER_PATTERN, DetectionResponse, GroundPlaneCalibration, GroundPlaneCalibrationResponse, GroundPlaneHomographyResponse, HealthResponse, LotModelDefinition, LotModelResponse, MotorcycleFittingConfiguration, MotorcycleFittingResponse, ParkingCalibration, ParkingStatePublish, PhysicalRowGeometryConfig, SiteParkingStateResponse, SiteSummary
+from app.mobile_camera import operator_router as mobile_operator_router
+from app.mobile_camera import public_router as mobile_public_router
+from app.models import (
+    IDENTIFIER_PATTERN,
+    AreaFrameLink,
+    DetectionResponse,
+    GroundPlaneCalibration,
+    GroundPlaneCalibrationResponse,
+    GroundPlaneHomographyResponse,
+    HealthResponse,
+    LotModelDefinition,
+    LotModelResponse,
+    MotorcycleFittingConfiguration,
+    MotorcycleFittingResponse,
+    ParkingAreaLiveState,
+    ParkingCalibration,
+    ParkingStatePublish,
+    PhysicalRowGeometryConfig,
+    SiteParkingStateResponse,
+    SiteSummary,
+)
+from app.services.auto_parking_service import analyze_detections
 from app.services.calibration_service import calibration_service
 from app.services.cv_service import ModelUnavailableError, cv_service
-from app.services.motorcycle_fitting_service import motorcycle_fitting_service
-from app.services.ground_plane_calibration_service import ground_plane_calibration_service
-from app.services.ground_plane_homography_service import HomographyInputError, ground_plane_homography_service
-from app.services.physical_row_geometry_service import measurement_fingerprint, physical_row_geometry_service
-from app.services.parking_analysis_service import ParkingCalibrationUnavailableError, parking_analysis_service
-from app.services.auto_parking_service import analyze_detections
-from app.services.live_state_service import MAX_FUTURE_SKEW_S, evaluate_area_state, unmonitored_polygons
+from app.services.ground_plane_calibration_service import (
+    ground_plane_calibration_service,
+)
+from app.services.ground_plane_homography_service import (
+    HomographyInputError,
+    ground_plane_homography_service,
+)
+from app.services.live_state_service import (
+    MAX_FUTURE_SKEW_S,
+    evaluate_area_state,
+    unmonitored_polygons,
+)
 from app.services.lot_placement_service import place_area_state
+from app.services.mobile_camera_sessions import MobileSessionError, mobile_sessions
+from app.services.motorcycle_fitting_service import motorcycle_fitting_service
+from app.services.parking_analysis_service import (
+    ParkingCalibrationUnavailableError,
+    parking_analysis_service,
+)
+from app.services.physical_row_geometry_service import (
+    measurement_fingerprint,
+    physical_row_geometry_service,
+)
+
+SessionDependency = Depends(get_session)
+ImageFile = File(..., alias="image")
+ImagesFile = File(..., alias="images")
 
 load_dotenv()
 
@@ -38,6 +89,14 @@ app = FastAPI(title="ParkMap API", version="0.2.0", description="API boundary fo
 app.include_router(lot_model_editor_router)
 app.include_router(annotations_router)
 app.include_router(classifier_router)
+app.include_router(mobile_operator_router)
+app.include_router(mobile_public_router)
+
+
+@app.exception_handler(MobileSessionError)
+async def mobile_session_error(_request, error):
+    return JSONResponse({"detail": str(error)}, status_code=error.status)
+
 
 allowed_origins = [origin.strip() for origin in os.getenv("PARKMAP_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",") if origin.strip()]
 app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_credentials=True, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
@@ -54,6 +113,11 @@ def health() -> HealthResponse:
 
 
 SiteId = Path(pattern=IDENTIFIER_PATTERN)
+AreaId = Path(pattern=IDENTIFIER_PATTERN)
+# A worker sends a downscaled JPEG (app.worker.publisher); these bound what the API stores per area.
+MAX_FRAME_BYTES = 3 * 1024 * 1024
+MAX_FRAME_EDGE_PX = 4096
+EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 
 
 def freshness_limit_s() -> float:
@@ -75,12 +139,12 @@ def _require_site_areas(session: Session, site_id: str) -> list[ParkingArea]:
 
 
 @app.get("/api/sites", response_model=list[SiteSummary])
-def list_sites(session: Session = Depends(get_session)) -> list[SiteSummary]:
+def list_sites(session: Session = SessionDependency) -> list[SiteSummary]:
     return [SiteSummary(site_id=site.id, name=site.name, latitude=site.latitude, longitude=site.longitude) for site in repository.list_sites(session)]
 
 
 @app.get("/api/sites/{site_id}/lot-model", response_model=LotModelResponse)
-def get_lot_model(site_id: str = SiteId, session: Session = Depends(get_session)) -> LotModelResponse:
+def get_lot_model(site_id: str = SiteId, session: Session = SessionDependency) -> LotModelResponse:
     _require_site_areas(session, site_id)
     lot_model = repository.active_lot_model(session, site_id)
     if lot_model is None:
@@ -90,7 +154,7 @@ def get_lot_model(site_id: str = SiteId, session: Session = Depends(get_session)
 
 
 @app.get("/api/sites/{site_id}/parking-state", response_model=SiteParkingStateResponse)
-def get_site_parking_state(site_id: str = SiteId, session: Session = Depends(get_session)) -> SiteParkingStateResponse:
+def get_site_parking_state(site_id: str = SiteId, session: Session = SessionDependency) -> SiteParkingStateResponse:
     area_ids = [area.id for area in _require_site_areas(session, site_id)]
     calibrations = repository.active_calibrations(session, area_ids)
     lot_model = repository.active_lot_model(session, site_id)
@@ -98,19 +162,95 @@ def get_site_parking_state(site_id: str = SiteId, session: Session = Depends(get
     states = repository.latest_states(session, area_ids)
     now = datetime.now(UTC)
     limit = freshness_limit_s()
+    frames = repository.frame_sizes(session, {area_id: state.processed_at for area_id, state in states.items()})
     return SiteParkingStateResponse(
         site_id=site_id,
         generated_at=now,
         freshness_limit_s=limit,
-        areas=[place_area_state(
+        areas=[_with_frame(place_area_state(
             evaluate_area_state(area_id, stored=states.get(area_id), active_calibration_version=calibrations[area_id].version if area_id in calibrations else None, now=now, freshness_limit_s=limit),
             calibrations[area_id].payload if area_id in calibrations else {}, polygons.get(area_id),
-        ) for area_id in area_ids],
+        ), frames.get(area_id)) for area_id in area_ids],
     )
 
 
+def _frame_version(processed_at: datetime) -> int:
+    return (processed_at - EPOCH) // timedelta(microseconds=1)
+
+
+def _with_frame(state: ParkingAreaLiveState, frame: tuple[datetime, int, int] | None) -> ParkingAreaLiveState:
+    """Link the photo only to a shown state computed from that very photo (ADR 0017)."""
+    if frame is None or state.status not in ("LIVE", "DEMO") or state.processed_at != frame[0]:
+        return state
+    processed_at, width, height = frame
+    url = f"/api/parking-areas/{state.parking_area_id}/frame?v={_frame_version(processed_at)}"
+    return state.model_copy(update={"frame": AreaFrameLink(url=url, width=width, height=height)})
+
+
+@app.get(
+    "/api/parking-areas/{area_id}/frame",
+    response_class=Response,
+    responses={200: {"content": {"image/jpeg": {}}, "description": "The analysed photo."}, 404: {"description": "No photo of this version."}},
+)
+def get_area_frame(v: int, area_id: str = AreaId, session: Session = SessionDependency) -> Response:
+    """A versioned photo never changes, so it is cached for good; one past the freshness window is gone."""
+    try:
+        processed_at = EPOCH + timedelta(microseconds=v)
+    except OverflowError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No photo of this version.") from None
+    stored = repository.frame(session, area_id, processed_at)
+    if stored is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No photo of this version.")
+    return Response(content=stored.image, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+
+@app.put("/api/internal/parking-areas/{area_id}/frame", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_worker_token)])
+async def ingest_area_frame(request: Request, processed_at: datetime, area_id: str = AreaId, session: Session = SessionDependency) -> Response:
+    """The JPEG a worker analysed, sent before the state it published from it."""
+    if request.headers.get("content-type") != "image/jpeg":
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="A frame must be image/jpeg.")
+    if processed_at.tzinfo is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="processed_at must include a UTC offset.")
+    if (processed_at - datetime.now(UTC)).total_seconds() > MAX_FUTURE_SKEW_S:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="processed_at is in the future.")
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > MAX_FRAME_BYTES:
+            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="The frame exceeds the size limit.")
+    width, height = _jpeg_size(bytes(body))
+    await run_in_threadpool(_store_frame, session, area_id, processed_at, width, height, bytes(body))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _jpeg_size(image: bytes) -> tuple[int, int]:
+    try:
+        with Image.open(BytesIO(image)) as decoded:
+            if decoded.format != "JPEG":
+                raise ValueError("Not a JPEG.")
+            width, height = decoded.size
+            if not (0 < width <= MAX_FRAME_EDGE_PX and 0 < height <= MAX_FRAME_EDGE_PX):
+                raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="The frame has too many pixels.")
+            decoded.load()
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The frame is not a valid JPEG.") from None
+    return width, height
+
+
+def _store_frame(session: Session, area_id: str, processed_at: datetime, width: int, height: int, image: bytes) -> None:
+    if session.get(ParkingArea, area_id) is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown parking area.")
+    with mobile_sessions.lock:
+        # A paired phone owns the area; its states carry no photo, so the worker's is not stored either.
+        if mobile_sessions.owns_area(area_id):
+            return
+        # A state stays fresh at most the freshness limit after its photo was processed; so long, its photo loads.
+        repository.store_frame(session, area_id, processed_at, width, height, image, keep_s=freshness_limit_s())
+        session.commit()
+
+
 @app.post("/api/internal/parking-states", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_worker_token)])
-def ingest_parking_state(publish: ParkingStatePublish, session: Session = Depends(get_session)) -> Response:
+def ingest_parking_state(publish: ParkingStatePublish, session: Session = SessionDependency) -> Response:
     area = session.get(ParkingArea, publish.parking_area_id)
     if area is None:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown parking area.")
@@ -118,11 +258,14 @@ def ingest_parking_state(publish: ParkingStatePublish, session: Session = Depend
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="camera_id does not belong to this parking area.")
     if (publish.processed_at - datetime.now(UTC)).total_seconds() > MAX_FUTURE_SKEW_S:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="processed_at is in the future.")
-    repository.insert_state(session, publish)
-    try:
-        session.commit()
-    except IntegrityError as error:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Parking state could not be stored.") from error
+    with mobile_sessions.lock:
+        if mobile_sessions.owns_area(publish.parking_area_id):
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
+        repository.insert_state(session, publish)
+        try:
+            session.commit()
+        except IntegrityError as error:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Parking state could not be stored.") from error
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -242,7 +385,7 @@ def save_motorcycle_fitting(configuration: MotorcycleFittingConfiguration) -> Mo
 
 
 @app.post("/api/detection/analyze", response_model=DetectionResponse)
-async def analyze_detection(image: UploadFile = File(...), include_parking: bool = True) -> DetectionResponse:
+async def analyze_detection(image: UploadFile = ImageFile, include_parking: bool = True) -> DetectionResponse:
     if image.content_type not in SUPPORTED_IMAGE_TYPES:
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Supported image types are JPEG, PNG, and WebP.")
 
@@ -282,7 +425,7 @@ async def analyze_detection(image: UploadFile = File(...), include_parking: bool
 
 
 @app.post("/api/auto-parking/analyze")
-async def analyze_auto_parking(images: list[UploadFile] = File(...)) -> dict[str, object]:
+async def analyze_auto_parking(images: list[UploadFile] = ImagesFile) -> dict[str, object]:
     """Experimental structure discovery from multiple images of one camera."""
     if not images:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="At least one image is required.")
@@ -404,7 +547,7 @@ def _normalized_point_in_polygon(x: float, y: float, polygon: list[object]) -> b
     return inside
 
 @app.post("/api/hybrid-parking/analyze")
-async def analyze_hybrid_parking(image: UploadFile = File(...)) -> dict[str, object]:
+async def analyze_hybrid_parking(image: UploadFile = ImageFile) -> dict[str, object]:
     """Run YOLO and return detections classified only against backend ROI."""
     calibration = calibration_service.load()
     if calibration is None:

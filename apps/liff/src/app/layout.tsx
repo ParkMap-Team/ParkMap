@@ -8,12 +8,15 @@ const notoSansThai = Noto_Sans_Thai({ subsets: ["thai", "latin"], variable: "--f
 
 export const metadata: Metadata = {
   title: "ParkMap",
-  description: "Motorcycle parking availability",
+  description: "ดูพื้นที่ว่างสำหรับจอดรถจักรยานยนต์ในลานจอด",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // Draw under the notch and home indicator; the screens pad themselves with safe-area insets.
+  viewportFit: "cover",
+  themeColor: "#f4f6f8",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

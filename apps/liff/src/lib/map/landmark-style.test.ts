@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { COLORS } from "../parking/presentation.ts";
-import { FACADES, landmarkTop, landmarkWall } from "./landmark-style.ts";
+import { DETAIL, FACADE_WALLS, landmarkTop, landmarkWall } from "./landmark-style.ts";
 
-const STATUS_COLORS = new Set<string>([COLORS.AVAILABLE, COLORS.ALMOST_AVAILABLE, COLORS.OCCUPIED, COLORS.UNKNOWN, COLORS.UNMONITORED]);
+const STATUS_COLORS = new Set<string>([COLORS.AVAILABLE, COLORS.WIDTH_SUFFICIENT, COLORS.ALMOST_AVAILABLE, COLORS.OCCUPIED, COLORS.UNKNOWN, COLORS.UNMONITORED]);
 
 test("a raised footprint shows its top from above, a flat one its ground colour", () => {
   assert.equal(landmarkTop({ kind: "BUILDING", height_m: 16 }), COLORS.ROOF);
@@ -19,7 +19,10 @@ test("no landmark is drawn in a status colour", () => {
     for (const height_m of [null, 3]) assert.ok(!STATUS_COLORS.has(landmarkTop({ kind, height_m })), `${kind} top`);
     assert.ok(!STATUS_COLORS.has(landmarkWall(kind)), `${kind} wall`);
   }
-  for (const [facade, { wall, window }] of Object.entries(FACADES)) {
-    assert.ok(!STATUS_COLORS.has(wall) && !STATUS_COLORS.has(window), `${facade} facade`);
+  for (const [facade, wall] of Object.entries(FACADE_WALLS)) {
+    assert.ok(!STATUS_COLORS.has(wall), `${facade} facade`);
+  }
+  for (const [part, color] of Object.entries(DETAIL)) {
+    assert.ok(!STATUS_COLORS.has(color), `${part} detail`);
   }
 });

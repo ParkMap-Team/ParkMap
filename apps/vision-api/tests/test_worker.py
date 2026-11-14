@@ -1,7 +1,9 @@
 import argparse
 import json
+import threading
 from datetime import UTC, datetime, timedelta
 
+import cv2
 import httpx
 import numpy as np
 import pytest
@@ -11,7 +13,7 @@ from app.manage import dev_state
 from app.services.live_state_service import CalibrationFilesUnavailableError
 from app.worker.__main__ import reference_size, source_kind, utc_offset
 from app.worker.frames import Frame, LatestFrameSlot
-from app.worker.publisher import StatePublisher
+from app.worker.publisher import StatePublisher, encode_frame
 
 
 def frame(second):
@@ -52,6 +54,32 @@ def test_publisher_raises_on_rejected_state():
 
     with pytest.raises(httpx.HTTPStatusError):
         publisher.publish(dev_state(datetime(2026, 10, 1, 8, 0, tzinfo=UTC)))
+
+
+def test_publisher_puts_a_downscaled_jpeg_of_the_frame_with_its_processing_time():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(204)
+
+    publisher = StatePublisher("http://api.test", "secret", transport=httpx.MockTransport(handler))
+    processed_at = datetime(2026, 10, 1, 8, 0, 0, 123456, tzinfo=UTC)
+    publisher.publish_frame("area-1", processed_at, np.full((3024, 4032, 3), 90, dtype=np.uint8))
+    publisher.close()
+
+    request = requests[0]
+    assert request.method == "PUT"
+    assert request.url.path == "/api/internal/parking-areas/area-1/frame"
+    assert datetime.fromisoformat(request.url.params["processed_at"]) == processed_at
+    assert request.headers["authorization"] == "Bearer secret"
+    assert request.headers["content-type"] == "image/jpeg"
+    decoded = cv2.imdecode(np.frombuffer(request.content, dtype=np.uint8), cv2.IMREAD_COLOR)
+    assert decoded.shape[:2] == (1200, 1600)
+
+
+def test_a_small_frame_is_not_enlarged():
+    assert cv2.imdecode(np.frombuffer(encode_frame(np.zeros((300, 400, 3), dtype=np.uint8)), dtype=np.uint8), cv2.IMREAD_COLOR).shape[:2] == (300, 400)
 
 
 def test_source_kind_labels_recorded_video_photo_directories_and_cameras(tmp_path):
@@ -107,3 +135,49 @@ def test_worker_without_photos_stops_with_a_clear_log_and_publishes_nothing(work
 
     assert worker.run(worker_args(photos)) == 2
     assert "cannot start" in caplog.text
+
+
+@pytest.mark.parametrize("frame_fails", [False, True])
+def test_worker_sends_the_photo_before_its_state_and_still_publishes_when_the_photo_fails(worker_env, monkeypatch, frame_fails, caplog):
+    calls = []
+    state = dev_state(datetime(2026, 10, 1, 8, 0, tzinfo=UTC))
+
+    class OneFrame:
+        def __init__(self, _source, slot, **_kwargs):
+            self.finished = threading.Event()
+            self.slot = slot
+
+        def start(self):
+            self.slot.put(frame(1))
+            self.finished.set()
+
+        def join(self, timeout=None):
+            pass
+
+    class Recorder:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def publish_frame(self, area_id, processed_at, image):
+            calls.append(("frame", area_id, processed_at))
+            if frame_fails:
+                raise httpx.ConnectError("api down")
+
+        def publish(self, published):
+            calls.append(("state", published.parking_area_id, published.processed_at))
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(worker, "FrameGrabber", OneFrame)
+    monkeypatch.setattr(worker, "StatePublisher", Recorder)
+    monkeypatch.setattr(worker, "analyze_frame", lambda *_args, **_kwargs: state)
+    video = worker_env / "clip.mp4"
+    video.write_bytes(b"")
+
+    args = worker_args(video)
+    args.min_interval_s = 0.01
+
+    assert worker.run(args) == 0
+    assert calls == [("frame", state.parking_area_id, state.processed_at), ("state", state.parking_area_id, state.processed_at)]
+    assert ("Frame photo not published" in caplog.text) is frame_fails

@@ -42,12 +42,39 @@ export function landmarkWall(kind: LandmarkKind): string {
 
 export type Facade = NonNullable<LotLandmark["facade"]> | "PLAIN";
 
-/** Wall and window colours of a raised building's facade; a building without one is plain with windows. */
-export const FACADES: Record<Facade, { wall: string; window: string }> = {
-  PLAIN: { wall: COLORS.FACADE, window: COLORS.FACADE_WINDOW },
-  WINDOW_BANDS: { wall: COLORS.BANDED_WALL, window: COLORS.BANDED_WINDOW },
-  BRICK_AND_GLASS: { wall: COLORS.BRICK, window: COLORS.GLASS },
+/**
+ * Wall colour of a raised building by its facade. The 3D view draws the same generic storey of
+ * windows for every building of a facade type: it says what kind of walls a building has, not
+ * where its real windows are, which the lot model does not record.
+ */
+export const FACADE_WALLS: Record<Facade, string> = {
+  PLAIN: COLORS.FACADE,
+  WINDOW_BANDS: COLORS.BANDED_WALL,
+  BRICK_AND_GLASS: COLORS.BRICK,
 };
 
 /** Kinds drawn as plain ground with no outline; the others keep a white edge so they read as features. */
 export const GROUND_KINDS: ReadonlySet<LandmarkKind> = new Set(["ROAD", "WALKWAY", "PLANTING"]);
+
+/** Colours of the generic detail the 3D view adds to landmarks: glazing, steel, kerbs, soil, shrubs, and road marks. */
+export const DETAIL = {
+  GLASS: "#4f6478",
+  GLASS_LIGHT: "#8aa1b5",
+  GLASS_DARK: "#33414e",
+  GLASS_SHADE: "#3a4856",
+  MULLION: "#dde1e4",
+  FRAME: "#e8e4dc",
+  SILL: "#d9d6cf",
+  WALL_JOINT: "#dcdcd6",
+  MORTAR: "#87503e",
+  PLINTH: "#8d8b86",
+  STEEL: "#7c848e",
+  ROOF_EDGE: "#6b6560",
+  KERB: "#d4d1c9",
+  SOIL: "#6e5d4b",
+  SHRUB: "#6a8c55",
+  LANE_MARK: "#f2efe6",
+  PAVER_JOINT: "#cfc8bc",
+  // The site's paving in the 3D view: roads, the lot where no status covers it, and the ground around it.
+  ASPHALT: "#6c7279",
+} as const;

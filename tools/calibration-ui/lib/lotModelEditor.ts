@@ -44,6 +44,16 @@ export function rotatePolygonObject(object: LotLandmark, degrees: number): LotLa
   return { ...object, polygon: object.polygon?.map((ring) => ring.map(rotate)) };
 }
 
+/** Uniform scale about the ROI centre; preserve every ring and its orientation. */
+export function scalePolygonObject(object: LotLandmark, factor: number): LotLandmark {
+  if (!Number.isFinite(factor) || factor <= 0) throw new Error('อัตราขยายต้องมากกว่า 0');
+  if (!object.polygon) throw new Error('ต้องเลือกพื้นที่รูปหลายเหลี่ยม');
+  return { ...object, polygon: object.polygon.map(ring => ring.map(point => ({
+    x_m: object.position.x_m + (point.x_m-object.position.x_m)*factor,
+    y_m: object.position.y_m + (point.y_m-object.position.y_m)*factor,
+  }))) };
+}
+
 export interface RectangleDimensions {
   width: number;
   length: number;
