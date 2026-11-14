@@ -8,15 +8,34 @@ import math
 import re
 from pathlib import Path
 from threading import Lock
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
+from app.models import Detection, DetectionResponse
 from app.operator_auth import require_editor_token
 from app.services.cv_service import ModelUnavailableError, cv_service
+from app.services.motorcycle_reference_sizes import (
+    ResolvedReferenceSize,
+    load_rules,
+    reference_size,
+)
+from app.services.parking_analysis_service import (
+    ParkingCalibrationUnavailableError,
+    parking_analysis_service,
+)
+from app.services.segmentation_experiment_service import (
+    SegmentationExperimentResult,
+    segmentation_experiment_service,
+)
+from app.services.segmentation_gap_service import (
+    SegmentationGapResult,
+    analyze_segmentation_gaps,
+)
+from app.services.virtual_fitting_service import WIDTH_M
 
 router = APIRouter(prefix="/api/operator/classifier", tags=["Classifier experiment"], dependencies=[Depends(require_editor_token)])
 # Parent chaining stays at the filesystem root in the shallower Docker layout.
@@ -40,9 +59,11 @@ class Prediction(BaseModel):
 
 
 class ClassifiedCrop(BaseModel):
+    detection_index: int = 0
     bbox: dict[str, float]
     crop_url: str
     top3: list[Prediction]
+    reference_size: ResolvedReferenceSize | None = None
 
 
 class ClassifierResult(BaseModel):
@@ -52,6 +73,25 @@ class ClassifierResult(BaseModel):
     preview_url: str
     crops: list[ClassifiedCrop]
     status: Literal["EXPERIMENTAL"] = "EXPERIMENTAL"
+
+
+class ReferenceSizeExperiment(BaseModel):
+    status: Literal["EXPERIMENTAL"] = "EXPERIMENTAL"
+    config_file: str = "config/motorcycle_reference_sizes.json"
+    sizes: list[ResolvedReferenceSize]
+    parking_analysis: dict[str, Any] | None = None
+
+
+class ParkingClassifierResult(BaseModel):
+    detection: DetectionResponse
+    classification: ClassifierResult | None = None
+    classification_error: str | None = None
+    parking_error: str | None = None
+    reference_size_error: str | None = None
+    reference_size_experiment: ReferenceSizeExperiment | None = None
+    segmentation: SegmentationExperimentResult | None = None
+    segmentation_error: str | None = None
+    segmentation_gaps: SegmentationGapResult | None = None
 
 
 def available_models():
@@ -64,7 +104,10 @@ def available_models():
             metrics = json.loads((folder / "val/metrics.json").read_text(encoding="utf-8"))
             if meta.get("run_state") != "complete" or not (folder / "best.pt").is_file():
                 continue
-            result.append(ClassifierModel(id=folder.name, label=f"{folder.name} · {len(meta['dataset']['classes'])} classes",
+            architecture = meta.get("options", {}).get("architecture", "resnet18")
+            if architecture not in {"resnet18", "efficientnet_b0", "yolo11n_cls"}:
+                continue
+            result.append(ClassifierModel(id=folder.name, label=f"{architecture} · {folder.name} · {len(meta['dataset']['classes'])} classes",
                                           epoch=meta["best_epoch"], classes=len(meta["dataset"]["classes"]), val_top1=metrics["top1"]))
         except (OSError, ValueError, KeyError):
             continue
@@ -104,27 +147,47 @@ def load_model(model_id):
             raise ValueError("Checkpoint hash mismatch")
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
     preprocessing = checkpoint["preprocessing"]
-    if checkpoint.get("format_version") != 1 or checkpoint.get("architecture") != "resnet18" or preprocessing["protocol"] != "letterbox_rgb_v1":
+    architecture = checkpoint.get("architecture")
+    if checkpoint.get("format_version") != 1 or architecture not in {"resnet18", "efficientnet_b0", "yolo11n_cls"} or preprocessing["protocol"] != "letterbox_rgb_v1":
         raise ValueError("Unsupported classifier checkpoint")
+    if architecture != meta.get("options", {}).get("architecture", "resnet18"):
+        raise ValueError("Checkpoint architecture does not match run metadata")
     classes = checkpoint["classes"]
     if classes != meta["dataset"]["classes"] or not 64 <= checkpoint["image_size"] <= 1024:
         raise ValueError("Invalid classifier class order or image size")
     torch.set_num_threads(2)
-    model = models.resnet18(weights=None)
-    model.fc = torch.nn.Linear(model.fc.in_features, len(classes))
-    model.load_state_dict(checkpoint["state_dict"], strict=True)
+    state_dict = checkpoint["state_dict"]
+    if architecture == "yolo11n_cls":
+        from ultralytics.nn.tasks import ClassificationModel
+
+        model = ClassificationModel("yolo11n-cls.yaml", nc=1000, verbose=False)
+        head = model.model[-1]
+        head.linear = torch.nn.Linear(head.linear.in_features, len(classes))
+        # The training adapter wraps the same Ultralytics network under `network`.
+        if not all(key.startswith("network.") for key in state_dict):
+            raise ValueError("Invalid YOLO classifier state dict")
+        state_dict = {key.removeprefix("network."): value for key, value in state_dict.items()}
+    elif architecture == "resnet18":
+        model = models.resnet18(weights=None)
+        model.fc = torch.nn.Linear(model.fc.in_features, len(classes))
+    else:
+        model = models.efficientnet_b0(weights=None)
+        model.classifier[-1] = torch.nn.Linear(model.classifier[-1].in_features, len(classes))
+    model.load_state_dict(state_dict, strict=True)
     model.eval()
     tensor_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(preprocessing["mean"], preprocessing["std"])])
     _cache = (stamp, model, classes, checkpoint["image_size"], tuple(preprocessing["padding_rgb"]), tensor_transform)
     return _cache[1:]
 
 
-def classify(decoded, model_id, mode):
+def classify(decoded, model_id, mode, boxes=None):
     import torch
 
     with LOCK:
         model, classes, size, padding, transform = load_model(model_id)
-        if mode == "crop":
+        if boxes is not None:
+            pass  # Boxes came from this request's detector, never from the browser.
+        elif mode == "crop":
             boxes = [{"x": 0., "y": 0., "width": 1., "height": 1.}]
         else:
             stream = io.BytesIO()
@@ -133,7 +196,7 @@ def classify(decoded, model_id, mode):
         if len(boxes) > 300:
             raise HTTPException(422, "Too many detections; use smaller images or cropped motorcycles.")
         crops = []
-        for box in boxes:
+        for detection_index, box in enumerate(boxes):
             left, top = math.floor(box["x"] * decoded.width), math.floor(box["y"] * decoded.height)
             right = min(decoded.width, math.ceil((box["x"] + box["width"]) * decoded.width))
             bottom = min(decoded.height, math.ceil((box["y"] + box["height"]) * decoded.height))
@@ -142,15 +205,17 @@ def classify(decoded, model_id, mode):
                 continue
             padded = ImageOps.pad(crop, (size, size), method=Image.Resampling.BILINEAR, color=padding)
             with torch.inference_mode():
-                scores, indices = model(transform(padded).unsqueeze(0)).softmax(1)[0].topk(min(3, len(classes)))
-            crops.append(ClassifiedCrop(bbox=box, crop_url=encode_preview(crop), top3=[Prediction(family=classes[i], score=float(s)) for i, s in zip(indices.tolist(), scores.tolist(), strict=True)]))
+                output = model(transform(padded).unsqueeze(0))
+                # YOLO returns (probabilities, logits) in eval mode; use logits so
+                # softmax is applied once, matching the saved training evaluation.
+                logits = output[1] if isinstance(output, tuple) else output
+                scores, indices = logits.softmax(1)[0].topk(min(3, len(classes)))
+            crops.append(ClassifiedCrop(detection_index=detection_index, bbox=box, crop_url=encode_preview(crop), top3=[Prediction(family=classes[i], score=float(s)) for i, s in zip(indices.tolist(), scores.tolist(), strict=True)]))
         return ClassifierResult(model_id=model_id, image_width=decoded.width, image_height=decoded.height,
                                 preview_url=encode_preview(decoded), crops=crops)
 
 
-@router.post("/predict", response_model=ClassifierResult)
-async def predict(image: Annotated[UploadFile, File()], model_id: Annotated[str, Form()], response: Response, mode: Literal["detect", "crop"] = Form("detect")):
-    response.headers["Cache-Control"] = "no-store"
+async def read_image(image: UploadFile):
     if image.content_type not in {"image/jpeg", "image/png", "image/webp"}:
         raise HTTPException(415, "Choose JPEG, PNG or WebP.")
     try:
@@ -169,9 +234,98 @@ async def predict(image: Annotated[UploadFile, File()], model_id: Annotated[str,
             decoded = ImageOps.exif_transpose(source).convert("RGB")
     except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as error:
         raise HTTPException(400, "Invalid image.") from error
+    return decoded
+
+
+@router.post("/predict", response_model=ClassifierResult)
+async def predict(image: Annotated[UploadFile, File()], model_id: Annotated[str, Form()], response: Response, mode: Literal["detect", "crop"] = Form("detect")):
+    response.headers["Cache-Control"] = "no-store"
+    decoded = await read_image(image)
     try:
         return await run_in_threadpool(classify, decoded, model_id, mode)
     except (ValueError, OSError, KeyError, RuntimeError, ModelUnavailableError) as error:
         raise HTTPException(503, "Classifier or YOLO unavailable; verify local trained checkpoints and detector settings.") from error
     finally:
         decoded.close()
+
+
+@router.post("/analyze", response_model=ParkingClassifierResult)
+async def analyze(image: Annotated[UploadFile, File()], response: Response, model_id: str = Form(""), include_parking: bool = Form(True), include_segmentation: bool = Form(False), include_segmentation_gaps: bool = Form(False), incoming_width_m: Annotated[float | None, Form(gt=0, le=5, allow_inf_nan=False)] = None, clearance_margin_m: Annotated[float, Form(ge=0, le=1, allow_inf_nan=False)] = 0., primary_detector: Literal["standard", "segmentation"] = Form("standard")):
+    response.headers["Cache-Control"] = "no-store"
+    decoded = await read_image(image)
+    try:
+        stream = io.BytesIO()
+        decoded.save(stream, "PNG")
+        if primary_detector == "segmentation":
+            return await analyze_segmentation_primary(decoded, stream.getvalue(), include_parking, incoming_width_m, clearance_margin_m)
+        try:
+            detection = await run_in_threadpool(cv_service.analyze_image, stream.getvalue())
+        except ModelUnavailableError as error:
+            raise HTTPException(503, "YOLO unavailable; verify local detector settings.") from error
+        result = ParkingClassifierResult(detection=detection)
+        if include_parking:
+            try:
+                detection.parking_analysis = await run_in_threadpool(parking_analysis_service.analyze, detection)
+            except ParkingCalibrationUnavailableError:
+                result.parking_error = "Parking calibration is unavailable; detection and classification remain usable."
+        if model_id:
+            try:
+                result.classification = await run_in_threadpool(classify, decoded, model_id, "detect", [d.bbox.model_dump() for d in detection.detections])
+            except (HTTPException, ValueError, OSError, KeyError, RuntimeError, ModelUnavailableError):
+                result.classification_error = "Classifier unavailable; choose a completed local model and retry Analyze."
+        else:
+            result.classification_error = "No classifier selected; choose a completed local model and retry Analyze."
+        if result.classification is not None:
+            try:
+                rules = load_rules()
+                sizes = [reference_size(rules, None, None) for _ in detection.detections]
+                for crop in result.classification.crops:
+                    top = crop.top3[0] if crop.top3 else None
+                    size = reference_size(rules, top.family if top else None, top.score if top else None)
+                    crop.reference_size = size
+                    sizes[crop.detection_index] = size
+                experiment = ReferenceSizeExperiment(sizes=sizes)
+                if include_parking and detection.parking_analysis is not None:
+                    experiment.parking_analysis = await run_in_threadpool(parking_analysis_service.analyze, detection, reference_sizes=sizes)
+                result.reference_size_experiment = experiment
+            except (OSError, ValueError, ParkingCalibrationUnavailableError):
+                result.reference_size_error = "Reference-size experiment unavailable; check config/motorcycle_reference_sizes.json. Standard analysis remains available."
+        if include_segmentation or include_segmentation_gaps or incoming_width_m is not None:
+            try:
+                result.segmentation = await run_in_threadpool(segmentation_experiment_service.analyze_image, stream.getvalue())
+                result.segmentation.preview_url = encode_preview(decoded)
+            except (ModelUnavailableError, OSError, ValueError, RuntimeError):
+                result.segmentation_error = "Segmentation unavailable. Verify configured local segmentation weights and settings; the standard analysis remains available."
+        if include_segmentation_gaps or incoming_width_m is not None:
+            if result.segmentation is None:
+                result.segmentation_gaps = SegmentationGapResult(status="UNKNOWN", occupancy_source="SEGMENTATION_ONLY", evaluation_mode="CONTINUOUS_GAPS", width_measurement="FULL_DEPTH", target_width_m=incoming_width_m if incoming_width_m is not None else WIDTH_M, clearance_margin_m=clearance_margin_m, target_length_m=None, reasons=["SEGMENTATION_UNAVAILABLE"])
+            else:
+                references = result.reference_size_experiment.sizes if result.reference_size_experiment else None
+                result.segmentation_gaps = await run_in_threadpool(analyze_segmentation_gaps, detection, result.segmentation, reference_sizes=references, incoming_width_m=incoming_width_m, clearance_margin_m=clearance_margin_m, visible_free_shapes=False, bottom_edge_assignment=True, image_row_assignment=True)
+        return result
+    finally:
+        decoded.close()
+
+
+async def analyze_segmentation_primary(decoded, raw, include_parking, incoming_width_m, clearance_margin_m):
+    """One Seg inference supplies every operator Parking view; no classifier."""
+    try:
+        segmented = await run_in_threadpool(segmentation_experiment_service.analyze_image, raw)
+    except (ModelUnavailableError, OSError, ValueError, RuntimeError) as error:
+        raise HTTPException(503, "Segmentation unavailable; verify configured local segmentation weights and settings.") from error
+    segmented.preview_url = encode_preview(decoded)
+    detection = DetectionResponse(image_width=segmented.image_width, image_height=segmented.image_height,
+        model={"name": segmented.model}, inference={"imgsz": segmented.imgsz,
+            "confidence_threshold": segmentation_experiment_service.confidence,
+            "nms_iou": segmentation_experiment_service.iou, "processing_time_ms": segmented.processing_time_ms},
+        detections=[Detection(class_id=segmentation_experiment_service.class_id, class_name="motorcycle",
+            confidence=item.confidence, bbox=item.bbox) for item in segmented.detections])
+    result = ParkingClassifierResult(detection=detection, segmentation=segmented)
+    if include_parking:
+        try:
+            detection.parking_analysis = await run_in_threadpool(parking_analysis_service.analyze, detection)
+        except ParkingCalibrationUnavailableError:
+            result.parking_error = "Parking calibration is unavailable; segmentation remains usable."
+    result.segmentation_gaps = await run_in_threadpool(analyze_segmentation_gaps, detection, segmented,
+        incoming_width_m=incoming_width_m, clearance_margin_m=clearance_margin_m, visible_free_shapes=False, bottom_edge_assignment=True, image_row_assignment=True)
+    return result

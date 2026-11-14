@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 
 function useLiffInit() {
   useEffect(() => {
+    // Phone pairing uses its own URL fragment and opens outside LINE.
+    if (window.location.pathname.replace(/\/$/, '') === '/mobile-camera') return;
     const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
     if (!liffId) return;
     // The MVP only initializes LIFF. It does not read the LINE profile or identity.

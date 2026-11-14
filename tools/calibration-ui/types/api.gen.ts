@@ -261,6 +261,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/mobile-camera/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim */
+        post: operations["claim_api_mobile_camera_claim_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mobile-camera/frame": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Frame */
+        post: operations["frame_api_mobile_camera_frame_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mobile-camera/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Phone Status */
+        get: operations["phone_status_api_mobile_camera_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mobile-camera/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Phone Stop */
+        post: operations["phone_stop_api_mobile_camera_stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/motorcycle-fitting": {
         parameters: {
             query?: never;
@@ -381,6 +449,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operator/classifier/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Analyze */
+        post: operations["analyze_api_operator_classifier_analyze_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operator/classifier/models": {
         parameters: {
             query?: never;
@@ -426,6 +511,23 @@ export interface paths {
         put?: never;
         /** Post Activate */
         post: operations["post_activate_api_operator_lot_model_sites__site_id__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/lot-model/sites/{site_id}/calibration-roi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Calibration Roi */
+        post: operations["post_calibration_roi_api_operator_lot_model_sites__site_id__calibration_roi_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -478,6 +580,74 @@ export interface paths {
         put?: never;
         /** Validate Definition */
         post: operations["validate_definition_api_operator_lot_model_validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/mobile-camera/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Pair */
+        post: operations["create_pair_api_operator_mobile_camera_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/mobile-camera/sessions/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Operator Status */
+        get: operations["operator_status_api_operator_mobile_camera_sessions__key__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/mobile-camera/sessions/{key}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve */
+        post: operations["approve_api_operator_mobile_camera_sessions__key__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/mobile-camera/sessions/{key}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Operator Stop */
+        post: operations["operator_stop_api_operator_mobile_camera_sessions__key__stop_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -599,6 +769,49 @@ export interface components {
              */
             split: "unassigned" | "train" | "val" | "test";
         };
+        /** ApproveRequest */
+        ApproveRequest: {
+            /** Preview Revision */
+            preview_revision: number;
+        };
+        /** Body_analyze_api_operator_classifier_analyze_post */
+        Body_analyze_api_operator_classifier_analyze_post: {
+            /**
+             * Clearance Margin M
+             * @default 0
+             */
+            clearance_margin_m: number;
+            /** Image */
+            image: string;
+            /**
+             * Include Parking
+             * @default true
+             */
+            include_parking: boolean;
+            /**
+             * Include Segmentation
+             * @default false
+             */
+            include_segmentation: boolean;
+            /**
+             * Include Segmentation Gaps
+             * @default false
+             */
+            include_segmentation_gaps: boolean;
+            /** Incoming Width M */
+            incoming_width_m?: number | null;
+            /**
+             * Model Id
+             * @default
+             */
+            model_id: string;
+            /**
+             * Primary Detector
+             * @default standard
+             * @enum {string}
+             */
+            primary_detector: "standard" | "segmentation";
+        };
         /** Body_analyze_auto_parking_api_auto_parking_analyze_post */
         Body_analyze_auto_parking_api_auto_parking_analyze_post: {
             /** Images */
@@ -660,6 +873,11 @@ export interface components {
             /** Polygon */
             polygon: components["schemas"]["CalibrationPoint"][];
         };
+        /** ClaimRequest */
+        ClaimRequest: {
+            /** Pairing Token */
+            pairing_token: string;
+        };
         /** ClassifiedCrop */
         ClassifiedCrop: {
             /** Bbox */
@@ -668,6 +886,12 @@ export interface components {
             };
             /** Crop Url */
             crop_url: string;
+            /**
+             * Detection Index
+             * @default 0
+             */
+            detection_index: number;
+            reference_size?: components["schemas"]["ResolvedReferenceSize"] | null;
             /** Top3 */
             top3: components["schemas"]["Prediction"][];
         };
@@ -763,6 +987,356 @@ export interface components {
             parking_analysis?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** GapBackgroundRegion */
+        GapBackgroundRegion: {
+            /**
+             * Depth Blockers
+             * @default []
+             */
+            depth_blockers: components["schemas"]["GapImageSource"][];
+            /**
+             * Depth Blockers Truncated
+             * @default false
+             */
+            depth_blockers_truncated: boolean;
+            /**
+             * Detection Ids
+             * @default []
+             */
+            detection_ids: string[];
+            geometry: components["schemas"]["GapMetricGeometry"];
+            /** Id */
+            id: string;
+            image_geometry?: components["schemas"]["GapImageGeometry"] | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "OCCUPIED_REFERENCE" | "NOT_EVALUATED";
+            /**
+             * Occlusion Evidence
+             * @default []
+             */
+            occlusion_evidence: components["schemas"]["GapOcclusionEvidence"][];
+            /**
+             * Occlusion Evidence Available
+             * @default false
+             */
+            occlusion_evidence_available: boolean;
+            /**
+             * Occlusion Evidence Truncated
+             * @default false
+             */
+            occlusion_evidence_truncated: boolean;
+            /** Reasons */
+            reasons: string[];
+            /** Row Id */
+            row_id: string;
+        };
+        /** GapCandidate */
+        GapCandidate: {
+            /**
+             * Compatible Families
+             * @default []
+             */
+            compatible_families: components["schemas"]["GapFamilyRecommendation"][];
+            /** Depth At Width Midpoint M */
+            depth_at_width_midpoint_m?: number | null;
+            /** Depth Line Image */
+            depth_line_image?: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Depth Line Metric
+             * @default []
+             */
+            depth_line_metric: components["schemas"]["MetricGroundPoint"][];
+            /** Gap Width M */
+            gap_width_m: number;
+            geometry_image?: components["schemas"]["GapImageGeometry"] | null;
+            geometry_metric?: components["schemas"]["GapMetricGeometry"] | null;
+            /** Id */
+            id: string;
+            label_image: components["schemas"]["MaskPoint"] | null;
+            label_metric?: components["schemas"]["MetricGroundPoint"] | null;
+            near_fit?: components["schemas"]["GapNearFit"] | null;
+            /** Nearest Clearance M */
+            nearest_clearance_m: number | null;
+            /** Nearest Line Image */
+            nearest_line_image: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Occlusion Evidence
+             * @default []
+             */
+            occlusion_evidence: components["schemas"]["GapOcclusionEvidence"][];
+            /**
+             * Occlusion Evidence Available
+             * @default false
+             */
+            occlusion_evidence_available: boolean;
+            /**
+             * Occlusion Evidence Truncated
+             * @default false
+             */
+            occlusion_evidence_truncated: boolean;
+            /** Polygon Image */
+            polygon_image: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Polygon Metric
+             * @default []
+             */
+            polygon_metric: components["schemas"]["MetricGroundPoint"][];
+            /** Reasons */
+            reasons: string[];
+            /** Row Id */
+            row_id: string;
+            /** Slot Length M */
+            slot_length_m?: number | null;
+            /** Source Gap Width M */
+            source_gap_width_m?: number | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "FIT" | "WIDTH_SUFFICIENT" | "SLOT_CLEAR" | "INSUFFICIENT_WIDTH" | "ALMOST_AVAILABLE" | "UNKNOWN";
+            /**
+             * Uncertain Detection Ids
+             * @default []
+             */
+            uncertain_detection_ids: string[];
+            /**
+             * Visibility
+             * @default UNCONFIRMED
+             * @enum {string}
+             */
+            visibility: "VISIBLE" | "OCCLUDED" | "UNCONFIRMED";
+            /**
+             * Width Blocking Detection Ids
+             * @default []
+             */
+            width_blocking_detection_ids: string[];
+            /**
+             * Width Check
+             * @default NOT_EVALUATED
+             * @enum {string}
+             */
+            width_check: "SUFFICIENT" | "INSUFFICIENT" | "NOT_EVALUATED";
+            /** Width Line Image */
+            width_line_image: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Width Line Metric
+             * @default []
+             */
+            width_line_metric: components["schemas"]["MetricGroundPoint"][];
+        };
+        /** GapDetectionRowAssignment */
+        GapDetectionRowAssignment: {
+            /** Assigned Row Id */
+            assigned_row_id?: string | null;
+            /** Detection Id */
+            detection_id: string;
+            /** Distance Line Image */
+            distance_line_image?: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Distance Line Metric
+             * @default []
+             */
+            distance_line_metric: components["schemas"]["MetricGroundPoint"][];
+            /** Distance M */
+            distance_m?: number | null;
+            ground_point?: components["schemas"]["MetricGroundPoint"] | null;
+            /** Nearest Row Id */
+            nearest_row_id?: string | null;
+            /**
+             * Reason
+             * @default UNRESOLVED
+             */
+            reason: string;
+        };
+        /** GapFamilyRecommendation */
+        GapFamilyRecommendation: {
+            /** Basis */
+            basis: string;
+            /** Family */
+            family: string;
+            /** Width Clearance M */
+            width_clearance_m: number;
+            /** Width M */
+            width_m: number;
+        };
+        /** GapImageGeometry */
+        GapImageGeometry: {
+            /**
+             * Polygons
+             * @default []
+             */
+            polygons: components["schemas"]["MaskPoint"][][][];
+        };
+        /** GapImageSource */
+        GapImageSource: {
+            /** Detection Id */
+            detection_id: string;
+            /** Detection Index */
+            detection_index: number;
+            /**
+             * Source Kind
+             * @enum {string}
+             */
+            source_kind: "MASK" | "BBOX_FALLBACK";
+        };
+        /** GapMetricGeometry */
+        GapMetricGeometry: {
+            /**
+             * Polygons
+             * @default []
+             */
+            polygons: components["schemas"]["MetricGroundPoint"][][][];
+        };
+        /** GapNearFit */
+        GapNearFit: {
+            /** Conflicting Detection Ids */
+            conflicting_detection_ids: string[];
+            /**
+             * Movement Status
+             * @default NOT_COMPUTED
+             * @constant
+             */
+            movement_status: "NOT_COMPUTED";
+            /** Occupied Overlap Ratio */
+            occupied_overlap_ratio: number;
+            /** Required Extra Width M */
+            required_extra_width_m: number;
+            /** Target Polygon Image */
+            target_polygon_image: components["schemas"]["MaskPoint"][];
+            /** Target Polygon Metric */
+            target_polygon_metric: components["schemas"]["MetricGroundPoint"][];
+        };
+        /** GapOcclusionEvidence */
+        GapOcclusionEvidence: {
+            /** Candidate Overlap Ratio */
+            candidate_overlap_ratio: number;
+            /** Detection Id */
+            detection_id: string;
+            /** Detection Index */
+            detection_index: number;
+            overlap_image: components["schemas"]["GapImageGeometry"];
+            /**
+             * Source Kind
+             * @enum {string}
+             */
+            source_kind: "MASK" | "BBOX_FALLBACK";
+        };
+        /** GapOccupancyLayer */
+        GapOccupancyLayer: {
+            /** Assigned Row Id */
+            assigned_row_id?: string | null;
+            /** Detection Id */
+            detection_id: string;
+            /** Detection Index */
+            detection_index?: number | null;
+            geometry: components["schemas"]["GapMetricGeometry"];
+            roi_geometry: components["schemas"]["GapMetricGeometry"];
+            /** Row Assignment Distance M */
+            row_assignment_distance_m?: number | null;
+            /**
+             * Row Assignment Reason
+             * @default UNRESOLVED
+             */
+            row_assignment_reason: string;
+            /**
+             * Row Assignment Source
+             * @default UNRESOLVED
+             * @enum {string}
+             */
+            row_assignment_source: "BOTTOM_CENTRE" | "NEAREST_APPROXIMATE" | "BOTTOM_EDGE_APPROXIMATE" | "MASK_SUPPORTED_NEAREST_EDGE" | "IMAGE_POINT" | "IMAGE_MASK" | "IMAGE_NEAREST_EDGE" | "UNRESOLVED";
+            row_depth_geometry?: components["schemas"]["GapMetricGeometry"] | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "PRIMARY" | "SEGMENTATION";
+        };
+        /** GapOrientationHypothesis */
+        GapOrientationHypothesis: {
+            /**
+             * Basis
+             * @default PIXEL_BBOX_RATIO_NOT_GROUND_HEADING
+             * @constant
+             */
+            basis: "PIXEL_BBOX_RATIO_NOT_GROUND_HEADING";
+            /** Detection Id */
+            detection_id: string;
+            /** Detection Index */
+            detection_index: number;
+            geometry?: components["schemas"]["GapMetricGeometry"] | null;
+            image_geometry?: components["schemas"]["GapImageGeometry"] | null;
+            /**
+             * Image Orientation
+             * @enum {string}
+             */
+            image_orientation: "HORIZONTAL_IMAGE" | "VERTICAL_IMAGE" | "AMBIGUOUS_IMAGE";
+            /** Pixel Aspect Ratio */
+            pixel_aspect_ratio: number;
+            /** Proposed Rotation Deg */
+            proposed_rotation_deg: (0 | 90) | null;
+        };
+        /** GapRow */
+        GapRow: {
+            /**
+             * Affected Detection Ids
+             * @default []
+             */
+            affected_detection_ids: string[];
+            /**
+             * Almost Count
+             * @default 0
+             */
+            almost_count: number;
+            /** Bottom Edge Image */
+            bottom_edge_image?: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Bottom Edge Metric
+             * @default []
+             */
+            bottom_edge_metric: components["schemas"]["MetricGroundPoint"][];
+            /** Fit Count */
+            fit_count: number;
+            label_image?: components["schemas"]["MaskPoint"] | null;
+            label_metric?: components["schemas"]["MetricGroundPoint"] | null;
+            /** Polygon Image */
+            polygon_image?: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Polygon Metric
+             * @default []
+             */
+            polygon_metric: components["schemas"]["MetricGroundPoint"][];
+            /**
+             * Reasons
+             * @default []
+             */
+            reasons: string[];
+            /** Row Id */
+            row_id: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "FIT" | "WIDTH_SUFFICIENT" | "SLOT_CLEAR" | "ALMOST_AVAILABLE" | "UNKNOWN" | "NO_FIT";
+            /**
+             * Uncertainty Scope
+             * @default ROW
+             * @enum {string}
+             */
+            uncertainty_scope: "ROW" | "LOCAL_REFERENCE_ENVELOPE" | "NONE";
+            /** Unknown Count */
+            unknown_count: number;
+        };
+        /** GapUncertaintyRegion */
+        GapUncertaintyRegion: {
+            /** Detection Id */
+            detection_id: string;
+            geometry: components["schemas"]["GapMetricGeometry"];
+            /** Reasons */
+            reasons: string[];
         };
         /** GroundControlPoint */
         GroundControlPoint: {
@@ -1004,6 +1578,98 @@ export interface components {
              */
             status: "ok";
         };
+        /** HorizontalVehicleClearance */
+        HorizontalVehicleClearance: {
+            /**
+             * Basis
+             * @default STANDARD_REFERENCE_PIXEL_ORIENTATION_NOT_MEASURED
+             * @constant
+             */
+            basis: "STANDARD_REFERENCE_PIXEL_ORIENTATION_NOT_MEASURED";
+            /** Clearance M */
+            clearance_m?: number | null;
+            /** Detection Id */
+            detection_id: string;
+            /** Detection Index */
+            detection_index: number;
+            /**
+             * Display Only
+             * @default true
+             * @constant
+             */
+            display_only: true;
+            /**
+             * Excluded Neighbor Count
+             * @default 0
+             */
+            excluded_neighbor_count: number;
+            /** Line Image */
+            line_image?: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Line Metric
+             * @default []
+             */
+            line_metric: components["schemas"]["MetricGroundPoint"][];
+            /**
+             * Measurement Status
+             * @default NO_COMPARABLE_NEIGHBOR
+             * @enum {string}
+             */
+            measurement_status: "APPROXIMATE_REFERENCE" | "OUTSIDE_CALIBRATED_ROI" | "PROJECTION_UNAVAILABLE" | "NO_COMPARABLE_NEIGHBOR";
+            /** Nearest Detection Id */
+            nearest_detection_id?: string | null;
+            /** Neighbor Polygon Image */
+            neighbor_polygon_image?: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Neighbor Polygon Metric
+             * @default []
+             */
+            neighbor_polygon_metric: components["schemas"]["MetricGroundPoint"][];
+            /** Pixel Aspect Ratio */
+            pixel_aspect_ratio: number;
+            /** Polygon Image */
+            polygon_image?: components["schemas"]["MaskPoint"][] | null;
+            /**
+             * Polygon Metric
+             * @default []
+             */
+            polygon_metric: components["schemas"]["MetricGroundPoint"][];
+            /**
+             * Reference Length M
+             * @default 2
+             */
+            reference_length_m: number;
+            /**
+             * Reference Width M
+             * @default 0.66
+             */
+            reference_width_m: number;
+        };
+        /** IncomingVehicleRecommendation */
+        IncomingVehicleRecommendation: {
+            /** Allocation Width M */
+            allocation_width_m: number;
+            /**
+             * Almost Count
+             * @default 0
+             */
+            almost_count: number;
+            /** Candidates */
+            candidates: components["schemas"]["GapCandidate"][];
+            /**
+             * Reasons
+             * @default []
+             */
+            reasons: string[];
+            /** Recommended Count */
+            recommended_count: number;
+            /** Truncated */
+            truncated: boolean;
+            /** Unknown Count */
+            unknown_count: number;
+            /** Width M */
+            width_m: number;
+        };
         /** LabelBox */
         LabelBox: {
             /** Height */
@@ -1024,15 +1690,26 @@ export interface components {
         };
         /** LiveRegion */
         LiveRegion: {
+            /** Detection Id */
+            detection_id?: string | null;
+            /**
+             * Display Polygon
+             * @description ROI-clipped display only; polygon and width_m retain the analysis result
+             */
+            display_polygon?: components["schemas"]["MetricGroundPoint"][][] | null;
             /**
              * Kind
              * @enum {string}
              */
-            kind: "AVAILABLE" | "ALMOST_AVAILABLE" | "UNKNOWN";
+            kind: "AVAILABLE" | "ALMOST_AVAILABLE" | "UNKNOWN" | "WIDTH_SUFFICIENT" | "OCCUPIED";
             /** Polygon */
             polygon: components["schemas"]["MetricGroundPoint"][][];
+            /** Reasons */
+            reasons?: string[];
             /** Row Id */
             row_id?: string | null;
+            /** Width M */
+            width_m?: number | null;
         };
         /**
          * LotLandmark
@@ -1152,6 +1829,29 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** MaskPoint */
+        MaskPoint: {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        };
+        /** MeasuredGap */
+        MeasuredGap: {
+            /** Depth M */
+            depth_m: number;
+            /** Row Id */
+            row_id: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "INSUFFICIENT_WIDTH" | "INSUFFICIENT_DEPTH" | "REQUIRES_FIT_VALIDATION";
+            /** Width Line Image */
+            width_line_image: components["schemas"]["MaskPoint"][] | null;
+            /** Width M */
+            width_m: number;
+        };
         /** MetricGroundPoint */
         MetricGroundPoint: {
             /** X M */
@@ -1198,12 +1898,25 @@ export interface components {
             confidence: number;
             /** Detection Id */
             detection_id: string;
+            /**
+             * Display Scale
+             * @description Map display scale only; length_m and width_m remain physical references
+             * @default 1
+             */
+            display_scale: number;
             /** Heading Rad */
             heading_rad: number;
             /** Length M */
             length_m: number;
             /** Width M */
             width_m: number;
+        };
+        /** PairRequest */
+        PairRequest: {
+            /** Mobile Origin */
+            mobile_origin: string;
+            /** Parking Area Id */
+            parking_area_id: string;
         };
         /** ParkingAreaLiveState */
         ParkingAreaLiveState: {
@@ -1241,6 +1954,22 @@ export interface components {
              * @constant
              */
             schema_version: 2;
+        };
+        /** ParkingClassifierResult */
+        ParkingClassifierResult: {
+            classification?: components["schemas"]["ClassifierResult"] | null;
+            /** Classification Error */
+            classification_error?: string | null;
+            detection: components["schemas"]["DetectionResponse"];
+            /** Parking Error */
+            parking_error?: string | null;
+            /** Reference Size Error */
+            reference_size_error?: string | null;
+            reference_size_experiment?: components["schemas"]["ReferenceSizeExperiment"] | null;
+            segmentation?: components["schemas"]["SegmentationExperimentResult"] | null;
+            /** Segmentation Error */
+            segmentation_error?: string | null;
+            segmentation_gaps?: components["schemas"]["SegmentationGapResult"] | null;
         };
         /**
          * ParkingStatePublish
@@ -1329,6 +2058,263 @@ export interface components {
             family: string;
             /** Score */
             score: number;
+        };
+        /** ReferenceSizeExperiment */
+        ReferenceSizeExperiment: {
+            /**
+             * Config File
+             * @default config/motorcycle_reference_sizes.json
+             */
+            config_file: string;
+            /** Parking Analysis */
+            parking_analysis?: {
+                [key: string]: unknown;
+            } | null;
+            /** Sizes */
+            sizes: components["schemas"]["ResolvedReferenceSize"][];
+            /**
+             * Status
+             * @default EXPERIMENTAL
+             * @constant
+             */
+            status: "EXPERIMENTAL";
+        };
+        /** ResolvedReferenceSize */
+        ResolvedReferenceSize: {
+            /** Basis */
+            basis: string;
+            /** Length M */
+            length_m: number;
+            /** Predicted Family */
+            predicted_family: string | null;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "CLASS_RULE" | "NO_CLASSIFICATION" | "CLASS_NOT_CONFIGURED" | "BELOW_MIN_SCORE";
+            /** Rule Class */
+            rule_class: string | null;
+            /** Score */
+            score: number | null;
+            /**
+             * Status
+             * @default EXPERIMENTAL_REFERENCE
+             * @constant
+             */
+            status: "EXPERIMENTAL_REFERENCE";
+            /** Width M */
+            width_m: number;
+        };
+        /** SegmentationExperimentResult */
+        SegmentationExperimentResult: {
+            /** Detections */
+            detections: components["schemas"]["SegmentedMotorcycle"][];
+            /** Image Height */
+            image_height: number;
+            /** Image Width */
+            image_width: number;
+            /** Imgsz */
+            imgsz: number;
+            /** Model */
+            model: string;
+            /** Preview Url */
+            preview_url?: string | null;
+            /** Processing Time Ms */
+            processing_time_ms: number;
+            /**
+             * Status
+             * @default EXPERIMENTAL_IMAGE_MASK
+             * @constant
+             */
+            status: "EXPERIMENTAL_IMAGE_MASK";
+        };
+        /** SegmentationGapResult */
+        SegmentationGapResult: {
+            /**
+             * Access Status
+             * @default NOT_EVALUATED
+             * @constant
+             */
+            access_status: "NOT_EVALUATED";
+            /**
+             * Advisory Max Extra Width M
+             * @default 0.1
+             */
+            advisory_max_extra_width_m: number;
+            /**
+             * Advisory Max Overlap Ratio
+             * @default 0.1
+             */
+            advisory_max_overlap_ratio: number;
+            /**
+             * Almost Count
+             * @default 0
+             */
+            almost_count: number;
+            /**
+             * Background Regions
+             * @default []
+             */
+            background_regions: components["schemas"]["GapBackgroundRegion"][];
+            /**
+             * Calibration Source
+             * @default UNKNOWN
+             * @enum {string}
+             */
+            calibration_source: "MEASURED" | "ESTIMATED" | "UNKNOWN";
+            /** Calibration Version */
+            calibration_version?: string | null;
+            /**
+             * Candidates
+             * @default []
+             */
+            candidates: components["schemas"]["GapCandidate"][];
+            /**
+             * Clearance Margin M
+             * @default 0
+             */
+            clearance_margin_m: number;
+            /**
+             * Detection Row Assignments
+             * @default []
+             */
+            detection_row_assignments: components["schemas"]["GapDetectionRowAssignment"][];
+            /**
+             * Evaluation Mode
+             * @default FULL_FOOTPRINT
+             * @enum {string}
+             */
+            evaluation_mode: "FULL_FOOTPRINT" | "WIDTH_ONLY" | "VIRTUAL_SLOTS" | "CONTINUOUS_GAPS" | "VISIBLE_FREE_SHAPES";
+            /**
+             * Excluded Detection Ids
+             * @default []
+             */
+            excluded_detection_ids: string[];
+            /** Family Recommendation Error */
+            family_recommendation_error?: string | null;
+            /**
+             * Green Count
+             * @default 0
+             */
+            green_count: number;
+            /**
+             * Horizontal Vehicles
+             * @default []
+             */
+            horizontal_vehicles: components["schemas"]["HorizontalVehicleClearance"][];
+            incoming_vehicle?: components["schemas"]["IncomingVehicleRecommendation"] | null;
+            /**
+             * Measured Gaps
+             * @default []
+             */
+            measured_gaps: components["schemas"]["MeasuredGap"][];
+            /** Measurement Band M */
+            measurement_band_m?: number | null;
+            /**
+             * Narrow Count
+             * @default 0
+             */
+            narrow_count: number;
+            /**
+             * Occupancy Scope
+             * @default REFERENCE_OVERLAP
+             * @enum {string}
+             */
+            occupancy_scope: "REFERENCE_OVERLAP" | "GROUND_ANCHOR_IN_ROW_AND_ROI" | "GROUND_ANCHOR_OR_ROW_MASK" | "BOTTOM_EDGE_ANCHOR" | "IMAGE_ROW_POINT_OR_MASK" | "IMAGE_NEAREST_LOWER_EDGE";
+            /**
+             * Occupancy Source
+             * @default COMBINED
+             * @enum {string}
+             */
+            occupancy_source: "COMBINED" | "SEGMENTATION_ONLY";
+            /**
+             * Occupied Layers
+             * @default []
+             */
+            occupied_layers: components["schemas"]["GapOccupancyLayer"][];
+            occupied_metric?: components["schemas"]["GapMetricGeometry"] | null;
+            /**
+             * Orientation Display Only
+             * @default true
+             * @constant
+             */
+            orientation_display_only: true;
+            /**
+             * Orientation Hypotheses
+             * @default []
+             */
+            orientation_hypotheses: components["schemas"]["GapOrientationHypothesis"][];
+            /**
+             * Orientation Ratio Threshold
+             * @default 1.15
+             */
+            orientation_ratio_threshold: number;
+            parking_roi_metric?: components["schemas"]["GapMetricGeometry"] | null;
+            /**
+             * Reasons
+             * @default []
+             */
+            reasons: string[];
+            /**
+             * Row Owned References
+             * @default false
+             */
+            row_owned_references: boolean;
+            /**
+             * Rows
+             * @default []
+             */
+            rows: components["schemas"]["GapRow"][];
+            /**
+             * Status
+             * @default EXPERIMENTAL
+             * @enum {string}
+             */
+            status: "EXPERIMENTAL" | "CALIBRATION_REQUIRED" | "UNKNOWN";
+            /**
+             * Target Length M
+             * @default 2
+             */
+            target_length_m: number | null;
+            /**
+             * Target Width M
+             * @default 0.66
+             */
+            target_width_m: number;
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated: boolean;
+            /**
+             * Uncertain Reference Ids
+             * @default []
+             */
+            uncertain_reference_ids: string[];
+            /**
+             * Uncertainty Regions
+             * @default []
+             */
+            uncertainty_regions: components["schemas"]["GapUncertaintyRegion"][];
+            /**
+             * Unknown Count
+             * @default 0
+             */
+            unknown_count: number;
+            /**
+             * Width Measurement
+             * @default FULL_DEPTH
+             * @enum {string}
+             */
+            width_measurement: "ROW_MIDLINE_BAND" | "FULL_DEPTH" | "VISIBLE_PATCH_CROSS_SECTION";
+        };
+        /** SegmentedMotorcycle */
+        SegmentedMotorcycle: {
+            bbox: components["schemas"]["DetectionBBox"];
+            /** Confidence */
+            confidence: number;
+            /** Polygon */
+            polygon?: components["schemas"]["MaskPoint"][] | null;
         };
         /** SiteParkingStateResponse */
         SiteParkingStateResponse: {
@@ -1787,6 +2773,133 @@ export interface operations {
             };
         };
     };
+    claim_api_mobile_camera_claim_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClaimRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    frame_api_mobile_camera_frame_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "x-frame-sequence": number;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    phone_status_api_mobile_camera_status_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    phone_stop_api_mobile_camera_stop_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_motorcycle_fitting_api_motorcycle_fitting_get: {
         parameters: {
             query?: never;
@@ -2049,6 +3162,41 @@ export interface operations {
             };
         };
     };
+    analyze_api_operator_classifier_analyze_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_analyze_api_operator_classifier_analyze_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParkingClassifierResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_models_api_operator_classifier_models_get: {
         parameters: {
             query?: never;
@@ -2139,6 +3287,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LotModelDraftState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_calibration_roi_api_operator_lot_model_sites__site_id__calibration_roi_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LotModelDefinition"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LotModelDefinition"];
                 };
             };
             /** @description Validation Error */
@@ -2275,6 +3460,144 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LotModelDefinition"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_pair_api_operator_mobile_camera_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PairRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    operator_status_api_operator_mobile_camera_sessions__key__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_api_operator_mobile_camera_sessions__key__approve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    operator_stop_api_operator_mobile_camera_sessions__key__stop_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
