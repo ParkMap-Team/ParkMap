@@ -4,7 +4,21 @@ that exposes `public` through a data API (for example Supabase) never publishes 
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, MetaData, Text, UniqueConstraint, func, text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    LargeBinary,
+    MetaData,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -92,3 +106,16 @@ class ParkingState(Base):
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     calibration_version: Mapped[str] = mapped_column(Text)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+
+
+class AreaFrame(Base):
+    """An analysed photo of a parking area, shown beside the state derived from it (ADR 0017)."""
+
+    __tablename__ = "area_frames"
+
+    parking_area_id: Mapped[str] = mapped_column(ForeignKey("parking_areas.id"), primary_key=True)
+    processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    width: Mapped[int] = mapped_column(Integer)
+    height: Mapped[int] = mapped_column(Integer)
+    image: Mapped[bytes] = mapped_column(LargeBinary)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

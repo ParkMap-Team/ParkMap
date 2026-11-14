@@ -2,16 +2,34 @@
 
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import type { LotLandmark, MetricPolygon, MotorcycleProxy } from "@/lib/api/types";
-import { type Size, type View2D, fromScreen, overview2D, pan2D, toScreen, zoom2D } from "@/lib/map/camera";
+import {
+  FLY_MS,
+  NUDGE_MS,
+  type Size,
+  type View2D,
+  centreOn2D,
+  clampToBounds,
+  easeInOut,
+  easeOut,
+  fromScreen,
+  mix2D,
+  overview2D,
+  pan2D,
+  revealOffset,
+  toScreen,
+  zoom2D,
+} from "@/lib/map/camera";
+import { type Flight, fly } from "@/lib/map/flight";
 import { axisHeading } from "@/lib/map/geometry";
 import { GROUND_KINDS, landmarkTop } from "@/lib/map/landmark-style";
 import { MOTORCYCLE_MODEL } from "@/lib/map/motorcycle-model";
 import { COLORS } from "@/lib/parking/presentation";
-import { LabelLayer, type LabelLayerHandle, MAP_INSETS, type MapViewProps } from "./map-overlay";
+import { LabelLayer, type LabelLayerHandle, type MapViewProps } from "./map-overlay";
 
 // The 2D plan: the same lot model and API polygons as the 3D scene, drawn top-down in SVG with the
 // far (+y) side at the top. It is the fallback when 3D is unavailable and a choice people can make.
-// Footprints and trees are drawn under the parking areas, so status always shows on top.
+// Footprints and trees are drawn under the parking areas, so status always shows on top. A move
+// only changes the view; the drawing always shows the current data.
 
 const TAP_SLOP_PX = 8;
 
@@ -69,7 +87,7 @@ function LandmarkShape({ landmark, view, size }: { landmark: LotLandmark; view: 
   return null;
 }
 
-export default function LotPlan({ map, labels, selection, onSelect, ref }: MapViewProps) {
+export default function LotPlan({ map, labels, selection, onSelect, insets, ref }: MapViewProps) {
   const container = useRef<HTMLDivElement>(null);
   const labelLayer = useRef<LabelLayerHandle>(null);
   const [size, setSize] = useState<Size | null>(null);
@@ -78,51 +96,84 @@ export default function LotPlan({ map, labels, selection, onSelect, ref }: MapVi
   const atOverview = useRef(true);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<{ moved: number; pinch: number | null }>({ moved: 0, pinch: null });
-  // Read inside the resize observer without re-subscribing on every poll.
-  const latestBounds = useRef(map.bounds);
-  latestBounds.current = map.bounds;
+  // The view on screen, for a move to start from even while another is under way.
+  const shown = useRef<View2D | null>(null);
+  shown.current = view;
+  const flight = useRef<Flight | null>(null);
 
-  // Fit on first layout and whenever the map is resized, for example when the panel opens: the
-  // overview is refitted. Once people have moved the view, neither a resize nor new data moves it.
+  // Fit on first layout and whenever the map or what covers it changes size: the overview is
+  // refitted. Once people have moved the view, neither a resize nor new data moves it.
   useLayoutEffect(() => {
     const element = container.current;
     if (!element) return;
     const observer = new ResizeObserver(([entry]) => {
       const next = { width: entry.contentRect.width, height: entry.contentRect.height };
-      if (next.width === 0 || next.height === 0) return;
-      setSize(next);
-      overview.current = overview2D(latestBounds.current, { ...next, insets: MAP_INSETS });
-      setView((current) => (!current || atOverview.current ? overview.current : current));
+      if (next.width > 0 && next.height > 0) setSize(next);
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, [map.outline]);
+  }, []);
+
+  // Plain numbers, so a poll that rebuilds the map with the same geometry does not refit.
+  const { minX, minY, maxX, maxY } = map.frame;
+  const { top, right, bottom, left } = insets;
+  useLayoutEffect(() => {
+    if (!size) return;
+    overview.current = overview2D({ minX, minY, maxX, maxY }, { ...size, insets: { top, right, bottom, left } });
+    if (!shown.current || atOverview.current) {
+      flight.current?.cancel();
+      setView(overview.current);
+    }
+  }, [size, minX, minY, maxX, maxY, top, right, bottom, left]);
+
+  const stop = useCallback(() => flight.current?.cancel(), []);
+
+  /** Glides from the view on screen to `target`, or jumps there when `ms` is 0. */
+  const moveTo = useCallback((target: View2D, ms: number, ease: (t: number) => number) => {
+    const from = shown.current;
+    flight.current?.cancel();
+    if (!from) return;
+    flight.current = fly(ms, ease, (t) => setView(mix2D(from, target, t)));
+  }, []);
 
   const zoomAt = useCallback(
-    (factor: number, anchor?: [number, number]) => {
-      if (!size || !overview.current) return;
+    (factor: number, anchor?: [number, number], ms = 0) => {
+      const from = shown.current;
+      if (!size || !overview.current || !from) return;
       atOverview.current = false;
-      setView((current) => current && zoom2D(current, overview.current!.pxPerM, factor, size, anchor ?? [size.width / 2, size.height / 2], map.bounds));
+      moveTo(zoom2D(from, overview.current.pxPerM, factor, size, anchor ?? [size.width / 2, size.height / 2], map.bounds), ms, easeOut);
     },
-    [size, map.bounds],
+    [size, map.bounds, moveTo],
   );
 
   useImperativeHandle(ref, () => ({
-    zoomBy: (factor) => zoomAt(factor),
-    reset() {
+    zoomBy: (factor, animated) => zoomAt(factor, undefined, animated ? NUDGE_MS : 0),
+    reset(animated) {
+      if (!overview.current) return;
       atOverview.current = true;
-      setView(overview.current);
+      moveTo(overview.current, animated ? FLY_MS : 0, easeInOut);
     },
     focus(point) {
-      if (!overview.current) return;
+      if (!overview.current || !size || !shown.current) return;
       atOverview.current = false;
-      setView((current) => ({ center: point, pxPerM: Math.max(current?.pxPerM ?? 0, overview.current!.pxPerM * 2) }));
+      const target = centreOn2D(point, Math.max(shown.current.pxPerM, overview.current.pxPerM * 2), { ...size, insets });
+      moveTo({ ...target, center: clampToBounds(target.center, map.bounds) }, FLY_MS, easeInOut);
     },
     panBy(dx, dy) {
+      if (!shown.current) return;
       atOverview.current = false;
-      setView((current) => current && pan2D(current, dx, dy, map.bounds));
+      moveTo(pan2D(shown.current, dx, dy, map.bounds), 0, easeOut);
+    },
+    reveal(point, cover) {
+      if (!size || !shown.current || flight.current?.active) return;
+      const offset = revealOffset(toScreen(shown.current, size, point)[1], size.height, insets.top, cover);
+      if (offset === 0) return;
+      atOverview.current = false;
+      moveTo(pan2D(shown.current, 0, offset, map.bounds), NUDGE_MS, easeOut);
     },
   }));
+
+  useEffect(() => stop, [stop]);
 
   useLayoutEffect(() => {
     if (!view || !size || !overview.current) return;
@@ -148,6 +199,8 @@ export default function LotPlan({ map, labels, selection, onSelect, ref }: MapVi
   }
 
   function onPointerDown(event: React.PointerEvent) {
+    // A finger on the map takes over from any move in progress, where the map is now.
+    stop();
     event.currentTarget.setPointerCapture(event.pointerId);
     pointers.current.set(event.pointerId, local(event));
     if (pointers.current.size === 1) gesture.current = { moved: 0, pinch: null };
@@ -199,7 +252,7 @@ export default function LotPlan({ map, labels, selection, onSelect, ref }: MapVi
           <defs>
             <pattern id="plan-hatch" width={8} height={8} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <rect width={8} height={8} fill={COLORS.UNKNOWN} />
-              <rect width={3} height={8} fill={COLORS.UNKNOWN_HATCH} />
+              <rect width={2} height={8} fill={COLORS.UNKNOWN_HATCH} />
             </pattern>
             <pattern id="plan-dots" width={8} height={8} patternUnits="userSpaceOnUse">
               <rect width={8} height={8} fill={COLORS.UNMONITORED} />
@@ -217,18 +270,30 @@ export default function LotPlan({ map, labels, selection, onSelect, ref }: MapVi
                 d={pathOf(view, size, area.polygon)}
                 fill={area.unknownReason ? "url(#plan-hatch)" : COLORS.PARKING_AREA}
                 stroke={COLORS.PARKING_AREA_STROKE}
-                strokeWidth={1}
+                strokeWidth={1.5}
                 fillRule="evenodd"
               />
+              {/* The API sends a region as many narrow cells. Their edges go first at double width and
+                  the opaque fills over them, so only the outside of a run of cells keeps a thin edge
+                  and the map draws no stall lines. */}
               {area.regions.map((region, index) => (
                 <path
-                  key={index}
+                  key={`edge-${index}`}
+                  d={pathOf(view, size, region.polygon)}
+                  fill="none"
+                  stroke={region.kind === "OCCUPIED" ? COLORS.OCCUPIED : (region.kind === "AVAILABLE" || region.kind === "WIDTH_SUFFICIENT") ? COLORS.AVAILABLE_STROKE : region.kind === "ALMOST_AVAILABLE" ? COLORS.ALMOST_AVAILABLE_STROKE : COLORS.UNKNOWN_HATCH}
+                  strokeWidth={region.kind === "UNKNOWN" ? 2 : 3}
+                  strokeDasharray={region.kind === "ALMOST_AVAILABLE" ? "6 4" : undefined}
+                />
+              ))}
+              {area.regions.map((region, index) => (
+                <path
+                  key={`fill-${index}`}
                   d={pathOf(view, size, region.polygon)}
                   fill={region.kind === "UNKNOWN" ? "url(#plan-hatch)" : COLORS[region.kind]}
-                  fillOpacity={region.kind === "UNKNOWN" || region.kind === "WIDTH_SUFFICIENT" ? 1 : 0.9}
-                  stroke={region.kind === "OCCUPIED" ? COLORS.OCCUPIED : (region.kind === "AVAILABLE" || region.kind === "WIDTH_SUFFICIENT") ? COLORS.AVAILABLE_STROKE : region.kind === "ALMOST_AVAILABLE" ? COLORS.ALMOST_AVAILABLE_STROKE : COLORS.UNKNOWN_HATCH}
-                  strokeWidth={region.kind === "UNKNOWN" ? 1 : 2}
-                  strokeDasharray={region.kind === "ALMOST_AVAILABLE" ? "6 4" : undefined}
+                  // A hairline of the fill closes the anti-aliased seam between two cells.
+                  stroke={region.kind === "UNKNOWN" ? "url(#plan-hatch)" : COLORS[region.kind]}
+                  strokeWidth={1}
                   fillRule="evenodd"
                 />
               ))}
@@ -249,7 +314,7 @@ export default function LotPlan({ map, labels, selection, onSelect, ref }: MapVi
           )}
         </svg>
       )}
-      <LabelLayer ref={labelLayer} labels={labels} selection={selection} />
+      <LabelLayer ref={labelLayer} labels={labels} selection={selection} insets={insets} />
     </div>
   );
 }

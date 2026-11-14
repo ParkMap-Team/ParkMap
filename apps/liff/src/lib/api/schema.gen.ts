@@ -244,6 +244,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/parking-areas/{area_id}/frame": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Ingest Area Frame
+         * @description The JPEG a worker analysed, sent before the state it published from it.
+         */
+        put: operations["ingest_area_frame_api_internal_parking_areas__area_id__frame_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/internal/parking-states": {
         parameters: {
             query?: never;
@@ -654,6 +674,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/parking-areas/{area_id}/frame": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Area Frame
+         * @description A versioned photo never changes, so it is cached for good; one past the freshness window is gone.
+         */
+        get: operations["get_area_frame_api_parking_areas__area_id__frame_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/physical-row-geometry": {
         parameters: {
             query?: never;
@@ -773,6 +813,18 @@ export interface components {
         ApproveRequest: {
             /** Preview Revision */
             preview_revision: number;
+        };
+        /**
+         * AreaFrameLink
+         * @description The analysed photo a state's regions were derived from. `url` is relative to the API.
+         */
+        AreaFrameLink: {
+            /** Height */
+            height: number;
+            /** Url */
+            url: string;
+            /** Width */
+            width: number;
         };
         /** Body_analyze_api_operator_classifier_analyze_post */
         Body_analyze_api_operator_classifier_analyze_post: {
@@ -1922,6 +1974,7 @@ export interface components {
         ParkingAreaLiveState: {
             /** Age S */
             age_s?: number | null;
+            frame?: components["schemas"]["AreaFrameLink"] | null;
             /** Motorcycles */
             motorcycles?: components["schemas"]["MotorcycleProxy"][];
             /** Observed At */
@@ -2736,6 +2789,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    ingest_area_frame_api_internal_parking_areas__area_id__frame_put: {
+        parameters: {
+            query: {
+                processed_at: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                area_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3599,6 +3685,46 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_area_frame_api_parking_areas__area_id__frame_get: {
+        parameters: {
+            query: {
+                v: number;
+            };
+            header?: never;
+            path: {
+                area_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The analysed photo. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": unknown;
+                };
+            };
+            /** @description No photo of this version. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -4,14 +4,25 @@ import { PerspectiveCamera, Vector3 } from "three";
 import {
   ELEVATION_RAD,
   FOV_DEG,
+  INTRO_MIN_ZOOM_OUT,
+  MAX_ELEVATION_RAD,
   MAX_ZOOM,
   MIN_ELEVATION_RAD,
+  type View3D,
   cameraPosition,
+  centreOn2D,
+  easeInOut,
+  easeOut,
   fromScreen,
+  introView3D,
+  mix2D,
+  mix3D,
   overview2D,
   overview3D,
   pan2D,
   pan3D,
+  pixelsPerMetre,
+  revealOffset,
   toScreen,
   viewFrom,
   zoom2D,
@@ -47,6 +58,32 @@ function near(actual: number, expected: number, label: string) {
   assert.ok(Math.abs(actual - expected) < 1e-9, `${label}: ${actual} is not ${expected}`);
 }
 
+test("the 3D view opens wide on the lot and everything around it, from above", () => {
+  const surroundings: Bounds = { minX: -40, minY: -60, maxX: 50, maxY: 70 };
+  for (const viewport of [phone, { width: 1000, height: 700, insets: { top: 8, right: 60, bottom: 8, left: 8 } }]) {
+    const intro = introView3D(bounds, surroundings, viewport);
+    const overview = overview3D(bounds, viewport);
+    assert.equal(intro.elevationRad, MAX_ELEVATION_RAD);
+    assert.equal(intro.azimuthRad, overview.azimuthRad);
+    for (const [x, y] of [[surroundings.minX, surroundings.minY], [surroundings.maxX, surroundings.minY], [surroundings.maxX, surroundings.maxY], [surroundings.minX, surroundings.maxY]]) {
+      const [sx, sy] = projected(intro, viewport, x, y);
+      assert.ok(sx >= viewport.insets.left - 0.5 && sx <= viewport.width - viewport.insets.right + 0.5, `x ${sx}`);
+      assert.ok(sy >= viewport.insets.top - 0.5 && sy <= viewport.height - viewport.insets.bottom + 0.5, `y ${sy}`);
+    }
+    // The lot stays in the middle of the free area, so the flight in is a straight approach.
+    const freeWidth = viewport.width - viewport.insets.left - viewport.insets.right;
+    const freeHeight = viewport.height - viewport.insets.top - viewport.insets.bottom;
+    const [lx, ly] = projected(intro, viewport, (bounds.minX + bounds.maxX) / 2, (bounds.minY + bounds.maxY) / 2);
+    assert.ok(Math.abs(lx - (viewport.insets.left + freeWidth / 2)) < freeWidth * 0.03, `lot x ${lx}`);
+    assert.ok(Math.abs(ly - (viewport.insets.top + freeHeight / 2)) < freeHeight * 0.03, `lot y ${ly}`);
+  }
+});
+
+test("the 3D view opens well out even with nothing drawn around the lot", () => {
+  const intro = introView3D(bounds, bounds, phone);
+  assert.ok(intro.distance >= overview3D(bounds, phone).distance * INTRO_MIN_ZOOM_OUT - 1e-9);
+});
+
 test("the 3D overview looks from the camera side at the default elevation", () => {
   const view = overview3D(bounds, phone);
   assert.equal(view.azimuthRad, 0);
@@ -54,7 +91,7 @@ test("the 3D overview looks from the camera side at the default elevation", () =
   const position = cameraPosition({ target: { x_m: 1, y_m: 2 }, distance: 10, azimuthRad: 0, elevationRad: ELEVATION_RAD });
   near(position[0], 1, "x");
   assert.ok(position[2] > -2, "in front of the target on the metric -y side");
-  near(Math.atan2(position[1], position[2] + 2), (55 * Math.PI) / 180, "elevation");
+  near(Math.atan2(position[1], position[2] + 2), (65 * Math.PI) / 180, "elevation");
 });
 
 test("a turned camera looks from another side and its view round-trips", () => {
@@ -82,12 +119,25 @@ test("3D pan drags the ground the way the camera faces", () => {
   near(turned.y_m, -metres(30), "turned y");
 });
 
+test("the ground scale at the target matches the projection", () => {
+  const view = overview3D(bounds, phone);
+  const [left] = projected(view, phone, view.target.x_m - 0.5, view.target.y_m);
+  const [right] = projected(view, phone, view.target.x_m + 0.5, view.target.y_m);
+  assert.ok(Math.abs(right - left - pixelsPerMetre(view.distance, phone.height)) < 1e-3);
+});
+
 test("the 2D overview fits the bounds inside the free viewport", () => {
   const view = overview2D(bounds, phone);
   const [x0, y0] = toScreen(view, phone, { x_m: bounds.minX, y_m: bounds.maxY });
   const [x1, y1] = toScreen(view, phone, { x_m: bounds.maxX, y_m: bounds.minY });
   assert.ok(x0 >= 8 && x1 <= 300 && y0 >= 8 && y1 <= 412);
   assert.ok(y0 < y1, "metric +y is up on screen");
+});
+
+test("a 2D focus puts the point in the middle of the free viewport", () => {
+  const sheet = { width: 360, height: 640, insets: { top: 60, right: 12, bottom: 200, left: 12 } };
+  const [x, y] = toScreen(centreOn2D({ x_m: 4, y_m: 9 }, 12, sheet), sheet, { x_m: 4, y_m: 9 });
+  assert.ok(Math.abs(x - 180) < 1e-9 && Math.abs(y - 250) < 1e-9);
 });
 
 test("2D screen and ground conversions round-trip", () => {
@@ -176,4 +226,35 @@ test("people can switch between 2D and 3D by hand", () => {
   assert.deepEqual(flat, { mode: "2d", status3d: "ready" });
   assert.equal(mountsThreeD(flat), false);
   assert.deepEqual(rendererReducer(flat, { type: "choose", mode: "3d" }), ready);
+});
+
+test("camera moves start and end exactly on their views", () => {
+  const from2D = { center: { x_m: 0, y_m: 0 }, pxPerM: 2 };
+  const to2D = { center: { x_m: 10, y_m: -4 }, pxPerM: 8 };
+  assert.deepEqual(mix2D(from2D, to2D, 0), from2D);
+  assert.deepEqual(mix2D(from2D, to2D, 1), to2D);
+  // Halfway in log space: the geometric mean of the two scales.
+  assert.ok(Math.abs(mix2D(from2D, to2D, 0.5).pxPerM - 4) < 1e-9);
+  for (const ease of [easeInOut, easeOut]) {
+    assert.equal(ease(0), 0);
+    assert.equal(ease(1), 1);
+  }
+});
+
+test("a 3D move turns the short way round", () => {
+  const from: View3D = { target: { x_m: 0, y_m: 0 }, distance: 50, azimuthRad: Math.PI - 0.1, elevationRad: ELEVATION_RAD };
+  const to: View3D = { ...from, azimuthRad: -Math.PI + 0.1 };
+  const halfway = mix3D(from, to, 0.5);
+  assert.ok(Math.abs(Math.cos(halfway.azimuthRad) - Math.cos(Math.PI)) < 1e-9);
+  assert.ok(Math.abs(mix3D(from, to, 1).azimuthRad - (Math.PI + 0.1)) < 1e-9);
+});
+
+test("reveal moves a hidden point just clear of what covers the map, and leaves a visible one", () => {
+  // 800 px map, a 300 px sheet over the bottom: points must sit at or above 800 - 300 - 48 = 452.
+  assert.equal(revealOffset(600, 800, 0, 300), 452 - 600);
+  assert.equal(revealOffset(400, 800, 0, 300), 0);
+  // A point under the top controls moves down.
+  assert.equal(revealOffset(10, 800, 60, 300), 60 + 48 - 10);
+  // When there is no free band left, nothing moves.
+  assert.equal(revealOffset(600, 800, 400, 400), 0);
 });

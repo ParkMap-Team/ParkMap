@@ -17,12 +17,12 @@ export function MascotScreen({
   children?: React.ReactNode;
 }) {
   return (
-    <main className="flex min-h-dvh bg-background p-4 text-foreground">
+    <main className="flex min-h-dvh bg-background px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-foreground">
       <m.div
         className="flex flex-1"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
+        transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
       >
         <Empty>
           <EmptyHeader>

@@ -365,6 +365,14 @@ class ParkingStatePublish(BaseModel):
         return self
 
 
+class AreaFrameLink(BaseModel):
+    """The analysed photo a state's regions were derived from. `url` is relative to the API."""
+
+    url: str
+    width: int
+    height: int
+
+
 class ParkingAreaLiveState(BaseModel):
     parking_area_id: str
     status: AreaLiveStatus
@@ -374,6 +382,7 @@ class ParkingAreaLiveState(BaseModel):
     age_s: float | None = None
     regions: list[LiveRegion] = Field(default_factory=list)
     motorcycles: list[MotorcycleProxy] = Field(default_factory=list)
+    frame: AreaFrameLink | None = None
 
 
 class SiteParkingStateResponse(BaseModel):

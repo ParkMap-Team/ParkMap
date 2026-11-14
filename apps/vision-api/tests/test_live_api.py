@@ -1,11 +1,13 @@
 import json
 import math
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from app import manage
 from app.db import repository
@@ -228,7 +230,10 @@ def test_purge_removes_only_old_states(seeded, client):
 
 
 def test_removing_a_site_removes_everything_it_owns(seeded, client):
-    client.post(INGEST_URL, json=state_json(), headers=AUTH)
+    now = datetime.now(UTC)
+    put_frame(client, now)
+    client.post(INGEST_URL, json=state_json(now), headers=AUTH)
+    frame_url = area_state(client)["frame"]["url"]
     assert manage.main(["create-site", "--site-id", "real-site", "--name", "Real site", "--latitude", "13.8", "--longitude", "100.5"]) == 0
 
     assert manage.main(["remove-site", "--site-id", "dev-site", "--confirm", "dev-site"]) == 0
@@ -236,6 +241,7 @@ def test_removing_a_site_removes_everything_it_owns(seeded, client):
     assert [site["site_id"] for site in client.get("/api/sites").json()] == ["real-site"]
     assert client.get(STATE_URL).status_code == 404
     assert client.get("/api/sites/dev-site/lot-model").status_code == 404
+    assert client.get(frame_url).status_code == 404
     # Nothing is left behind: seeding again starts the development site from its first lot model version.
     assert manage.main(["seed-dev"]) == 0
     assert client.get("/api/sites/dev-site/lot-model").json()["version"] == 1
@@ -246,6 +252,106 @@ def test_removing_an_unknown_or_unconfirmed_site_is_refused(seeded, client, site
     assert manage.main(["remove-site", "--site-id", site_id, "--confirm", confirm]) == 1
 
     assert [site["site_id"] for site in client.get("/api/sites").json()] == ["dev-site"]
+
+
+def jpeg(width=64, height=48, image_format="JPEG"):
+    buffer = BytesIO()
+    Image.new("RGB", (width, height), (90, 90, 90)).save(buffer, format=image_format)
+    return buffer.getvalue()
+
+
+def put_frame(client, processed_at, body=None, *, area_id=None, content_type="image/jpeg", headers=AUTH):
+    area_id = area_id or state_json()["parking_area_id"]
+    return client.put(
+        f"/api/internal/parking-areas/{area_id}/frame",
+        params={"processed_at": processed_at.isoformat()},
+        content=jpeg() if body is None else body,
+        headers={**headers, "Content-Type": content_type},
+    )
+
+
+def test_a_shown_state_links_the_photo_it_was_computed_from(seeded, client):
+    now = datetime.now(UTC)
+    assert put_frame(client, now).status_code == 204
+    assert client.post(INGEST_URL, json=state_json(now), headers=AUTH).status_code == 204
+    frame = area_state(client)["frame"]
+
+    assert (frame["width"], frame["height"]) == (64, 48)
+    response = client.get(frame["url"])
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/jpeg"
+    assert "immutable" in response.headers["cache-control"]
+    assert response.content == jpeg()
+
+
+def frame_url(processed_at):
+    version = (processed_at - datetime(1970, 1, 1, tzinfo=UTC)) // timedelta(microseconds=1)
+    return f"/api/parking-areas/{state_json()['parking_area_id']}/frame?v={version}"
+
+
+def test_a_photo_stays_available_while_a_state_from_it_can_still_be_shown_fresh(seeded, client):
+    # A reader's state can be a poll behind the newest analysis; its own photo must still load.
+    now = datetime.now(UTC)
+    expired, recent = now - timedelta(seconds=20), now - timedelta(seconds=4)
+    put_frame(client, expired, jpeg(32, 24))
+    put_frame(client, recent, jpeg(48, 36))
+    client.post(INGEST_URL, json=state_json(recent), headers=AUTH)
+    recent_url = area_state(client)["frame"]["url"]
+
+    assert put_frame(client, now, jpeg(80, 60)).status_code == 204
+    assert put_frame(client, now - timedelta(seconds=30), jpeg(16, 12)).status_code == 204
+    client.post(INGEST_URL, json=state_json(now), headers=AUTH)
+
+    assert recent_url == frame_url(recent)
+    assert client.get(recent_url).content == jpeg(48, 36)
+    assert area_state(client)["frame"]["width"] == 80
+    # More than the 15 s freshness limit before the newest photo, no state can show it fresh.
+    assert client.get(frame_url(expired)).status_code == 404
+    assert client.get(frame_url(now - timedelta(seconds=30))).status_code == 404
+
+
+@pytest.mark.parametrize("version", [-(10**18), 10**18, 10**30])
+def test_an_impossible_photo_version_is_not_found(seeded, client, version):
+    assert client.get(f"/api/parking-areas/{state_json()['parking_area_id']}/frame", params={"v": version}).status_code == 404
+
+
+def test_no_photo_is_linked_to_a_state_it_was_not_computed_from(seeded, client):
+    now = datetime.now(UTC)
+    put_frame(client, now - timedelta(seconds=1))
+    client.post(INGEST_URL, json=state_json(now), headers=AUTH)
+
+    assert area_state(client)["frame"] is None
+
+
+def test_no_photo_is_linked_to_a_stale_state(seeded, client):
+    stale = datetime.now(UTC) - timedelta(seconds=60)
+    put_frame(client, stale)
+    client.post(INGEST_URL, json=state_json(stale), headers=AUTH)
+    area = area_state(client)
+
+    assert area["status"] == "STALE"
+    assert area["frame"] is None
+
+
+@pytest.mark.parametrize(
+    ("overrides", "status_code"),
+    [
+        ({"headers": {}}, 401),
+        ({"content_type": "image/png", "body": jpeg(image_format="PNG")}, 415),
+        ({"body": jpeg(image_format="PNG")}, 400),
+        ({"body": b"not an image"}, 400),
+        ({"body": jpeg(4097, 8)}, 413),
+        ({"body": b"0" * (3 * 1024 * 1024 + 1)}, 413),
+        ({"area_id": "unknown-area"}, 422),
+        ({"processed_at": datetime.now(UTC) + timedelta(minutes=5)}, 422),
+        ({"processed_at": datetime.now(UTC).replace(tzinfo=None)}, 422),
+    ],
+)
+def test_frame_ingest_rejects_what_it_cannot_trust(seeded, client, overrides, status_code):
+    processed_at = overrides.pop("processed_at", datetime.now(UTC))
+    assert put_frame(client, processed_at, **overrides).status_code == status_code
+    area_id = state_json()["parking_area_id"]
+    assert client.get(f"/api/parking-areas/{area_id}/frame", params={"v": 0}).status_code == 404
 
 
 def test_migrations_match_table_definitions(database):

@@ -11,17 +11,18 @@ import { cn } from "@/lib/utils";
 export type MascotMood = "happy" | "confused";
 
 // The mascot is decoration next to text that carries the meaning, so it is hidden from
-// assistive technology. It never stands in for parking status.
+// assistive technology. It never stands in for parking status, and it never appears over live data.
+// It moves once on arrival rather than looping, so a screen with text stays calm to read.
 const MOODS: Record<MascotMood, { image: StaticImageData; animate: TargetAndTransition; transition: Transition }> = {
   happy: {
     image: happy,
     animate: { y: [0, -6, 0] },
-    transition: { duration: 2.4, repeat: Infinity, ease: "easeInOut" },
+    transition: { duration: 0.9, ease: "easeInOut" },
   },
   confused: {
     image: confused,
-    animate: { rotate: [-3, 3, -3] },
-    transition: { duration: 2.8, repeat: Infinity, ease: "easeInOut" },
+    animate: { rotate: [0, -4, 3, 0] },
+    transition: { duration: 0.9, ease: "easeInOut" },
   },
 };
 

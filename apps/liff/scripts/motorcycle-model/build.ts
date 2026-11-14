@@ -1,24 +1,38 @@
-// Builds public/models/motorcycle.glb: a generic, low-poly motorcycle made only from three.js
-// primitives in this file, so the asset has no third-party source. Run from apps/liff:
+// Builds public/models/motorcycle.glb: a generic scooter made only from three.js primitives and
+// shapes in this file, so the asset has no third-party source and copies no real model. Run from
+// apps/liff:
 //
 //   node --experimental-strip-types scripts/motorcycle-model/build.ts
 //
-// Axes: length along +X, up along +Y, width along Z, metres. The model is centred on the origin
-// in X and Z and stands on Y = 0, so the map scales it onto the API's standard footprint.
-// Front and rear look alike on purpose: the API resolves the long axis, not the direction.
+// Axes: length along +X (front), up along +Y, width along Z, metres. The model is centred on the
+// origin in X and Z and stands on Y = 0, so the map scales it onto the API's standard footprint.
+// The API resolves the long axis, not the direction, so the map may draw it facing either way.
 
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { BoxGeometry, type BufferGeometry, Color, CylinderGeometry, Float32BufferAttribute, Matrix4, Quaternion, TorusGeometry, Vector3 } from "three";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import {
+  BoxGeometry,
+  type BufferGeometry,
+  Color,
+  CylinderGeometry,
+  ExtrudeGeometry,
+  Float32BufferAttribute,
+  Matrix4,
+  Quaternion,
+  Shape,
+  TorusGeometry,
+  Vector3,
+} from "three";
+import { mergeGeometries, mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 
+// Shades, not hues: the map multiplies them by the status colour, so panels show that colour and
+// tyres, seat, and trim read as darker parts of the same motorcycle.
 const COLORS = {
-  tyre: "#1f2937",
-  hub: "#9ca3af",
-  body: "#d1d5db",
-  trim: "#6b7280",
-  seat: "#374151",
-  lamp: "#f3f4f6",
+  body: "#ffffff",
+  tyre: "#2e2e2e",
+  rim: "#b3b3b3",
+  trim: "#737373",
+  seat: "#4a4a4a",
 };
 
 type Part = { geometry: BufferGeometry; color: keyof typeof COLORS };
@@ -42,35 +56,177 @@ function rod(from: Vector3, to: Vector3, radius: number, color: keyof typeof COL
   return painted(geometry, color);
 }
 
+/**
+ * A side-profile panel drawn in X and Y and given thickness across Z, with rounded edges and
+ * smooth shading. The bevel is inset, so the silhouette is exactly the drawn shape.
+ */
+function panel(draw: (shape: Shape) => void, halfWidth: number, bevel: number, color: keyof typeof COLORS, z = 0): Part {
+  const shape = new Shape();
+  draw(shape);
+  const depth = 2 * (halfWidth - bevel);
+  const extruded = new ExtrudeGeometry(shape, {
+    depth,
+    curveSegments: 8,
+    bevelEnabled: true,
+    bevelThickness: bevel,
+    bevelSize: bevel,
+    bevelOffset: -bevel,
+    bevelSegments: 2,
+  });
+  extruded.translate(0, 0, z - depth / 2);
+  extruded.deleteAttribute("normal");
+  extruded.deleteAttribute("uv");
+  const geometry = mergeVertices(extruded);
+  geometry.computeVertexNormals();
+  return painted(geometry, color);
+}
+
+const WHEEL_RADIUS = 0.27;
+const FRONT_X = 0.66;
+const REAR_X = -0.62;
+
 function wheel(x: number): Part[] {
-  const radius = 0.29;
-  const tyre = new TorusGeometry(radius - 0.065, 0.065, 8, 24);
-  tyre.translate(x, radius, 0);
-  const hub = new CylinderGeometry(0.11, 0.11, 0.1, 12);
+  const tube = 0.065;
+  const tyre = new TorusGeometry(WHEEL_RADIUS - tube, tube, 10, 28);
+  tyre.translate(x, WHEEL_RADIUS, 0);
+  const rim = new CylinderGeometry(WHEEL_RADIUS - tube - 0.01, WHEEL_RADIUS - tube - 0.01, 0.08, 24);
+  rim.rotateX(Math.PI / 2);
+  rim.translate(x, WHEEL_RADIUS, 0);
+  const hub = new CylinderGeometry(0.05, 0.05, 0.12, 16);
   hub.rotateX(Math.PI / 2);
-  hub.translate(x, radius, 0);
-  return [painted(tyre, "tyre"), painted(hub, "hub")];
+  hub.translate(x, WHEEL_RADIUS, 0);
+  return [painted(tyre, "tyre"), painted(rim, "rim"), painted(hub, "trim")];
+}
+
+/** A fender: a band of arc over a wheel, from `from` to `to` radians measured from +X. */
+function fender(x: number, from: number, to: number, halfWidth: number): Part {
+  const inner = WHEEL_RADIUS + 0.03;
+  const outer = inner + 0.035;
+  return panel(
+    (shape) => {
+      shape.absarc(x, WHEEL_RADIUS, outer, from, to, false);
+      shape.absarc(x, WHEEL_RADIUS, inner, to, from, true);
+    },
+    halfWidth,
+    0.012,
+    "body",
+  );
+}
+
+/** A mirror on a stalk, one side of the handlebar. */
+function mirror(side: 1 | -1): Part[] {
+  const glass = new CylinderGeometry(0.055, 0.055, 0.025, 16);
+  glass.scale(1.4, 1, 1);
+  glass.rotateZ(Math.PI / 2 - 0.25);
+  glass.translate(0.45, 1.27, side * 0.29);
+  return [rod(new Vector3(0.52, 1.07, side * 0.22), new Vector3(0.46, 1.25, side * 0.28), 0.011, "trim"), painted(glass, "trim")];
 }
 
 export function motorcycleParts(): Part[] {
-  const head = new Vector3(0.5, 1.0, 0);
+  const bar = (z0: number, z1: number) => [new Vector3(0.53, 1.07, z0), new Vector3(0.53, 1.07, z1)] as const;
   return [
-    ...wheel(-0.62),
-    ...wheel(0.66),
-    box(-0.36, 0.36, 0.24, 0.36, 0.17, "body"), // floorboard
-    box(-0.78, -0.08, 0.36, 0.7, 0.18, "body"), // rear body under the seat
-    box(-0.72, -0.12, 0.7, 0.79, 0.15, "seat"),
-    box(-0.82, -0.5, 0.52, 0.6, 0.12, "trim"), // rear fender
-    box(0.3, 0.46, 0.3, 0.94, 0.2, "body"), // leg shield
-    box(0.56, 0.78, 0.5, 0.6, 0.1, "trim"), // front fender
-    rod(new Vector3(0.66, 0.29, 0.09), new Vector3(0.48, 0.92, 0.09), 0.025, "trim"), // fork
-    rod(new Vector3(0.66, 0.29, -0.09), new Vector3(0.48, 0.92, -0.09), 0.025, "trim"),
-    rod(new Vector3(0.48, 0.9, 0), head, 0.04, "trim"), // steering column
-    box(0.42, 0.62, 0.92, 1.06, 0.12, "body"), // handlebar cover
-    box(0.6, 0.66, 0.95, 1.03, 0.06, "lamp"), // headlight
-    rod(new Vector3(0.52, 1.02, -0.34), new Vector3(0.52, 1.02, 0.34), 0.018, "trim"), // handlebar
-    rod(new Vector3(0.52, 1.02, -0.34), new Vector3(0.52, 1.02, -0.24), 0.026, "seat"), // grips
-    rod(new Vector3(0.52, 1.02, 0.24), new Vector3(0.52, 1.02, 0.34), 0.026, "seat"),
+    ...wheel(REAR_X),
+    ...wheel(FRONT_X),
+    fender(FRONT_X, Math.PI * 0.1, Math.PI * 0.62, 0.075),
+    // Rear cowl: thin over the rear wheel, full height in front of it where it meets the floor.
+    panel(
+      (s) => {
+        s.moveTo(-0.1, 0.26);
+        s.lineTo(-0.1, 0.62);
+        s.quadraticCurveTo(-0.12, 0.75, -0.26, 0.75);
+        s.lineTo(-0.72, 0.77);
+        s.quadraticCurveTo(-0.93, 0.78, -0.94, 0.64);
+        s.lineTo(-0.88, 0.58);
+        s.lineTo(-0.4, 0.6);
+        s.quadraticCurveTo(-0.3, 0.6, -0.28, 0.48);
+        s.lineTo(-0.28, 0.26);
+        s.closePath();
+      },
+      0.17,
+      0.045,
+      "body",
+    ),
+    // Floorboard, with a dark mat on top.
+    panel(
+      (s) => {
+        s.moveTo(-0.3, 0.2);
+        s.lineTo(0.3, 0.2);
+        s.lineTo(0.36, 0.3);
+        s.lineTo(-0.3, 0.32);
+        s.closePath();
+      },
+      0.18,
+      0.02,
+      "body",
+    ),
+    box(-0.12, 0.3, 0.315, 0.33, 0.15, "seat"),
+    // Leg shield: a raked panel from the floor up to the handlebar, clear of the front wheel.
+    panel(
+      (s) => {
+        s.moveTo(0.2, 0.22);
+        s.lineTo(0.34, 0.22);
+        s.quadraticCurveTo(0.46, 0.55, 0.58, 0.96);
+        s.lineTo(0.43, 0.99);
+        s.quadraticCurveTo(0.3, 0.6, 0.2, 0.22);
+        s.closePath();
+      },
+      0.21,
+      0.04,
+      "body",
+    ),
+    // Two-step seat: rider, then a raised pillion.
+    panel(
+      (s) => {
+        s.moveTo(-0.12, 0.74);
+        s.quadraticCurveTo(-0.14, 0.85, -0.28, 0.85);
+        s.lineTo(-0.48, 0.84);
+        s.quadraticCurveTo(-0.58, 0.9, -0.7, 0.9);
+        s.quadraticCurveTo(-0.81, 0.9, -0.81, 0.8);
+        s.lineTo(-0.77, 0.76);
+        s.closePath();
+      },
+      0.16,
+      0.04,
+      "seat",
+    ),
+    // Engine and swing arm on one side, exhaust on the other.
+    // A drive case from the rear hub forward, beside the wheel.
+    panel(
+      (s) => {
+        s.absarc(REAR_X, WHEEL_RADIUS, 0.09, Math.PI / 2, (Math.PI * 3) / 2, false);
+        s.lineTo(-0.32, 0.2);
+        s.quadraticCurveTo(-0.24, 0.22, -0.25, 0.3);
+        s.quadraticCurveTo(-0.27, 0.38, -0.36, 0.38);
+        s.closePath();
+      },
+      0.055,
+      0.02,
+      "trim",
+      0.125,
+    ),
+    rod(new Vector3(-0.86, 0.36, -0.17), new Vector3(-0.42, 0.33, -0.17), 0.055, "trim"),
+    // Fork and handlebar cover with its headlight face.
+    rod(new Vector3(FRONT_X, WHEEL_RADIUS, 0.085), new Vector3(0.53, 0.92, 0.085), 0.024, "rim"),
+    rod(new Vector3(FRONT_X, WHEEL_RADIUS, -0.085), new Vector3(0.53, 0.92, -0.085), 0.024, "rim"),
+    panel(
+      (s) => {
+        s.moveTo(0.4, 0.95);
+        s.lineTo(0.64, 0.95);
+        s.quadraticCurveTo(0.73, 0.99, 0.68, 1.07);
+        s.lineTo(0.43, 1.1);
+        s.quadraticCurveTo(0.36, 1.03, 0.4, 0.95);
+        s.closePath();
+      },
+      0.15,
+      0.03,
+      "body",
+    ),
+    box(0.66, 0.705, 0.98, 1.04, 0.07, "rim"),
+    rod(...bar(-0.34, 0.34), 0.016, "trim"),
+    rod(...bar(-0.34, -0.23), 0.024, "seat"),
+    rod(...bar(0.23, 0.34), 0.024, "seat"),
+    ...mirror(1),
+    ...mirror(-1),
   ];
 }
 

@@ -116,6 +116,30 @@
         "title": "ApproveRequest",
         "type": "object"
       },
+      "AreaFrameLink": {
+        "description": "The analysed photo a state's regions were derived from. `url` is relative to the API.",
+        "properties": {
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "url",
+          "width",
+          "height"
+        ],
+        "title": "AreaFrameLink",
+        "type": "object"
+      },
       "Body_analyze_api_operator_classifier_analyze_post": {
         "properties": {
           "clearance_margin_m": {
@@ -3235,6 +3259,16 @@
             ],
             "title": "Age S"
           },
+          "frame": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AreaFrameLink"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "motorcycles": {
             "items": {
               "$ref": "#/components/schemas/MotorcycleProxy"
@@ -4661,6 +4695,66 @@
           }
         },
         "summary": "Get Hybrid Parking State"
+      }
+    },
+    "/api/internal/parking-areas/{area_id}/frame": {
+      "put": {
+        "description": "The JPEG a worker analysed, sent before the state it published from it.",
+        "operationId": "ingest_area_frame_api_internal_parking_areas__area_id__frame_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "area_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Area Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "processed_at",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Processed At",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingest Area Frame"
       }
     },
     "/api/internal/parking-states": {
@@ -6140,6 +6234,55 @@
         "tags": [
           "Mobile camera"
         ]
+      }
+    },
+    "/api/parking-areas/{area_id}/frame": {
+      "get": {
+        "description": "A versioned photo never changes, so it is cached for good; one past the freshness window is gone.",
+        "operationId": "get_area_frame_api_parking_areas__area_id__frame_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "area_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Area Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "v",
+            "required": true,
+            "schema": {
+              "title": "V",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {}
+            },
+            "description": "The analysed photo."
+          },
+          "404": {
+            "description": "No photo of this version."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Area Frame"
       }
     },
     "/api/physical-row-geometry": {

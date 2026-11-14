@@ -6,12 +6,16 @@ import { type Bounds, boundsCenter, toWorld } from "./geometry.ts";
 // the far edge is at the top of the screen, as in the 2D plan); people pan, zoom, turn, and tilt
 // from there (ADR 0012), and reset returns to it. Insets keep the overview clear of the map's own controls.
 
-export const ELEVATION_RAD = (55 * Math.PI) / 180;
+/**
+ * Steep enough that the far rows are not squeezed and the near ground does not fill the screen,
+ * with a narrow lens so the lot keeps its plan proportions, yet low enough that blocks read as 3D.
+ */
+export const ELEVATION_RAD = (65 * Math.PI) / 180;
 /** Tilt limits: low enough to look across the lot, never level with the ground or straight down. */
 export const MIN_ELEVATION_RAD = (25 * Math.PI) / 180;
 export const MAX_ELEVATION_RAD = (85 * Math.PI) / 180;
 export const ROTATE_STEP_RAD = Math.PI / 8;
-export const FOV_DEG = 40;
+export const FOV_DEG = 30;
 /** Zoom relative to the overview. */
 export const MIN_ZOOM = 0.8;
 export const MAX_ZOOM = 6;
@@ -55,9 +59,14 @@ export function viewFrom([x, y, z]: [number, number, number], target: MetricPoin
   return { target, distance: Math.hypot(across, y), azimuthRad: Math.atan2(x - targetX, z - targetZ), elevationRad: Math.atan2(y, across) };
 }
 
+/** Screen pixels per metre of ground at the camera's target, `distance` metres away. */
+export function pixelsPerMetre(distance: number, screenHeight: number): number {
+  return screenHeight / (2 * distance * Math.tan((FOV_DEG * Math.PI) / 360));
+}
+
 /** Drags the ground under the pointer by a screen offset, whichever way the camera faces. */
 export function pan3D(view: View3D, dx: number, dy: number, screenHeight: number): View3D {
-  const metresPerPixel = (2 * view.distance * Math.tan((FOV_DEG * Math.PI) / 360)) / screenHeight;
+  const metresPerPixel = 1 / pixelsPerMetre(view.distance, screenHeight);
   const cos = Math.cos(view.azimuthRad);
   const sin = Math.sin(view.azimuthRad);
   // Screen right is metric (cos, sin) and screen up is metric (-sin, cos).
@@ -107,7 +116,7 @@ function projectedBox(camera: PerspectiveCamera, corners: Vector3[]) {
  * The elevated overview that fits the whole place into the viewport outside the insets. Perspective
  * makes the near edge look wider than the far edge, so the target is re-centred a few times.
  */
-export function overview3D(bounds: Bounds, viewport: Viewport): View3D {
+export function overview3D(bounds: Bounds, viewport: Viewport, elevationRad = ELEVATION_RAD): View3D {
   const camera = new PerspectiveCamera(FOV_DEG, viewport.width / viewport.height, 0.1, 2000);
   const corners = [
     { x_m: bounds.minX, y_m: bounds.minY },
@@ -116,7 +125,7 @@ export function overview3D(bounds: Bounds, viewport: Viewport): View3D {
     { x_m: bounds.minX, y_m: bounds.maxY },
   ].map((point) => new Vector3(...toWorld(point)));
   const rect = freeRect(viewport);
-  let view: View3D = { target: boundsCenter(bounds), distance: 1, azimuthRad: 0, elevationRad: ELEVATION_RAD };
+  let view: View3D = { target: boundsCenter(bounds), distance: 1, azimuthRad: 0, elevationRad };
   for (let pass = 0; pass < 4; pass++) {
     let near = 0.5;
     let far = 2000;
@@ -145,15 +154,22 @@ export function overview3D(bounds: Bounds, viewport: Viewport): View3D {
 export type View2D = { center: MetricPoint; pxPerM: number };
 export type Size = { width: number; height: number };
 
+function freeSize({ width, height, insets }: Viewport): Size {
+  return { width: Math.max(1, width - insets.left - insets.right), height: Math.max(1, height - insets.top - insets.bottom) };
+}
+
+/** The 2D view at a scale that puts `point` in the middle of the viewport outside the insets. */
+export function centreOn2D(point: MetricPoint, pxPerM: number, viewport: Viewport): View2D {
+  const free = freeSize(viewport);
+  const offsetX = viewport.insets.left + free.width / 2 - viewport.width / 2;
+  const offsetY = viewport.insets.top + free.height / 2 - viewport.height / 2;
+  return { center: { x_m: point.x_m - offsetX / pxPerM, y_m: point.y_m + offsetY / pxPerM }, pxPerM };
+}
+
 export function overview2D(bounds: Bounds, viewport: Viewport): View2D {
-  const { width, height, insets } = viewport;
-  const freeWidth = Math.max(1, width - insets.left - insets.right);
-  const freeHeight = Math.max(1, height - insets.top - insets.bottom);
-  const pxPerM = Math.min(freeWidth / Math.max(bounds.maxX - bounds.minX, 1), freeHeight / Math.max(bounds.maxY - bounds.minY, 1)) * FILL;
-  const middle = boundsCenter(bounds);
-  const freeCenterX = insets.left + freeWidth / 2;
-  const freeCenterY = insets.top + freeHeight / 2;
-  return { center: { x_m: middle.x_m - (freeCenterX - width / 2) / pxPerM, y_m: middle.y_m + (freeCenterY - height / 2) / pxPerM }, pxPerM };
+  const free = freeSize(viewport);
+  const pxPerM = Math.min(free.width / Math.max(bounds.maxX - bounds.minX, 1), free.height / Math.max(bounds.maxY - bounds.minY, 1)) * FILL;
+  return centreOn2D(boundsCenter(bounds), pxPerM, viewport);
 }
 
 /** Metric +y is up on screen, matching the 3D view from the camera side. */
@@ -178,4 +194,77 @@ export function zoom2D(view: View2D, overviewPxPerM: number, factor: number, siz
 
 export function pan2D(view: View2D, dx: number, dy: number, bounds: Bounds): View2D {
   return { ...view, center: clampToBounds({ x_m: view.center.x_m - dx / view.pxPerM, y_m: view.center.y_m + dy / view.pxPerM }, bounds) };
+}
+
+// ---- Camera moves -----------------------------------------------------------------------------
+
+/** A fly to a chosen place (focus, reset) and a short nudge for one button step, in milliseconds. */
+export const FLY_MS = 560;
+export const NUDGE_MS = 220;
+/** The opening move, from the wide view down to the overview, slow enough to follow. */
+export const INTRO_MS = 1800;
+/** The opening view is at least this much further out than the overview, even with nothing drawn around the lot. */
+export const INTRO_MIN_ZOOM_OUT = 2;
+
+/**
+ * Where the 3D view opens: high above the lot and far enough out to show everything drawn around
+ * it, such as the campus buildings and roads, so people see where the lot is before the camera flies
+ * in to the overview. It looks at the lot, so the flight is a straight approach and stays inside pan limits.
+ */
+export function introView3D(lot: Bounds, surroundings: Bounds, viewport: Viewport): View3D {
+  const centre = boundsCenter(lot);
+  const halfX = Math.max(centre.x_m - surroundings.minX, surroundings.maxX - centre.x_m, (lot.maxX - lot.minX) / 2);
+  const halfY = Math.max(centre.y_m - surroundings.minY, surroundings.maxY - centre.y_m, (lot.maxY - lot.minY) / 2);
+  const around = { minX: centre.x_m - halfX, maxX: centre.x_m + halfX, minY: centre.y_m - halfY, maxY: centre.y_m + halfY };
+  const wide = overview3D(around, viewport, MAX_ELEVATION_RAD);
+  return { ...wide, distance: Math.max(wide.distance, overview3D(lot, viewport).distance * INTRO_MIN_ZOOM_OUT) };
+}
+
+export function easeInOut(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+}
+
+export function easeOut(t: number): number {
+  return 1 - (1 - t) ** 3;
+}
+
+/** Scale moves in log space, so zooming in and out by the same factor take the same time. */
+function mixLog(from: number, to: number, t: number): number {
+  if (t >= 1) return to;
+  return Math.exp(Math.log(from) + (Math.log(to) - Math.log(from)) * t);
+}
+
+function mixPoint(from: MetricPoint, to: MetricPoint, t: number): MetricPoint {
+  return { x_m: from.x_m + (to.x_m - from.x_m) * t, y_m: from.y_m + (to.y_m - from.y_m) * t };
+}
+
+export function mix2D(from: View2D, to: View2D, t: number): View2D {
+  return { center: mixPoint(from.center, to.center, t), pxPerM: mixLog(from.pxPerM, to.pxPerM, t) };
+}
+
+/** Turns the short way round, so a step past a half turn never spins the long way. */
+export function mix3D(from: View3D, to: View3D, t: number): View3D {
+  const turn = Math.atan2(Math.sin(to.azimuthRad - from.azimuthRad), Math.cos(to.azimuthRad - from.azimuthRad));
+  return {
+    target: mixPoint(from.target, to.target, t),
+    distance: mixLog(from.distance, to.distance, t),
+    azimuthRad: from.azimuthRad + turn * t,
+    elevationRad: from.elevationRad + (to.elevationRad - from.elevationRad) * t,
+  };
+}
+
+/** Space kept between a revealed point and the edge of whatever covers the map. */
+export const REVEAL_MARGIN_PX = 48;
+
+/**
+ * The vertical drag (screen pixels, negative is up) that brings a point at screen `y` into the band
+ * between `top` and `height - bottom`, or 0 when it is already visible there.
+ */
+export function revealOffset(y: number, height: number, top: number, bottom: number): number {
+  const low = height - bottom - REVEAL_MARGIN_PX;
+  const high = top + REVEAL_MARGIN_PX;
+  if (low <= high) return 0;
+  if (y > low) return low - y;
+  if (y < high) return high - y;
+  return 0;
 }

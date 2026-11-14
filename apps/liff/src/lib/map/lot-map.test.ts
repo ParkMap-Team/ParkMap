@@ -100,14 +100,24 @@ function live(overrides: Partial<ParkingAreaLiveState> = {}): ParkingAreaLiveSta
   };
 }
 
-test("the map is framed on the outline and every landmark", () => {
+test("the map pans over the outline and every landmark", () => {
   assert.deepEqual(buildLotMap(lotModel, null).bounds, { minX: 0, minY: 0, maxX: 20, maxY: 12 });
 });
 
-test("surroundings are drawn but stay out of the frame, while ways in and out stay in it", () => {
+test("surroundings are drawn but stay out of the pan limits, while ways in and out stay in them", () => {
   const map = buildLotMap({ ...lotModel, landmarks: [...(lotModel.landmarks ?? []), ...surroundings] }, null);
   assert.equal(map.landmarks.length, 5);
   assert.deepEqual(map.bounds, { minX: 0, minY: -2, maxX: 20, maxY: 12 });
+});
+
+test("the overview frames the lot outline alone, so a way in outside it may sit off screen", () => {
+  const map = buildLotMap({ ...lotModel, landmarks: [...(lotModel.landmarks ?? []), ...surroundings] }, null);
+  assert.deepEqual(map.frame, { minX: 0, minY: 0, maxX: 20, maxY: 10 });
+});
+
+test("the site spans the outline and every landmark, surroundings included", () => {
+  const map = buildLotMap({ ...lotModel, landmarks: [...(lotModel.landmarks ?? []), ...surroundings] }, null);
+  assert.deepEqual(map.site, { minX: -10, minY: -10, maxX: 30, maxY: 50 });
 });
 
 test("only named landmarks and ways in and out are labelled", () => {

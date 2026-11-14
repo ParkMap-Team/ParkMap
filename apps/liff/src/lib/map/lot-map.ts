@@ -32,8 +32,12 @@ export type LotMap = {
   unmonitored: MetricPolygon[];
   areas: MapArea[];
   landmarks: LotLandmark[];
-  /** The outline and the lot's own landmarks, so the overview frames the lot and not its surroundings. */
+  /** The outline and the lot's own landmarks: how far people may pan, so a way in stays reachable. */
   bounds: Bounds;
+  /** The outline alone: what the overview fits, so the lot fills the screen and a far entrance may sit off it. */
+  frame: Bounds;
+  /** The outline and every landmark, surroundings included: the ground the 3D view paves and lights. */
+  site: Bounds;
 };
 
 /** Context around the lot: drawn, but left out of the overview so a tall building does not shrink the lot. */
@@ -74,6 +78,8 @@ export function buildLotMap(lotModel: LotModel, states: ParkingAreaLiveState[] |
     areas,
     landmarks,
     bounds: boundsOf([...lotModel.outline[0], ...landmarks.filter((landmark) => !SURROUNDING_KINDS.has(landmark.kind)).flatMap(landmarkPoints)]),
+    frame: boundsOf(lotModel.outline[0]),
+    site: boundsOf([...lotModel.outline[0], ...landmarks.flatMap(landmarkPoints)]),
   };
 }
 

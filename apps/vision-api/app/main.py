@@ -1,7 +1,7 @@
 import hmac
 import json
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from pathlib import Path as FilePath
 
@@ -13,6 +13,7 @@ from fastapi import (
     Header,
     HTTPException,
     Path,
+    Request,
     Response,
     UploadFile,
     status,
@@ -34,6 +35,7 @@ from app.mobile_camera import operator_router as mobile_operator_router
 from app.mobile_camera import public_router as mobile_public_router
 from app.models import (
     IDENTIFIER_PATTERN,
+    AreaFrameLink,
     DetectionResponse,
     GroundPlaneCalibration,
     GroundPlaneCalibrationResponse,
@@ -43,6 +45,7 @@ from app.models import (
     LotModelResponse,
     MotorcycleFittingConfiguration,
     MotorcycleFittingResponse,
+    ParkingAreaLiveState,
     ParkingCalibration,
     ParkingStatePublish,
     PhysicalRowGeometryConfig,
@@ -110,6 +113,11 @@ def health() -> HealthResponse:
 
 
 SiteId = Path(pattern=IDENTIFIER_PATTERN)
+AreaId = Path(pattern=IDENTIFIER_PATTERN)
+# A worker sends a downscaled JPEG (app.worker.publisher); these bound what the API stores per area.
+MAX_FRAME_BYTES = 3 * 1024 * 1024
+MAX_FRAME_EDGE_PX = 4096
+EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 
 
 def freshness_limit_s() -> float:
@@ -154,15 +162,91 @@ def get_site_parking_state(site_id: str = SiteId, session: Session = SessionDepe
     states = repository.latest_states(session, area_ids)
     now = datetime.now(UTC)
     limit = freshness_limit_s()
+    frames = repository.frame_sizes(session, {area_id: state.processed_at for area_id, state in states.items()})
     return SiteParkingStateResponse(
         site_id=site_id,
         generated_at=now,
         freshness_limit_s=limit,
-        areas=[place_area_state(
+        areas=[_with_frame(place_area_state(
             evaluate_area_state(area_id, stored=states.get(area_id), active_calibration_version=calibrations[area_id].version if area_id in calibrations else None, now=now, freshness_limit_s=limit),
             calibrations[area_id].payload if area_id in calibrations else {}, polygons.get(area_id),
-        ) for area_id in area_ids],
+        ), frames.get(area_id)) for area_id in area_ids],
     )
+
+
+def _frame_version(processed_at: datetime) -> int:
+    return (processed_at - EPOCH) // timedelta(microseconds=1)
+
+
+def _with_frame(state: ParkingAreaLiveState, frame: tuple[datetime, int, int] | None) -> ParkingAreaLiveState:
+    """Link the photo only to a shown state computed from that very photo (ADR 0017)."""
+    if frame is None or state.status not in ("LIVE", "DEMO") or state.processed_at != frame[0]:
+        return state
+    processed_at, width, height = frame
+    url = f"/api/parking-areas/{state.parking_area_id}/frame?v={_frame_version(processed_at)}"
+    return state.model_copy(update={"frame": AreaFrameLink(url=url, width=width, height=height)})
+
+
+@app.get(
+    "/api/parking-areas/{area_id}/frame",
+    response_class=Response,
+    responses={200: {"content": {"image/jpeg": {}}, "description": "The analysed photo."}, 404: {"description": "No photo of this version."}},
+)
+def get_area_frame(v: int, area_id: str = AreaId, session: Session = SessionDependency) -> Response:
+    """A versioned photo never changes, so it is cached for good; one past the freshness window is gone."""
+    try:
+        processed_at = EPOCH + timedelta(microseconds=v)
+    except OverflowError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No photo of this version.") from None
+    stored = repository.frame(session, area_id, processed_at)
+    if stored is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No photo of this version.")
+    return Response(content=stored.image, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+
+@app.put("/api/internal/parking-areas/{area_id}/frame", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_worker_token)])
+async def ingest_area_frame(request: Request, processed_at: datetime, area_id: str = AreaId, session: Session = SessionDependency) -> Response:
+    """The JPEG a worker analysed, sent before the state it published from it."""
+    if request.headers.get("content-type") != "image/jpeg":
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="A frame must be image/jpeg.")
+    if processed_at.tzinfo is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="processed_at must include a UTC offset.")
+    if (processed_at - datetime.now(UTC)).total_seconds() > MAX_FUTURE_SKEW_S:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="processed_at is in the future.")
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > MAX_FRAME_BYTES:
+            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="The frame exceeds the size limit.")
+    width, height = _jpeg_size(bytes(body))
+    await run_in_threadpool(_store_frame, session, area_id, processed_at, width, height, bytes(body))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _jpeg_size(image: bytes) -> tuple[int, int]:
+    try:
+        with Image.open(BytesIO(image)) as decoded:
+            if decoded.format != "JPEG":
+                raise ValueError("Not a JPEG.")
+            width, height = decoded.size
+            if not (0 < width <= MAX_FRAME_EDGE_PX and 0 < height <= MAX_FRAME_EDGE_PX):
+                raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="The frame has too many pixels.")
+            decoded.load()
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The frame is not a valid JPEG.") from None
+    return width, height
+
+
+def _store_frame(session: Session, area_id: str, processed_at: datetime, width: int, height: int, image: bytes) -> None:
+    if session.get(ParkingArea, area_id) is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown parking area.")
+    with mobile_sessions.lock:
+        # A paired phone owns the area; its states carry no photo, so the worker's is not stored either.
+        if mobile_sessions.owns_area(area_id):
+            return
+        # A state stays fresh at most the freshness limit after its photo was processed; so long, its photo loads.
+        repository.store_frame(session, area_id, processed_at, width, height, image, keep_s=freshness_limit_s())
+        session.commit()
 
 
 @app.post("/api/internal/parking-states", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_worker_token)])

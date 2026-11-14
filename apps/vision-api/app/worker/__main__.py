@@ -123,6 +123,11 @@ def run(args: argparse.Namespace) -> int:
             try:
                 state = analyze_frame(frame, parking_area_id=args.parking_area_id, source=kind)
                 analysed = time.monotonic()
+                # The photo goes first so the state that names it can link it; without it the state still goes.
+                try:
+                    publisher.publish_frame(state.parking_area_id, state.processed_at, frame.image)
+                except (httpx.HTTPError, ValueError) as error:
+                    logger.warning("Frame photo not published: %s", error)
                 publisher.publish(state)
                 logger.info(
                     "Published state observed at %s (analysis %.2f s, publish %.2f s, dropped frames so far: %d)",
