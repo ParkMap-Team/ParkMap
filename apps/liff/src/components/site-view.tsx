@@ -10,6 +10,7 @@ import { ROTATE_STEP_RAD, ZOOM_STEP } from "@/lib/map/camera";
 import { STATUS_TEXT, areaLabel, headline, headlineStatus, mapLabels } from "@/lib/map/legend";
 import { type LotMap, type MapStatus, type Selection, buildLotMap, focusPoint, followSelection, selectAt, summarize } from "@/lib/map/lot-map";
 import { FALLBACK_NOTICES, INITIAL_RENDERER, THREE_D_TIMEOUT_MS, detectWebGL, mountsThreeD, rendererReducer } from "@/lib/map/renderer";
+import { guardBoothHeadline, guardBoothPreviewDestination, sripatumPreviewRoute, type GuardBoothMode } from "@/lib/parking/guard-booth";
 import { STATUS_LABELS, agoLabel, photoTimeLabel, sourceBadge, sourceNotice, timeLines, visibleAreas } from "@/lib/parking/presentation";
 import { useParkingState } from "@/lib/parking/use-parking-state";
 import { useNow } from "@/lib/use-now";
@@ -70,12 +71,31 @@ function areaRows(map: LotMap, areas: ParkingAreaLiveState[]): AreaRow[] {
 }
 
 const PAN_STEP_PX = 40;
+const CLASSIFICATION_TEST_TIMEOUT_MS = 10_000;
+const CLASSIFICATION_TESTS = [
+  ["classifying", "กำลังจำแนก"],
+  ["preview", "จำแนกได้"],
+  ["unknown", "จำแนกไม่ได้"],
+  ["no-fit", "ไม่มีจุดที่พอดี"],
+  ["unavailable", "ข้อมูลลานขาดหาย"],
+  ["waiting", "รถออกจากจุดตรวจ"],
+] as const;
 
 function ControlButton({ className, ...props }: ComponentProps<typeof Button>) {
   return <Button variant="outline" size="icon" className={cn("size-11 rounded-xl bg-background/95 shadow-sm", className)} {...props} />;
 }
 
-export function SiteView({ siteId, siteName, lotModel }: { siteId: string; siteName: string; lotModel: LotModel }) {
+export function SiteView({ siteId, siteName, lotModel, guardBooth }: { siteId: string; siteName: string; lotModel: LotModel; guardBooth?: GuardBoothMode }) {
+  const [classificationTest, setClassificationTest] = useState<{ mode: GuardBoothMode } | null>(null);
+  const testingClassification = guardBooth === "preview" || guardBooth === "unknown";
+  const classification = testingClassification ? classificationTest?.mode ?? guardBooth : guardBooth;
+  useEffect(() => {
+    if (!testingClassification || classificationTest?.mode !== "classifying") return;
+    const timeout = setTimeout(() => {
+      setClassificationTest((current) => current === classificationTest ? { mode: "waiting" } : current);
+    }, CLASSIFICATION_TEST_TIMEOUT_MS);
+    return () => clearTimeout(timeout);
+  }, [testingClassification, classificationTest]);
   const query = useParkingState(siteId);
   const now = useNow(1000);
   // A failed poll means the current state cannot be confirmed, even if an older answer is kept.
@@ -84,7 +104,12 @@ export function SiteView({ siteId, siteName, lotModel }: { siteId: string; siteN
   // not clock skew and must not downgrade it.
   const receivedAgoS = query.data ? Math.max(0, now - query.dataUpdatedAt) / 1000 : 0;
   const areas = query.data ? visibleAreas(query.data, receivedAgoS, connectionLost) : null;
-  const map = useLotMap(lotModel, query.data, areas);
+  const lotMap = useLotMap(lotModel, query.data, areas);
+  const map = useMemo(() => {
+    if (classification === "unavailable") return buildLotMap(lotModel, []);
+    if (classification !== "no-fit") return lotMap;
+    return { ...lotMap, areas: lotMap.areas.map((area) => ({ ...area, regions: area.regions.filter(({ kind }) => kind === "UNKNOWN") })) };
+  }, [classification, lotMap, lotModel]);
   const labels = useMemo(() => mapLabels(map), [map]);
   const summary = useMemo(() => summarize(map), [map]);
 
@@ -153,24 +178,31 @@ export function SiteView({ siteId, siteName, lotModel }: { siteId: string; siteN
   const allStale = !summary.loading && summary.currentAreas === 0 && areas?.some((area) => area.status === "STALE");
   const fallback = FALLBACK_NOTICES[renderer.status3d];
   const showsThreeD = mountsThreeD(renderer);
-  const viewProps = { map, labels, selection: mapSelection, onSelect, ref: view };
+  const destination = classification ? guardBoothPreviewDestination(map, classification) : null;
+  const route = sripatumPreviewRoute(map, siteId, destination?.point);
+  const viewProps = { map, labels, selection: destination ?? mapSelection, route, onSelect, ref: view };
 
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-background text-foreground lg:grid lg:grid-cols-[1fr_380px] lg:grid-rows-[auto_auto_minmax(0,1fr)]">
-      <header className="flex items-center gap-1 border-b pt-[max(0.25rem,env(safe-area-inset-top))] pr-4 pb-1 pl-1 lg:col-span-2 lg:row-start-1">
-        <Link href="/" aria-label="กลับไปหน้ารายการลานจอด" className={buttonVariants({ variant: "ghost", size: "icon", className: "size-11" })}>
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-base font-semibold">{siteName}</h1>
-          <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-            {badge && <span className="rounded-sm bg-slate-100 px-1.5 py-px font-medium text-slate-700">{badge}</span>}
-            <span>{query.isPending ? "กำลังโหลดสถานะ" : age}</span>
-          </p>
-        </div>
-      </header>
+    <main className={cn(
+      "flex h-dvh flex-col overflow-hidden bg-background text-foreground",
+      !guardBooth && "lg:grid lg:grid-cols-[1fr_380px] lg:grid-rows-[auto_auto_minmax(0,1fr)]",
+    )}>
+      {!guardBooth && (
+        <header className="flex items-center gap-1 border-b pt-[max(0.25rem,env(safe-area-inset-top))] pr-4 pb-1 pl-1 lg:col-span-2 lg:row-start-1">
+          <Link href="/" aria-label="กลับไปหน้ารายการลานจอด" className={buttonVariants({ variant: "ghost", size: "icon", className: "size-11" })}>
+            <ArrowLeft className="size-5" />
+          </Link>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-base font-semibold">{siteName}</h1>
+            <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+              {badge && <span className="rounded-sm bg-slate-100 px-1.5 py-px font-medium text-slate-700">{badge}</span>}
+              <span>{query.isPending ? "กำลังโหลดสถานะ" : age}</span>
+            </p>
+          </div>
+        </header>
+      )}
 
-      {(connectionLost || allStale) && (
+      {!guardBooth && (connectionLost || allStale) && (
         <div role="alert" className={cn("flex items-center gap-2 border-b px-4 py-1.5 text-sm lg:col-span-2 lg:row-start-2", connectionLost ? "bg-red-50 text-red-950" : "bg-amber-50 text-amber-950")}>
           <p className="flex-1">
             {connectionLost ? "เชื่อมต่อข้อมูลไม่ได้ ซ่อนพื้นที่จอดไว้จนกว่าจะยืนยันสถานะล่าสุดได้" : "ข้อมูลไม่เป็นปัจจุบัน ซ่อนพื้นที่จอดไว้จนกว่าจะได้ข้อมูลใหม่"}
@@ -190,7 +222,7 @@ export function SiteView({ siteId, siteName, lotModel }: { siteId: string; siteN
         }
         tabIndex={0}
         onKeyDown={onMapKey}
-        className="relative min-h-0 flex-1 outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset lg:col-start-1 lg:row-start-3"
+        className="relative min-h-0 min-w-0 flex-1 outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset lg:col-start-1 lg:row-start-3"
       >
         <ViewErrorBoundary key={renderer.mode} onError={onFailed}>
           {renderer.status3d === "checking" ? (
@@ -201,6 +233,29 @@ export function SiteView({ siteId, siteName, lotModel }: { siteId: string; siteN
             <LotPlan {...viewProps} />
           )}
         </ViewErrorBoundary>
+        {classification && (
+          <aside aria-label="ข้อมูลการจอด" className="pointer-events-none absolute top-2 left-2 w-[min(25rem,calc(100%-4.5rem))] space-y-2 rounded-xl border bg-background/95 p-4 text-sm leading-relaxed shadow-sm lg:p-5 lg:text-base">
+            <p aria-live="polite" className="text-xl font-bold lg:text-3xl">
+              {query.isPending && classification !== "unavailable" ? "กำลังโหลดสถานะลาน" : guardBoothHeadline(classification, summary.currentAreas > 0, summary.present.has("AVAILABLE"), Boolean(route))}
+            </p>
+            {(classification === "preview" || classification === "no-fit") && <p className="font-semibold">Honda Wave 125i · ตัวอย่าง</p>}
+            {classification === "unknown" && <p>ไม่ทราบรุ่นรถ</p>}
+            {destination && <p>สีเขียวคือจุดจอดสำหรับรถขนาดมาตรฐาน</p>}
+            {route && <p className="text-blue-800">เส้นสีน้ำเงินคือเส้นทางตัวอย่าง</p>}
+            {notice && <p className="text-muted-foreground">{notice}</p>}
+            {(connectionLost || allStale) && <p>{connectionLost ? "เชื่อมต่อข้อมูลลานไม่ได้" : "ข้อมูลลานไม่เป็นปัจจุบัน"}</p>}
+            {fallback && <p>{fallback}</p>}
+            {testingClassification && (
+              <div role="group" aria-label="ทดสอบสถานะจอป้อมยาม" className="pointer-events-auto flex flex-wrap gap-2 border-t pt-3">
+                {CLASSIFICATION_TESTS.map(([mode, label]) => (
+                  <Button key={mode} type="button" size="sm" variant={classification === mode ? "default" : "outline"} aria-pressed={classification === mode} onClick={() => { setSelection(null); setClassificationTest({ mode }); }}>
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </aside>
+        )}
         <div className="absolute top-2 right-2 flex flex-col gap-2">
           <div role="group" aria-label="มุมมองแผนที่" className="flex flex-col overflow-hidden rounded-xl border bg-background/95 shadow-sm">
             {(["3d", "2d"] as const).map((mode) => (
@@ -241,37 +296,39 @@ export function SiteView({ siteId, siteName, lotModel }: { siteId: string; siteN
         </div>
       </section>
 
-      <div className="flex shrink-0 flex-col lg:col-start-2 lg:row-start-3 lg:min-h-0">
-        <MapPanel
-          headline={headline(summary, connectionLost)}
-          headlineStatus={headlineStatus(summary)}
-          notices={
-            (notice || fallback) && (
-              <div className="space-y-2 text-sm">
-                {notice && <p className="rounded-md bg-amber-50 px-3 py-2 text-amber-950">{notice}</p>}
-                {fallback && (
-                  <div className="flex flex-wrap items-center gap-2 rounded-md bg-slate-100 px-3 py-2 text-slate-800">
-                    <p className="flex-1">{fallback}</p>
-                    {renderer.status3d !== "unavailable" && (
-                      <Button variant="outline" className="h-11 bg-background" onClick={() => dispatch({ type: "choose", mode: "3d" })}>
-                        ลองแสดง 3 มิติอีกครั้ง
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          }
-          present={summary.present}
-          areas={areas ? areaRows(map, areas) : []}
-          estimatedLandmarks={map.landmarks.some((landmark) => landmark.measurement_source === "ESTIMATED")}
-          selected={selectedDetails}
-          expanded={expanded}
-          onToggle={() => setExpanded((value) => !value)}
-          onClearSelection={() => setSelection(null)}
-          onShow={showStatus}
-        />
-      </div>
+      {!guardBooth && (
+        <div className="flex shrink-0 flex-col lg:col-start-2 lg:row-start-3 lg:min-h-0">
+          <MapPanel
+            headline={headline(summary, connectionLost)}
+            headlineStatus={headlineStatus(summary)}
+            notices={
+              (notice || fallback) && (
+                <div className="space-y-2 text-sm">
+                  {notice && <p className="rounded-md bg-amber-50 px-3 py-2 text-amber-950">{notice}</p>}
+                  {fallback && (
+                    <div className="flex flex-wrap items-center gap-2 rounded-md bg-slate-100 px-3 py-2 text-slate-800">
+                      <p className="flex-1">{fallback}</p>
+                      {renderer.status3d !== "unavailable" && (
+                        <Button variant="outline" className="h-11 bg-background" onClick={() => dispatch({ type: "choose", mode: "3d" })}>
+                          ลองแสดง 3 มิติอีกครั้ง
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+            present={summary.present}
+            areas={areas ? areaRows(map, areas) : []}
+            estimatedLandmarks={map.landmarks.some((landmark) => landmark.measurement_source === "ESTIMATED")}
+            selected={selectedDetails}
+            expanded={expanded}
+            onToggle={() => setExpanded((value) => !value)}
+            onClearSelection={() => setSelection(null)}
+            onShow={showStatus}
+          />
+        </div>
+      )}
     </main>
   );
 }

@@ -619,8 +619,9 @@ function CameraRig({ map, handle, labels }: { map: LotMap; handle: React.Ref<Map
   );
 }
 
-export default function LotScene({ map, labels, selection, onSelect, onReady, onError, ref }: MapViewProps & { onReady(): void; onError(): void }) {
+export default function LotScene({ map, labels, selection, route, onSelect, onReady, onError, ref }: MapViewProps & { onReady(): void; onError(): void }) {
   const labelLayer = useRef<LabelLayerHandle>(null);
+  const routePoints = route?.map((point) => toWorld(point, HEIGHT.selection + 0.02));
   return (
     <div className="relative size-full" style={{ backgroundColor: COLORS.GROUND }}>
       <Canvas
@@ -636,6 +637,12 @@ export default function LotScene({ map, labels, selection, onSelect, onReady, on
         <Sun landmarks={map.landmarks} outline={map.outline} />
         <Ground map={map} onSelect={onSelect} onReady={onReady} />
         {selection?.polygon && <Selection polygon={selection.polygon} />}
+        {routePoints && (
+          <>
+            <Line points={routePoints} color="white" lineWidth={10} depthWrite={false} renderOrder={30} />
+            <Line points={routePoints} color={COLORS.ENTRANCE} lineWidth={6} depthWrite={false} renderOrder={31} />
+          </>
+        )}
         <CameraRig map={map} handle={ref ?? null} labels={labelLayer} />
       </Canvas>
       <LabelLayer ref={labelLayer} labels={labels} selection={selection} />

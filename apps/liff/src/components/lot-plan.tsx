@@ -69,7 +69,7 @@ function LandmarkShape({ landmark, view, size }: { landmark: LotLandmark; view: 
   return null;
 }
 
-export default function LotPlan({ map, labels, selection, onSelect, ref }: MapViewProps) {
+export default function LotPlan({ map, labels, selection, route, onSelect, ref }: MapViewProps) {
   const container = useRef<HTMLDivElement>(null);
   const labelLayer = useRef<LabelLayerHandle>(null);
   const [size, setSize] = useState<Size | null>(null);
@@ -184,6 +184,8 @@ export default function LotPlan({ map, labels, selection, onSelect, ref }: MapVi
     }
   }
 
+  const routePoints = view && size && route?.map((point) => toScreen(view, size, point).join(",")).join(" ");
+
   return (
     <div
       ref={container}
@@ -245,6 +247,12 @@ export default function LotPlan({ map, labels, selection, onSelect, ref }: MapVi
             <g fill="none" strokeLinejoin="round">
               <path d={pathOf(view, size, selection.polygon)} stroke={COLORS.SELECTED_HALO} strokeWidth={6} />
               <path d={pathOf(view, size, selection.polygon)} stroke={COLORS.SELECTED} strokeWidth={3} />
+            </g>
+          )}
+          {routePoints && (
+            <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points={routePoints} stroke="white" strokeWidth={10} />
+              <polyline points={routePoints} stroke={COLORS.ENTRANCE} strokeWidth={6} />
             </g>
           )}
         </svg>
