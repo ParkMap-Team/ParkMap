@@ -37,5 +37,3 @@ class LineWebhookReceipt(Base):
     reply_messages: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
     replied: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-
