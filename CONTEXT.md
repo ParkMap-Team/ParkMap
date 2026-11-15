@@ -195,3 +195,5 @@ proxy dimensions. LIFF still reads no LINE identity; Messaging API credentials
 exist only in the bot process runtime. Its independent `parkmap_line` schema and
 startup migrations leave the API migration history unchanged. Deploy/configure the bot before publishing
 the settings postback in the rich menu.
+
+Motorcycle preferences now live in LIFF (ADR 0019), superseding the OA chat flow. Verified LINE Login identity and a saved model are required before map pages or their state/photo proxies can be read. Settings do not affect physical fitting.

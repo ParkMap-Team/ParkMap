@@ -1,113 +1,80 @@
-"""Public LINE webhook process. No vision or operator routes are mounted here."""
-
-import json
+"""LIFF account preferences; no chat webhook or outbound messages."""
+import hashlib
 import os
-from collections.abc import Callable
-from typing import Any
+import re
+import time
+import uuid
 
-from fastapi import FastAPI, HTTPException, Request
-from linebot.v3.messaging import ApiClient, Configuration, Message, MessagingApi, ReplyMessageRequest
-from linebot.v3.messaging.exceptions import ApiException
-from linebot.v3.webhook import SignatureValidator
+import requests
+from fastapi import Depends, FastAPI, Header, HTTPException
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.exc import SQLAlchemyError
-from starlette.concurrency import run_in_threadpool
-from urllib3.exceptions import HTTPError
 
 from app.db import line_settings
-from app.db.session import DatabaseNotConfiguredError, open_session
-from app.services.line_motorcycle_settings import SettingsEvent, parse_event
+from app.db.session import open_session, DatabaseNotConfiguredError
+from app.services.line_motorcycle_settings import MODEL_LABELS
 
-ReplySender = Callable[[str, list[dict[str, Any]]], None]
-MAX_WEBHOOK_BYTES = 1024 * 1024
-
-
-def require_configuration() -> None:
-    if not os.getenv("LINE_CHANNEL_SECRET", "").strip() or not os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "").strip():
-        raise HTTPException(503, "LINE bot is not configured.")
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 
-def send_line_reply(token: str, messages: list[dict[str, Any]]) -> None:
-    access_token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "").strip()
-    if not access_token:
-        raise HTTPException(503, "LINE bot is not configured.")
+def account_key(authorization: str = Header(default="")) -> str:
+    channel = os.getenv("LINE_LOGIN_CHANNEL_ID", "").strip()
+    if not channel:
+        raise HTTPException(503, "LINE Login is not configured.")
+    if not authorization.startswith("Bearer ") or not 1 <= len(authorization[7:]) <= 8192:
+        raise HTTPException(401, "LINE login is required.")
     try:
-        configuration = Configuration(access_token=access_token)
-        configuration.retries = 0
-        with ApiClient(configuration) as client:
-            MessagingApi(client).reply_message(
-                ReplyMessageRequest(reply_token=token, messages=[Message.from_dict(m) for m in messages]),
-                _request_timeout=(5, 5),
-            )
-    except (ApiException, HTTPError, ValueError):
-        raise HTTPException(503, "LINE reply is temporarily unavailable.") from None
+        response = requests.post("https://api.line.me/oauth2/v2.1/verify",
+            data={"id_token": authorization[7:], "client_id": channel}, timeout=5)
+        if response.status_code != 200:
+            raise HTTPException(401, "Invalid LINE identity.")
+        claims = response.json()
+        if (claims.get("iss") != "https://access.line.me" or claims.get("aud") != channel
+                or type(claims.get("exp")) is not int or claims["exp"] <= time.time()
+                or not re.fullmatch(r"U[0-9a-f]{32}", claims.get("sub", ""))):
+            raise HTTPException(401, "Invalid LINE identity.")
+        return hashlib.sha256(claims["sub"].encode()).hexdigest()
+    except (requests.RequestException, ValueError, TypeError):
+        raise HTTPException(503, "LINE identity verification is unavailable.") from None
 
 
-def process_event(event: SettingsEvent, reply_sender: ReplySender) -> None:
+class Selection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    model_id: str
+
+
+def preference(key: str, model: str | None = None):
     try:
         with open_session() as session:
-            pending = line_settings.prepare_reply(session, event)
-            # Commit the setting and retry receipt before asking LINE to confirm it.
-            session.commit()
-        if not pending:
-            return
-        with open_session() as session:
-            receipt = line_settings.pending_receipt(session, event)
-            if receipt is not None:
-                # The per-account lock is held for this bounded provider call, in a worker thread.
-                reply_sender(event.reply_token, receipt.reply_messages)
-                receipt.replied = True
+            line_settings.lock_account(session, key)
+            if model is not None:
+                line_settings.save_model(session, key, model, time.time_ns() // 1_000_000, uuid.uuid4().hex)
                 session.commit()
-    except ValueError:
-        raise HTTPException(400, "Invalid webhook event.") from None
+            current = line_settings.current_model(session, key)
+            return {"model_id": current, "models": [{"id": k, "label": v} for k, v in MODEL_LABELS.items()]}
     except (DatabaseNotConfiguredError, SQLAlchemyError):
-        raise HTTPException(503, "Settings storage is temporarily unavailable.") from None
+        raise HTTPException(503, "Settings storage is unavailable.") from None
 
 
-def create_app(*, reply_sender: ReplySender = send_line_reply) -> FastAPI:
-    application = FastAPI(title="ParkMap LINE bot", docs_url=None, redoc_url=None, openapi_url=None)
-
-    @application.get("/api/health")
-    def health():
-        require_configuration()
-        try:
-            with open_session() as session:
-                line_settings.check_ready(session)
-        except (DatabaseNotConfiguredError, SQLAlchemyError):
-            raise HTTPException(503, "Settings storage is temporarily unavailable.") from None
-        return {"status": "ok", "service": "parkmap-line-bot"}
-
-    @application.post("/api/line/webhook")
-    async def webhook(request: Request):
-        require_configuration()
-        secret = os.getenv("LINE_CHANNEL_SECRET", "").strip()
-        body = bytearray()
-        async for chunk in request.stream():
-            body.extend(chunk)
-            if len(body) > MAX_WEBHOOK_BYTES:
-                raise HTTPException(413, "Webhook body is too large.")
-        try:
-            valid_signature = SignatureValidator(secret).validate(
-                body.decode("utf-8"), request.headers.get("x-line-signature", ""))
-        except (ValueError, UnicodeError):
-            valid_signature = False
-        if not valid_signature:
-            raise HTTPException(401, "Invalid LINE signature.")
-        try:
-            payload = json.loads(body)
-            events = payload["events"]
-            if not isinstance(events, list) or len(events) > 100 or any(not isinstance(e, dict) for e in events):
-                raise ValueError
-        except (ValueError, KeyError, TypeError):
-            raise HTTPException(400, "Invalid webhook payload.") from None
-        try:
-            parsed = [item for event in events if (item := parse_event(event)) is not None]
-        except ValueError:
-            raise HTTPException(400, "Invalid webhook event.") from None
-        for event in parsed:
-            await run_in_threadpool(process_event, event, reply_sender)
-        return {"ok": True}
-
-    return application
+@app.get("/api/health")
+def health():
+    if not os.getenv("LINE_LOGIN_CHANNEL_ID", "").strip():
+        raise HTTPException(503, "LINE Login is not configured.")
+    try:
+        with open_session() as session:
+            line_settings.check_ready(session)
+    except (DatabaseNotConfiguredError, SQLAlchemyError):
+        raise HTTPException(503, "Settings storage is unavailable.") from None
+    return {"status": "ok", "service": "parkmap-line-settings"}
 
 
-app = create_app()
+@app.get("/api/line/preferences")
+def get_preferences(key: str = Depends(account_key)):
+    return preference(key)
+
+
+@app.put("/api/line/preferences")
+def put_preferences(selection: Selection, key: str = Depends(account_key)):
+    if selection.model_id not in MODEL_LABELS:
+        raise HTTPException(422, "Unsupported motorcycle model.")
+    return preference(key, selection.model_id)

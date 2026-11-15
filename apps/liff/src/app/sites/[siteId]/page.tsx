@@ -1,8 +1,10 @@
+import { vehiclePreference } from "@/lib/vehicle-session";
 import { notFound } from "next/navigation";
 import { requestLotModel, SiteScreen } from "@/components/site-screen";
 import { apiClient } from "@/lib/api/server";
 
 export default async function SitePage({ params }: { params: Promise<{ siteId: string }> }) {
+  if (!(await vehiclePreference())?.model_id) return null;
   const { siteId } = await params;
   const lotModel = requestLotModel(siteId);
   // Marks a failure handled when the page ends before awaiting it (no site, or no site list).

@@ -1,3 +1,5 @@
+> Current motorcycle settings: required inside LIFF, verified through LINE Login. OA chat settings are retired. See [the settings runbook](../../docs/line-motorcycle-settings.md) and ADR 0019.
+
 # ParkMap LIFF
 
 Student-facing app opened from the LINE Official Account rich menu. It opens straight on a site's map (the configured default site, else the only site, else a list of sites) and shows the lot in 3D or top-down 2D, with live regions, motorcycle proxies, and landmarks such as buildings, trees, and roads. It renders what `apps/vision-api` decides and never computes availability itself. See [ADR 0002](../../docs/adr/0002-live-state-pipeline-and-liff-app.md).

@@ -18,3 +18,5 @@
 - [0016: Uniform ROI display scale](0016-uniform-roi-display-scale.md)
 - [0017: Show the analysed photo in LIFF](0017-show-the-analysed-photo-in-liff.md)
 - [0018: Motorcycle settings in the LINE OA conversation](0018-line-motorcycle-settings.md)
+
+- [0019: Require motorcycle selection in LIFF](0019-liff-required-motorcycle.md)

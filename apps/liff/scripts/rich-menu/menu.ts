@@ -43,9 +43,7 @@ export function richMenu(liffId: string): messagingApi.RichMenuRequest {
     chatBarText: "เมนู ParkMap",
     areas: BUTTONS.map(({ label, path, bounds }) => ({
       bounds: { ...bounds },
-      action: path === "/settings"
-        ? { type: "postback", label, data: "parkmap:settings", displayText: label }
-        : { type: "uri", label, uri: `${liffUrl(liffId)}${path}` },
+      action: { type: "uri", label, uri: `${liffUrl(liffId)}${path}` },
     })),
   };
 }

@@ -1,3 +1,5 @@
+> Current motorcycle settings: required inside LIFF, verified through LINE Login. OA chat settings are retired. See [the settings runbook](../../docs/line-motorcycle-settings.md) and ADR 0019.
+
 # ParkMap Backend
 
 One Python project with separate API (`uvicorn app.main:app`), frame worker (`python -m app.worker`), and optional LINE bot (`uvicorn app.line_bot:app`) entrypoints. The API serves parking state and upload analysis; the worker pushes derived state; the bot handles the requested account-specific motorcycle settings conversation. Only the bot gets Messaging API credentials and public webhook routes. See [ADR 0002](../../docs/adr/0002-live-state-pipeline-and-liff-app.md), [ADR 0005](../../docs/adr/0005-cloud-hosted-video-replay-demo.md), and the [LINE settings runbook](../../docs/line-motorcycle-settings.md).

@@ -4,7 +4,7 @@
 // Never print the token, and never write it to a file.
 import { readFile } from "node:fs/promises";
 import { HTTPFetchError, messagingApi } from "@line/bot-sdk";
-import { requireBotReady } from "./bot-ready.ts";
+
 import { liffUrl, MENU_IMAGE, MENU_IMAGE_TYPE, parseLiffId, richMenu } from "./menu.ts";
 
 async function main() {
@@ -13,7 +13,7 @@ async function main() {
     throw new Error("Set LINE_CHANNEL_ACCESS_TOKEN for this shell from the LINE Developers Console.");
   }
   const liffId = parseLiffId(process.env.PRODUCTION_LIFF_ID);
-  await requireBotReady(process.env.LINE_BOT_HEALTH_URL);
+
   const menu = richMenu(liffId);
   const image = new Blob([await readFile(MENU_IMAGE)], { type: MENU_IMAGE_TYPE });
 

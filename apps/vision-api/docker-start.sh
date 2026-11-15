@@ -10,8 +10,7 @@ case "${PARKMAP_PROCESS:-api}" in
     ;;
   bot)
     # Bot tables have an independent schema/history; the API needs no redeployment.
-    : "${LINE_CHANNEL_SECRET:?LINE_CHANNEL_SECRET is required}"
-    : "${LINE_CHANNEL_ACCESS_TOKEN:?LINE_CHANNEL_ACCESS_TOKEN is required}"
+    : "${LINE_LOGIN_CHANNEL_ID:?LINE_LOGIN_CHANNEL_ID is required}"
     python -m app.db.line_migrations
     exec uvicorn app.line_bot:app --host 0.0.0.0 --port 8000
     ;;
