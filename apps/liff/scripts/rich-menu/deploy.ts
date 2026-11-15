@@ -1,9 +1,10 @@
 // Creates the production rich menu and makes it the default, then deletes the
 // previous API-created menus, so running it again leaves exactly one menu.
-// Usage: LINE_CHANNEL_ACCESS_TOKEN=... PRODUCTION_LIFF_ID=... pnpm rich-menu
+// Requires LINE_CHANNEL_ACCESS_TOKEN, PRODUCTION_LIFF_ID, and LINE_BOT_HEALTH_URL.
 // Never print the token, and never write it to a file.
 import { readFile } from "node:fs/promises";
 import { HTTPFetchError, messagingApi } from "@line/bot-sdk";
+import { requireBotReady } from "./bot-ready.ts";
 import { liffUrl, MENU_IMAGE, MENU_IMAGE_TYPE, parseLiffId, richMenu } from "./menu.ts";
 
 async function main() {
@@ -12,6 +13,7 @@ async function main() {
     throw new Error("Set LINE_CHANNEL_ACCESS_TOKEN for this shell from the LINE Developers Console.");
   }
   const liffId = parseLiffId(process.env.PRODUCTION_LIFF_ID);
+  await requireBotReady(process.env.LINE_BOT_HEALTH_URL);
   const menu = richMenu(liffId);
   const image = new Blob([await readFile(MENU_IMAGE)], { type: MENU_IMAGE_TYPE });
 

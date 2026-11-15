@@ -182,6 +182,13 @@ The detection endpoint runs the configured YOLO model and returns normalized top
 
 ## Production deploy
 
+The motorcycle-settings feature adds a separate LINE bot process when enabled;
+deploy and configure its signed public webhook before publishing the updated
+settings button. It shares the Python image but receives its own runtime-only
+Messaging API credentials and needs no camera/model mounts. Follow the
+[LINE settings runbook](docs/line-motorcycle-settings.md). The deployment below
+describes the existing LIFF/API/worker resources; adding the bot is explicit.
+
 Production runs on Coolify at <https://coolify.parkmap.dev>, project `ParkMap`, environment `production`, on one VPS. Only the LIFF app is public:
 
 | Coolify resource | Image | Role |

@@ -1,6 +1,6 @@
 # ParkMap Backend
 
-One Python project with two entrypoints: the FastAPI API (`uvicorn app.main:app`) and the frame worker (`python -m app.worker`). The API serves live parking state from Postgres and the upload analysis endpoints; the worker replays a recorded video and pushes derived state to the API; all of it runs on Coolify. See [ADR 0002](../../docs/adr/0002-live-state-pipeline-and-liff-app.md) and [ADR 0005](../../docs/adr/0005-cloud-hosted-video-replay-demo.md).
+One Python project with separate API (`uvicorn app.main:app`), frame worker (`python -m app.worker`), and optional LINE bot (`uvicorn app.line_bot:app`) entrypoints. The API serves parking state and upload analysis; the worker pushes derived state; the bot handles the requested account-specific motorcycle settings conversation. Only the bot gets Messaging API credentials and public webhook routes. See [ADR 0002](../../docs/adr/0002-live-state-pipeline-and-liff-app.md), [ADR 0005](../../docs/adr/0005-cloud-hosted-video-replay-demo.md), and the [LINE settings runbook](../../docs/line-motorcycle-settings.md).
 
 ## Run locally
 

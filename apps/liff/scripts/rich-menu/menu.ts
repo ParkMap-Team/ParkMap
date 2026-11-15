@@ -11,8 +11,7 @@ export const MAX_IMAGE_BYTES = 1_000_000;
 // Buttons cover the tiles; the logo strip below them is not a button.
 export const BUTTONS_HEIGHT = 832;
 
-// The largest button opens the home screen (the default site's map, or the site list); the rest open
-// paths of the same LIFF app.
+// Four buttons open LIFF; settings starts the signed OA webhook conversation.
 // Tap areas meet in the middle of the gutters between the tiles, measured on the image.
 const BUTTONS = [
   { label: "พื้นที่ว่างตอนนี้", path: "", bounds: { x: 0, y: 0, width: 896, height: BUTTONS_HEIGHT } },
@@ -44,7 +43,9 @@ export function richMenu(liffId: string): messagingApi.RichMenuRequest {
     chatBarText: "เมนู ParkMap",
     areas: BUTTONS.map(({ label, path, bounds }) => ({
       bounds: { ...bounds },
-      action: { type: "uri", label, uri: `${liffUrl(liffId)}${path}` },
+      action: path === "/settings"
+        ? { type: "postback", label, data: "parkmap:settings", displayText: label }
+        : { type: "uri", label, uri: `${liffUrl(liffId)}${path}` },
     })),
   };
 }

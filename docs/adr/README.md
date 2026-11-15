@@ -17,3 +17,4 @@
 - [0015: Scoped mobile camera pairing](0015-mobile-camera-pairing.md)
 - [0016: Uniform ROI display scale](0016-uniform-roi-display-scale.md)
 - [0017: Show the analysed photo in LIFF](0017-show-the-analysed-photo-in-liff.md)
+- [0018: Motorcycle settings in the LINE OA conversation](0018-line-motorcycle-settings.md)

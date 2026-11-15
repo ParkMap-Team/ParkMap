@@ -1,4 +1,4 @@
-# One image for the API, the operator commands (`python -m app.manage`), the dev-state publisher, and the worker;
+# One image for the API, operator commands, dev-state publisher, worker, and LINE bot;
 # PARKMAP_PROCESS selects the process (see docker-start.sh).
 # Build context: apps/vision-api.
 FROM python:3.12.15-slim-trixie

@@ -23,6 +23,8 @@ dependencies = [
   "ultralytics==8.4.166",
   "uvicorn[standard]>=0.30,<1.0",
   "qrcode>=8.2,<9",
+  "line-bot-sdk>=3,<4",
+  "urllib3>=2,<3",
 ]
 
 [dependency-groups]
