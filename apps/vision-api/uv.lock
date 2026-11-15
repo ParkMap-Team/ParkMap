@@ -674,6 +674,7 @@ dev = [
     { name = "ruff" },
 ]
 line-bot = [
+    { name = "alembic" },
     { name = "fastapi" },
     { name = "line-bot-sdk" },
     { name = "psycopg", extra = ["binary"] },
@@ -715,6 +716,7 @@ dev = [
     { name = "ruff", specifier = "==0.16.9" },
 ]
 line-bot = [
+    { name = "alembic", specifier = ">=1.13,<2.0" },
     { name = "fastapi", specifier = ">=0.115,<1.0" },
     { name = "line-bot-sdk", specifier = ">=3,<4" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2,<4.0" },

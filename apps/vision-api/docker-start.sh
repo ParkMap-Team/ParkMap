@@ -9,9 +9,10 @@ case "${PARKMAP_PROCESS:-api}" in
     exec uvicorn app.main:app --host 0.0.0.0 --port 8000
     ;;
   bot)
-    # The API applies migrations first. Only this process receives Messaging API credentials.
+    # Bot tables have an independent schema/history; the API needs no redeployment.
     : "${LINE_CHANNEL_SECRET:?LINE_CHANNEL_SECRET is required}"
     : "${LINE_CHANNEL_ACCESS_TOKEN:?LINE_CHANNEL_ACCESS_TOKEN is required}"
+    python -m app.db.line_migrations
     exec uvicorn app.line_bot:app --host 0.0.0.0 --port 8000
     ;;
   worker)

@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
 from app.db.session import open_session
-from app.db.tables import LineMotorcyclePreference, LineWebhookReceipt
+from app.db.line_tables import LineMotorcyclePreference, LineWebhookReceipt
 from app.line_bot import create_app
 from test_line_flex import actions
 

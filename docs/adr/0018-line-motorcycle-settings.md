@@ -10,10 +10,13 @@ parking fitting, or identify a detected motorcycle.
 
 ## Decision
 
-Run a separate `PARKMAP_PROCESS=bot` entrypoint in the existing Python project and
-image (or the minimal Dockerfile.bot from the same lock). Its public surface is health and `/api/line/webhook`; it imports no vision
-pipeline. Postgres remains owned by the Python project. Apply migrations through
-the API before deploying the bot. No new package or browser identity flow is needed.
+Run a separate `PARKMAP_PROCESS=bot` entrypoint in the existing Python project,
+using the minimal `Dockerfile.bot` and locked `line-bot` dependency group. Its
+public surface is health and `/api/line/webhook`; it imports no vision pipeline.
+The bot owns the `parkmap_line` schema and independent `line-migrations` Alembic
+history. Startup applies additive migrations under a transaction advisory lock.
+The vision API's migration history stays unchanged, so enabling chat needs no
+API rebuild or deployment. No new package or browser identity flow is needed.
 
 The bot verifies the HMAC signature over the exact request bytes before parsing
 events. Only private user conversations participate. Account keys are SHA256

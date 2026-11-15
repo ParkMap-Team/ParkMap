@@ -16,6 +16,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --only-group line-bot --no-install-project
 COPY app ./app
+COPY line-migrations ./line-migrations
 COPY docker-start.sh ./docker-start.sh
 RUN useradd --system --uid 10001 parkmap
 USER parkmap

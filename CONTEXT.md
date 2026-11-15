@@ -192,5 +192,6 @@ Python project (ADR 0018). Its signed webhook offers twelve motorcycle models
 plus other, remembers one preference per verified account in Postgres, and
 confirms only after saving. The preference never changes parking fitting or
 proxy dimensions. LIFF still reads no LINE identity; Messaging API credentials
-exist only in the bot process runtime. Deploy/configure the bot before publishing
+exist only in the bot process runtime. Its independent `parkmap_line` schema and
+startup migrations leave the API migration history unchanged. Deploy/configure the bot before publishing
 the settings postback in the rich menu.

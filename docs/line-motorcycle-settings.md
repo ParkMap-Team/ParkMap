@@ -21,53 +21,40 @@ same. A successful save returns a short text confirmation.
 
 ## Deploy before publishing the rich menu
 
-A `parkmap-bot` draft was prepared in the shared Coolify production environment
-on 2026-11-15. It has no domain or deployment, auto-deployment is disabled, and
-its database URL still needs configuration. LINE credentials were entered by the
-owner and presence-checked on 2026-11-15, without printing their values; actual
-provider acceptance still requires verification. Reuse that draft.
-Its source is the feature branch's `HEAD`; publish/release the new code and pin
-the intended release commit before deployment. Saving credentials alone does
-not activate this feature.
+The existing Coolify application is `parkmap-bot` (UUID
+`svalht0ztkvtlwifegi9n9ly`). Source releases use the
+`release/line-motorcycle-settings` branch, pinned to a reviewed commit, with
+manual deployment. The bot is independent of the vision API release.
 
-1. Back up Postgres, build the updated `apps/vision-api` image, and deploy the API
-   first so migration `0006_line_motorcycle_settings` creates the two bot tables.
-   Existing parking data is preserved. Image rollback does not downgrade this
-   migration; retain the additive tables when rolling back.
-2. Reuse the draft or create a separate Coolify application `parkmap-bot` from that
-   same release using Dockerfile.bot and the locked line-bot dependency group. Set `PARKMAP_PROCESS=bot`, expose internal port `8000`, and
-   check `GET /api/health`. No photo, model or camera mounts are needed.
-3. Set these variables only in the bot's **runtime** environment, with build-time
-   injection disabled:
-   - `DATABASE_URL`: Postgres connection. A dedicated role needs schema usage
-     and SELECT/INSERT/UPDATE/DELETE on `parkmap.line_motorcycle_preferences` and
-     `parkmap.line_webhook_receipts` only; migrations run under the API role.
-   - `LINE_CHANNEL_SECRET`
-   - `LINE_CHANNEL_ACCESS_TOKEN`
-   Both LINE credentials must come from the OA's **Messaging API channel** used
-   by the rich-menu script, not the LIFF LINE Login channel. Enter them directly
-   in Coolify; never paste them into chat or persist them in local env files.
-4. Give only the bot a public HTTPS origin. Register
-   `https://<bot-domain>/api/line/webhook` in the Messaging API channel. Verify
-   the webhook, enable webhooks, and enable webhook redelivery for provider
-   retry handling. Keep the vision API internal. Do not replace a webhook
-   belonging to another integration without first reconciling that routing.
-5. Once the bot is healthy and webhook verification succeeds, publish the new
-   menu with `pnpm --dir apps/liff rich-menu`, setting `LINE_BOT_HEALTH_URL` to
-   `https://<bot-domain>/api/health`, the production LIFF ID, and a channel access
-   token supplied only to that shell, as documented in the
-   [LIFF README](../apps/liff/README.md#rich-menu). This replaces the channel's
-   default menu and deletes its previous API-created menus. The publisher checks
-   the bot's ready service marker before making any LINE API request.
-6. In LINE on a phone, select a model, check the OA confirmation, reopen settings,
-   change the choice, and repeat with a second account to confirm isolation.
+1. Back up Postgres before changing the bot schema. Build
+   `apps/vision-api/Dockerfile.bot` with context `apps/vision-api`.
+   It installs only the locked `line-bot` dependency group, without inference
+   libraries or camera/model mounts. Expose port 8000 and check `/api/health`.
+2. Set runtime-only `DATABASE_URL`, `LINE_CHANNEL_SECRET` and
+   `LINE_CHANNEL_ACCESS_TOKEN`. Disable build-time injection. Use the OA's
+   Messaging API channel (2011859803), not its LIFF LINE Login channel.
+   Credentials go directly into Coolify, never chat, Git or local env files.
+3. Startup runs `python -m app.db.line_migrations`, then starts the webhook.
+   The bot owns `parkmap_line` and its own Alembic version table, protected by
+   a transaction advisory lock. Its DB role needs schema creation/ownership for
+   startup migrations. The existing API migration history is untouched; the API
+   needs no rebuild or deployment. Retain the additive schema on rollback.
+4. Route `https://app.parkmap.dev/api/line` and
+   `https://app.parkmap.dev/api/health` to this bot in Coolify, with prefix
+   stripping disabled. The root LIFF route continues to use its own process.
+   Register `https://app.parkmap.dev/api/line/webhook` in the Messaging API
+   channel, verify it, and enable webhooks and webhook redelivery. Do not replace
+   another integration's webhook without reconciling its routing first.
+5. Once the bot is healthy and webhook verification succeeds, run
+   `pnpm --dir apps/liff rich-menu` with `LINE_BOT_HEALTH_URL` set to
+   `https://app.parkmap.dev/api/health`, the production LIFF ID, and the
+   access token supplied only to that shell. The publisher checks bot readiness
+   before any LINE request. It replaces the default menu and deletes previous
+   API-created menus; LIFF restarts alone never update the LINE menu.
+6. Verify on a phone: open settings, choose a model, check the OA confirmation,
+   reopen settings, change the choice, and check isolation with a second account.
 
-The current source pins in Coolify are release-specific. Update the API and bot
-to the new source commit/image rather than reusing the old deployed commit.
-The existing `main` workflow deploys API, worker and LIFF only; a newly created
-bot must be released explicitly with the matching API image. Publishing only
-the rich menu leaves settings without a handler. Changing its action requires
-the menu script; restarting the LIFF app alone does not update LINE's menu.
+The main CI workflow deploys API, worker and LIFF only. Release this bot explicitly.
 
 ## Local verification
 
@@ -76,6 +63,7 @@ Messaging API credentials. Supply bot-only variables in the shell or service
 runtime, and run from `apps/vision-api`:
 
 ```sh
+uv run python -m app.db.line_migrations
 uv run uvicorn app.line_bot:app --host 127.0.0.1 --port 8002
 ```
 
@@ -86,7 +74,7 @@ and set `PARKMAP_TEST_DATABASE_URL` before running:
 ```sh
 docker compose up -d postgres-test
 # In apps/vision-api, with the test DB URL in the shell:
-uv run python -m pytest -q tests/test_line_bot.py tests/test_line_flex.py
+uv run python -m pytest -q tests/test_line_bot.py tests/test_line_flex.py tests/test_line_migrations.py
 ```
 
 The webhook accepts at most 1 MiB and 100 events. It verifies the exact raw-body

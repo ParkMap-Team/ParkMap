@@ -4,7 +4,7 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.db.tables import LineMotorcyclePreference, LineWebhookReceipt
+from app.db.line_tables import LineMotorcyclePreference, LineWebhookReceipt
 from app.services.line_motorcycle_settings import MODEL_LABELS, SettingsEvent, reply_message
 
 
