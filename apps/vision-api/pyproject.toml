@@ -28,6 +28,14 @@ dependencies = [
 ]
 
 [dependency-groups]
+line-bot = [
+  "fastapi>=0.115,<1.0",
+  "line-bot-sdk>=3,<4",
+  "psycopg[binary]>=3.2,<4.0",
+  "sqlalchemy>=2.1,<3.0",
+  "urllib3>=2,<3",
+  "uvicorn[standard]>=0.30,<1.0",
+]
 dev = [
   "pytest>=8,<10",
   "ruff==0.16.9",

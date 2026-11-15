@@ -11,7 +11,7 @@ parking fitting, or identify a detected motorcycle.
 ## Decision
 
 Run a separate `PARKMAP_PROCESS=bot` entrypoint in the existing Python project and
-image. Its public surface is health and `/api/line/webhook`; it imports no vision
+image (or the minimal Dockerfile.bot from the same lock). Its public surface is health and `/api/line/webhook`; it imports no vision
 pipeline. Postgres remains owned by the Python project. Apply migrations through
 the API before deploying the bot. No new package or browser identity flow is needed.
 

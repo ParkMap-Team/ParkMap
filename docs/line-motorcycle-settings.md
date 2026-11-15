@@ -35,7 +35,7 @@ not activate this feature.
    Existing parking data is preserved. Image rollback does not downgrade this
    migration; retain the additive tables when rolling back.
 2. Reuse the draft or create a separate Coolify application `parkmap-bot` from that
-   same image/version. Set `PARKMAP_PROCESS=bot`, expose internal port `8000`, and
+   same release using Dockerfile.bot and the locked line-bot dependency group. Set `PARKMAP_PROCESS=bot`, expose internal port `8000`, and
    check `GET /api/health`. No photo, model or camera mounts are needed.
 3. Set these variables only in the bot's **runtime** environment, with build-time
    injection disabled:
