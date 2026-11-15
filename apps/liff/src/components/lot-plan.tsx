@@ -71,7 +71,7 @@ function LandmarkShape({ landmark, view, size }: { landmark: LotLandmark; view: 
   return null;
 }
 
-export default function LotPlan({ map, labels, selection, route, routeReplay, onSelect, ref }: MapViewProps) {
+export default function LotPlan({ map, labels, selection, route, routeReplay, heldPolygons, onSelect, ref }: MapViewProps) {
   const { visibleRoute, revealing } = useRouteReveal(route, routeReplay);
   const visibleSelection = revealing && selection?.destination ? null : selection;
   const container = useRef<HTMLDivElement>(null);
@@ -250,7 +250,10 @@ export default function LotPlan({ map, labels, selection, route, routeReplay, on
             </g>
           ))}
           {map.landmarks.map((landmark) => !underAreas(landmark) && <LandmarkShape key={landmark.landmark_id} landmark={landmark} view={view} size={size} />)}
-          {visibleSelection?.polygon && (
+          {heldPolygons?.map((polygon, index) => (
+            <path key={index} d={pathOf(view, size, polygon)} fill={COLORS.HELD} fillRule="evenodd" stroke={COLORS.HELD_STROKE} strokeWidth={2} strokeDasharray="6 4" />
+          ))}
+          {visibleSelection?.polygon && !heldPolygons?.includes(visibleSelection.polygon) && (
             <g fill="none" strokeLinejoin="round">
               <path d={pathOf(view, size, visibleSelection.polygon)} stroke={COLORS.SELECTED_HALO} strokeWidth={6} />
               <path d={pathOf(view, size, visibleSelection.polygon)} stroke={visibleSelection.destination ? COLORS.ENTRANCE : COLORS.SELECTED} strokeWidth={3} />

@@ -10,7 +10,8 @@ import { ROTATE_STEP_RAD, ZOOM_STEP } from "@/lib/map/camera";
 import { STATUS_TEXT, areaLabel, headline, headlineStatus, mapLabels } from "@/lib/map/legend";
 import { type LotMap, type MapStatus, type Selection, buildLotMap, focusPoint, followSelection, selectAt, summarize } from "@/lib/map/lot-map";
 import { FALLBACK_NOTICES, INITIAL_RENDERER, THREE_D_TIMEOUT_MS, detectWebGL, mountsThreeD, rendererReducer } from "@/lib/map/renderer";
-import { guardBoothHeadline, guardBoothPreviewDestination, sripatumPreviewRoute, type GuardBoothMode } from "@/lib/parking/guard-booth";
+import { labelPoint } from "@/lib/map/geometry";
+import { activeParkingHolds, applyParkingHolds, guardBoothHeadline, guardBoothPreviewDestination, overlapsParkingHold, PARKING_HOLD_MS, sripatumPreviewRoute, type GuardBoothMode, type ParkingHold } from "@/lib/parking/guard-booth";
 import { STATUS_LABELS, agoLabel, photoTimeLabel, sourceBadge, sourceNotice, timeLines, visibleAreas } from "@/lib/parking/presentation";
 import { useParkingState } from "@/lib/parking/use-parking-state";
 import { useNow } from "@/lib/use-now";
@@ -88,6 +89,8 @@ function ControlButton({ className, ...props }: ComponentProps<typeof Button>) {
 export function SiteView({ siteId, siteName, lotModel, guardBooth }: { siteId: string; siteName: string; lotModel: LotModel; guardBooth?: GuardBoothMode }) {
   const [classificationTest, setClassificationTest] = useState<{ mode: GuardBoothMode } | null>(null);
   const [routeReplay, setRouteReplay] = useState(0);
+  const [holds, setHolds] = useState<readonly ParkingHold[]>([]);
+  const [currentHold, setCurrentHold] = useState<ParkingHold | null>(null);
   const testingClassification = guardBooth === "preview" || guardBooth === "unknown";
   const classification = testingClassification ? classificationTest?.mode ?? guardBooth : guardBooth;
   useEffect(() => {
@@ -106,11 +109,13 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth }: { siteId: s
   const receivedAgoS = query.data ? Math.max(0, now - query.dataUpdatedAt) / 1000 : 0;
   const areas = query.data ? visibleAreas(query.data, receivedAgoS, connectionLost) : null;
   const lotMap = useLotMap(lotModel, query.data, areas);
+  const activeHolds = useMemo(() => activeParkingHolds(lotMap, holds, now), [lotMap, holds, now]);
+  if (activeHolds.length !== holds.length) setHolds(activeHolds);
   const map = useMemo(() => {
     if (classification === "unavailable") return buildLotMap(lotModel, []);
-    if (classification !== "no-fit") return lotMap;
-    return { ...lotMap, areas: lotMap.areas.map((area) => ({ ...area, regions: area.regions.filter(({ kind }) => kind === "UNKNOWN") })) };
-  }, [classification, lotMap, lotModel]);
+    if (classification === "no-fit") return { ...lotMap, areas: lotMap.areas.map((area) => ({ ...area, regions: area.regions.filter(({ kind }) => kind === "UNKNOWN") })) };
+    return applyParkingHolds(lotMap, activeHolds);
+  }, [classification, lotMap, lotModel, activeHolds]);
   const labels = useMemo(() => mapLabels(map), [map]);
   const summary = useMemo(() => summarize(map), [map]);
 
@@ -179,12 +184,27 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth }: { siteId: s
   const allStale = !summary.loading && summary.currentAreas === 0 && areas?.some((area) => area.status === "STALE");
   const fallback = FALLBACK_NOTICES[renderer.status3d];
   const showsThreeD = mountsThreeD(renderer);
-  const destination = classification ? guardBoothPreviewDestination(map, classification) : null;
+  const nextDestination = classification === "preview" && !currentHold ? guardBoothPreviewDestination(map, classification) : null;
+  const nextArea = lotMap.areas.find(({ parkingAreaId }) => parkingAreaId === nextDestination?.areaId);
+  if (nextDestination && testingClassification && nextArea?.live?.source === "SYNTHETIC_FIXTURE") {
+    const hold = { areaId: nextDestination.areaId, polygon: nextDestination.polygon, expiresAt: now + PARKING_HOLD_MS };
+    setCurrentHold(hold);
+    setHolds([...activeHolds, hold]);
+  }
+  const heldPolygons = classification === "unavailable" ? [] : activeHolds.filter((hold) => {
+    const area = lotMap.areas.find(({ parkingAreaId }) => parkingAreaId === hold.areaId);
+    return area && !area.unknownReason && area.regions.some(({ kind, polygon }) => kind === "AVAILABLE" && JSON.stringify(polygon) === JSON.stringify(hold.polygon))
+      && !area.regions.some(({ kind, polygon }) => kind === "UNKNOWN" && overlapsParkingHold(polygon, hold.polygon));
+  }).map(({ polygon }) => polygon);
+  const destination = classification === "preview" && currentHold && heldPolygons.includes(currentHold.polygon)
+    ? { polygon: currentHold.polygon, point: labelPoint(currentHold.polygon), text: "จอดตรงนี้", destination: true }
+    : nextDestination;
   const route = sripatumPreviewRoute(map, siteId, destination?.point);
+  const displayMode = currentHold && !activeHolds.includes(currentHold) ? "waiting" : classification;
   const boothHeadline = classification && (query.isPending && classification !== "unavailable"
     ? "กำลังโหลดสถานะลาน"
-    : guardBoothHeadline(classification, summary.currentAreas > 0, summary.present.has("AVAILABLE"), Boolean(route)));
-  const viewProps = { map, labels, selection: destination ?? mapSelection, route, routeReplay, onSelect, ref: view };
+    : guardBoothHeadline(displayMode ?? classification, summary.currentAreas > 0, Boolean(destination) || (classification === "unknown" && summary.present.has("AVAILABLE")), Boolean(route)));
+  const viewProps = { map, labels, selection: destination ?? mapSelection, route, routeReplay, heldPolygons, onSelect, ref: view };
 
   return (
     <main className={cn(
@@ -242,10 +262,11 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth }: { siteId: s
             <p aria-live="polite" className="text-xl font-bold lg:text-3xl">
               <span key={boothHeadline} className={routeReplay && classification === "preview" ? "animate-[parking-status-enter_200ms_ease-out]" : "motion-safe:animate-[parking-status-enter_200ms_ease-out]"}>{boothHeadline}</span>
             </p>
-            {(classification === "preview" || classification === "no-fit") && <p className="font-semibold">Honda Wave 125i · ตัวอย่าง</p>}
+            {(displayMode === "preview" || displayMode === "no-fit") && <p className="font-semibold">Honda Wave 125i · ตัวอย่าง</p>}
             {classification === "unknown" && <p>ไม่ทราบรุ่นรถ</p>}
             {destination && <p>สีเขียวคือจุดจอดสำหรับรถขนาดมาตรฐาน</p>}
             {route && <p className="text-blue-800">เส้นสีน้ำเงินคือเส้นทางตัวอย่าง</p>}
+            {heldPolygons.length > 0 && <p className="flex items-center gap-2"><span aria-hidden className="size-3 rounded-sm border border-dashed border-sky-800 bg-sky-200" />พักชั่วคราว · รถกำลังไปจอด</p>}
             {notice && <p className="text-muted-foreground">{notice}</p>}
             {(connectionLost || allStale) && <p>{connectionLost ? "เชื่อมต่อข้อมูลลานไม่ได้" : "ข้อมูลลานไม่เป็นปัจจุบัน"}</p>}
             {fallback && <p>{fallback}</p>}
@@ -255,6 +276,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth }: { siteId: s
                   <Button key={mode} type="button" size="sm" variant={classification === mode ? "default" : "outline"} aria-pressed={classification === mode} onClick={() => {
                     setSelection(null);
                     setClassificationTest({ mode });
+                    if (mode !== "preview" || (currentHold && !activeHolds.includes(currentHold))) setCurrentHold(null);
                     if (mode === "preview") setRouteReplay((current) => current + 1);
                   }}>
                     {label}

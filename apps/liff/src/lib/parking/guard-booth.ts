@@ -1,8 +1,41 @@
-import type { MetricPoint } from "../api/types.ts";
-import { labelPoint } from "../map/geometry.ts";
+import type { MetricPoint, MetricPolygon } from "../api/types.ts";
+import { boundsOf, labelPoint, pointInPolygon } from "../map/geometry.ts";
 import type { LotMap } from "../map/lot-map.ts";
 
 export type GuardBoothMode = "waiting" | "classifying" | "preview" | "unknown" | "no-fit" | "unavailable";
+
+export const PARKING_HOLD_MS = 120_000;
+export type ParkingHold = { areaId: string; polygon: MetricPolygon; expiresAt: number };
+
+// Conservative suppression for the local preview. Touching edges are allowed.
+export function overlapsParkingHold(polygon: MetricPolygon, held: MetricPolygon): boolean {
+  const a = boundsOf(polygon[0]);
+  const b = boundsOf(held[0]);
+  return a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY;
+}
+
+export function activeParkingHolds(map: LotMap, holds: readonly ParkingHold[], now: number): readonly ParkingHold[] {
+  const active = holds.filter((hold) => {
+    if (hold.expiresAt <= now) return false;
+    const area = map.areas.find(({ parkingAreaId }) => parkingAreaId === hold.areaId);
+    if (!area || area.unknownReason || area.regions.some(({ kind, polygon }) => kind === "UNKNOWN" && overlapsParkingHold(polygon, hold.polygon))) return true;
+    // Let the API occupancy take over once it shows a motorcycle there and
+    // has stopped offering every placement that overlaps the held area.
+    const occupied = area.motorcycles.some(({ proxy }) => pointInPolygon(proxy.center, hold.polygon));
+    return !occupied || area.regions.some(({ kind, polygon }) => kind !== "UNKNOWN" && overlapsParkingHold(polygon, hold.polygon));
+  });
+  return active.length === holds.length ? holds : active;
+}
+
+export function applyParkingHolds(map: LotMap, holds: readonly ParkingHold[]): LotMap {
+  if (!holds.length) return map;
+  return { ...map, areas: map.areas.map((area) => ({
+    ...area,
+    regions: area.regions.filter(({ kind, polygon }) => kind === "UNKNOWN" || !holds.some(
+      (hold) => hold.areaId === area.parkingAreaId && overlapsParkingHold(polygon, hold.polygon),
+    )),
+  })) };
+}
 
 export function guardBoothHeadline(mode: GuardBoothMode, hasCurrentAreas: boolean, hasDestination: boolean, hasRoute: boolean): string {
   if (!hasCurrentAreas || mode === "unavailable") return "ยังยืนยันพื้นที่ว่างไม่ได้";
@@ -32,9 +65,12 @@ export function sripatumPreviewRoute(map: LotMap, siteId: string, destination: M
 export function guardBoothPreviewDestination(map: LotMap, mode: GuardBoothMode) {
   if (mode !== "preview") return null;
   for (const area of map.areas) {
-    const placement = area.regions.find(({ kind }) => kind === "AVAILABLE");
+    const unknown = area.regions.filter(({ kind }) => kind === "UNKNOWN");
+    const placement = area.regions.find(({ kind, polygon }) =>
+      kind === "AVAILABLE" && !unknown.some((region) => overlapsParkingHold(polygon, region.polygon)),
+    );
     if (placement) {
-      return { point: labelPoint(placement.polygon), polygon: placement.polygon, text: "จอดตรงนี้", destination: true };
+      return { areaId: area.parkingAreaId, point: labelPoint(placement.polygon), polygon: placement.polygon, text: "จอดตรงนี้", destination: true };
     }
   }
   return null;

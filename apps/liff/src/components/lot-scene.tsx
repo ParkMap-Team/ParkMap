@@ -52,7 +52,7 @@ import { LabelLayer, type LabelLayerHandle, MAP_INSETS, type MapViewHandle, type
 const HEIGHT = { ground: -0.02, lot: 0, unmonitored: 0.01, area: 0.02, landmark: 0.025, region: 0.03, footprint: 0.04, selection: 0.06 };
 // Status layers draw after everything else and skip the depth test, in this order, so no tree,
 // hedge, or block in front of the lot can hide or tint a status. Motorcycles keep the depth test.
-const STATUS_ORDER = { area: 1, areaStroke: 2, region: 3, regionStroke: 4, footprint: 5, motorcycle: 6, selection: 7 };
+const STATUS_ORDER = { area: 1, areaStroke: 2, region: 3, regionStroke: 4, hold: 5, holdStroke: 6, footprint: 7, motorcycle: 8, selection: 9 };
 const PATTERN_TILE_M = 0.8;
 const STOREY_M = 3.6;
 const SHELTER_ROOF_M = 0.2;
@@ -668,7 +668,7 @@ function ParkingRoute({ route, revealing }: { route: readonly MetricPoint[] | un
   );
 }
 
-export default function LotScene({ map, labels, selection, route, routeReplay, onSelect, onReady, onError, ref }: MapViewProps & { onReady(): void; onError(): void }) {
+export default function LotScene({ map, labels, selection, route, routeReplay, heldPolygons, onSelect, onReady, onError, ref }: MapViewProps & { onReady(): void; onError(): void }) {
   const labelLayer = useRef<LabelLayerHandle>(null);
   const { visibleRoute, revealing } = useRouteReveal(route, routeReplay);
   const visibleSelection = revealing && selection?.destination ? null : selection;
@@ -686,7 +686,17 @@ export default function LotScene({ map, labels, selection, route, routeReplay, o
         <hemisphereLight args={["#ffffff", "#b8c2b0", SKY_INTENSITY]} />
         <Sun landmarks={map.landmarks} outline={map.outline} />
         <Ground map={map} onSelect={onSelect} onReady={onReady} />
-        {visibleSelection?.polygon && <Selection polygon={visibleSelection.polygon} destination={visibleSelection.destination} routeReplay={routeReplay} />}
+        {heldPolygons?.map((polygon, index) => (
+          <group key={index}>
+            <Surface polygon={polygon} height={HEIGHT.region} color={COLORS.HELD} statusOrder={STATUS_ORDER.hold} />
+            <Outline polygon={polygon} height={HEIGHT.region} color={COLORS.HELD_STROKE} width={2} dashed statusOrder={STATUS_ORDER.holdStroke} />
+          </group>
+        ))}
+        {visibleSelection?.polygon && (
+          heldPolygons?.includes(visibleSelection.polygon)
+            ? <ParkingArrival polygon={visibleSelection.polygon} replay={routeReplay} />
+            : <Selection polygon={visibleSelection.polygon} destination={visibleSelection.destination} routeReplay={routeReplay} />
+        )}
         <ParkingRoute route={visibleRoute} revealing={revealing} />
         <CameraRig map={map} handle={ref ?? null} labels={labelLayer} />
       </Canvas>

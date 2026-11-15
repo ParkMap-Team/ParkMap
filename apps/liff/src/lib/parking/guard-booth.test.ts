@@ -2,11 +2,37 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { LotModel, MetricPolygon, ParkingAreaLiveState } from "../api/types.ts";
 import { buildLotMap } from "../map/lot-map.ts";
-import { guardBoothHeadline, guardBoothPreviewDestination, sripatumPreviewRoute } from "./guard-booth.ts";
+import { activeParkingHolds, applyParkingHolds, guardBoothHeadline, guardBoothPreviewDestination, PARKING_HOLD_MS, sripatumPreviewRoute } from "./guard-booth.ts";
 
 const polygon: MetricPolygon = [[{ x_m: 0, y_m: 0 }, { x_m: 2, y_m: 0 }, { x_m: 2, y_m: 2 }, { x_m: 0, y_m: 2 }]];
 const lot: LotModel = { schema_version: 1, site_id: "test", version: 1, outline: polygon, unmonitored: [], parking_areas: [{ parking_area_id: "area", polygon }] };
 const area: ParkingAreaLiveState = { parking_area_id: "area", status: "LIVE", regions: [{ kind: "ALMOST_AVAILABLE", polygon }, { kind: "AVAILABLE", polygon }] };
+
+test("a two-minute hold blocks overlapping placements for the next rider", () => {
+  const nearby = (offset: number): MetricPolygon => polygon.map((ring) => ring.map(({ x_m, y_m }) => ({ x_m: x_m + offset, y_m })));
+  const map = buildLotMap(lot, [{ ...area, regions: [0, 1, 2].map((offset) => ({ kind: "AVAILABLE", polygon: nearby(offset) })) }]);
+  const holds = [{ areaId: "area", polygon, expiresAt: 120_000 }];
+  assert.equal(PARKING_HOLD_MS, 120_000);
+  assert.deepEqual(applyParkingHolds(map, activeParkingHolds(map, holds, 119_999)).areas[0].regions.map((region) => region.polygon), [nearby(2)]);
+  assert.equal(applyParkingHolds(map, activeParkingHolds(map, holds, 120_000)).areas[0].regions.length, 3);
+  const stale = buildLotMap(lot, [{ ...area, status: "STALE" }]);
+  assert.equal(applyParkingHolds(stale, activeParkingHolds(stale, holds, 120_000)).areas[0].regions.length, 0);
+});
+
+test("only a current, confirmed occupancy takes over from a hold early", () => {
+  const holds = [{ areaId: "area", polygon, expiresAt: PARKING_HOLD_MS }];
+  const motorcycles = [{ detection_id: "m1", center: { x_m: 1, y_m: 1 }, heading_rad: 0, length_m: 2, width_m: 0.66, confidence: 0.9 }];
+  const occupied = buildLotMap(lot, [{ ...area, motorcycles, regions: [] }]);
+  assert.equal(activeParkingHolds(occupied, holds, 1_000).length, 0);
+
+  const uncertain = buildLotMap(lot, [{ ...area, motorcycles, regions: [{ kind: "UNKNOWN", polygon }] }]);
+  assert.equal(activeParkingHolds(uncertain, holds, 1_000).length, 1);
+  assert.equal(applyParkingHolds(uncertain, holds).areas[0].regions[0].kind, "UNKNOWN");
+
+  const conflicting = buildLotMap(lot, [{ ...area, motorcycles }]);
+  assert.equal(activeParkingHolds(conflicting, holds, 1_000).length, 1);
+  assert.equal(applyParkingHolds(conflicting, holds).areas[0].regions.length, 0);
+});
 
 test("the TV gives directions only when current data supports the requested guidance", () => {
   assert.equal(guardBoothHeadline("preview", false, true, true), "ยังยืนยันพื้นที่ว่างไม่ได้");

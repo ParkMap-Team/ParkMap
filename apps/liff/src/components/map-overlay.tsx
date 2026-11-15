@@ -32,6 +32,7 @@ export type MapViewProps = {
   selection: { point: MetricPoint; polygon: MetricPolygon | null; text: string; destination?: boolean } | null;
   route?: readonly MetricPoint[];
   routeReplay?: number;
+  heldPolygons?: readonly MetricPolygon[];
   onSelect(point: MetricPoint | null): void;
   ref?: Ref<MapViewHandle>;
 };
