@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ParkingAreaLiveState, SiteParkingState } from "../api/types.ts";
-import { agoLabel, photoTimeLabel, showsRegions, sourceBadge, sourceNotice, timeLines, visibleAreas } from "./presentation.ts";
+import { STATUS_LABELS, agoLabel, areaPhotos, showsRegions, timeLines, visibleAreas } from "./presentation.ts";
 
 const square = [[{ x_m: 0, y_m: 0 }, { x_m: 1, y_m: 0 }, { x_m: 1, y_m: 1 }]];
 
@@ -45,12 +45,6 @@ test("areas the API did not mark live are never upgraded", () => {
   assert.equal(visibleAreas(siteState(stale), 0)[0].status, "STALE");
 });
 
-test("recorded and synthetic sources are always announced", () => {
-  assert.equal(sourceNotice([liveArea()]), null);
-  assert.match(sourceNotice([liveArea(), liveArea({ source: "RECORDED_REPLAY" })]) ?? "", /วิดีโอที่บันทึกไว้/);
-  assert.match(sourceNotice([liveArea({ source: "RECORDED_REPLAY" }), liveArea({ source: "SYNTHETIC_FIXTURE" })]) ?? "", /ข้อมูลจำลอง/);
-});
-
 function demoArea(overrides: Partial<ParkingAreaLiveState> = {}): ParkingAreaLiveState {
   return liveArea({ status: "DEMO", source: "STILL_IMAGE_LOOP", observed_at: "2026-09-25T02:31:00Z", ...overrides });
 }
@@ -70,15 +64,8 @@ test("only live and demo areas show their regions", () => {
   }
 });
 
-test("a still-image loop is always announced as recorded demo photos", () => {
-  assert.match(sourceNotice([liveArea(), demoArea()]) ?? "", /ภาพถ่ายที่บันทึกไว้/);
-  assert.match(sourceNotice([demoArea({ status: "STALE", regions: [] })]) ?? "", /ภาพถ่ายที่บันทึกไว้/);
-  assert.match(sourceNotice([liveArea({ source: "RECORDED_REPLAY" }), demoArea()]) ?? "", /ภาพถ่ายที่บันทึกไว้/);
-  assert.match(sourceNotice([demoArea(), liveArea({ source: "SYNTHETIC_FIXTURE" })]) ?? "", /ข้อมูลจำลอง/);
-});
-
-test("the photo time of a demo is shown in Bangkok time", () => {
-  assert.match(photoTimeLabel("2026-09-25T02:31:00Z"), /09:31/);
+test("a still-image loop reads like the lot now", () => {
+  assert.equal(STATUS_LABELS.DEMO, STATUS_LABELS.LIVE);
 });
 
 test("a lost connection drops current regions even within the freshness limit", () => {
@@ -88,24 +75,24 @@ test("a lost connection drops current regions even within the freshness limit", 
   assert.equal(visibleAreas(siteState(demoArea()), 1, true)[0].status, "STALE");
 });
 
-test("the source badge never calls recorded photos live", () => {
-  assert.equal(sourceBadge([demoArea()]), "ข้อมูลสาธิต");
-  assert.equal(sourceBadge([liveArea(), demoArea()]), "ข้อมูลสาธิต");
-  assert.equal(sourceBadge([liveArea({ source: "RECORDED_REPLAY" })]), "วิดีโอบันทึก");
-  assert.equal(sourceBadge([liveArea({ source: "SYNTHETIC_FIXTURE" }), demoArea()]), "ข้อมูลจำลอง");
-  assert.equal(sourceBadge([liveArea()]), "กล้องสด");
-  assert.equal(sourceBadge([liveArea({ status: "NO_DATA", source: null })]), null);
+const frame = { url: "/api/parking-areas/area-1/frame?v=1", width: 1600, height: 1200 };
+
+test("a shown area offers the photo it was computed from, and loses it when it turns stale", () => {
+  assert.deepEqual(areaPhotos([demoArea({ frame }), liveArea({ parking_area_id: "area-2" })]), [{ id: "area-1", ...frame }]);
+  assert.deepEqual(areaPhotos(visibleAreas(siteState(liveArea({ frame })), 11)), []);
+  assert.deepEqual(areaPhotos(visibleAreas(siteState(liveArea({ frame })), 1, true)), []);
+  assert.deepEqual(areaPhotos([liveArea({ status: "STALE", regions: [], frame })]), []);
 });
 
-test("photo, processing, and receipt times are kept apart", () => {
+test("camera, processing, and receipt times are kept apart; a recorded photo's day-old capture time is left out", () => {
   const received = Date.parse("2026-10-01T08:00:09Z");
   const lines = timeLines(demoArea({ processed_at: "2026-10-01T08:00:05Z" }), received);
-  assert.deepEqual(lines.map((line) => line.label), ["ภาพถ่าย", "ประมวลผล", "รับข้อมูล"]);
-  assert.match(lines[0].value, /09:31/);
-  assert.match(lines[0].value, /2569|2026/, "a still-image photo shows its date");
-  assert.match(lines[1].value, /15:00:05/);
-  assert.match(lines[2].value, /15:00:09/);
-  assert.equal(timeLines(liveArea({ processed_at: "2026-10-01T08:00:01Z" }), null)[0].label, "ภาพจากกล้อง");
+  assert.deepEqual(lines.map((line) => line.label), ["ประมวลผล", "รับข้อมูล"]);
+  assert.match(lines[0].value, /15:00:05/);
+  assert.match(lines[1].value, /15:00:09/);
+  const live = timeLines(liveArea({ processed_at: "2026-10-01T08:00:01Z" }), null);
+  assert.deepEqual(live.map((line) => line.label), ["ภาพจากกล้อง", "ประมวลผล"]);
+  assert.match(live[0].value, /15:00:00/);
   assert.deepEqual(timeLines(null, null), []);
 });
 

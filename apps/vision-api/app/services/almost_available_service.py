@@ -6,11 +6,23 @@ from shapely.affinity import rotate, translate
 from shapely.geometry import Point, Polygon
 
 from app.services.capacity_service import _candidate_positions, _footprint, _parts
-from app.services.virtual_fitting_service import FITTING_TOLERANCE_M, WIDTH_M, _geometry, _row_angle
-
+from app.services.virtual_fitting_service import (
+    FITTING_TOLERANCE_M,
+    WIDTH_M,
+    _geometry,
+    _row_angle,
+)
 
 # Experimental V1 threshold; this is not a validated physical truth.
 ALMOST_AVAILABLE_MAX_OCCUPIED_OVERLAP_RATIO = 0.10
+
+
+def small_occupied_conflict_ratio(candidate, occupied):
+    """Shared advisory overlap gate; this does not prove a movement plan."""
+    if not candidate.is_valid or candidate.area <= 0:
+        return None
+    ratio = candidate.intersection(occupied).area / candidate.area
+    return ratio if 0 < ratio <= ALMOST_AVAILABLE_MAX_OCCUPIED_OVERLAP_RATIO else None
 
 
 def _metric_geometry(item: dict[str, Any]) -> Polygon | None:
@@ -62,10 +74,10 @@ def calculate_almost_available_placements(
                     continue
                 if local_free.buffer(FITTING_TOLERANCE_M).covers(candidate):
                     continue
-                overlap = candidate.intersection(local_occupied).area
-                ratio = overlap / candidate.area if candidate.area else 0.0
-                if not 0.0 < ratio <= ALMOST_AVAILABLE_MAX_OCCUPIED_OVERLAP_RATIO:
+                ratio = small_occupied_conflict_ratio(candidate, local_occupied)
+                if ratio is None:
                     continue
+                overlap = candidate.intersection(local_occupied).area
                 if any(candidate.intersection(item).area > FITTING_TOLERANCE_M for item in green):
                     continue
                 key = tuple(round(value, 6) for value in candidate.bounds)

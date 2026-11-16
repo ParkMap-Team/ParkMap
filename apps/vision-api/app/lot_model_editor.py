@@ -16,6 +16,7 @@ from app.models import (
 )
 from app.operator_auth import require_editor_token
 from app.services import lot_model_editor_service as editor
+from app.services.calibration_roi_preview_service import preview_calibration_roi
 from app.services.live_state_service import validate_lot_model
 
 TEMPLATE = Path(__file__).resolve().parents[1] / "fixtures" / "spu-cam-01-lot-model.json"
@@ -82,3 +83,11 @@ def validate_definition(definition: LotModelDefinition) -> LotModelDefinition:
         return definition
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
+
+
+@router.post("/sites/{site_id}/calibration-roi", response_model=LotModelDefinition)
+def post_calibration_roi(definition: LotModelDefinition, site_id: str = ApiPath(pattern=IDENTIFIER_PATTERN), session: Session = SessionDependency) -> LotModelDefinition:
+    try:
+        return preview_calibration_roi(session, site_id, definition)
+    except ValueError as error:
+        raise editor_exception(error) from error

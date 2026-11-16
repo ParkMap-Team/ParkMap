@@ -1,6 +1,15 @@
-import { SitePage } from "@/components/site-page";
+import { notFound } from "next/navigation";
+import { requestLotModel, SiteScreen } from "@/components/site-screen";
+import { apiClient } from "@/lib/api/server";
 
-export default async function ParkingSitePage({ params }: { params: Promise<{ siteId: string }> }) {
+export default async function SitePage({ params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
-  return <SitePage siteId={siteId} />;
+  const lotModel = requestLotModel(siteId);
+  // Marks a failure handled when the page ends before awaiting it (no site, or no site list).
+  lotModel.catch(() => undefined);
+  const { data: sites } = await apiClient().GET("/api/sites");
+  if (!sites) throw new Error("Site list request failed");
+  const site = sites.find((item) => item.site_id === siteId);
+  if (!site) notFound();
+  return <SiteScreen site={site} siteCount={sites.length} lotModel={lotModel} />;
 }

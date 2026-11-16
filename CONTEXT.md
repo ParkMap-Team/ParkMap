@@ -19,7 +19,7 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 - **Lot model**: static 3D representation of a site's parking lot, including parking areas, unmonitored ground, and landmarks, built from surveyed measurements or, until a survey, estimates from photos and imagery. It changes only when the site is re-surveyed or re-estimated, never from live frames.
 - **Landmark**: a static feature of the lot model (entrance, exit, guard booth, building, aisle, barrier, tree, road, walkway, planting, or covered walkway) that helps a student match the map to the place. It is surveyed (`MEASURED`) or estimated from photos and imagery (`ESTIMATED`) with its basis recorded, and the map says when it is estimated. It carries no availability and is never inferred from live frames; an entrance or exit shows a direction only when that direction is confirmed.
 - **Stand-in data**: public dataset images, simulated scenes, or AI-generated video used while real-angle footage is unavailable. It supports development and demos, never accuracy claims about the real lot (ADR 0004).
-- **Still-image loop**: demo source that repeatedly analyses compatible recorded photos from one fixed camera viewpoint. It publishes as `STILL_IMAGE_LOOP`, never `LIVE_CAMERA` or `RECORDED_REPLAY`, and LIFF permanently identifies it as recorded demo data rather than the current parking state. One minimally occluded photo is the calibration reference; another photo may share its calibration only when its resolution and viewpoint match. `captured_at` remains the photo's real observation time, while `processed_at` records when the worker analysed it. A healthy loop is `DEMO`, not `LIVE`; if processing becomes stale, its candidate regions become `UNKNOWN` and never remain `AVAILABLE` or `ALMOST_AVAILABLE`.
+- **Still-image loop**: demo source that repeatedly analyses compatible recorded photos from one fixed camera viewpoint. It publishes as `STILL_IMAGE_LOOP`, never `LIVE_CAMERA` or `RECORDED_REPLAY`, and LIFF presents it like `LIVE` with the analysed photo, without recorded-data wording (ADR 0017, superseding ADR 0011's permanent label). One minimally occluded photo is the calibration reference; another photo may share its calibration only when its resolution and viewpoint match. `captured_at` remains the photo's real observation time, while `processed_at` records when the worker analysed it. A healthy loop is `DEMO`, not `LIVE`; if processing becomes stale, its candidate regions become `UNKNOWN` and never remain `AVAILABLE` or `ALMOST_AVAILABLE`.
 - **Estimated calibration**: camera calibration for which at least one geometry input was estimated rather than surveyed. The calibration as a whole is `ESTIMATED`; each control point and row dimension retains its own provenance, numeric uncertainty in metres, and estimation basis. It may support a non-live demo but provides no distance or accuracy claim. Its demo geometry is limited to the Parking ROI supported by the reference photo, with surrounding ground `UNMONITORED`. A `LIVE_CAMERA` may publish diagnostics with it, but every parking region is forced to `UNKNOWN` until all required geometry inputs are `MEASURED`.
 - **Simulated scene**: video not recorded in a real lot. Rendered from the lot model it has exact ground truth for testing geometry and fitting; produced by a generative video model it has no ground truth and may drift in geometry. Its replays publish as `SIMULATED_REPLAY`, never as `RECORDED_REPLAY`.
 - **Motorcycle proxy**: generic 3D motorcycle shown on the lot model at an occupied footprint's position and long-axis heading. It represents a detection, not a reconstruction of the actual vehicle; the MVP does not resolve front versus rear because a single camera view cannot establish that direction reliably. In a Still-image loop, every proxy and fitting calculation uses one documented standard motorcycle footprint, and LIFF does not present per-motorcycle dimensions. A future directed-heading or dimension experiment must not replace this behavior until validated against a locked reference set. Regions without current evidence show as unknown, not as empty ground.
@@ -27,6 +27,7 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 - **Proxy size tolerance**: the initial demo checks that the shared standard proxy footprint renders within ±30% of its documented reference dimensions; it does not compare a proxy with the real dimensions of an individual detected motorcycle and is not a production accuracy target.
 - **Proxy heading tolerance**: the initial demo evaluates the undirected long-axis angle within 15 degrees of a reference; headings separated by 180 degrees are equivalent because front versus rear is not currently resolved.
 - **Proxy reference set**: proxy evaluation uses the existing recorded demo line with manually annotated sample motorcycles containing a ground point, long axis, and reference length and width.
+- **Classifier reference-size experiment**: local Parking can map predicted families to editable width/length references and compare experimental occupied/free geometry with the standard result. Initial references equal the existing standard footprint, not individual measurements. Incoming vehicles keep standard fitting dimensions. Worker, published state and LIFF do not use these references; locked-reference validation is still required before replacing standard demo behavior.
 - **Vision API Python support**: `apps/vision-api` requires CPython `3.12`; the dependency lock, CI, local setup, and deployment instructions use Python 3.12 consistently.
 - **Vision API dependency workflow**: `apps/vision-api` installs its runtime and development dependency groups with `uv sync --locked --all-groups`; CI and local development use the committed `uv.lock` rather than compiling or installing requirements files.
 - **LIFF motorcycle proxy asset**: the LIFF app uses a generic motorcycle GLB 3D model bundled in the repository with a clearly documented license such as CC0 or Apache-2.0. It visualizes a detection's position, long-axis direction, and approximate size; it is not a reconstruction of the actual vehicle and is not loaded from a runtime-hosted external URL.
@@ -46,6 +47,64 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 
 ## Current implementation
 
+Local Parking's active segmentation free-space experiment displays rectangular
+continuous intervals over each row's depth, including sub-metre gaps.
+Each uninterrupted free interval stays whole, with a total metre witness;
+uncertainty is attached to that interval rather than dividing it into slots.
+It compares manual incoming width plus an explicit total lateral margin (default zero).
+Occluded or uncertain intervals remain UNKNOWN. It does not evaluate vehicle
+length or access paths, and does not change worker/LIFF fitting. The irregular
+visible-patch experiment is retained as an inactive diagnostic, not the operator
+Analyze default. See docs/segmentation-gaps.md.
+Parking Analyze now uses the configured Seg model as its primary detector by default for both
+images and video frames. One segmentation inference feeds the image boxes,
+masks and rectangular-gap diagnostics. The former Physical Map / Camera View,
+parking-state summary and bottom Summary section are removed from Parking;
+the Seg camera overlay and metric top-down gap map remain. Classifier controls and
+class-derived size experiments are removed from the web flow. Local trained
+classifier artifacts and legacy operator APIs remain available separately;
+the worker now uses Seg for standard-size proxies and UNKNOWN row publication. A missing Seg model fails explicitly
+rather than silently substituting the original detector.
+Active Seg gap ownership uses IMAGE_NEAREST_LOWER_EDGE. The bbox bottom-centre
+selects the nearest finite lower row edge in image pixels, within that edge's
+width span. The closest edge must lead the runner-up by more than 5% of the
+smaller candidate row's image depth (polygon area / edge length). Ties remain
+unresolved. Points outside calibrated ROI by more than 0.40 m are excluded.
+Inside ROI there is no 20 cm cutoff or mask-overlap ownership gate. One detection
+reserves one owner band, remains uncertain, and all masks/bbox fallbacks remain
+image occluders. Saved geometry is unchanged; the worker uses this same ownership policy.
+The metric map shows red lateral occupancy bands extended over each row's depth
+by default; these are display-only and never replace the original vehicle
+footprints used for inspection. In active rectangular gap analysis, references
+with accepted Python row assignments reserve only their owner row. Ambiguous
+references and real image occlusion remain conservative across rows. Worker/LIFF
+and the inactive irregular-shape diagnostic keep their existing policy.
+Unresolved references are retained, never replaced with empty occupied geometry.
+Metric lower-edge distances are diagnostic in this mode; the image-pixel
+comparison chooses the owner. Teal lines show the reference edges. All new assignments retain
+uncertainty. Legacy distance-gated helpers and worker/LIFF remain unchanged.
+Each accepted vehicle now reserves a single owner-row band, centred at its
+projected point, using the existing standard width 0.66 m and full row depth.
+The old footprint need not intersect the owner row. Original references remain
+available for inspection; no band is copied into a neighbour row. All Seg IDs
+have explicit assignment reasons/distances in the click inspector.
+Its gap calculation now uses Seg detections only, valid image masks with box
+fallback, and reference-size all-heading envelopes to localize resolvable
+assignment uncertainty. Unbounded or other uncertainty keeps row/global gates.
+Visible small one-vehicle width conflicts may be yellow ALMOST_AVAILABLE
+advisories (at most 0.10 m width deficit and shared 10% overlap threshold).
+Movement feasibility is not computed and yellow never counts as green.
+An optional bbox pixel-aspect preview proposes 0/90-degree reference rotations
+and leaves near-square boxes ambiguous. It is display-only; the current occupied
+geometry, fitting and published state do not consume these heading hypotheses.
+
+Parking also shows horizontal-image Seg detections outside row ownership as
+orange dashed standard 2.00-by-0.66 m references. A separate Python diagnostic
+estimates nearest comparable-reference distance inside calibrated ROI; ambiguous,
+outside or invalid neighbors are excluded and disclosed. Labels say approximate:
+pixel aspect, bbox anchors and standard dimensions are not measured geometry.
+These results never feed availability, incoming fitting, worker or LIFF.
+
 `tools/calibration-ui/` is the calibration, lot-model authoring, and uploaded-image POC built with vinext/Vite. It is not the student app, and it is the repository's only calibration tool. Its local operator lot-model editor starts from the SPU camera fixture, saves drafts separately, and explicitly activates validated versions for LIFF. A separate ROI edit mode moves, rotates, and reshapes metric parking-area polygons; rigid moves/rotations also place motorcycles, headings and analysis regions through a Python camera-ground-to-lot transform, while reshaping/resizing deactivates calibration until reviewed (ADR 0013). For a single ROI the operator may explicitly replace the lot outline with that ROI after moving or rotating it; other outline edits stay locked.
 
 `apps/liff/` is the student-facing LIFF app: site list, a navigable 3D view of the lot model with live regions and motorcycle proxies, and freshness and source notices.
@@ -58,7 +117,7 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 
 1. A recorded video from one fixed viewpoint stands in for the camera on the hidden parking area; the final deliverable is this replay, not an installed camera (ADR 0005). A separate entrance view may estimate incoming motorcycle dimensions.
 2. An inference worker processes frames, applies camera calibration and parking geometry, and publishes a timestamped state with confidence and evidence freshness.
-3. A student opens the web app from the LINE Official Account rich menu via LIFF and sees a surveyed map with green candidate regions, yellow advisory regions, and unknown regions. In the demo the video plays separately on the presenter's screen and the LIFF app shows the video time of the analysed frame, never the footage (ADR 0005).
+3. A student opens the web app from the LINE Official Account rich menu via LIFF and sees a surveyed map with green candidate regions, yellow advisory regions, and unknown regions. Opening an area shows the analysed photo the state was derived from (ADR 0017).
 4. Deferred beyond the first release: a dimension estimate from the entrance view may rank compatible candidate regions. Brand recognition alone cannot establish physical dimensions, and matching an entrance observation to the student viewing LIFF is unresolved. Until then, candidates are ranked for a standard motorcycle footprint.
 5. Proposed for the final, pending advisor approval (ADR 0010): a student who registered a plate opens "where I parked" and sees their parking record on the lot model, or, without one, the reason and their entrance sighting. The student marks nothing.
 
@@ -72,10 +131,58 @@ The 3D map is a static surveyed lot model with detections drawn as motorcycle pr
 
 - The Python service owns detection, calibration, occupancy, and recommendation calculations. The web app renders results and owns LIFF integration.
 - A LINE rich-menu URL can open LIFF without a bot server. Add a webhook service only when message/postback behavior is required; it need not be NestJS solely for a link.
-- Do not expose raw camera credentials, raw private footage, LINE access tokens, or identifiable user data to the browser; the one exception is a student's own registered plate, parking record, and entrance sighting, shown only to that student (ADR 0010). Recording, storage, access, blurring, training use, and deletion of real footage follow `docs/footage-policy.md`.
+- Do not expose raw camera credentials, raw private footage, LINE access tokens, or identifiable user data to the browser; the exceptions are the analysed area photo (ADR 0017), whose display must be allowed by the footage policy, and a student's own registered plate, parking record, and entrance sighting, shown only to that student (ADR 0010). Recording, storage, access, blurring, training use, and deletion of real footage follow `docs/footage-policy.md`.
 - Do not label a candidate green when observation is stale, occluded, uncalibrated, or uncertain. Yellow means movement may be required, never a guaranteed instruction to move another person's vehicle.
 - Current JSON calibration files and synchronous inference are development facilities. Multi-camera production needs durable state, a separate worker, explicit freshness limits, and health/lag monitoring before scale claims.
 
 ## Open product inputs
 
 The Sripatum demo video (a fixed phone recording, ADR 0005) and surveyed dimensions and reference points of its parking area, acceptable update delay, acceptable false-green rate, and whether students need LINE messages in addition to opening LIFF. These are required for the demo, not for the workspace setup.
+
+The frame worker now uses Seg inference and the operator nearest-image-lower-edge
+association for publication. The existing LIFF contract carries assigned Seg
+standard-size proxies and UNKNOWN row regions, since width-only diagnostics do
+not establish full fitting. No width-preview green/yellow is published as
+availability. Calibration fingerprints, freshness and source semantics remain.
+
+LIFF now supports a separate WIDTH_SUFFICIENT preview region kind, rendered
+solid light green and labelled width-only experimental rather than AVAILABLE.
+Python publishes the same sufficient-width candidates as the tool preview,
+retaining numeric width and uncertainty reasons for selection. UNKNOWN row
+background remains underneath; stale/calibration gates still remove previews.
+LIVE_CAMERA with estimated calibration publishes UNKNOWN only.
+
+LIFF now receives explicit OCCUPIED reference bands from the same row-depth/ROI
+geometries shown in Calibration UI, separately from motorcycle proxies. Both
+renderers suppress the old red proxy-footprint background when occupied bands
+are supplied. Horizontal-image reference hypotheses inside calibrated ROI also
+feed display-only proxies (one ID once, including aisle references); they do not
+change gap fitting, occupancy decisions or availability. Their heading and size
+remain approximate standard references rather than measured Seg dimensions.
+
+Python supplies a separate display_polygon clipped to the calibrated ROI and
+active lot ROI. Original analysis polygon, WIDTH_SUFFICIENT colour, width_m and
+uncertainty reasons remain unchanged. WIDTH_SUFFICIENT is a width-only preview,
+not a fitting claim; clipped AVAILABLE/ALMOST_AVAILABLE still become UNKNOWN.
+OCCUPIED fragments
+carry their source detection_id; LIFF centres and uniformly shrinks a row icon
+only within that detection's band, rather than guessing a nearby band. Original
+proxy geometry and fitting inputs remain unchanged; horizontal references keep
+their observed display pose. A clipped split band still draws one icon.
+
+Local Setup now has a mobile-camera pairing tab. A single-use two-minute QR
+opens the separate LIFF /mobile-camera page over an operator-chosen HTTPS origin.
+A scoped thirty-minute memory-only phone credential can send serial latest
+frames, not edit calibration. The operator must review a recent preview against
+saved rows before enabling LIVE_CAMERA publication through the shared Python
+frame analysis service. Approved sessions suppress background worker writes for
+that area; freshness still removes stale results and Stop clears phone regions.
+This single-API-process development feature does not correct camera movement.
+Public HTTPS access is explicit and never launched automatically. See
+docs/mobile-camera.md for access scope, privacy, setup and verification limits.
+
+Setup ROI uniform scaling changes map presentation only (ADR 0016). Python proves
+the ordered vertices differ by one positive uniform scale, rotation and translation.
+Public proxy display_scale sizes the icon; physical widths/lengths and stored
+analysis remain unchanged. Reflection, non-uniform stretching and corner changes
+still fail closed. Scaled map coordinates are layout units, not new survey data.

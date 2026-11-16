@@ -281,7 +281,10 @@ uv run --project apps/vision-api --no-sync ruff check tools/yolo-training/classi
 ```
 
 Checks use synthetic archives, not private source images. Training checks also
-run tiny synthetic ResNet18 epochs without downloading pretrained weights.
+run tiny synthetic ResNet18 and EfficientNet-B0 epochs without downloading pretrained weights.
+
+For another classifier architecture and the pinned EfficientNet experiment, see
+[ARCHITECTURES.md](ARCHITECTURES.md).
 
 For the offline button/file workflow, using Node 22+ and the installed Edge:
 

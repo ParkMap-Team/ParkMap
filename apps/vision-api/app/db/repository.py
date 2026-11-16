@@ -1,11 +1,18 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import delete, func, select, update
-from sqlalchemy.dialects.postgresql import distinct_on
+from sqlalchemy import delete, func, select, tuple_, update
+from sqlalchemy.dialects.postgresql import distinct_on, insert
 from sqlalchemy.orm import Session
 
-from app.db.tables import Calibration, LotModel, ParkingArea, ParkingState, Site
+from app.db.tables import (
+    AreaFrame,
+    Calibration,
+    LotModel,
+    ParkingArea,
+    ParkingState,
+    Site,
+)
 from app.models import LotModelDefinition, ParkingStatePublish
 from app.services.lot_placement_service import placement_for_calibration
 
@@ -51,6 +58,27 @@ def insert_state(session: Session, publish: ParkingStatePublish) -> None:
             payload=publish.model_dump(mode="json"),
         )
     )
+
+
+def store_frame(session: Session, area_id: str, processed_at: datetime, width: int, height: int, image: bytes, *, keep_s: float) -> None:
+    """Keep the area's photos processed up to keep_s before its newest one; older ones, even arriving late, are dropped."""
+    session.execute(insert(AreaFrame).values(parking_area_id=area_id, processed_at=processed_at, width=width, height=height, image=image).on_conflict_do_nothing())
+    newest = select(func.max(AreaFrame.processed_at)).where(AreaFrame.parking_area_id == area_id).scalar_subquery()
+    session.execute(delete(AreaFrame).where(AreaFrame.parking_area_id == area_id, AreaFrame.processed_at < newest - timedelta(seconds=keep_s)))
+
+
+def frame_sizes(session: Session, processed: dict[str, datetime]) -> dict[str, tuple[datetime, int, int]]:
+    """The size of the photo each area's state was processed from, if kept, without loading the photo."""
+    if not processed:
+        return {}
+    query = select(AreaFrame.parking_area_id, AreaFrame.processed_at, AreaFrame.width, AreaFrame.height).where(
+        tuple_(AreaFrame.parking_area_id, AreaFrame.processed_at).in_(list(processed.items()))
+    )
+    return {row.parking_area_id: (row.processed_at, row.width, row.height) for row in session.execute(query)}
+
+
+def frame(session: Session, area_id: str, processed_at: datetime) -> AreaFrame | None:
+    return session.get(AreaFrame, (area_id, processed_at))
 
 
 def create_site(session: Session, site_id: str, name: str, latitude: float, longitude: float) -> None:
@@ -102,8 +130,9 @@ def purge_states(session: Session, older_than: datetime) -> int:
 
 
 def remove_site(session: Session, site_id: str) -> None:
-    """Delete the site with its parking areas, calibrations, lot models, and stored states."""
+    """Delete the site with its parking areas, calibrations, lot models, stored states, and photos."""
     area_ids = select(ParkingArea.id).where(ParkingArea.site_id == site_id).scalar_subquery()
+    session.execute(delete(AreaFrame).where(AreaFrame.parking_area_id.in_(area_ids)))
     session.execute(delete(ParkingState).where(ParkingState.parking_area_id.in_(area_ids)))
     session.execute(delete(Calibration).where(Calibration.parking_area_id.in_(area_ids)))
     session.execute(delete(ParkingArea).where(ParkingArea.site_id == site_id))

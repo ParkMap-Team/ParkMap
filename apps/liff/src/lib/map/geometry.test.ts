@@ -3,13 +3,13 @@ import { test } from "node:test";
 import { Euler, Vector3 } from "three";
 import type { MotorcycleProxy } from "../api/types.ts";
 import { axisHeading, boundsOf, edgePoints, labelPoint, pointInPolygon, proxyFootprint, toWorld } from "./geometry.ts";
-import { motorcycleTransform } from "./motorcycle-model.ts";
+import { MOTORCYCLE_MODEL, motorcycleTransform } from "./motorcycle-model.ts";
 
 const square = [[{ x_m: 0, y_m: 0 }, { x_m: 4, y_m: 0 }, { x_m: 4, y_m: 4 }, { x_m: 0, y_m: 4 }]];
 const withHole = [...square, [{ x_m: 1, y_m: 1 }, { x_m: 3, y_m: 1 }, { x_m: 3, y_m: 3 }, { x_m: 1, y_m: 3 }]];
 
 function proxy(overrides: Partial<MotorcycleProxy> = {}): MotorcycleProxy {
-  return { detection_id: "d1", center: { x_m: 5, y_m: 3 }, heading_rad: 0, length_m: 2, width_m: 0.66, confidence: 0.9, ...overrides };
+  return { detection_id: "d1", center: { x_m: 5, y_m: 3 }, heading_rad: 0, length_m: 2, width_m: 0.66, confidence: 0.9, display_scale: 1, ...overrides };
 }
 
 test("points inside a hole are outside the polygon", () => {
@@ -73,7 +73,7 @@ test("the model's long axis lands on the proxy's long axis in the world", () => 
 test("the model is stretched onto the standard footprint and stands on the ground", () => {
   const transform = motorcycleTransform(proxy());
   assert.deepEqual(transform.position, [5, 0, -3]);
-  assert.ok(Math.abs(transform.scale[0] * 1.86 - 2) < 1e-9);
-  assert.ok(Math.abs(transform.scale[2] * 0.68 - 0.66) < 1e-9);
+  assert.ok(Math.abs(transform.scale[0] * MOTORCYCLE_MODEL.lengthM - 2) < 1e-9);
+  assert.ok(Math.abs(transform.scale[2] * MOTORCYCLE_MODEL.widthM - 0.66) < 1e-9);
   assert.equal(transform.scale[1], transform.scale[0]);
 });

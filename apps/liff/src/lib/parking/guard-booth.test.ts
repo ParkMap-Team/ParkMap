@@ -21,7 +21,7 @@ test("a two-minute hold blocks overlapping placements for the next rider", () =>
 
 test("only a current, confirmed occupancy takes over from a hold early", () => {
   const holds = [{ areaId: "area", polygon, expiresAt: PARKING_HOLD_MS }];
-  const motorcycles = [{ detection_id: "m1", center: { x_m: 1, y_m: 1 }, heading_rad: 0, length_m: 2, width_m: 0.66, confidence: 0.9 }];
+  const motorcycles = [{ detection_id: "m1", center: { x_m: 1, y_m: 1 }, heading_rad: 0, length_m: 2, width_m: 0.66, confidence: 0.9, display_scale: 1 }];
   const occupied = buildLotMap(lot, [{ ...area, motorcycles, regions: [] }]);
   assert.equal(activeParkingHolds(occupied, holds, 1_000).length, 0);
 
@@ -66,4 +66,17 @@ test("the sample route connects the Sripatum entrance and the selected placement
   assert.deepEqual(route?.at(-1), destination);
   assert.equal(sripatumPreviewRoute(sample, "sripatum", undefined), undefined);
   assert.equal(sripatumPreviewRoute(buildLotMap(sripatum, [{ ...area, source: "LIVE_CAMERA" }]), "sripatum", destination), undefined);
+});
+
+test("Sripatum routes approach both aisles from the right without crossing a parking row", () => {
+  const entrance = { x_m: 21.5, y_m: -21 };
+  const sripatum: LotModel = { ...lot, landmarks: [{ landmark_id: "entrance-1", kind: "ENTRANCE", position: entrance, measurement_source: "ESTIMATED" }] };
+  const map = buildLotMap(sripatum, [{ ...area, source: "SYNTHETIC_FIXTURE" }]);
+  for (const [destination, aisleY] of [[{ x_m: 11, y_m: 5 }, 3.2], [{ x_m: 11, y_m: 12 }, 10.2]] as const) {
+    const route = sripatumPreviewRoute(map, "sripatum", destination)!;
+    assert.deepEqual(route[0], entrance);
+    assert.deepEqual(route.slice(-3), [{ x_m: 28.9, y_m: aisleY }, { x_m: 11, y_m: aisleY }, destination]);
+  }
+  assert.equal(sripatumPreviewRoute(map, "sripatum", { x_m: 11, y_m: 14.5 }), undefined);
+  assert.equal(sripatumPreviewRoute(map, "sripatum", { x_m: 30, y_m: 12 }), undefined);
 });

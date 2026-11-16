@@ -1,0 +1,582 @@
+{
+  "snapshot_version": 1,
+  "source_lot_version": 9,
+  "site": {
+    "id": "sripatum",
+    "name": "Sripatum University",
+    "latitude": 13.85528,
+    "longitude": 100.58528
+  },
+  "parking_areas": [
+    {
+      "id": "sripatum-near-lot",
+      "site_id": "sripatum",
+      "camera_id": "SPU_CAM_01",
+      "name": "Sripatum near lot"
+    }
+  ],
+  "lot_model": {
+    "schema_version": 1,
+    "outline": [
+      [
+        {
+          "x_m": 27.02419327948903,
+          "y_m": 0.10139891484420449
+        },
+        {
+          "x_m": -1.6116047035192747,
+          "y_m": 0.13293561089060546
+        },
+        {
+          "x_m": -1.452998396925432,
+          "y_m": 15.646320398990454
+        },
+        {
+          "x_m": 23.643978116085027,
+          "y_m": 15.898601085155796
+        },
+        {
+          "x_m": 23.79990881168139,
+          "y_m": 6.6621118246053666
+        },
+        {
+          "x_m": 27.611604703519276,
+          "y_m": 6.524978230646589
+        }
+      ]
+    ],
+    "parking_areas": [
+      {
+        "parking_area_id": "sripatum-near-lot",
+        "polygon": [
+          [
+            {
+              "x_m": 27.02419327948903,
+              "y_m": 0.10139891484420449
+            },
+            {
+              "x_m": -1.6116047035192747,
+              "y_m": 0.13293561089060546
+            },
+            {
+              "x_m": -1.452998396925432,
+              "y_m": 15.646320398990454
+            },
+            {
+              "x_m": 23.643978116085027,
+              "y_m": 15.898601085155796
+            },
+            {
+              "x_m": 23.79990881168139,
+              "y_m": 6.6621118246053666
+            },
+            {
+              "x_m": 27.611604703519276,
+              "y_m": 6.524978230646589
+            }
+          ]
+        ]
+      }
+    ],
+    "landmarks": [
+      {
+        "landmark_id": "guard-booth",
+        "kind": "GUARD_BOOTH",
+        "name": null,
+        "position": {
+          "x_m": 24.5,
+          "y_m": -21.0
+        },
+        "polygon": [
+          [
+            {
+              "x_m": 22.75,
+              "y_m": -21.699999999999996
+            },
+            {
+              "x_m": 26.25,
+              "y_m": -21.699999999999996
+            },
+            {
+              "x_m": 26.25,
+              "y_m": -20.299999999999997
+            },
+            {
+              "x_m": 22.75,
+              "y_m": -20.299999999999997
+            }
+          ]
+        ],
+        "line": null,
+        "direction_rad": null,
+        "height_m": 2.6,
+        "radius_m": null,
+        "facade": null,
+        "measurement_source": "ESTIMATED"
+      },
+      {
+        "landmark_id": "hedge",
+        "kind": "PLANTING",
+        "name": "แนวพุ่มไม้",
+        "position": {
+          "x_m": 7.0,
+          "y_m": 19.0
+        },
+        "polygon": [
+          [
+            {
+              "x_m": -28.995,
+              "y_m": 18.0
+            },
+            {
+              "x_m": 43.004999999999995,
+              "y_m": 18.0
+            },
+            {
+              "x_m": 43.004999999999995,
+              "y_m": 20.0
+            },
+            {
+              "x_m": -28.995,
+              "y_m": 20.0
+            }
+          ]
+        ],
+        "line": null,
+        "direction_rad": null,
+        "height_m": 1.0,
+        "radius_m": null,
+        "facade": null,
+        "measurement_source": "ESTIMATED"
+      },
+      {
+        "landmark_id": "central-planters",
+        "kind": "PLANTING",
+        "name": "แนวกระถางต้นไม้",
+        "position": {
+          "x_m": 2.0,
+          "y_m": -1.0
+        },
+        "polygon": [
+          [
+            {
+              "x_m": -23.0,
+              "y_m": -1.9949999999999992
+            },
+            {
+              "x_m": 27.0,
+              "y_m": -1.9949999999999992
+            },
+            {
+              "x_m": 27.0,
+              "y_m": 0.005000000000000782
+            },
+            {
+              "x_m": -23.0,
+              "y_m": 0.005000000000000782
+            }
+          ]
+        ],
+        "line": null,
+        "direction_rad": null,
+        "height_m": 0.5,
+        "radius_m": null,
+        "facade": null,
+        "measurement_source": "ESTIMATED"
+      },
+      {
+        "landmark_id": "west-planters-north",
+        "kind": "PLANTING",
+        "name": null,
+        "position": {
+          "x_m": -2.0,
+          "y_m": -21.0
+        },
+        "polygon": [
+          [
+            {
+              "x_m": -23.494999999999997,
+              "y_m": -21.85
+            },
+            {
+              "x_m": 19.505000000000003,
+              "y_m": -21.85
+            },
+            {
+              "x_m": 19.505000000000003,
+              "y_m": -20.15
+            },
+            {
+              "x_m": -23.494999999999997,
+              "y_m": -20.15
+            }
+          ]
+        ],
+        "line": null,
+        "direction_rad": null,
+        "height_m": 0.4,
+        "radius_m": null,
+        "facade": null,
+        "measurement_source": "ESTIMATED"
+      },
+      {
+        "landmark_id": "west-planters-south",
+        "kind": "PLANTING",
+        "name": null,
+        "position": {
+          "x_m": 33.5,
+          "y_m": -21.0
+        },
+        "polygon": [
+          [
+            {
+              "x_m": 28.5,
+              "y_m": -21.85
+            },
+            {
+              "x_m": 38.5,
+              "y_m": -21.85
+            },
+            {
+              "x_m": 38.5,
+              "y_m": -20.15
+            },
+            {
+              "x_m": 28.5,
+              "y_m": -20.15
+            }
+          ]
+        ],
+        "line": null,
+        "direction_rad": null,
+        "height_m": 0.4,
+        "radius_m": null,
+        "facade": null,
+        "measurement_source": "ESTIMATED"
+      },
+      {
+        "landmark_id": "west-road",
+        "kind": "ROAD",
+        "name": null,
+        "position": {
+          "x_m": 7.0,
+          "y_m": -24.5
+        },
+        "polygon": [
+          [
+            {
+              "x_m": -29.0,
+              "y_m": -27.25
+            },
+            {
+              "x_m": 43.0,
+              "y_m": -27.25
+            },
+            {
+              "x_m": 43.0,
+              "y_m": -21.75
+            },
+            {
+              "x_m": -29.0,
+              "y_m": -21.75
+            }
+          ]
+        ],
+        "line": null,
+        "direction_rad": null,
+        "height_m": null,
+        "radius_m": null,
+        "facade": null,
+        "measurement_source": "ESTIMATED"
+      },
+      {
+        "landmark_id": "north-covered-walkway",
+        "kind": "SHELTER",
+        "name": null,
+        "position": {
+          "x_m": -24.0,
+          "y_m": -2.0
+        },
+        "polygon": [
+          [
+            {
+              "x_m": -25.0,
+              "y_m": -21.75
+            },
+            {
+              "x_m": -23.0,
+              "y_m": -21.75
+            },
+            {
+              "x_m": -23.0,
+              "y_m": 17.75
+            },
+            {
+              "x_m": -25.0,
+              "y_m": 17.75
+            }
+          ]
+        ],
+        "line": null,
+        "direction_rad": null,
+        "height_m": 3.0,
+        "radius_m": null,
+        "facade": null,
+        "measurement_source": "ESTIMATED"
+      },
+      {
+        "landmark_id": "north-road",
+        "kind": "ROAD",
+        "name": null,
+        "position": {
+          "x_m": -27.5,
+          "y_m": -2.0
+        },
+        "polygon": [
+          [
+            {
+              "x_m": -30.0,
+              "y_m": -21.75
+            },
+            {
+              "x_m": -25.0,
+              "y_m": -21.75
+            },
+            {
+              "x_m": -25.0,
+              "y_m": 17.75
+            },
+            {
+              "x_m": -30.0,
+              "y_m": 17.75
+            }
+          ]
+        ],
+        "line": null,
+        "direction_rad": null,
+        "height_m": null,
+        "radius_m": null,
+        "facade": null,
+        "measurement_source": "ESTIMATED"
+      },
+      {
+        "landmark_id": "south-road",
+        "kind": "ROAD",
+        "name": null,
+        "position": {
+          "x_m": 40.85,
+          "y_m": -2.0
+        },
+        "polygon": [
+          [
+            {
+              "x_m": 38.349999999999994,
+              "y_m": -21.75
+            },
+            {
+              "x_m": 43.349999999999994,
+              "y_m": -21.75
+            },
+            {
+              "x_m": 43.349999999999994,
+              "y_m": 17.75
+            },
+            {
+              "x_m": 38.349999999999994,
+              "y_m": 17.75
+            }
+          ]
+        ],
+        "line": null,
+        "direction_rad": null,
+        "height_m": null,
+        "radius_m": null,
+        "facade": null,
+        "measurement_source": "ESTIMATED"
+      },
+      {
+        "landmark_id": "building-9",
+        "kind": "BUILDING",
+        "name": "อาคาร 9",
+        "position": {
+          "x_m": 7.0,
+          "y_m": 40.0
+        },
+        "polygon": [
+          [
+            {
+              "x_m": -29.0,
+              "y_m": 27.500000000000007
+            },
+            {
+              "x_m": 43.0,
+              "y_m": 27.500000000000007
+            },
+            {
+              "x_m": 43.0,
+              "y_m": 52.50000000000001
+            },
+            {
+              "x_m": -29.0,
+              "y_m": 52.50000000000001
+            }
+          ]
+        ],
+        "line": null,
+        "direction_rad": null,
+        "height_m": 55.0,
+        "radius_m": null,
+        "facade": "WINDOW_BANDS",
+        "measurement_source": "ESTIMATED"
+      },
+      {
+        "landmark_id": "entrance-1",
+        "kind": "ENTRANCE",
+        "name": null,
+        "position": {
+          "x_m": 21.5,
+          "y_m": -21.0
+        },
+        "polygon": null,
+        "line": null,
+        "direction_rad": null,
+        "height_m": null,
+        "radius_m": null,
+        "facade": null,
+        "measurement_source": "ESTIMATED"
+      },
+      {
+        "landmark_id": "exit-1",
+        "kind": "EXIT",
+        "name": null,
+        "position": {
+          "x_m": 27.5,
+          "y_m": -21.0
+        },
+        "polygon": null,
+        "line": null,
+        "direction_rad": null,
+        "height_m": null,
+        "radius_m": null,
+        "facade": null,
+        "measurement_source": "ESTIMATED"
+      },
+      {
+        "landmark_id": "planting-1",
+        "kind": "PLANTING",
+        "name": null,
+        "position": {
+          "x_m": 31.0,
+          "y_m": -1.0
+        },
+        "polygon": [
+          [
+            {
+              "x_m": 30.0,
+              "y_m": -2.0
+            },
+            {
+              "x_m": 32.0,
+              "y_m": -2.0
+            },
+            {
+              "x_m": 32.0,
+              "y_m": 0.0
+            },
+            {
+              "x_m": 30.0,
+              "y_m": 0.0
+            }
+          ]
+        ],
+        "line": null,
+        "direction_rad": null,
+        "height_m": 0.5,
+        "radius_m": null,
+        "facade": null,
+        "measurement_source": "ESTIMATED"
+      },
+      {
+        "landmark_id": "planting-2",
+        "kind": "PLANTING",
+        "name": null,
+        "position": {
+          "x_m": 36.2,
+          "y_m": -1.0
+        },
+        "polygon": [
+          [
+            {
+              "x_m": 34.2,
+              "y_m": -2.0
+            },
+            {
+              "x_m": 38.2,
+              "y_m": -2.0
+            },
+            {
+              "x_m": 38.2,
+              "y_m": 0.0
+            },
+            {
+              "x_m": 34.2,
+              "y_m": 0.0
+            }
+          ]
+        ],
+        "line": null,
+        "direction_rad": null,
+        "height_m": 0.5,
+        "radius_m": null,
+        "facade": null,
+        "measurement_source": "ESTIMATED"
+      },
+      {
+        "landmark_id": "walkway-1",
+        "kind": "WALKWAY",
+        "name": null,
+        "position": {
+          "x_m": 7.0,
+          "y_m": 23.5
+        },
+        "polygon": [
+          [
+            {
+              "x_m": -29.0,
+              "y_m": 19.75
+            },
+            {
+              "x_m": 43.0,
+              "y_m": 19.75
+            },
+            {
+              "x_m": 43.0,
+              "y_m": 27.25
+            },
+            {
+              "x_m": -29.0,
+              "y_m": 27.25
+            }
+          ]
+        ],
+        "line": null,
+        "direction_rad": null,
+        "height_m": null,
+        "radius_m": null,
+        "facade": null,
+        "measurement_source": "ESTIMATED"
+      }
+    ]
+  },
+  "calibrations": [
+    {
+      "parking_area_id": "sripatum-near-lot",
+      "version": "files-sha256:ee05bf50e987aa47454b017b02a350c9bc5ded303dbecf9847a345da7c58c6a6",
+      "config_files": {
+        "ground_plane_homography.json": "{\r\n  \"schema_version\": 1,\r\n  \"camera_id\": \"SPU_CAM_01\",\r\n  \"source_calibration_fingerprint\": \"2f8a63be751dd96e54dfa6e7ffca392f9f9fdaa3682613d399fae6bb098d1d19\",\r\n  \"row_measurements_fingerprint\": \"42022815d7c71e185891d9c4627822c82939f7304a28524999665dad4fd26937\",\r\n  \"matrix\": [\r\n    [\r\n      134.68877806327257,\r\n      51.584772453750574,\r\n      -64.62842234857338\r\n    ],\r\n    [\r\n      0.5331642649535208,\r\n      -216.0914064477698,\r\n      191.5388490904841\r\n    ],\r\n    [\r\n      -0.26080231737101306,\r\n      5.618511075571137,\r\n      1.0\r\n    ]\r\n  ],\r\n  \"inverse_matrix\": [\r\n    [\r\n      0.007460714943804235,\r\n      0.002394234608683534,\r\n      0.023585295010643402\r\n    ],\r\n    [\r\n      0.0002914817882486518,\r\n      -0.0006803012765793139,\r\n      0.1491421316686402\r\n    ],\r\n    [\r\n      0.0003080780909863611,\r\n      0.0044467021914606055,\r\n      0.168194380980111\r\n    ]\r\n  ],\r\n  \"control_point_count\": 8,\r\n  \"inlier_count\": 8,\r\n  \"rmse_m\": 0.2147206165531997,\r\n  \"mean_error_m\": 0.19538384640907697,\r\n  \"median_error_m\": 0.17121586080008508,\r\n  \"max_error_m\": 0.35960082710709107,\r\n  \"warning_rmse_m\": 0.5,\r\n  \"warning_max_error_m\": 1.0,\r\n  \"status\": \"VALIDATED\",\r\n  \"calculated_at\": \"2026-11-11T12:31:57.482848Z\",\r\n  \"method\": \"NORMALIZED_DLT_SVD\",\r\n  \"ransac_used\": false,\r\n  \"point_diagnostics\": [\r\n    {\r\n      \"id\": \"P1\",\r\n      \"measured_x_m\": 0.0,\r\n      \"measured_y_m\": 0.0,\r\n      \"projected_x_m\": 0.0640626953738903,\r\n      \"projected_y_m\": 0.023356242480682417,\r\n      \"error_x_m\": 0.0640626953738903,\r\n      \"error_y_m\": 0.023356242480682417,\r\n      \"error_m\": 0.06818755752616674,\r\n      \"inlier\": true\r\n    },\r\n    {\r\n      \"id\": \"P2\",\r\n      \"measured_x_m\": 17.5,\r\n      \"measured_y_m\": 0.0,\r\n      \"projected_x_m\": 17.601421295769864,\r\n      \"projected_y_m\": 0.21189254693243692,\r\n      \"error_x_m\": 0.10142129576986392,\r\n      \"error_y_m\": 0.21189254693243692,\r\n      \"error_m\": 0.2349143049734375,\r\n      \"inlier\": true\r\n    },\r\n    {\r\n      \"id\": \"P3\",\r\n      \"measured_x_m\": 17.5,\r\n      \"measured_y_m\": 12.46,\r\n      \"projected_x_m\": 17.551029842893666,\r\n      \"projected_y_m\": 12.325204979875952,\r\n      \"error_x_m\": 0.051029842893665744,\r\n      \"error_y_m\": -0.13479502012404865,\r\n      \"error_m\": 0.14413099013048822,\r\n      \"inlier\": true\r\n    },\r\n    {\r\n      \"id\": \"P4\",\r\n      \"measured_x_m\": 0.0,\r\n      \"measured_y_m\": 12.46,\r\n      \"projected_x_m\": 0.11156363869971622,\r\n      \"projected_y_m\": 12.553647565495414,\r\n      \"error_x_m\": 0.11156363869971622,\r\n      \"error_y_m\": 0.09364756549541298,\r\n      \"error_m\": 0.1456582026634219,\r\n      \"inlier\": true\r\n    },\r\n    {\r\n      \"id\": \"P5\",\r\n      \"measured_x_m\": 5.0,\r\n      \"measured_y_m\": 3.36,\r\n      \"projected_x_m\": 4.936431396480017,\r\n      \"projected_y_m\": 3.1737774170481194,\r\n      \"error_x_m\": -0.06356860351998339,\r\n      \"error_y_m\": -0.18622258295188043,\r\n      \"error_m\": 0.19677351893674827,\r\n      \"inlier\": true\r\n    },\r\n    {\r\n      \"id\": \"P6\",\r\n      \"measured_x_m\": 10.0,\r\n      \"measured_y_m\": 3.36,\r\n      \"projected_x_m\": 9.882555570597825,\r\n      \"projected_y_m\": 3.020118313440542,\r\n      \"error_x_m\": -0.11744442940217503,\r\n      \"error_y_m\": -0.33988168655945783,\r\n      \"error_m\": 0.35960082710709107,\r\n      \"inlier\": true\r\n    },\r\n    {\r\n      \"id\": \"P7\",\r\n      \"measured_x_m\": 10.0,\r\n      \"measured_y_m\": 6.96,\r\n      \"projected_x_m\": 9.884738434294242,\r\n      \"projected_y_m\": 7.008771631574718,\r\n      \"error_x_m\": -0.11526156570575807,\r\n      \"error_y_m\": 0.0487716315747182,\r\n      \"error_m\": 0.12515550557367755,\r\n      \"inlier\": true\r\n    },\r\n    {\r\n      \"id\": \"P8\",\r\n      \"measured_x_m\": 5.0,\r\n      \"measured_y_m\": 6.96,\r\n      \"projected_x_m\": 4.973129954304564,\r\n      \"projected_y_m\": 7.2473964941336035,\r\n      \"error_x_m\": -0.026870045695435607,\r\n      \"error_y_m\": 0.2873964941336036,\r\n      \"error_m\": 0.2886498643615847,\r\n      \"inlier\": true\r\n    }\r\n  ],\r\n  \"roi_metric\": {\r\n    \"id\": \"parking_roi\",\r\n    \"points\": [\r\n      {\r\n        \"x_m\": -4.302337555873088,\r\n        \"y_m\": 11.412353136470177\r\n      },\r\n      {\r\n        \"x_m\": 17.42415654751878,\r\n        \"y_m\": 11.893911262897452\r\n      },\r\n      {\r\n        \"x_m\": 17.577667623780048,\r\n        \"y_m\": 0.12112950748658978\r\n      },\r\n      {\r\n        \"x_m\": -1.4589178822196658,\r\n        \"y_m\": -0.5132924440375\r\n      },\r\n      {\r\n        \"x_m\": -1.740266669594146,\r\n        \"y_m\": 6.491665722995349\r\n      },\r\n      {\r\n        \"x_m\": -4.634615393398886,\r\n        \"y_m\": 6.5284239405595335\r\n      }\r\n    ],\r\n    \"longitudinal_extent_m\": 22.45429826000632,\r\n    \"cross_extent_m\": 13.164272824349222,\r\n    \"measured_length_m\": null,\r\n    \"measured_width_m\": null,\r\n    \"length_difference_m\": null,\r\n    \"width_difference_m\": null\r\n  },\r\n  \"rows_metric\": [\r\n    {\r\n      \"id\": \"row_1\",\r\n      \"points\": [\r\n        {\r\n          \"x_m\": -1.484033592165361,\r\n          \"y_m\": 0.9931715775413362\r\n        },\r\n        {\r\n          \"x_m\": 17.602159586149345,\r\n          \"y_m\": 1.480368562141642\r\n        },\r\n        {\r\n          \"x_m\": 17.592982766255453,\r\n          \"y_m\": 0.1069876105732558\r\n        },\r\n        {\r\n          \"x_m\": -1.4757112378465054,\r\n          \"y_m\": -0.4881021188162992\r\n        }\r\n      ],\r\n      \"longitudinal_extent_m\": 19.12624283529417,\r\n      \"cross_extent_m\": 1.4809086985966973,\r\n      \"measured_length_m\": 19.375,\r\n      \"measured_width_m\": 1.46,\r\n      \"length_difference_m\": -0.24875716470582887,\r\n      \"width_difference_m\": 0.020908698596697306\r\n    },\r\n    {\r\n      \"id\": \"row_2\",\r\n      \"points\": [\r\n        {\r\n          \"x_m\": -1.42076243629549,\r\n          \"y_m\": 0.9088726020735433\r\n        },\r\n        {\r\n          \"x_m\": 17.630887245607003,\r\n          \"y_m\": 1.5064326417863718\r\n        },\r\n        {\r\n          \"x_m\": 17.501865830280945,\r\n          \"y_m\": 3.5412210167165763\r\n        },\r\n        {\r\n          \"x_m\": -1.5900005977712224,\r\n          \"y_m\": 2.991744415350623\r\n        }\r\n      ],\r\n      \"longitudinal_extent_m\": 19.168588347902507,\r\n      \"cross_extent_m\": 2.086963995651743,\r\n      \"measured_length_m\": 19.375,\r\n      \"measured_width_m\": 1.9,\r\n      \"length_difference_m\": -0.20641165209749346,\r\n      \"width_difference_m\": 0.18696399565174326\r\n    },\r\n    {\r\n      \"id\": \"row_3\",\r\n      \"points\": [\r\n        {\r\n          \"x_m\": -1.6687374572581382,\r\n          \"y_m\": 4.654720068941761\r\n        },\r\n        {\r\n          \"x_m\": 17.646762777273686,\r\n          \"y_m\": 5.140762709445755\r\n        },\r\n        {\r\n          \"x_m\": 17.58022813904067,\r\n          \"y_m\": 6.896857457544649\r\n        },\r\n        {\r\n          \"x_m\": -1.8512296724406316,\r\n          \"y_m\": 6.513239444838622\r\n        }\r\n      ],\r\n      \"longitudinal_extent_m\": 19.463037336692885,\r\n      \"cross_extent_m\": 1.8620876524822108,\r\n      \"measured_length_m\": 19.375,\r\n      \"measured_width_m\": 1.9,\r\n      \"length_difference_m\": 0.08803733669288505,\r\n      \"width_difference_m\": -0.03791234751778916\r\n    },\r\n    {\r\n      \"id\": \"row_4\",\r\n      \"points\": [\r\n        {\r\n          \"x_m\": -4.627054674215219,\r\n          \"y_m\": 6.574044253810047\r\n        },\r\n        {\r\n          \"x_m\": 17.549532016914466,\r\n          \"y_m\": 6.9110808498565515\r\n        },\r\n        {\r\n          \"x_m\": 17.52503796942976,\r\n          \"y_m\": 8.73807256959442\r\n        },\r\n        {\r\n          \"x_m\": -4.554819663296969,\r\n          \"y_m\": 8.536378264048102\r\n        }\r\n      ],\r\n      \"longitudinal_extent_m\": 22.179058549656574,\r\n      \"cross_extent_m\": 1.9612911261344101,\r\n      \"measured_length_m\": 22.5,\r\n      \"measured_width_m\": 1.9,\r\n      \"length_difference_m\": -0.320941450343426,\r\n      \"width_difference_m\": 0.061291126134410234\r\n    },\r\n    {\r\n      \"id\": \"row_5\",\r\n      \"points\": [\r\n        {\r\n          \"x_m\": -4.293564883509405,\r\n          \"y_m\": 11.43130522796176\r\n        },\r\n        {\r\n          \"x_m\": 17.390707340201303,\r\n          \"y_m\": 11.887850226508775\r\n        },\r\n        {\r\n          \"x_m\": 17.454490843507322,\r\n          \"y_m\": 10.011144792574429\r\n        },\r\n        {\r\n          \"x_m\": -4.405687176771495,\r\n          \"y_m\": 9.573958654367063\r\n        }\r\n      ],\r\n      \"longitudinal_extent_m\": 21.864542777302443,\r\n      \"cross_extent_m\": 1.8776252687527037,\r\n      \"measured_length_m\": 22.5,\r\n      \"measured_width_m\": 1.9,\r\n      \"length_difference_m\": -0.635457222697557,\r\n      \"width_difference_m\": -0.022374731247296165\r\n    }\r\n  ]\r\n}\r\n",
+        "ground_plane_calibration.json": "{\r\n  \"schema_version\": 1,\r\n  \"camera_id\": \"SPU_CAM_01\",\r\n  \"reference_image\": {\r\n    \"width\": 4032,\r\n    \"height\": 3024\r\n  },\r\n  \"coordinate_system\": {\r\n    \"unit\": \"meter\",\r\n    \"description\": \"Local parking ground-plane coordinates\"\r\n  },\r\n  \"control_points\": [\r\n    {\r\n      \"provenance\": \"MEASURED\",\r\n      \"uncertainty_m\": null,\r\n      \"estimation_basis\": null,\r\n      \"id\": \"P1\",\r\n      \"image_x\": 0.14329526460238884,\r\n      \"image_y\": 0.8860902408719209,\r\n      \"ground_x_m\": 0.0,\r\n      \"ground_y_m\": 0.0\r\n    },\r\n    {\r\n      \"provenance\": \"MEASURED\",\r\n      \"uncertainty_m\": null,\r\n      \"estimation_basis\": null,\r\n      \"id\": \"P2\",\r\n      \"image_x\": 0.8903099226935307,\r\n      \"image_y\": 0.882958103940721,\r\n      \"ground_x_m\": 17.5,\r\n      \"ground_y_m\": 0.0\r\n    },\r\n    {\r\n      \"provenance\": \"MEASURED\",\r\n      \"uncertainty_m\": null,\r\n      \"estimation_basis\": null,\r\n      \"id\": \"P3\",\r\n      \"image_x\": 0.8057422255511373,\r\n      \"image_y\": 0.6386514233071401,\r\n      \"ground_x_m\": 17.5,\r\n      \"ground_y_m\": 12.46\r\n    },\r\n    {\r\n      \"provenance\": \"MEASURED\",\r\n      \"uncertainty_m\": null,\r\n      \"estimation_basis\": null,\r\n      \"id\": \"P4\",\r\n      \"image_x\": 0.24313212928438108,\r\n      \"image_y\": 0.627688944047941,\r\n      \"ground_x_m\": 0.0,\r\n      \"ground_y_m\": 12.46\r\n    },\r\n    {\r\n      \"provenance\": \"MEASURED\",\r\n      \"uncertainty_m\": null,\r\n      \"estimation_basis\": null,\r\n      \"id\": \"P5\",\r\n      \"image_x\": 0.3699836749979712,\r\n      \"image_y\": 0.8073952945014499,\r\n      \"ground_x_m\": 5.0,\r\n      \"ground_y_m\": 3.36\r\n    },\r\n    {\r\n      \"provenance\": \"MEASURED\",\r\n      \"uncertainty_m\": null,\r\n      \"estimation_basis\": null,\r\n      \"id\": \"P6\",\r\n      \"image_x\": 0.566133750314356,\r\n      \"image_y\": 0.8120934998982495,\r\n      \"ground_x_m\": 10.0,\r\n      \"ground_y_m\": 3.36\r\n    },\r\n    {\r\n      \"provenance\": \"MEASURED\",\r\n      \"uncertainty_m\": null,\r\n      \"estimation_basis\": null,\r\n      \"id\": \"P7\",\r\n      \"image_x\": 0.5637846476159561,\r\n      \"image_y\": 0.7275258027558561,\r\n      \"ground_x_m\": 10.0,\r\n      \"ground_y_m\": 6.96\r\n    },\r\n    {\r\n      \"provenance\": \"MEASURED\",\r\n      \"uncertainty_m\": null,\r\n      \"estimation_basis\": null,\r\n      \"id\": \"P8\",\r\n      \"image_x\": 0.38642739388676994,\r\n      \"image_y\": 0.7212615288934566,\r\n      \"ground_x_m\": 5.0,\r\n      \"ground_y_m\": 6.96\r\n    }\r\n  ],\r\n  \"reference_distances\": [],\r\n  \"measured_rows\": {\r\n    \"row_1\": {\r\n      \"provenance\": \"MEASURED\",\r\n      \"uncertainty_m\": null,\r\n      \"estimation_basis\": null,\r\n      \"length_m\": 19.375,\r\n      \"width_m\": 1.46\r\n    },\r\n    \"row_2\": {\r\n      \"provenance\": \"MEASURED\",\r\n      \"uncertainty_m\": null,\r\n      \"estimation_basis\": null,\r\n      \"length_m\": 19.375,\r\n      \"width_m\": 1.9\r\n    },\r\n    \"row_3\": {\r\n      \"provenance\": \"MEASURED\",\r\n      \"uncertainty_m\": null,\r\n      \"estimation_basis\": null,\r\n      \"length_m\": 19.375,\r\n      \"width_m\": 1.9\r\n    },\r\n    \"row_4\": {\r\n      \"provenance\": \"MEASURED\",\r\n      \"uncertainty_m\": null,\r\n      \"estimation_basis\": null,\r\n      \"length_m\": 22.5,\r\n      \"width_m\": 1.9\r\n    },\r\n    \"row_5\": {\r\n      \"provenance\": \"MEASURED\",\r\n      \"uncertainty_m\": null,\r\n      \"estimation_basis\": null,\r\n      \"length_m\": 22.5,\r\n      \"width_m\": 1.9\r\n    }\r\n  }\r\n}\r\n",
+        "parking_calibration.json": "{\r\n  \"schema_version\": 2,\r\n  \"camera_id\": \"SPU_CAM_01\",\r\n  \"reference_image\": {\r\n    \"width\": 4032,\r\n    \"height\": 3024\r\n  },\r\n  \"parking_roi\": {\r\n    \"polygon\": [\r\n      {\r\n        \"x\": 0.08643945859593838,\r\n        \"y\": 0.6439051922852475\r\n      },\r\n      {\r\n        \"x\": 0.8039651993609944,\r\n        \"y\": 0.6453028346755368\r\n      },\r\n      {\r\n        \"x\": 0.8901451987044818,\r\n        \"y\": 0.8853563039799253\r\n      },\r\n      {\r\n        \"x\": 0.06933162913602942,\r\n        \"y\": 0.9009057138480392\r\n      },\r\n      {\r\n        \"x\": 0.13303277365633753,\r\n        \"y\": 0.7338444101598973\r\n      },\r\n      {\r\n        \"x\": 0.02368953929227941,\r\n        \"y\": 0.7321372950221755\r\n      }\r\n    ]\r\n  },\r\n  \"rows\": [\r\n    {\r\n      \"polygon\": [\r\n        {\r\n          \"x\": 0.08649970730479692,\r\n          \"y\": 0.8598947391456583\r\n        },\r\n        {\r\n          \"x\": 0.8793249630233616,\r\n          \"y\": 0.8505314206614077\r\n        },\r\n        {\r\n          \"x\": 0.8909044580552185,\r\n          \"y\": 0.8857330223503236\r\n        },\r\n        {\r\n          \"x\": 0.06889443277310925,\r\n          \"y\": 0.9001913004785247\r\n        }\r\n      ],\r\n      \"id\": \"row_1\",\r\n      \"name\": \"Parking Row 1\"\r\n    },\r\n    {\r\n      \"polygon\": [\r\n        {\r\n          \"x\": 0.08825150177258403,\r\n          \"y\": 0.8621145723914566\r\n        },\r\n        {\r\n          \"x\": 0.8802512752199636,\r\n          \"y\": 0.8498911243426376\r\n        },\r\n        {\r\n          \"x\": 0.8590165167629552,\r\n          \"y\": 0.8019439155870681\r\n        },\r\n        {\r\n          \"x\": 0.10433626575630252,\r\n          \"y\": 0.8101489554154996\r\n        }\r\n      ],\r\n      \"id\": \"row_2\",\r\n      \"name\": \"Parking Row 2\"\r\n    },\r\n    {\r\n      \"polygon\": [\r\n        {\r\n          \"x\": 0.11827156643907563,\r\n          \"y\": 0.7723236169467788\r\n        },\r\n        {\r\n          \"x\": 0.8527182569781553,\r\n          \"y\": 0.7674093598300971\r\n        },\r\n        {\r\n          \"x\": 0.8383597068416262,\r\n          \"y\": 0.7322079161610032\r\n        },\r\n        {\r\n          \"x\": 0.12904254475227592,\r\n          \"y\": 0.7333747301003735\r\n        }\r\n      ],\r\n      \"id\": \"row_3\",\r\n      \"name\": \"Parking Row 3\"\r\n    },\r\n    {\r\n      \"polygon\": [\r\n        {\r\n          \"x\": 0.024509803921568627,\r\n          \"y\": 0.7312237394957983\r\n        },\r\n        {\r\n          \"x\": 0.8371848739495799,\r\n          \"y\": 0.7319240196078431\r\n        },\r\n        {\r\n          \"x\": 0.8249299719887955,\r\n          \"y\": 0.698077147525677\r\n        },\r\n        {\r\n          \"x\": 0.049041183856355045,\r\n          \"y\": 0.6935641704598506\r\n        }\r\n      ],\r\n      \"id\": \"row_4\",\r\n      \"name\": \"Parking Row 4\"\r\n    },\r\n    {\r\n      \"polygon\": [\r\n        {\r\n          \"x\": 0.0869139941132703,\r\n          \"y\": 0.6436004610177404\r\n        },\r\n        {\r\n          \"x\": 0.8029311920080532,\r\n          \"y\": 0.6453841692927171\r\n        },\r\n        {\r\n          \"x\": 0.815162021839986,\r\n          \"y\": 0.6759610615079366\r\n        },\r\n        {\r\n          \"x\": 0.06512605042016807,\r\n          \"y\": 0.6749679038281979\r\n        }\r\n      ],\r\n      \"id\": \"row_5\",\r\n      \"name\": \"Parking Row 5\"\r\n    }\r\n  ]\r\n}\r\n"
+      }
+    }
+  ]
+}

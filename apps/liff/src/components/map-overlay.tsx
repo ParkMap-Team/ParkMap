@@ -12,17 +12,24 @@ import { COLORS } from "@/lib/parking/presentation";
 // What the 2D plan and the 3D scene share: the props and handle site-view drives them with, the
 // DOM label layer, and an error boundary that turns a failed view into a fallback.
 
-/** Map controls sit in a column on the right; the overview and labels keep clear of it. */
-export const MAP_INSETS: Insets = { top: 12, right: 64, bottom: 12, left: 12 };
-
+/**
+ * Moves from a button glide (`animated`); keyboard steps and drags apply at once. A move cancels
+ * the one before it, and touching the map cancels any move.
+ */
 export type MapViewHandle = {
-  zoomBy(factor: number): void;
+  zoomBy(factor: number, animated: boolean): void;
   /** The elevated overview of the whole place. */
-  reset(): void;
+  reset(animated: boolean): void;
+  /** Flies to a point and puts it in the middle of the uncovered map. */
   focus(point: MetricPoint): void;
   panBy(dx: number, dy: number): void;
   /** Turns the map counter-clockwise on screen by `rad`; only the 3D view turns. */
-  rotateBy?(rad: number): void;
+  rotateBy?(rad: number, animated: boolean): void;
+  /**
+   * Nudges the map just enough that a point sits clear of the controls and of `bottom` pixels of
+   * sheet. It does nothing while a fly is under way, so it never fights a move people asked for.
+   */
+  reveal(point: MetricPoint, bottom: number): void;
 };
 
 export type MapViewProps = {
@@ -34,12 +41,19 @@ export type MapViewProps = {
   routeReplay?: number;
   heldPolygons?: readonly MetricPolygon[];
   onSelect(point: MetricPoint | null): void;
+  /** Map edges covered by controls and the sheet, in pixels: the overview fits inside them. */
+  insets: Insets;
   ref?: Ref<MapViewHandle>;
 };
 
-/** The control column, in screen pixels, so labels never hide under it. */
-export function blockedRects({ width }: Size): ScreenRect[] {
-  return [{ x0: width - MAP_INSETS.right, y0: 0, x1: width, y1: 380 }];
+/** Everything outside the free viewport, so labels never hide under the controls or the sheet. */
+export function blockedRects({ width, height }: Size, insets: Insets): ScreenRect[] {
+  return [
+    { x0: 0, y0: 0, x1: width, y1: insets.top },
+    { x0: width - insets.right, y0: 0, x1: width, y1: height },
+    { x0: 0, y0: height - insets.bottom, x1: width, y1: height },
+    { x0: 0, y0: 0, x1: insets.left, y1: height },
+  ];
 }
 
 export type LabelLayerHandle = {
@@ -77,9 +91,9 @@ function LabelBody({ label }: { label: PlacedLabel }) {
         </span>
       );
     case "AREA":
-      return <span className="text-[11px] font-medium text-slate-600 [text-shadow:0_0_3px_#fff,0_0_3px_#fff,0_0_3px_#fff]">{label.text}</span>;
+      return <span className="text-xs font-semibold text-[#1e293b] [text-shadow:0_0_3px_#fff,0_0_3px_#fff,0_0_3px_#fff]">{label.text}</span>;
     default:
-      return <span className="text-xs font-medium text-stone-700 [text-shadow:0_0_3px_#fff,0_0_3px_#fff,0_0_3px_#fff]">{label.text}</span>;
+      return <span className="text-xs text-[#1e293b] [text-shadow:0_0_3px_#fff,0_0_3px_#fff,0_0_3px_#fff]">{label.text}</span>;
   }
 }
 
@@ -89,7 +103,17 @@ const SELECTED_ID = "selected";
  * Thai labels in the DOM over either view, so they stay sharp and readable at any zoom. They do
  * not take pointer events and never look like buttons; placement drops labels that would overlap.
  */
-export function LabelLayer({ labels, selection, ref }: { labels: MapLabel[]; selection: MapViewProps["selection"]; ref: Ref<LabelLayerHandle> }) {
+export function LabelLayer({
+  labels,
+  selection,
+  insets,
+  ref,
+}: {
+  labels: MapLabel[];
+  selection: MapViewProps["selection"];
+  insets: Insets;
+  ref: Ref<LabelLayerHandle>;
+}) {
   const elements = useRef(new Map<string, HTMLDivElement>());
   const placed: PlacedLabel[] = labels.map((label) => ({ ...label, direction: label.landmark?.direction_rad ?? null }));
   const all = selection ? [...placed, { id: SELECTED_ID, text: selection.text, kind: "AREA" as const, anchor: selection.point, direction: null }] : placed;
@@ -110,7 +134,7 @@ export function LabelLayer({ labels, selection, ref }: { labels: MapLabel[]; sel
           if (ahead) element.style.setProperty("--direction", `${Math.atan2(ahead[0] - screen[0], screen[1] - ahead[1])}rad`);
         }
       }
-      const shown = placeLabels(candidates, { width: size.width, height: size.height, zoom, blocked: blockedRects(size) });
+      const shown = placeLabels(candidates, { width: size.width, height: size.height, zoom, blocked: blockedRects(size, insets) });
       for (const [id, element] of elements.current) {
         const centre = shown.get(id);
         element.style.visibility = centre ? "visible" : "hidden";

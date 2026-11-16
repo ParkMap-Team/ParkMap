@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 export function ComingSoon({ title }: { title: string }) {
   return (
     <MascotScreen mood="happy" title={title} description="กำลังพัฒนา จะเปิดให้ใช้เร็ว ๆ นี้">
-      <Button render={<Link href="/" />} nativeButton={false}>
-        ดูรายการลานจอด
+      <Button render={<Link href="/" />} nativeButton={false} className="h-11 px-5">
+        กลับหน้าแรก
       </Button>
     </MascotScreen>
   );

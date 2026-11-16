@@ -1,32 +1,25 @@
-import Link from "next/link";
-import { Mascot } from "@/components/mascot";
+import { LiffRedirect } from "@/components/liff-redirect";
+import { SiteList } from "@/components/site-list";
+import { requestLotModel, SiteScreen } from "@/components/site-screen";
 import { apiClient } from "@/lib/api/server";
+import { homeSiteId } from "@/lib/home";
 
 // Sites come from the API at request time, never from a build-time snapshot.
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
+/** True when LIFF is about to forward a rich-menu link to another page of the app. */
+function forwarding(state: string | string[] | undefined): boolean {
+  if (typeof state !== "string" || state === "") return false;
+  const path = state.split(/[?#]/, 1)[0];
+  return path !== "" && path !== "/";
+}
+
+// The rich menu's main button opens here, so a student lands on a map, not on a menu: the configured
+// default site, else the only site, else the list.
+export default async function Home({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  if (forwarding((await searchParams)["liff.state"])) return <LiffRedirect />;
   const { data: sites } = await apiClient().GET("/api/sites");
-  return (
-    <main className="mx-auto max-w-md space-y-4 px-4 py-6">
-      <h1 className="text-xl font-semibold">ParkMap</h1>
-      <p className="text-sm text-muted-foreground">เลือกลานจอดรถเพื่อดูพื้นที่ว่าง</p>
-      {!sites ? (
-        <div className="flex flex-col items-center gap-3 py-8 text-center">
-          <Mascot mood="confused" size={120} />
-          <p className="text-sm text-red-700">โหลดรายการลานจอดไม่ได้ ลองใหม่อีกครั้ง</p>
-        </div>
-      ) : (
-        <ul className="divide-y rounded-lg border">
-          {sites.map((site) => (
-            <li key={site.site_id}>
-              <Link href={`/sites/${site.site_id}`} className="block px-4 py-3 hover:bg-muted">
-                {site.name}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
-  );
+  const siteId = sites ? homeSiteId(sites, process.env.PARKMAP_DEFAULT_SITE_ID) : null;
+  const site = sites?.find((item) => item.site_id === siteId);
+  return site && sites ? <SiteScreen site={site} siteCount={sites.length} lotModel={requestLotModel(site.site_id)} /> : <SiteList sites={sites} />;
 }

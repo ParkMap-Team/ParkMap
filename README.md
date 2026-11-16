@@ -35,6 +35,7 @@ Double-click `start-dev.bat` at the repository root, or run it from a terminal:
 
 ```bat
 start-dev.bat
+start-dev.bat --no-worker
 start-dev.bat --demo
 start-dev.bat --no-browser
 start-dev.bat --dry-run
@@ -43,13 +44,15 @@ start-dev.bat --dry-run
 Before the first run, open Docker Desktop, install frontend dependencies with
 `corepack pnpm install --frozen-lockfile`, and run `uv sync --locked --all-groups`
 in `apps/vision-api`. Copy that package's `.env.example` to `.env`; set
-`PARKMAP_WORKER_TOKEN` if using `--demo`. The launcher uses pnpm when available,
+`PARKMAP_WORKER_TOKEN` for the photo worker (or `--demo`). The launcher uses pnpm when available,
 otherwise npm runs each package's already-installed `dev` script. It does not
 download a package manager, install dependencies, or change the pnpm lockfile.
 
 The launcher starts only the development Postgres service, waits for its healthcheck,
 runs migrations, and opens separate terminals for database logs, Vision API (8000),
-LIFF (3001), and Calibration UI (3000). It then opens the two web apps and API docs
+the recorded-photo worker, LIFF (3001), and Calibration UI (3000). The worker starts
+after the API/database readiness check, reads `apps/vision-api/single-photo`, and
+publishes for `sripatum-near-lot`, holding each photo for 10 seconds. It then opens the two web apps and API docs
 in the browser, unless `--no-browser` is supplied. Progress messages identify each
 startup step. It works from any directory,
 checks for occupied app ports, and uses the compose database on `127.0.0.1:5432` and
@@ -58,11 +61,18 @@ The explicit IPv4 addresses avoid slow IPv6 attempts through `localhost` on Wind
 database connection attempts time out after 10 seconds. It preserves
 existing environment files and does not import lot models or seed sites by default.
 
+The photo worker requires the existing Sripatum parking area, its registered
+calibration, matching local calibration files, YOLO weights and correctly named
+photos. It does not create sites, replace lot models or register calibration.
+See the [still-image runbook](docs/still-image-loop-runbook.md) for prerequisites.
+LIFF labels these states as recorded demo data, never the live parking state.
+Use `--no-worker` when photos/configuration are unavailable or when only testing
+uploads; uploaded-image analysis needs no worker.
+
 `--demo` additionally seeds the **synthetic development site** and starts
-`publish-dev-state`; it does not publish observations for Sripatum. For photo/video
-observations, configure a real frame worker separately as described in the
-[backend README](apps/vision-api/README.md#live-state), using
-`PARKMAP_API_URL=http://127.0.0.1:8000`. Uploaded-image analysis needs no worker.
+`publish-dev-state`; it does not publish observations for Sripatum. It can be
+combined with `--no-worker` to run only the synthetic publisher. Other photo/video
+sources can still use the [backend worker command](apps/vision-api/README.md#live-state).
 
 Stop app processes with Ctrl+C in their terminals. Closing the database log window
 does not stop Postgres; run `docker compose stop postgres` from the repository root
@@ -184,6 +194,8 @@ Production runs on Coolify at <https://coolify.parkmap.dev>, project `ParkMap`, 
 `DATABASE_URL`, `PARKMAP_WORKER_TOKEN`, and `PARKMAP_API_URL` are Coolify environment variables and exist nowhere else. The API has one scheduled task, `purge-states` (daily, 30-day retention). Production lists only real sites: `seed-dev` and `publish-dev-state` are for local development and never run there. `NEXT_PUBLIC_LIFF_ID` is inlined into the LIFF bundle at build time from the repository variable `PRODUCTION_LIFF_ID`, so changing it needs a new image, not a Coolify restart.
 
 **Pipeline.** Pull requests build both images without pushing them. A push to `main` pushes `sha-<commit>` images of the changed services to GHCR, then [`.github/workflows/deploy-coolify.yml`](.github/workflows/deploy-coolify.yml) pins that tag on each Coolify application, triggers the deployment, and waits for it: the API first (it runs migrations), then the worker, and the LIFF app once the API deploy succeeded or was not needed. The workflows read repository variables `COOLIFY_URL`, `COOLIFY_APP_API`, `COOLIFY_APP_WORKER`, `COOLIFY_APP_LIFF` (application UUIDs), and `PRODUCTION_LIFF_ID`, and the secret `COOLIFY_TOKEN`, a Coolify API token with the `read`, `write`, and `deploy` abilities. The private repository's plan has no protected environments, so these are repository-level and readable by every workflow in the repository.
+
+**Manual feature-branch release (2026-11-14).** The LIFF, API and worker resources override the image-based setup above with Coolify Dockerfile builds from `feat/parking-free-space`, pinned to `d542f6f40e03f5760f70b8dac2078263e59fbebf`. LIFF uses `apps/liff/Dockerfile` with the repository root as context; API and worker use `/Dockerfile` with `/apps/vision-api` as context. Git auto-deployment is disabled. The public domain and production LIFF ID stay the same; `NEXT_PUBLIC_LIFF_ID` is a LIFF build-time variable. Backend credentials and configuration are runtime-only. The dashboard LIFF HTTP health-check override is disabled so its existing Node `HEALTHCHECK` checks `/help`; the API keeps its HTTP `/api/health` check and the worker serves no HTTP port. The official Seg model is mounted from the server, with its checksum verified against the local model (see the [runbook](docs/still-image-loop-runbook.md)). A successful local Coolify database backup was taken before API migration. Existing site layout and calibration are preserved by the migration, so copying local setup remains a separate reviewed operation. Before resuming the `main` image pipeline or its image-tag rollback, restore the affected resource to Docker Image mode with its GHCR image and intended `sha-<commit>` tag. The existing workflow updates only image tags and cannot release a new commit while these source pins remain active.
 
 **Pulling private images.** The VPS is logged in to `ghcr.io` as root (`docker login ghcr.io`) with a classic personal access token that has only `read:packages`; Coolify 4.3.23 has no API for registry credentials. When that token expires, deploys fail while pulling; create a new token and log in again.
 

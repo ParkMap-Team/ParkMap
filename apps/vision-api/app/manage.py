@@ -6,6 +6,7 @@ Database commands need DATABASE_URL and a migrated schema (`alembic upgrade head
 """
 
 import argparse
+import hashlib
 import json
 import logging
 import os
@@ -18,6 +19,9 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from alembic.config import Config
+from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from dotenv import load_dotenv
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -25,9 +29,20 @@ from sqlalchemy.orm import Session
 
 from app.db import repository
 from app.db.session import DatabaseNotConfiguredError, open_session
-from app.db.tables import ParkingArea, Site
-from app.models import IDENTIFIER_PATTERN, LiveRegion, LotModelDefinition, MotorcycleProxy, ParkingStatePublish, SiteSummary
-from app.services.live_state_service import CALIBRATION_FILES, CalibrationFilesUnavailableError, calibration_version
+from app.db.tables import SCHEMA, ParkingArea, Site
+from app.models import (
+    IDENTIFIER_PATTERN,
+    LiveRegion,
+    LotModelDefinition,
+    MotorcycleProxy,
+    ParkingStatePublish,
+    SiteSummary,
+)
+from app.services.live_state_service import (
+    CALIBRATION_FILES,
+    CalibrationFilesUnavailableError,
+    calibration_version,
+)
 from app.services.lot_model_editor_service import validate_site_definition
 from app.worker.publisher import StatePublisher
 
@@ -36,6 +51,7 @@ VISION_API_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_DIRECTORY = VISION_API_ROOT / "config"
 DEV_FIXTURE = VISION_API_ROOT / "fixtures" / "dev-site.json"
 DEV_CALIBRATION_VERSION = "dev-fixture"
+SEED_SNAPSHOT = VISION_API_ROOT / "migrations/data/0004_sripatum_setup.json"
 
 
 class CommandError(RuntimeError):
@@ -107,6 +123,115 @@ def register_calibration(session: Session, args: argparse.Namespace) -> str:
         raise CommandError(f"Calibration is for camera {camera_id!r}, but {area.id} uses camera {area.camera_id!r}.")
     repository.activate_calibration(session, area.id, version, payload)
     return f"Activated calibration {version} for {area.id}."
+
+
+def restore_seed_calibration(session: Session, args: argparse.Namespace) -> str:
+    """Explicitly restore shared snapshot bytes; never overwrite operator files."""
+    area = _require_area(session, args.parking_area_id)
+    active = repository.active_calibrations(session, [area.id]).get(area.id)
+    snapshot = json.loads(SEED_SNAPSHOT.read_text(encoding="utf-8"))
+    saved = next((item for item in snapshot["calibrations"] if item["parking_area_id"] == area.id), None)
+    if active is None or saved is None or active.version != saved["version"]:
+        raise CommandError("The active calibration does not match this shared snapshot; no files restored.")
+    files = saved["config_files"]
+    if set(files) != set(CALIBRATION_FILES):
+        raise CommandError("Shared snapshot has an unexpected calibration file list.")
+    raw_files = {name: files[name].encode("utf-8") for name in CALIBRATION_FILES}
+    digest = hashlib.sha256()
+    for name, raw in raw_files.items():
+        digest.update(name.encode())
+        digest.update(len(raw).to_bytes(8, "big"))
+        digest.update(raw)
+    if (f"files-sha256:{digest.hexdigest()}" != active.version
+            or {name: json.loads(raw) for name, raw in raw_files.items()} != active.payload
+            or active.payload["parking_calibration.json"]["camera_id"] != area.camera_id):
+        raise CommandError("Shared calibration identity mismatch; no files restored.")
+    directory = Path(args.output_dir)
+    conflicts = [name for name, raw in raw_files.items()
+                 if (directory / name).exists() and (directory / name).read_bytes() != raw]
+    if conflicts:
+        raise CommandError("Existing calibration differs; back it up and choose an empty directory first: " + ", ".join(conflicts))
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        for name, raw in raw_files.items():
+            target = directory / name
+            if not target.exists():
+                with target.open("xb") as stream:
+                    stream.write(raw)
+    except OSError as error:
+        raise CommandError("Unable to restore calibration files; check the output directory.") from error
+    return f"Restored matching calibration files for {area.id}; database settings were unchanged."
+
+
+def _same_lot_model(payload: object, expected: dict[str, Any]) -> bool:
+    try:
+        return LotModelDefinition.model_validate(payload) == LotModelDefinition.model_validate(expected)
+    except ValidationError:
+        return False
+
+
+def _setup_differences(session: Session, config_dir: Path) -> list[str]:
+    heads = set(ScriptDirectory.from_config(Config(str(VISION_API_ROOT / "alembic.ini"))).get_heads())
+    current = set(MigrationContext.configure(session.connection(), opts={"version_table_schema": SCHEMA}).get_current_heads())
+    if current != heads:
+        # The other checks read tables an older schema may not have.
+        return [f"database schema is at {', '.join(sorted(current)) or 'no revision'}, expected {', '.join(sorted(heads))}; run alembic upgrade head"]
+    snapshot = json.loads(SEED_SNAPSHOT.read_text(encoding="utf-8"))
+    differences = []
+    expected_site = snapshot["site"]
+    site = session.get(Site, expected_site["id"])
+    if site is None:
+        return [f"site {expected_site['id']} is missing"]
+    if (site.name, site.latitude, site.longitude) != (expected_site["name"], expected_site["latitude"], expected_site["longitude"]):
+        differences.append(f"site {site.id} name or location differs")
+    expected_areas = {area["id"]: area for area in snapshot["parking_areas"]}
+    areas = {area.id: area for area in repository.site_areas(session, site.id)}
+    differences += [f"parking area {area_id} is not in this version" for area_id in sorted(areas.keys() - expected_areas.keys())]
+    for area_id, expected in expected_areas.items():
+        area = areas.get(area_id)
+        if area is None:
+            differences.append(f"parking area {area_id} is missing")
+        elif (area.camera_id, area.name) != (expected["camera_id"], expected["name"]):
+            differences.append(f"parking area {area_id} has camera {area.camera_id!r} and name {area.name!r}, expected {expected['camera_id']!r} and {expected['name']!r}")
+    lot = repository.active_lot_model(session, site.id)
+    if lot is None or not _same_lot_model(lot.payload, snapshot["lot_model"]):
+        differences.append(f"active lot model of {site.id} differs")
+    calibrations = repository.active_calibrations(session, list(expected_areas))
+    for expected in snapshot["calibrations"]:
+        area_id = expected["parking_area_id"]
+        payload = {name: json.loads(text) for name, text in expected["config_files"].items()}
+        active = calibrations.get(area_id)
+        if active is None or active.version != expected["version"] or active.payload != payload:
+            differences.append(f"active calibration of {area_id} differs from {expected['version']}")
+    versions = {expected["version"] for expected in snapshot["calibrations"]}
+    try:
+        files_version = calibration_version(config_dir)
+    except CalibrationFilesUnavailableError as error:
+        differences.append(f"{config_dir}: {error}")
+    else:
+        if files_version not in versions:
+            differences.append(f"calibration files in {config_dir} are {files_version}; restore them with restore-seed-calibration")
+    # Imported here: the module loads the inference runtime, which only this command needs.
+    from app.services.segmentation_experiment_service import (
+        SEGMENTATION_WEIGHTS_SHA256,
+        segmentation_model_path,
+    )
+    weights = segmentation_model_path()
+    if not weights.is_file():
+        differences.append(f"segmentation weights {weights} are missing; run scripts/download_segmentation_weights.py")
+    else:
+        with weights.open("rb") as stream:
+            if hashlib.file_digest(stream, "sha256").hexdigest() != SEGMENTATION_WEIGHTS_SHA256:
+                differences.append(f"segmentation weights {weights} are not the pinned yolo11m-seg.pt")
+    return differences
+
+
+def verify_setup(session: Session, args: argparse.Namespace) -> str:
+    """Compare schema, shared site setup, calibration files and weights with this version. Read-only."""
+    differences = _setup_differences(session, Path(args.config_dir))
+    if differences:
+        raise CommandError("Setup differs from this version; nothing was changed:\n- " + "\n- ".join(differences))
+    return "Setup matches this version: schema, site, parking areas, lot model, calibration, calibration files and segmentation weights."
 
 
 def seed_dev(session: Session, args: argparse.Namespace) -> str:
@@ -227,6 +352,15 @@ def build_parser() -> argparse.ArgumentParser:
     command.add_argument("--parking-area-id", type=identifier, required=True)
     command.add_argument("--config-dir", default=str(CONFIG_DIRECTORY))
     command.set_defaults(handler=register_calibration)
+
+    command = commands.add_parser("restore-seed-calibration", help="restore shared snapshot files matching the active calibration without overwriting existing files")
+    command.add_argument("--parking-area-id", type=identifier, required=True)
+    command.add_argument("--output-dir", required=True)
+    command.set_defaults(handler=restore_seed_calibration)
+
+    command = commands.add_parser("verify-setup", help="report every way the database, config/ files and weights differ from this version (read-only)")
+    command.add_argument("--config-dir", default=str(CONFIG_DIRECTORY))
+    command.set_defaults(handler=verify_setup)
 
     command = commands.add_parser("seed-dev", help="create the fake development site (never in production)")
     command.set_defaults(handler=seed_dev)

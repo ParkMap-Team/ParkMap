@@ -8,6 +8,54 @@ const rect = (x0: number, y0: number, x1: number, y1: number) => [
   [{ x_m: x0, y_m: y0 }, { x_m: x1, y_m: y0 }, { x_m: x1, y_m: y1 }, { x_m: x0, y_m: y1 }],
 ];
 
+test("width-only green keeps its limitations and never becomes available", () => {
+  const region = { kind: "WIDTH_SUFFICIENT" as const, row_id: "r", polygon: rect(3, 2, 5, 3),
+    width_m: 1.2, reasons: ["GROUND_MAY_BE_OCCLUDED"] };
+  const map = buildLotMap(lotModel, [live({ regions: [region], motorcycles: [] })]);
+  const hit = hitTest(map, { x_m: 4, y_m: 2.5 });
+  assert.equal(hit?.status, "WIDTH_SUFFICIENT");
+  assert.equal(hit?.region?.width_m, 1.2);
+  assert.deepEqual(hit?.region?.reasons, ["GROUND_MAY_BE_OCCLUDED"]);
+  assert.equal(headlineStatus(summarize(map)), "WIDTH_SUFFICIENT");
+  assert.equal(summarize(map).present.has("AVAILABLE"), false);
+  assert.equal(hitTest(buildLotMap(lotModel, [live({ status: "STALE", regions: [region] })]), { x_m: 4, y_m: 2.5 })?.status, "UNKNOWN");
+});
+
+test("explicit row occupancy wins over the generic motorcycle footprint", () => {
+  const map = buildLotMap(lotModel, [live({
+    regions: [
+      { kind: "WIDTH_SUFFICIENT", polygon: rect(4, 2, 5, 3), width_m: 1 },
+      { kind: "OCCUPIED", polygon: rect(3, 2, 4, 3) },
+    ],
+    motorcycles: [{ detection_id: "d1", center: { x_m: 4, y_m: 2.5 }, heading_rad: 0, length_m: 2, width_m: .66, confidence: .9, display_scale: 1 }],
+  })]);
+  assert.equal(hitTest(map, { x_m: 3.5, y_m: 2.5 })?.status, "OCCUPIED");
+  assert.equal(hitTest(map, { x_m: 4.5, y_m: 2.5 })?.status, "WIDTH_SUFFICIENT");
+});
+
+test("ROI display clipping preserves the analysis colour and width without drawing outside its display shape", () => {
+  const region = { kind: "WIDTH_SUFFICIENT" as const, polygon: rect(1, 2, 6, 3),
+    display_polygon: rect(3, 2, 5, 3), width_m: 5, reasons: ["GROUND_MAY_BE_OCCLUDED"] };
+  const map = buildLotMap(lotModel, [live({ regions: [region], motorcycles: [] })]);
+  assert.equal(hitTest(map, { x_m: 4, y_m: 2.5 })?.status, "WIDTH_SUFFICIENT");
+  assert.equal(hitTest(map, { x_m: 4, y_m: 2.5 })?.region?.width_m, 5);
+  assert.equal(hitTest(map, { x_m: 2.5, y_m: 2.5 })?.status, "MONITORED");
+  assert.deepEqual(region.polygon, rect(1, 2, 6, 3));
+  assert.equal(hitTest(buildLotMap(lotModel, [live({ status: "STALE", regions: [region] })]), { x_m: 4, y_m: 2.5 })?.status, "UNKNOWN");
+});
+
+test("display scale sizes the symbol while retaining physical proxy dimensions", () => {
+  const proxy = { detection_id: "d1", center: { x_m: 4, y_m: 4 }, heading_rad: 0,
+    length_m: 2, width_m: .66, confidence: .9, display_scale: 1.5 };
+  const map = buildLotMap(lotModel, [live({ regions: [], motorcycles: [proxy] })]);
+  const car = map.areas[0].motorcycles[0];
+  assert.equal(car.proxy.length_m, 2);
+  assert.equal(car.proxy.width_m, .66);
+  assert.equal(car.displayProxy.length_m, 3);
+  assert.equal(car.displayProxy.width_m, .99);
+  assert.equal(hitTest(map, { x_m: 5.4, y_m: 4 })?.status, "OCCUPIED");
+});
+
 const lotModel: LotModel = {
   site_id: "site",
   schema_version: 1,
@@ -47,19 +95,29 @@ function live(overrides: Partial<ParkingAreaLiveState> = {}): ParkingAreaLiveSta
       { kind: "ALMOST_AVAILABLE", row_id: "row_1", polygon: rect(6, 2, 8, 3) },
       { kind: "UNKNOWN", row_id: "row_2", polygon: rect(3, 5, 17, 7) },
     ],
-    motorcycles: [{ detection_id: "m1", center: { x_m: 12, y_m: 2.5 }, heading_rad: 0, length_m: 2, width_m: 0.66, confidence: 0.9 }],
+    motorcycles: [{ detection_id: "m1", center: { x_m: 12, y_m: 2.5 }, heading_rad: 0, length_m: 2, width_m: 0.66, confidence: 0.9, display_scale: 1 }],
     ...overrides,
   };
 }
 
-test("the map is framed on the outline and every landmark", () => {
+test("the map pans over the outline and every landmark", () => {
   assert.deepEqual(buildLotMap(lotModel, null).bounds, { minX: 0, minY: 0, maxX: 20, maxY: 12 });
 });
 
-test("surroundings are drawn but stay out of the frame, while ways in and out stay in it", () => {
+test("surroundings are drawn but stay out of the pan limits, while ways in and out stay in them", () => {
   const map = buildLotMap({ ...lotModel, landmarks: [...(lotModel.landmarks ?? []), ...surroundings] }, null);
   assert.equal(map.landmarks.length, 5);
   assert.deepEqual(map.bounds, { minX: 0, minY: -2, maxX: 20, maxY: 12 });
+});
+
+test("the overview frames the lot outline alone, so a way in outside it may sit off screen", () => {
+  const map = buildLotMap({ ...lotModel, landmarks: [...(lotModel.landmarks ?? []), ...surroundings] }, null);
+  assert.deepEqual(map.frame, { minX: 0, minY: 0, maxX: 20, maxY: 10 });
+});
+
+test("the site spans the outline and every landmark, surroundings included", () => {
+  const map = buildLotMap({ ...lotModel, landmarks: [...(lotModel.landmarks ?? []), ...surroundings] }, null);
+  assert.deepEqual(map.site, { minX: -10, minY: -10, maxX: 30, maxY: 50 });
 });
 
 test("only named landmarks and ways in and out are labelled", () => {

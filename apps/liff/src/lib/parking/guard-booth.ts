@@ -51,23 +51,37 @@ export function guardBoothHeadline(mode: GuardBoothMode, hasCurrentAreas: boolea
 }
 
 const RIGHT_ACCESS_X = 28.9;
-const LOWER_AISLE_Y = 3;
+
+/** Centre lines and served rows in lot coordinates from the Sripatum reference and Setup map. */
+function sripatumAisleY({ x_m, y_m }: MetricPoint): number | undefined {
+  if (x_m >= RIGHT_ACCESS_X || y_m < 0 || y_m >= 13.8) return;
+  return y_m < 6.7 ? 3.2 : 10.2;
+}
 
 /** Waypoints for the Sripatum synthetic scene through the opening beside the planters. */
 export function sripatumPreviewRoute(map: LotMap, siteId: string, destination: MetricPoint | undefined): MetricPoint[] | undefined {
   if (siteId !== "sripatum" || !destination || !map.areas.some(({ live }) => live?.source === "SYNTHETIC_FIXTURE")) return;
   const entrance = map.landmarks.find(({ landmark_id, kind }) => landmark_id === "entrance-1" && kind === "ENTRANCE");
-  if (!entrance) return;
-  return [entrance.position, { x_m: entrance.position.x_m, y_m: -8 }, { x_m: RIGHT_ACCESS_X, y_m: -8 }, { x_m: RIGHT_ACCESS_X, y_m: LOWER_AISLE_Y }, { x_m: destination.x_m, y_m: LOWER_AISLE_Y }, destination];
+  const aisleY = sripatumAisleY(destination);
+  if (!entrance || aisleY === undefined) return;
+  return [
+    entrance.position,
+    { x_m: entrance.position.x_m, y_m: -8 },
+    { x_m: RIGHT_ACCESS_X, y_m: -8 },
+    { x_m: RIGHT_ACCESS_X, y_m: aisleY },
+    { x_m: destination.x_m, y_m: aisleY },
+    destination,
+  ];
 }
 
 /** The preview points to an existing engine placement for its standard footprint. */
-export function guardBoothPreviewDestination(map: LotMap, mode: GuardBoothMode) {
+export function guardBoothPreviewDestination(map: LotMap, mode: GuardBoothMode, siteId?: string) {
   if (mode !== "preview") return null;
   for (const area of map.areas) {
     const unknown = area.regions.filter(({ kind }) => kind === "UNKNOWN");
     const placement = area.regions.find(({ kind, polygon }) =>
-      kind === "AVAILABLE" && !unknown.some((region) => overlapsParkingHold(polygon, region.polygon)),
+      kind === "AVAILABLE" && !unknown.some((region) => overlapsParkingHold(polygon, region.polygon)) &&
+      (siteId !== "sripatum" || area.live?.source !== "SYNTHETIC_FIXTURE" || sripatumAisleY(labelPoint(polygon)) !== undefined),
     );
     if (placement) {
       return { areaId: area.parkingAreaId, point: labelPoint(placement.polygon), polygon: placement.polygon, text: "จอดตรงนี้", destination: true };

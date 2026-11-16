@@ -18,16 +18,21 @@ import time
 from datetime import UTC, datetime, timezone
 from pathlib import Path
 
-import cv2
 import httpx
 from dotenv import load_dotenv
-
 from pydantic import ValidationError
 
-from app.models import ParkingCalibration, ParkingStatePublish, StateSourceKind
-from app.services.cv_service import ModelUnavailableError, cv_service
-from app.services.live_state_service import CalibrationFilesUnavailableError, build_state_publish, calibration_identity
-from app.services.parking_analysis_service import ParkingCalibrationUnavailableError, parking_analysis_service
+from app.models import (
+    ParkingCalibration,
+    ParkingStatePublish,
+    StateSourceKind,
+)
+from app.services.cv_service import ModelUnavailableError
+from app.services.frame_analysis_service import analyze_segmentation_frame
+from app.services.live_state_service import (
+    CalibrationFilesUnavailableError,
+)
+from app.services.parking_analysis_service import ParkingCalibrationUnavailableError
 from app.worker.frames import Frame, FrameGrabber, LatestFrameSlot
 from app.worker.publisher import StatePublisher
 from app.worker.still_images import StillImageError, StillImageLoop, load_still_images
@@ -67,21 +72,7 @@ def reference_size(config_directory: Path) -> tuple[int, int]:
 
 
 def analyze_frame(frame: Frame, *, parking_area_id: str, source: StateSourceKind) -> ParkingStatePublish:
-    version, provenance = calibration_identity(CONFIG_DIRECTORY)
-    encoded, jpeg = cv2.imencode(".jpg", frame.image)
-    if not encoded:
-        raise ValueError("Frame could not be encoded.")
-    detection = cv_service.analyze_image(jpeg.tobytes())
-    analysis = parking_analysis_service.analyze(detection)
-    return build_state_publish(
-        analysis,
-        parking_area_id=parking_area_id,
-        source=source,
-        observed_at=frame.captured_at,
-        processed_at=datetime.now(UTC),
-        calibration_version=version,
-        calibration_provenance=provenance,
-    )
+    return analyze_segmentation_frame(frame.image, frame.captured_at, parking_area_id=parking_area_id, source=source)
 
 
 def positive_seconds(value: str) -> float:
@@ -132,6 +123,11 @@ def run(args: argparse.Namespace) -> int:
             try:
                 state = analyze_frame(frame, parking_area_id=args.parking_area_id, source=kind)
                 analysed = time.monotonic()
+                # The photo goes first so the state that names it can link it; without it the state still goes.
+                try:
+                    publisher.publish_frame(state.parking_area_id, state.processed_at, frame.image)
+                except (httpx.HTTPError, ValueError) as error:
+                    logger.warning("Frame photo not published: %s", error)
                 publisher.publish(state)
                 logger.info(
                     "Published state observed at %s (analysis %.2f s, publish %.2f s, dropped frames so far: %d)",

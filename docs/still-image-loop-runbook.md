@@ -9,11 +9,15 @@ The worker and the API read one directory on the VPS:
 ```text
 /srv/parkmap-demo/
   config/   ground_plane_calibration.json, ground_plane_homography.json, parking_calibration.json
-  models/   best.pt
+  models/   best.pt, yolo11m-seg.pt
   photos/   the seven Sripatum photos, names unchanged (YYYYMMDD_HHMM...)
 ```
 
 Root owns it, and containers run as uid 10001, so both containers can read it and neither can write to it. That keeps the files `register-calibration` fingerprints identical to the files the worker uses.
+
+The feature-branch deployment on 2026-11-14 uses the official `yolo11m-seg.pt` for worker Seg inference, with `PARKMAP_SEGMENTATION_MODEL_PATH=/app/models/yolo11m-seg.pt` and `PARKMAP_SEGMENTATION_CLASS_ID=3`. The asset comes from `https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11m-seg.pt`; its SHA256 is `eb9a06f63e2206c35d68d839b08c362429ebecf933ad54c1ad68b2fd001c17cf`, matching the local model. The file remains outside Git and images. The API also mounts the existing server models directory at `/app/models`. Keep `best.pt` for older-image rollback.
+
+Production Seg analysis on this VPS took about 30 seconds per frame during rollout. `PARKMAP_STATE_FRESHNESS_S=60` is therefore configured on the API at runtime for this recorded-photo demo; the default 15 seconds made the map alternate between `DEMO` and `STALE` between successful publications. This is not a live-camera latency target. `STILL_IMAGE_LOOP` source notices and the stale-state gate remain active.
 
 ## Copy files from the team Drive
 

@@ -11,7 +11,8 @@ export const MAX_IMAGE_BYTES = 1_000_000;
 // Buttons cover the tiles; the logo strip below them is not a button.
 export const BUTTONS_HEIGHT = 832;
 
-// The largest button opens the site list; the rest open paths of the same LIFF app.
+// The largest button opens the home screen (the default site's map, or the site list); the rest open
+// paths of the same LIFF app.
 // Tap areas meet in the middle of the gutters between the tiles, measured on the image.
 const BUTTONS = [
   { label: "พื้นที่ว่างตอนนี้", path: "", bounds: { x: 0, y: 0, width: 896, height: BUTTONS_HEIGHT } },
