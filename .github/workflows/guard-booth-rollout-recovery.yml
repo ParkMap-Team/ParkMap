@@ -40,12 +40,3 @@ jobs:
                 | scan("exporting layers|unpacking|Rolling update started|Rolling update completed|New container started|Waiting for healthcheck|no space left on device|out of memory|Build failed|Permission denied|Connection timed out|context canceled|Building docker image started"; "i")][-8:] else [] end
             )}'
           done
-  deploy-liff:
-    needs: inspect
-    uses: ./.github/workflows/deploy-coolify.yml
-    with:
-      app: parkmap-liff
-      application_uuid: ${{ vars.COOLIFY_APP_LIFF }}
-      image_tag: sha-6fdb9b7efb53569b878be277bb1c1b84f79258b9
-    secrets:
-      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
