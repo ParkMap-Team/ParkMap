@@ -6,7 +6,7 @@ import { parkingRibbon } from "@/lib/map/parking-ribbon";
 import { HEIGHT } from "./scene-primitives";
 
 const FLOW_SECONDS = 7;
-const FLOW_SPEED = 4.8;
+const FLOW_SPEED = 3.6;
 
 const vertexShader = /* glsl */ `
   varying vec2 vRoute;
@@ -27,20 +27,21 @@ const fragmentShader = /* glsl */ `
     if (behind < 0.0) discard;
 
     float lateral = abs(vRoute.y - 0.5);
-    float surface = 1.0 - smoothstep(0.295, 0.34, lateral);
-    float edge = smoothstep(0.22, 0.30, lateral) * surface;
-    float fringe = smoothstep(0.34, 0.49, lateral);
-    vec3 color = mix(vec3(0.015, 0.07, 0.32), vec3(0.015, 0.26, 0.82), surface);
-    color = mix(color, vec3(0.08, 0.8, 1.0), edge);
-    color = mix(color, vec3(0.04, 0.53, 1.0), fringe);
+    float face = 1.0 - smoothstep(0.309, 0.328, lateral);
+    float rail = smoothstep(0.253, 0.291, lateral) * face;
+    vec3 color = mix(vec3(0.004, 0.02, 0.085), vec3(0.012, 0.16, 0.68), face);
+    color = mix(color, vec3(0.08, 0.57, 1.0), rail);
 
     // The stripe peaks at the centre and falls back on both sides to point forward.
-    float phase = mod(vRoute.x - uFlow, 3.0);
-    float chevron = 1.0 - smoothstep(0.07, 0.17, abs(phase - (1.8 - lateral * 2.35)));
-    chevron *= 1.0 - smoothstep(0.19, 0.26, lateral);
-    float leadingGlow = exp(-behind * 3.2) * uRevealing * surface;
-    color = mix(color, vec3(0.72, 0.95, 1.0), max(chevron * 0.9, leadingGlow));
-    float opacity = (1.0 - smoothstep(0.32, 0.50, lateral)) * smoothstep(0.0, 0.10, uDistance);
+    float phase = mod(vRoute.x - uFlow, 3.3);
+    float chevron = 1.0 - smoothstep(0.10, 0.19, abs(phase - (1.8 - lateral * 2.6)));
+    chevron *= (1.0 - smoothstep(0.22, 0.28, lateral)) * (1.0 - uRevealing);
+    float head = 1.0 - smoothstep(0.09, 0.17, abs(behind - (0.14 + lateral * 3.0)));
+    head *= (1.0 - smoothstep(0.26, 0.31, lateral)) * uRevealing;
+    float leadingGlow = exp(-behind * 1.65) * uRevealing * face;
+    color = mix(color, vec3(0.03, 0.65, 1.0), leadingGlow);
+    color = mix(color, vec3(0.84, 0.97, 1.0), max(chevron, head));
+    float opacity = (1.0 - smoothstep(0.38, 0.50, lateral)) * smoothstep(0.0, 0.10, uDistance);
     gl_FragColor = vec4(color, opacity);
     #include <colorspace_fragment>
   }
@@ -78,7 +79,7 @@ export function ParkingRoute3D({ route, progress, replay }: {
   }, [geometry, length, progress, invalidate]);
 
   useFrame((_, delta) => {
-    if (!material.current || !animate.current || elapsed.current >= FLOW_SECONDS) return;
+    if (!material.current || !animate.current || material.current.uniforms.uRevealing.value || elapsed.current >= FLOW_SECONDS) return;
     elapsed.current = Math.min(FLOW_SECONDS, elapsed.current + Math.min(delta, 0.05));
     material.current.uniforms.uFlow.value = elapsed.current * FLOW_SPEED;
     invalidate();
