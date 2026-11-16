@@ -17,6 +17,7 @@ test-data/
 tests/
 models/*.pt
 config/*.json
+!config/motorcycle_reference_sizes.json
 models/*.onnx
 *.mp4
 *.mov

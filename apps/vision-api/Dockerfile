@@ -22,6 +22,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
 COPY . .
+RUN python -c 'from app.services.motorcycle_reference_sizes import load_rules; load_rules()'
 
 RUN useradd --system --uid 10001 parkmap
 USER parkmap
