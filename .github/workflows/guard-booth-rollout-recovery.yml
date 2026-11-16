@@ -8,6 +8,8 @@ jobs:
   inspect:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    outputs:
+      retry_api: ${{ steps.inspect.outputs.retry_api }}
     env:
       GH_TOKEN: ${{ github.token }}
       COOLIFY_URL: ${{ vars.COOLIFY_URL }}
@@ -17,6 +19,7 @@ jobs:
       WORKER_UUID: ${{ vars.COOLIFY_APP_WORKER }}
     steps:
       - name: Inspect Coolify release status
+        id: inspect
         shell: bash
         run: |
           set -euo pipefail
@@ -32,12 +35,14 @@ jobs:
             api "applications/$uuid" | jq -c '{build_pack,git_branch,git_commit_sha,status}'
             api "deployments/applications/$uuid?take=3" | jq -c '.deployments[] | {deployment_uuid,commit,status,created_at,updated_at}'
           done
-          old=gvfyqktjow1zhzicolbwzca2
-          if api "deployments/applications/$WORKER_UUID?take=3" | jq -e --arg id "$old" '.deployments | any(.deployment_uuid == $id and .commit == "4fb3c559e6970e9891f42d10fc6ea410123e49ce" and .status == "in_progress" and .updated_at == "2026-11-16T07:59:34.000000Z")' >/dev/null; then
-            curl -fsS --max-time 30 -X POST -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" \
-              "$COOLIFY_URL/api/v1/deployments/$old/cancel" | jq -c '{deployment_uuid,status}'
-          fi
           api "applications/$API_UUID" | jq -e '.status == "running:healthy"' >/dev/null
+          old=k4bb6cm5nsv7vshn82nxn0j2
+          if api "deployments/applications/$API_UUID?take=1" | jq -e --arg id "$old" --arg sha "$main_sha" '.deployments | any(.deployment_uuid == $id and .commit == $sha and .status == "in_progress" and .updated_at == "2026-11-16T13:51:02.000000Z")' >/dev/null; then
+            curl -fsS --max-time 30 -X POST -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" \
+              "$COOLIFY_URL/api/v1/deployments/$old/cancel" | jq -e '.status == "cancelled-by-user"' >/dev/null
+            echo "Cancelled stuck deployment $old"
+            echo 'retry_api=true' >> "$GITHUB_OUTPUT"
+          fi
           for id in k4bb6cm5nsv7vshn82nxn0j2 gvfyqktjow1zhzicolbwzca2; do
             api "deployments/$id" | jq -c '{deployment_uuid,status,updated_at,stages:(
               (.logs // "[]") | if type == "string" then (try fromjson catch []) else . end
@@ -45,3 +50,13 @@ jobs:
                 | scan("exporting layers|unpacking|Rolling update started|Rolling update completed|New container started|Waiting for healthcheck|no space left on device|out of memory|Build failed|Permission denied|Connection timed out|context canceled|Building docker image started"; "i")][-8:] else [] end
             )}'
           done
+  deploy-api:
+    needs: inspect
+    if: needs.inspect.outputs.retry_api == 'true'
+    uses: ./.github/workflows/deploy-coolify.yml
+    with:
+      app: parkmap-api
+      application_uuid: ${{ vars.COOLIFY_APP_API }}
+      image_tag: sha-6fdb9b7efb53569b878be277bb1c1b84f79258b9
+    secrets:
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
