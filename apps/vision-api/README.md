@@ -104,6 +104,19 @@ The intended future pipeline is: fixed camera → YOLO detection → Parking ROI
 
 The worker now uses `PARKMAP_SEGMENTATION_MODEL_PATH` and the same Seg row-association
 policy as Parking Analyze. Restart the worker after changing weights or code.
+
+For the local Sripatum guard-booth preview, start the API with
+`PARKMAP_GUARD_BOOTH_FIT_PREVIEW=1` and run the still-image worker. The
+`guard-booth-fit` endpoint tests the reference width and length of Grand Filano
+or Forza against a current recorded Segment band. A successful request ID holds
+its sample frame in the local API process for two minutes, so another request
+cannot receive overlapping space. The route is for inspection and the preview
+hold ends on API restart.
+
+The same recorded preview may be enabled in a deployed environment by setting
+`PARKMAP_GUARD_BOOTH_FIT_PREVIEW=1` on the API and LIFF at runtime. The page uses
+the site's existing still-image worker and calibration. Open
+`/sites/sripatum/guard-booth?preview=known` to run it.
 It publishes standard-size motorcycle proxies only for assigned Seg detections.
 The current analysis checks width only, so all published row regions remain
 `UNKNOWN`; width-preview green/yellow is never promoted to LIFF availability.

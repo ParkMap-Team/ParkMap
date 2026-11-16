@@ -1,8 +1,19 @@
-import type { MetricPoint, MetricPolygon } from "../api/types.ts";
+import type { GuardBoothFit, MetricPoint, MetricPolygon } from "../api/types.ts";
 import { boundsOf, labelPoint, pointInPolygon } from "../map/geometry.ts";
 import type { LotMap } from "../map/lot-map.ts";
 
-export type GuardBoothMode = "waiting" | "classifying" | "preview" | "unknown" | "no-fit" | "unavailable";
+export type GuardBoothMode = "waiting" | "classifying" | "preview" | "fit-preview" | "unknown" | "no-fit" | "unavailable";
+export type GuardBoothOverview = "entrance" | "parking";
+
+export function guardBoothFitFamily(mode: GuardBoothMode | undefined, selected: GuardBoothFit["family"] | null, hasRecordedFrame: boolean): GuardBoothFit["family"] | null {
+  if (!hasRecordedFrame) return null;
+  if (mode === "preview") return "grand_filano";
+  return mode === "fit-preview" ? selected : null;
+}
+
+export function guardBoothFrame(map: LotMap, overview: GuardBoothOverview) {
+  return overview === "entrance" ? map.bounds : map.frame;
+}
 
 export const PARKING_HOLD_MS = 120_000;
 export type ParkingHold = { areaId: string; polygon: MetricPolygon; expiresAt: number };
@@ -44,8 +55,9 @@ export function guardBoothHeadline(mode: GuardBoothMode, hasCurrentAreas: boolea
     case "classifying": return "กำลังตรวจรุ่นรถ";
     case "unknown": return hasDestination ? "ดูพื้นที่ว่างสีเขียว" : "ไม่พบพื้นที่ว่างที่ยืนยันได้";
     case "no-fit": return "ไม่พบจุดจอดที่พอดีกับรถคันนี้";
+    case "fit-preview": return hasDestination ? "พบพื้นที่ที่วางกรอบรถได้" : "ไม่พบพื้นที่ที่วางกรอบขนาดนี้ได้";
     case "preview":
-      if (!hasDestination) return "ไม่พบจุดจอดที่พอดีกับรถคันนี้";
+      if (!hasDestination) return "ยังไม่มีจุดจอดที่ยืนยันได้";
       return hasRoute ? "ไปตามเส้นสีน้ำเงิน" : "จอดตรงจุดที่ลูกศรชี้";
   }
 }

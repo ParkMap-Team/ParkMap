@@ -40,6 +40,8 @@ export type MapViewProps = {
   route?: readonly MetricPoint[];
   routeReplay?: number;
   heldPolygons?: readonly MetricPolygon[];
+  /** Changes when a rider explicitly selects another overview. */
+  overviewKey?: string;
   onSelect(point: MetricPoint | null): void;
   /** Map edges covered by controls and the sheet, in pixels: the overview fits inside them. */
   insets: Insets;

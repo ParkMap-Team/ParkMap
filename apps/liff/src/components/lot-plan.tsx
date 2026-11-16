@@ -89,7 +89,7 @@ function LandmarkShape({ landmark, view, size }: { landmark: LotLandmark; view: 
   return null;
 }
 
-export default function LotPlan({ map, labels, selection, route, routeReplay, heldPolygons, onSelect, insets, ref }: MapViewProps) {
+export default function LotPlan({ map, labels, selection, route, routeReplay, heldPolygons, overviewKey, onSelect, insets, ref }: MapViewProps) {
   const { visibleRoute, revealing } = useRouteReveal(route, routeReplay);
   const visibleSelection = revealing && selection?.destination ? null : selection;
   const container = useRef<HTMLDivElement>(null);
@@ -97,6 +97,7 @@ export default function LotPlan({ map, labels, selection, route, routeReplay, he
   const [size, setSize] = useState<Size | null>(null);
   const [view, setView] = useState<View2D | null>(null);
   const overview = useRef<View2D | null>(null);
+  const previousOverviewKey = useRef(overviewKey);
   const atOverview = useRef(true);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<{ moved: number; pinch: number | null }>({ moved: 0, pinch: null });
@@ -118,18 +119,6 @@ export default function LotPlan({ map, labels, selection, route, routeReplay, he
     return () => observer.disconnect();
   }, []);
 
-  // Plain numbers, so a poll that rebuilds the map with the same geometry does not refit.
-  const { minX, minY, maxX, maxY } = map.frame;
-  const { top, right, bottom, left } = insets;
-  useLayoutEffect(() => {
-    if (!size) return;
-    overview.current = overview2D({ minX, minY, maxX, maxY }, { ...size, insets: { top, right, bottom, left } });
-    if (!shown.current || atOverview.current) {
-      flight.current?.cancel();
-      setView(overview.current);
-    }
-  }, [size, minX, minY, maxX, maxY, top, right, bottom, left]);
-
   const stop = useCallback(() => flight.current?.cancel(), []);
 
   /** Glides from the view on screen to `target`, or jumps there when `ms` is 0. */
@@ -139,6 +128,24 @@ export default function LotPlan({ map, labels, selection, route, routeReplay, he
     if (!from) return;
     flight.current = fly(ms, ease, (t) => setView(mix2D(from, target, t)));
   }, []);
+
+  // Plain numbers, so a poll that rebuilds the map with the same geometry does not refit.
+  const { minX, minY, maxX, maxY } = map.frame;
+  const { top, right, bottom, left } = insets;
+  useLayoutEffect(() => {
+    if (!size) return;
+    const next = overview2D({ minX, minY, maxX, maxY }, { ...size, insets: { top, right, bottom, left } });
+    overview.current = next;
+    const changedOverview = previousOverviewKey.current !== overviewKey;
+    previousOverviewKey.current = overviewKey;
+    if (changedOverview && shown.current) {
+      atOverview.current = true;
+      moveTo(next, FLY_MS, easeInOut);
+    } else if (!shown.current || atOverview.current) {
+      flight.current?.cancel();
+      setView(next);
+    }
+  }, [size, minX, minY, maxX, maxY, top, right, bottom, left, overviewKey, moveTo]);
 
   const zoomAt = useCallback(
     (factor: number, anchor?: [number, number], ms = 0) => {

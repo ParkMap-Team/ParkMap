@@ -41,6 +41,7 @@ router = APIRouter(prefix="/api/operator/classifier", tags=["Classifier experime
 # Parent chaining stays at the filesystem root in the shallower Docker layout.
 API_ROOT = Path(__file__).resolve().parent.parent
 RUNS = API_ROOT.parent.parent / "tools/yolo-training/classification/runs"
+SUPPORTED_ARCHITECTURES = frozenset({"resnet18", "efficientnet_b0", "yolo11n_cls", "convnext_tiny"})
 LOCK = Lock()
 _cache = None
 
@@ -105,7 +106,7 @@ def available_models():
             if meta.get("run_state") != "complete" or not (folder / "best.pt").is_file():
                 continue
             architecture = meta.get("options", {}).get("architecture", "resnet18")
-            if architecture not in {"resnet18", "efficientnet_b0", "yolo11n_cls"}:
+            if architecture not in SUPPORTED_ARCHITECTURES:
                 continue
             result.append(ClassifierModel(id=folder.name, label=f"{architecture} · {folder.name} · {len(meta['dataset']['classes'])} classes",
                                           epoch=meta["best_epoch"], classes=len(meta["dataset"]["classes"]), val_top1=metrics["top1"]))
@@ -148,7 +149,7 @@ def load_model(model_id):
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
     preprocessing = checkpoint["preprocessing"]
     architecture = checkpoint.get("architecture")
-    if checkpoint.get("format_version") != 1 or architecture not in {"resnet18", "efficientnet_b0", "yolo11n_cls"} or preprocessing["protocol"] != "letterbox_rgb_v1":
+    if checkpoint.get("format_version") != 1 or architecture not in SUPPORTED_ARCHITECTURES or preprocessing["protocol"] != "letterbox_rgb_v1":
         raise ValueError("Unsupported classifier checkpoint")
     if architecture != meta.get("options", {}).get("architecture", "resnet18"):
         raise ValueError("Checkpoint architecture does not match run metadata")
@@ -171,7 +172,7 @@ def load_model(model_id):
         model = models.resnet18(weights=None)
         model.fc = torch.nn.Linear(model.fc.in_features, len(classes))
     else:
-        model = models.efficientnet_b0(weights=None)
+        model = getattr(models, architecture)(weights=None)
         model.classifier[-1] = torch.nn.Linear(model.classifier[-1].in_features, len(classes))
     model.load_state_dict(state_dict, strict=True)
     model.eval()

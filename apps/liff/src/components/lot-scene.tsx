@@ -46,7 +46,6 @@ import {
 import { type Flight, fly } from "@/lib/map/flight";
 import { axisHeading, fromWorld, toWorld } from "@/lib/map/geometry";
 import { useRouteReveal } from "@/lib/map/use-route-reveal";
-import { routeArrow } from "@/lib/map/route-reveal";
 import { DETAIL } from "@/lib/map/landmark-style";
 import { type LotMap } from "@/lib/map/lot-map";
 import { MOTORCYCLE_MODEL, motorcyclePaint, motorcycleTransform } from "@/lib/map/motorcycle-model";
@@ -54,6 +53,7 @@ import { COLORS } from "@/lib/parking/presentation";
 import { cn } from "@/lib/utils";
 import { Surroundings } from "./lot-surroundings";
 import { LabelLayer, type LabelLayerHandle, type MapViewHandle, type MapViewProps } from "./map-overlay";
+import { ParkingRoute3D } from "./parking-route-3d";
 import { HEIGHT, Outline, Surface, asphalt, pattern } from "./scene-primitives";
 
 // The 3D view: lot geometry and its static surroundings from the lot model, the API's regions on
@@ -489,11 +489,13 @@ function Selection({ polygon, destination, routeReplay }: { polygon: MetricPolyg
 function CameraRig({
   map,
   insets,
+  overviewKey,
   handle,
   labels,
 }: {
   map: LotMap;
   insets: MapViewProps["insets"];
+  overviewKey: MapViewProps["overviewKey"];
   handle: React.Ref<MapViewHandle>;
   labels: React.RefObject<LabelLayerHandle | null>;
 }) {
@@ -565,6 +567,7 @@ function CameraRig({
   // time it had left, so new data arriving during the opening flight does not hurry it.
   // Once people have moved the view, neither a resize nor new data moves it again.
   const opened = useRef(false);
+  const previousOverviewKey = useRef(overviewKey);
   const refit = useRef(() => {});
   refit.current = () => {
     if (!controls.current) return;
@@ -576,6 +579,12 @@ function CameraRig({
     }
     // A new size moves the zoom limit, which the camera may already be inside.
     tighten(camera.position.distanceTo(controls.current.target));
+    if (previousOverviewKey.current !== overviewKey) {
+      previousOverviewKey.current = overviewKey;
+      atOverview.current = true;
+      moveTo(overview, FLY_MS, easeInOut);
+      return;
+    }
     if (!atOverview.current) return;
     if (flight.current?.active) {
       moveTo(overview, Math.max(NUDGE_MS, landing.current - performance.now()), easeOut);
@@ -584,7 +593,7 @@ function CameraRig({
     flight.current?.cancel();
     apply(overview);
   };
-  useLayoutEffect(() => refit.current(), [overview]);
+  useLayoutEffect(() => refit.current(), [overview, overviewKey]);
   useEffect(() => () => flight.current?.cancel(), []);
 
   useImperativeHandle(handle, () => ({
@@ -678,39 +687,20 @@ function CameraRig({
   );
 }
 
-function ParkingRoute({ route, revealing }: { route: readonly MetricPoint[] | undefined; revealing: boolean }) {
-  const invalidate = useThree((state) => state.invalidate);
-  const height = HEIGHT.selection + 0.02;
-  const points = route?.map((point) => toWorld(point, height));
-  const arrow = revealing && route ? routeArrow(route)?.map((point) => toWorld(point, height)) : undefined;
-  // The canvas renders on demand. Request a frame when the route geometry changes.
-  useLayoutEffect(() => {
-    invalidate();
-  }, [points, invalidate]);
-  if (!points) return null;
-  return (
-    <>
-      <Line points={points} color="white" lineWidth={10} depthWrite={false} renderOrder={30} />
-      <Line points={points} color={COLORS.ENTRANCE} lineWidth={6} depthWrite={false} renderOrder={31} />
-      {arrow && (
-        <>
-          <Line points={arrow} color="white" lineWidth={12} depthWrite={false} renderOrder={32} />
-          <Line points={arrow} color={COLORS.ENTRANCE} lineWidth={7} depthWrite={false} renderOrder={33} />
-        </>
-      )}
-    </>
-  );
-}
-
-export default function LotScene({ map, labels, selection, route, routeReplay, heldPolygons, onSelect, insets, onReady, onError, ref }: MapViewProps & { onReady(): void; onError(): void }) {
+export default function LotScene({ map, labels, selection, route, routeReplay, heldPolygons, overviewKey, onSelect, insets, onReady, onError, ref }: MapViewProps & { onReady(): void; onError(): void }) {
   const labelLayer = useRef<LabelLayerHandle>(null);
-  const { visibleRoute, revealing } = useRouteReveal(route, routeReplay);
+  const { progress, revealing } = useRouteReveal(route, routeReplay);
   const visibleSelection = revealing && selection?.destination ? null : selection;
   // Hidden until the scene has rendered, then faded in over the skeleton.
-  const [created, setCreated] = useState(false);
+  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  useLayoutEffect(() => {
+    if (!canvas) return;
+    canvas.addEventListener("webglcontextlost", onError);
+    return () => canvas.removeEventListener("webglcontextlost", onError);
+  }, [canvas, onError]);
   return (
     <div
-      className={cn("relative size-full transition-opacity duration-300 ease-out motion-reduce:transition-none", !created && "opacity-0")}
+      className={cn("relative size-full transition-opacity duration-300 ease-out motion-reduce:transition-none", !canvas && "opacity-0")}
       style={{ backgroundColor: COLORS.GROUND }}
     >
       <Canvas
@@ -718,10 +708,7 @@ export default function LotScene({ map, labels, selection, route, routeReplay, h
         frameloop="demand"
         shadows={SHADOWS}
         camera={{ fov: FOV_DEG, near: 0.5, far: 2000 }}
-        onCreated={({ gl }) => {
-          gl.domElement.addEventListener("webglcontextlost", onError);
-          setCreated(true);
-        }}
+        onCreated={({ gl }) => setCanvas(gl.domElement)}
       >
         <color attach="background" args={[COLORS.GROUND]} />
         {/* A slightly cool sky over a warm ground bounce, and one fixed light, so walls and roofs read apart. */}
@@ -739,8 +726,8 @@ export default function LotScene({ map, labels, selection, route, routeReplay, h
             ? <ParkingArrival polygon={visibleSelection.polygon} replay={routeReplay} />
             : <Selection polygon={visibleSelection.polygon} destination={visibleSelection.destination} routeReplay={routeReplay} />
         )}
-        <ParkingRoute route={visibleRoute} revealing={revealing} />
-        <CameraRig map={map} insets={insets} handle={ref ?? null} labels={labelLayer} />
+        <ParkingRoute3D route={route} progress={progress} replay={routeReplay} />
+        <CameraRig map={map} insets={insets} overviewKey={overviewKey} handle={ref ?? null} labels={labelLayer} />
       </Canvas>
       <LabelLayer ref={labelLayer} labels={labels} selection={visibleSelection} insets={insets} />
     </div>

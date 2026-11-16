@@ -137,7 +137,7 @@ def test_analyze_detects_once_and_classifies_the_same_boxes(monkeypatch):
     assert partial.json()["classification_error"]
 
 
-@pytest.mark.parametrize("architecture", ["efficientnet_b0", "yolo11n_cls"])
+@pytest.mark.parametrize("architecture", ["efficientnet_b0", "yolo11n_cls", "convnext_tiny"])
 def test_operator_can_predict_with_a_classifier_checkpoint(tmp_path, monkeypatch, architecture):
     import torch
     from torchvision import models
@@ -155,7 +155,7 @@ def test_operator_can_predict_with_a_classifier_checkpoint(tmp_path, monkeypatch
         head.linear = torch.nn.Linear(head.linear.in_features, 3)
         linear = head.linear
     else:
-        model = models.efficientnet_b0(weights=None)
+        model = getattr(models, architecture)(weights=None)
         model.classifier[-1] = torch.nn.Linear(model.classifier[-1].in_features, 3)
         linear = model.classifier[-1]
     with torch.no_grad():

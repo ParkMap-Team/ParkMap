@@ -17,13 +17,12 @@ export function useRouteReveal(route: readonly MetricPoint[] | undefined, replay
       return;
     }
     setProgress(0);
-    let previousFrame = performance.now();
-    let elapsed = 0;
+    let startedAt: number | undefined;
     let frame: number | undefined;
     function tick(now: number) {
-      // Keep the first visible step small even when the browser drops a frame.
-      elapsed += Math.min(Math.max(0, now - previousFrame), 50);
-      previousFrame = now;
+      // Start with a short visible segment and keep wall-clock timing when frames are dropped.
+      startedAt ??= now - 16;
+      const elapsed = now - startedAt;
       const next = Math.min(1, elapsed / ROUTE_REVEAL_MS);
       setProgress(next);
       if (next < 1) frame = requestAnimationFrame(tick);
@@ -34,5 +33,5 @@ export function useRouteReveal(route: readonly MetricPoint[] | undefined, replay
     };
   }, [key, replay]);
   const eased = progress * progress * (3 - 2 * progress);
-  return { visibleRoute: route && progress > 0 ? revealRoute(route, eased) : undefined, revealing: Boolean(route) && progress < 1 };
+  return { visibleRoute: route && progress > 0 ? revealRoute(route, eased) : undefined, revealing: Boolean(route) && progress < 1, progress: eased };
 }

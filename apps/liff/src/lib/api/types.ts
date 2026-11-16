@@ -14,3 +14,4 @@ export type LiveRegion = Schemas["LiveRegion"];
 export type MotorcycleProxy = Schemas["MotorcycleProxy"];
 export type MetricPoint = Schemas["MetricGroundPoint"];
 export type MetricPolygon = LiveRegion["polygon"];
+export type GuardBoothFit = Schemas["GuardBoothFit"];
