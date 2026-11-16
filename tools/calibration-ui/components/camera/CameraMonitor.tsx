@@ -1,11 +1,11 @@
 import { Camera, ImageIcon } from 'lucide-react';
-import type { RefObject } from 'react';
 import type { DetectionResponse } from '@/types/detection';
 import type { DetectionRowAssignment } from '@/types/calibration';
 import type { components } from '@/types/api.gen';
+import type { ParkingDetector } from '@/lib/parkingSettings';
 import { VideoFramePreview } from './VideoFramePreview';
 
-export function CameraMonitor({ imageUrl, videoUrl, videoRef, analysis, segmentation, assignments: _assignments = [] }: { imageUrl: string | null; videoUrl?: string | null; videoRef: RefObject<HTMLVideoElement | null>; analysis: DetectionResponse | null; segmentation?: components['schemas']['SegmentationExperimentResult'] | null; assignments?: DetectionRowAssignment[] }) {
+export function CameraMonitor({ imageUrl, videoUrl, analysis, segmentation, detector, assignments: _assignments = [] }: { imageUrl: string | null; videoUrl?: string | null; analysis: DetectionResponse | null; segmentation?: components['schemas']['SegmentationExperimentResult'] | null; detector: ParkingDetector; assignments?: DetectionRowAssignment[] }) {
   const width = segmentation?.image_width ?? analysis?.image_width ?? 1000;
   const height = segmentation?.image_height ?? analysis?.image_height ?? 562;
   const preview = segmentation?.preview_url ?? imageUrl;
@@ -16,7 +16,7 @@ export function CameraMonitor({ imageUrl, videoUrl, videoRef, analysis, segmenta
         {analysis && <span className="text-sm font-semibold text-emerald-700">{analysis.detections.length} motorcycles</span>}
       </div>
       {segmentation && <p className="px-5 py-2 text-xs text-cyan-900">{segmentation.model} · ฟ้า = mask รถ · กรอบประเหลือง = ไม่มี mask{videoUrl ? ' · ผลบนเฟรมล่าสุดที่วิเคราะห์ ไม่ใช่ภาพวิดีโอขณะนี้' : ''}</p>}
-      {videoUrl && <VideoFramePreview key={videoUrl} videoUrl={videoUrl} videoRef={videoRef} />}
+      {videoUrl && <VideoFramePreview key={videoUrl} videoUrl={videoUrl} detector={detector} />}
       {(!videoUrl || preview) && <div className="relative grid min-h-64 place-items-center overflow-hidden bg-slate-950">
         {preview ? (
           <div className="relative inline-block max-h-[620px] max-w-full">

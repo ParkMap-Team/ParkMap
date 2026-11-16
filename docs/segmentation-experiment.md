@@ -1,15 +1,15 @@
 # Local segmentation primary analysis
 
-In Calibration UI Parking, choose an image or video and press Analyze.
-The configured Seg model is now the primary model; there is no classifier panel or comparison
-switch. A single Seg inference supplies image boxes, masks, physical-map
-references and the rectangular gap analysis. Inference time may include loading
-on the first request. These outputs require human review, not accuracy claims.
+In Calibration UI Parking, choose an image, select **YOLO26n Seg · Round 8**,
+and press Analyze. A single Seg inference supplies image boxes, masks, physical-map
+references and the rectangular gap analysis. The gap check uses the standard
+0.66 m reference width plus the operator's lateral clearance margin. Selecting
+**YOLO26n Detect · Round 10** displays the detection boxes. Inference time may
+include loading on the first request.
 
 Detected image uses the normalized Seg preview with cyan mask polygons and
-dashed yellow box fallback when a mask is missing. For videos, the player stays
-separate from the latest analyzed still frame so masks are not drawn over a
-different playback time.
+dashed yellow box fallback when a mask is missing. For videos, use the separate
+[capture and detection flow](classifier-parking-experiment.md).
 
 The cyan polygons are normalized image masks of visible motorcycle appearance,
 not ground footprints, measurements, recovered occluded shape or empty-space
@@ -22,7 +22,8 @@ The default [gap/clearance analysis](segmentation-gaps.md) returns rectangular
 width candidates from calibrated reference footprints. It uses
 image masks/boxes to withhold potentially occluded ground, not as ground shapes.
 
-Install the fixed official model once from the repository root:
+For the configured worker or legacy operator API, install the official model
+from the repository root:
 
 ```powershell
 apps/vision-api/.venv/Scripts/python.exe apps/vision-api/scripts/download_segmentation_weights.py
@@ -44,9 +45,7 @@ PARKMAP_SEGMENTATION_IMGSZ=960
 The official COCO model uses motorcycle class 3, distinct from ParkMap's custom
 single-class detector. Loading checks both segmentation task and class name.
 Confidence, NMS IoU and device use the existing detector settings. Inference is
-serialized per model. Increasing image size/model complexity adds CPU work;
-video comparison uses the existing serial analyzed-frame workflow and can lag
-behind playback. Use still images first for a controlled comparison.
+serialized per model. Increasing the image size or model complexity adds CPU work.
 
 The existing private `/api/operator/classifier/analyze` endpoint accepts optional
 multipart `include_segmentation=true`; default is false. It returns `segmentation`

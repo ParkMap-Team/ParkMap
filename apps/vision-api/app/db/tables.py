@@ -3,6 +3,7 @@ that exposes `public` through a data API (for example Supabase) never publishes 
 
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import (
     BigInteger,
@@ -16,12 +17,12 @@ from sqlalchemy import (
     MetaData,
     Text,
     UniqueConstraint,
+    Uuid,
     func,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
 
 SCHEMA = "parkmap"
 
@@ -38,6 +39,19 @@ class Site(Base):
     latitude: Mapped[float] = mapped_column(Float)
     longitude: Mapped[float] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FrameCropClassification(Base):
+    """Private operator results for reviewed video crops."""
+
+    __tablename__ = "frame_crop_classifications"
+
+    review_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    crop_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    frame_time_seconds: Mapped[float | None] = mapped_column(Float)
+    model_id: Mapped[str] = mapped_column(Text)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    saved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class ParkingArea(Base):

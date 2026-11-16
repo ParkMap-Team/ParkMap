@@ -486,6 +486,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operator/classifier/classify-frame": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Classify Selected Frame */
+        post: operations["classify_selected_frame_api_operator_classifier_classify_frame_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/classifier/detect-frame": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Detect Captured Frame */
+        post: operations["detect_captured_frame_api_operator_classifier_detect_frame_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operator/classifier/models": {
         parameters: {
             query?: never;
@@ -897,6 +931,12 @@ export interface components {
              * @enum {string}
              */
             primary_detector: "standard" | "segmentation";
+            /**
+             * Segmentation Model
+             * @default configured
+             * @enum {string}
+             */
+            segmentation_model: "configured" | "yolo26n-seg";
         };
         /** Body_analyze_auto_parking_api_auto_parking_analyze_post */
         Body_analyze_auto_parking_api_auto_parking_analyze_post: {
@@ -913,6 +953,19 @@ export interface components {
             /** Image */
             image: string;
         };
+        /** Body_classify_selected_frame_api_operator_classifier_classify_frame_post */
+        Body_classify_selected_frame_api_operator_classifier_classify_frame_post: {
+            /** Boxes */
+            boxes: string;
+            /** Clip Id */
+            clip_id?: string | null;
+            /** Frame Time Seconds */
+            frame_time_seconds?: number | null;
+            /** Image */
+            image: string;
+            /** Review Id */
+            review_id?: string | null;
+        };
         /** Body_classify_video_api_operator_classifier_video_post */
         Body_classify_video_api_operator_classifier_video_post: {
             /**
@@ -923,6 +976,23 @@ export interface components {
             fps: "1" | "2";
             /** Video */
             video: string;
+        };
+        /** Body_detect_captured_frame_api_operator_classifier_detect_frame_post */
+        Body_detect_captured_frame_api_operator_classifier_detect_frame_post: {
+            /**
+             * Detector
+             * @default yolo26n
+             * @enum {string}
+             */
+            detector: "yolo26n" | "yolo26n-seg";
+            /** Image */
+            image: string;
+            /**
+             * Mode
+             * @default near
+             * @enum {string}
+             */
+            mode: "wide" | "near";
         };
         /** Body_predict_api_operator_classifier_predict_post */
         Body_predict_api_operator_classifier_predict_post: {
@@ -1079,6 +1149,36 @@ export interface components {
             /** Image Width */
             image_width: number;
             inference: components["schemas"]["DetectionInference"];
+            model: components["schemas"]["DetectionAnalysisModel"];
+            /** Parking Analysis */
+            parking_analysis?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** FrameDetectionResponse */
+        FrameDetectionResponse: {
+            /**
+             * Crop Padding Ratio
+             * @default 0.05
+             */
+            crop_padding_ratio: number;
+            /** Detections */
+            detections: components["schemas"]["Detection"][];
+            /** Image Height */
+            image_height: number;
+            /** Image Width */
+            image_width: number;
+            inference: components["schemas"]["DetectionInference"];
+            /**
+             * Max Selected Boxes
+             * @default 60
+             */
+            max_selected_boxes: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "wide" | "near";
             model: components["schemas"]["DetectionAnalysisModel"];
             /** Parking Analysis */
             parking_analysis?: {
@@ -2264,6 +2364,16 @@ export interface components {
             /** Width M */
             width_m: number;
         };
+        /** SavedFrameClassification */
+        SavedFrameClassification: {
+            /** Crops */
+            crops: components["schemas"]["SelectedFrameCrop"][];
+            /**
+             * Saved Review Id
+             * Format: uuid
+             */
+            saved_review_id: string;
+        };
         /** SegmentationExperimentResult */
         SegmentationExperimentResult: {
             /** Detections */
@@ -2474,6 +2584,17 @@ export interface components {
             confidence: number;
             /** Polygon */
             polygon?: components["schemas"]["MaskPoint"][] | null;
+        };
+        /** SelectedFrameCrop */
+        SelectedFrameCrop: {
+            /** Crop Url */
+            crop_url: string;
+            /** Family */
+            family: string | null;
+            /** Id */
+            id: number;
+            /** Top3 */
+            top3: components["schemas"]["Prediction"][];
         };
         /** SiteParkingStateResponse */
         SiteParkingStateResponse: {
@@ -3402,6 +3523,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ParkingClassifierResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    classify_selected_frame_api_operator_classifier_classify_frame_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_classify_selected_frame_api_operator_classifier_classify_frame_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedFrameClassification"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    detect_captured_frame_api_operator_classifier_detect_frame_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_detect_captured_frame_api_operator_classifier_detect_frame_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FrameDetectionResponse"];
                 };
             };
             /** @description Validation Error */

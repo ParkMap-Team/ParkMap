@@ -36,6 +36,24 @@ void test('video classification upload reaches only the local operator endpoint'
   }), options)).status, 403);
 });
 
+void test('captured-frame detection forwards one image to the local operator endpoint', async () => {
+  const body = new FormData();
+  body.set('image', new File(['captured frame'], 'frame.jpg', { type: 'image/jpeg' }));
+  body.set('mode', 'near');
+  const request = new Request(base + '/api/classifier?op=detect-frame', {
+    method: 'POST', headers: { Origin: base }, body,
+  });
+  const response = await proxyAnnotationRequest(request, { ...options, fetcher: async (url, init) => {
+    assert.equal(url, options.apiUrl + '/api/operator/classifier/detect-frame');
+    const form = await new Request(url, init).formData();
+    assert.deepEqual([...form.keys()], ['image', 'mode']);
+    assert.equal(await (form.get('image') as File).text(), 'captured frame');
+    assert.equal(form.get('mode'), 'near');
+    return Response.json({ detections: [] });
+  } });
+  assert.equal(response.status, 200);
+});
+
 void test('annotation proxy preserves multipart bytes and sends credentials only upstream', async () => {
   const body = new FormData(); body.set('image', new Blob([new Uint8Array([0, 255, 128])], { type: 'image/png' }), 'photo.png');
   const request = new Request(base + '/api/annotation?dataset=demo&op=upload', { method: 'POST', headers: { Origin: base }, body });

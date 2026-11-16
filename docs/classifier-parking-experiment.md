@@ -1,11 +1,48 @@
-## Classify Video demo
+## Review and classify motorcycles in a video frame
 
 Open Calibration UI through `start-dev.bat`, choose **Parking**, and select an
-authorized MP4 or WebM clip up to 30 seconds and 25 MB. **Capture Frame** displays
-a still locally. **Classify Video** sends the clip to the local operator API and
-samples at 1 FPS by default (2 FPS is available).
+supported MP4 or WebM clip. Choose **YOLO26n Detect · Round 10** or
+**YOLO26n Seg · Round 8** as the detector. Both report boxes for frame review and
+cropping. **Auto Select Frame** samples up to six times spread
+through the video. It ranks candidates by their best crop, using YOLO confidence
+and a relative bonus of up to 15% for the crop's shorter side in pixels,
+capped at 224 pixels. Switch between the sampled times to inspect other crops
+without rerunning YOLO. One gallery shows crops from every analyzed frame with
+the timestamp and YOLO score on each card. Use the score filter to reveal
+weaker candidates and select crops across multiple timestamps in one review.
+To choose the time yourself, seek to it and press **Capture Frame** once to
+capture the image and detect motorcycles.
+The browser sends JPEG frames to the local operator API, then shows the chosen
+frame with numbered boxes beside the matching crop previews and detection scores.
+The previews preserve
+aspect ratio and add 5% padding on each side, clipped to the image edges.
+Open **วิดีโอต้นฉบับ** to seek to another time.
+The minimum score filter starts at 70%. Lower it to reveal weaker detections
+from the same frame without sending another request.
+Still images, **Capture Frame**, and **Auto Select Frame** in Parking use a
+YOLO input size of 640 pixels by default. For distant motorcycles, use
+**ตรวจแบบลานกว้าง** to rerun the selected frame at the configured inference size.
 
-The demo uses `best.pt` from `train-20261112-005242-convnext-ft-6ea9a9`
+Set the operator inference and crop parameters in
+`apps/vision-api/app/parking_inference_settings.py`. The API response includes
+the crop padding and selection limit so previews use the same settings as
+classification. Set frame sampling and preview parameters in
+`tools/calibration-ui/lib/parkingSettings.ts`.
+
+Select the crop cards you want to review and press **Classify Selected**. The API crops
+only those selections from the original JPEG, adds 5% padding on each side, and
+letterboxes each crop using the checkpoint's settings. It returns the crop and
+Top 3 scores, with **ไม่แน่ใจ** when the leading score is below 60%.
+Each successfully classified frame saves its selected crop previews, normalized
+boxes, detector confidence, clip ID, timestamp and Top 3 scores in PostgreSQL
+(`parkmap.frame_crop_classifications`, migration 0006). The UI marks crops as
+saved after the API confirms the write. Expand a crop's Top scores to review
+the predictions. Retries within a review update the same
+crop records. These operator results are private and separate from LIFF parking
+state.
+
+Frame classification and the separate operator video classification API use
+`best.pt` from `train-20261112-005242-convnext-ft-6ea9a9`
 under `tools/yolo-training/classification/runs-class-project/` or, if absent there,
 under `tools/yolo-training/classification/runs/`. The checkpoint contains the
 class order and preprocessing settings. A copy of `best.pt` is sufficient.
@@ -16,7 +53,7 @@ To use a different local box-detection checkpoint, set `PARKMAP_VIDEO_DETECTOR_P
 in the Vision API `.env` and restart the API. The video detector uses the configured
 motorcycle class ID.
 
-ByteTrack groups detections within one clip. Each crop gets 5% padding on each
+In the video classification API, ByteTrack groups detections within one clip. Each crop gets 5% padding on each
 side before letterboxing. The API averages each class's probability across the
 track and displays **ไม่แน่ใจ** below three observations or 60% top average score.
 These thresholds are demo defaults. Track IDs may split or switch when vehicles

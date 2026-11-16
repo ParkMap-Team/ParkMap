@@ -12,7 +12,11 @@ from PIL import Image
 from pydantic import BaseModel, Field
 from ultralytics import YOLO
 
-from app.models import DetectionBBox
+from app.models import Detection, DetectionBBox, DetectionResponse
+from app.parking_inference_settings import (
+    SEGMENTATION_MOTORCYCLE_CLASS_ID,
+    SEGMENTATION_WEIGHTS,
+)
 from app.services.cv_service import ModelUnavailableError
 
 
@@ -63,13 +67,13 @@ def segmentation_model_path() -> Path:
 
 
 class SegmentationExperimentService:
-    def __init__(self):
-        self.model_path = segmentation_model_path()
+    def __init__(self, model_path: Path | None = None, class_id: int | None = None):
+        self.model_path = model_path if model_path is not None else segmentation_model_path()
         self.imgsz = int(os.getenv("PARKMAP_SEGMENTATION_IMGSZ", os.getenv("PARKMAP_MODEL_IMGSZ", "960")))
         self.confidence = float(os.getenv("PARKMAP_MODEL_CONF", ".25"))
         self.iou = float(os.getenv("PARKMAP_MODEL_NMS_IOU", ".50"))
         self.device = os.getenv("PARKMAP_DEVICE", "cpu")
-        self.class_id = int(os.getenv("PARKMAP_SEGMENTATION_CLASS_ID", "3"))
+        self.class_id = class_id if class_id is not None else int(os.getenv("PARKMAP_SEGMENTATION_CLASS_ID", "3"))
         self._model = None
         self._lock = Lock()
 
@@ -90,14 +94,18 @@ class SegmentationExperimentService:
     def analyze_image(self, raw: bytes) -> SegmentationExperimentResult:
         with Image.open(BytesIO(raw)) as source:
             decoded = source.convert("RGB")
-        width, height = decoded.size
-        started = perf_counter()
         try:
-            with self._lock:
-                results = self._load_model().predict(source=decoded, imgsz=self.imgsz, conf=self.confidence,
-                    iou=self.iou, device=self.device, classes=[self.class_id], verbose=False)
+            return self.analyze_frame(decoded)
         finally:
             decoded.close()
+
+    def analyze_frame(self, decoded: Image.Image, *, imgsz: int | None = None) -> SegmentationExperimentResult:
+        width, height = decoded.size
+        effective_imgsz = self.imgsz if imgsz is None else imgsz
+        started = perf_counter()
+        with self._lock:
+            results = self._load_model().predict(source=decoded, imgsz=effective_imgsz, conf=self.confidence,
+                iou=self.iou, device=self.device, classes=[self.class_id], verbose=False)
         processing_time_ms = (perf_counter() - started) * 1000
         detections = []
         for result in results:
@@ -118,7 +126,19 @@ class SegmentationExperimentService:
                 detections.append(SegmentedMotorcycle(bbox=DetectionBBox(x=left, y=top, width=right-left, height=bottom-top),
                     confidence=score, polygon=mask_polygon(masks, index)))
         return SegmentationExperimentResult(model=self.model_path.name, image_width=width, image_height=height,
-            processing_time_ms=processing_time_ms, imgsz=self.imgsz, detections=detections)
+            processing_time_ms=processing_time_ms, imgsz=effective_imgsz, detections=detections)
+
+    def detection_response(self, result: SegmentationExperimentResult) -> DetectionResponse:
+        return DetectionResponse(
+            image_width=result.image_width, image_height=result.image_height,
+            model={"name": result.model}, inference={"imgsz": result.imgsz,
+                "confidence_threshold": self.confidence, "nms_iou": self.iou, "processing_time_ms": result.processing_time_ms},
+            detections=[Detection(class_id=self.class_id, class_name="motorcycle", confidence=item.confidence, bbox=item.bbox)
+                        for item in result.detections],
+        )
 
 
 segmentation_experiment_service = SegmentationExperimentService()
+parking_segmentation_service = SegmentationExperimentService(
+    SEGMENTATION_WEIGHTS, class_id=SEGMENTATION_MOTORCYCLE_CLASS_ID,
+)

@@ -75,16 +75,16 @@ class ComputerVisionService:
         except (UnidentifiedImageError, OSError, ValueError) as exc:
             raise ValueError("The uploaded file is not a valid supported image.") from exc
 
-        image_width, image_height = decoded_image.size
+        with decoded_image:
+            return self.analyze_frame(decoded_image)
+
+    def analyze_frame(self, frame: Image.Image, *, detection_only: bool = False, imgsz: int | None = None) -> DetectionResponse:
+        image_width, image_height = frame.size
         if image_width <= 0 or image_height <= 0:
-            decoded_image.close()
             raise ValueError("The uploaded image has invalid dimensions.")
 
         started_at = perf_counter()
-        try:
-            results = self.predict_frame(decoded_image)
-        finally:
-            decoded_image.close()
+        results = self.predict_frame(frame, detection_only=detection_only, imgsz=imgsz)
         processing_time_ms = (perf_counter() - started_at) * 1000
 
         detections: list[Detection] = []
@@ -121,7 +121,7 @@ class ComputerVisionService:
             image_height=image_height,
             model=DetectionAnalysisModel(name="ParkMap YOLO", status="ready"),
             inference=DetectionInference(
-                imgsz=self.imgsz,
+                imgsz=imgsz if imgsz is not None else self.imgsz,
                 confidence_threshold=self.confidence_threshold,
                 nms_iou=self.nms_iou,
                 processing_time_ms=processing_time_ms,
@@ -129,14 +129,14 @@ class ComputerVisionService:
             detections=detections,
         )
 
-    def predict_frame(self, source, *, max_detections: int = 300, detection_only: bool = False):
+    def predict_frame(self, source, *, max_detections: int = 300, detection_only: bool = False, imgsz: int | None = None):
         with self._model_lock:
             model = self._load_model()
             if detection_only and model.task != "detect":
                 raise ModelUnavailableError("Configure a YOLO detection checkpoint with PARKMAP_VIDEO_DETECTOR_PATH.")
             return model.predict(
                 source=source,
-                imgsz=self.imgsz,
+                imgsz=imgsz if imgsz is not None else self.imgsz,
                 conf=self.confidence_threshold,
                 iou=self.nms_iou,
                 device=self.device,

@@ -16,8 +16,15 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from app.models import Detection, DetectionResponse
+from app.models import DetectionResponse
 from app.operator_auth import require_editor_token
+from app.parking_inference_settings import (
+    DEFAULT_CLEARANCE_MARGIN_M,
+    MAX_CLEARANCE_MARGIN_M,
+    MAX_OPERATOR_UPLOAD_BYTES,
+    MAX_OPERATOR_UPLOAD_MIB,
+    NEAR_FRAME_IMGSZ,
+)
 from app.services.cv_service import ModelUnavailableError, cv_service
 from app.services.motorcycle_reference_sizes import (
     ResolvedReferenceSize,
@@ -30,6 +37,7 @@ from app.services.parking_analysis_service import (
 )
 from app.services.segmentation_experiment_service import (
     SegmentationExperimentResult,
+    parking_segmentation_service,
     segmentation_experiment_service,
 )
 from app.services.segmentation_gap_service import (
@@ -244,11 +252,11 @@ async def read_image(image: UploadFile):
     if image.content_type not in {"image/jpeg", "image/png", "image/webp"}:
         raise HTTPException(415, "Choose JPEG, PNG or WebP.")
     try:
-        raw = await image.read(25 * 1024 * 1024 + 1)
+        raw = await image.read(MAX_OPERATOR_UPLOAD_BYTES + 1)
     finally:
         await image.close()
-    if not raw or len(raw) > 25 * 1024 * 1024:
-        raise HTTPException(413, "Image is empty or exceeds 25 MB.")
+    if not raw or len(raw) > MAX_OPERATOR_UPLOAD_BYTES:
+        raise HTTPException(413, f"Image is empty or exceeds {MAX_OPERATOR_UPLOAD_MIB} MB.")
     try:
         with Image.open(io.BytesIO(raw)) as source:
             if source.width * source.height > 40_000_000:
@@ -275,14 +283,16 @@ async def predict(image: Annotated[UploadFile, File()], model_id: Annotated[str,
 
 
 @router.post("/analyze", response_model=ParkingClassifierResult)
-async def analyze(image: Annotated[UploadFile, File()], response: Response, model_id: str = Form(""), include_parking: bool = Form(True), include_segmentation: bool = Form(False), include_segmentation_gaps: bool = Form(False), incoming_width_m: Annotated[float | None, Form(gt=0, le=5, allow_inf_nan=False)] = None, clearance_margin_m: Annotated[float, Form(ge=0, le=1, allow_inf_nan=False)] = 0., primary_detector: Literal["standard", "segmentation"] = Form("standard")):
+async def analyze(image: Annotated[UploadFile, File()], response: Response, model_id: str = Form(""), include_parking: bool = Form(True), include_segmentation: bool = Form(False), include_segmentation_gaps: bool = Form(False), incoming_width_m: Annotated[float | None, Form(gt=0, le=5, allow_inf_nan=False)] = None, clearance_margin_m: Annotated[float, Form(ge=0, le=MAX_CLEARANCE_MARGIN_M, allow_inf_nan=False)] = DEFAULT_CLEARANCE_MARGIN_M, primary_detector: Literal["standard", "segmentation"] = Form("standard"), segmentation_model: Literal["configured", "yolo26n-seg"] = Form("configured")):
     response.headers["Cache-Control"] = "no-store"
     decoded = await read_image(image)
     try:
         stream = io.BytesIO()
         decoded.save(stream, "PNG")
         if primary_detector == "segmentation":
-            return await analyze_segmentation_primary(decoded, stream.getvalue(), include_parking, incoming_width_m, clearance_margin_m)
+            detector = parking_segmentation_service if segmentation_model == "yolo26n-seg" else segmentation_experiment_service
+            return await analyze_segmentation_primary(decoded, stream.getvalue(), include_parking, incoming_width_m, clearance_margin_m, detector,
+                imgsz=NEAR_FRAME_IMGSZ if segmentation_model == "yolo26n-seg" else None)
         try:
             detection = await run_in_threadpool(cv_service.analyze_image, stream.getvalue())
         except ModelUnavailableError as error:
@@ -332,19 +342,17 @@ async def analyze(image: Annotated[UploadFile, File()], response: Response, mode
         decoded.close()
 
 
-async def analyze_segmentation_primary(decoded, raw, include_parking, incoming_width_m, clearance_margin_m):
+async def analyze_segmentation_primary(decoded, raw, include_parking, incoming_width_m, clearance_margin_m, detector, *, imgsz=None):
     """One Seg inference supplies every operator Parking view; no classifier."""
     try:
-        segmented = await run_in_threadpool(segmentation_experiment_service.analyze_image, raw)
+        if imgsz is None:
+            segmented = await run_in_threadpool(detector.analyze_image, raw)
+        else:
+            segmented = await run_in_threadpool(detector.analyze_frame, decoded, imgsz=imgsz)
     except (ModelUnavailableError, OSError, ValueError, RuntimeError) as error:
         raise HTTPException(503, "Segmentation unavailable; verify configured local segmentation weights and settings.") from error
     segmented.preview_url = encode_preview(decoded)
-    detection = DetectionResponse(image_width=segmented.image_width, image_height=segmented.image_height,
-        model={"name": segmented.model}, inference={"imgsz": segmented.imgsz,
-            "confidence_threshold": segmentation_experiment_service.confidence,
-            "nms_iou": segmentation_experiment_service.iou, "processing_time_ms": segmented.processing_time_ms},
-        detections=[Detection(class_id=segmentation_experiment_service.class_id, class_name="motorcycle",
-            confidence=item.confidence, bbox=item.bbox) for item in segmented.detections])
+    detection = detector.detection_response(segmented)
     result = ParkingClassifierResult(detection=detection, segmentation=segmented)
     if include_parking:
         try:

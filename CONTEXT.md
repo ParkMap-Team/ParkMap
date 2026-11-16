@@ -56,12 +56,19 @@ Occluded or uncertain intervals remain UNKNOWN. It does not evaluate vehicle
 length or access paths, and does not change worker/LIFF fitting. The irregular
 visible-patch experiment is retained as an inactive diagnostic, not the operator
 Analyze default. See docs/segmentation-gaps.md.
-Parking Analyze now uses the configured Seg model as its primary detector by default for both
-images and video frames. One segmentation inference feeds the image boxes,
+Parking offers YOLO26n Detect Round 10 and YOLO26n Seg Round 8. Image analysis
+with Seg also computes gaps at the standard reference width and the configured
+lateral margin. For videos,
+the operator can pick a still or ask the UI to sample up to six frames and
+rank them by YOLO detection score and crop size. The crop gallery includes
+detections across the analyzed frames and labels each crop with its timestamp.
+The operator can select crops from
+multiple frames to classify with ConvNeXt FT and save the results in the private
+operator database table. One segmentation inference for an uploaded image feeds the image boxes,
 masks and rectangular-gap diagnostics. The former Physical Map / Camera View,
 parking-state summary and bottom Summary section are removed from Parking;
-the Seg camera overlay and metric top-down gap map remain. Classifier controls and
-class-derived size experiments are removed from the web flow. Local trained
+the Seg camera overlay and metric top-down gap map remain. Class-derived size
+experiments are removed from the web flow. Local trained
 classifier artifacts and legacy operator APIs remain available separately;
 the worker now uses Seg for standard-size proxies and UNKNOWN row publication. A missing Seg model fails explicitly
 rather than silently substituting the original detector.

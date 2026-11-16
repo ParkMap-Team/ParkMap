@@ -195,6 +195,15 @@
             ],
             "title": "Primary Detector",
             "type": "string"
+          },
+          "segmentation_model": {
+            "default": "configured",
+            "enum": [
+              "configured",
+              "yolo26n-seg"
+            ],
+            "title": "Segmentation Model",
+            "type": "string"
           }
         },
         "required": [
@@ -248,6 +257,62 @@
         "title": "Body_analyze_hybrid_parking_api_hybrid_parking_analyze_post",
         "type": "object"
       },
+      "Body_classify_selected_frame_api_operator_classifier_classify_frame_post": {
+        "properties": {
+          "boxes": {
+            "maxLength": 16000,
+            "title": "Boxes",
+            "type": "string"
+          },
+          "clip_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clip Id"
+          },
+          "frame_time_seconds": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frame Time Seconds"
+          },
+          "image": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Image",
+            "type": "string"
+          },
+          "review_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Id"
+          }
+        },
+        "required": [
+          "image",
+          "boxes"
+        ],
+        "title": "Body_classify_selected_frame_api_operator_classifier_classify_frame_post",
+        "type": "object"
+      },
       "Body_classify_video_api_operator_classifier_video_post": {
         "properties": {
           "fps": {
@@ -269,6 +334,38 @@
           "video"
         ],
         "title": "Body_classify_video_api_operator_classifier_video_post",
+        "type": "object"
+      },
+      "Body_detect_captured_frame_api_operator_classifier_detect_frame_post": {
+        "properties": {
+          "detector": {
+            "default": "yolo26n",
+            "enum": [
+              "yolo26n",
+              "yolo26n-seg"
+            ],
+            "title": "Detector",
+            "type": "string"
+          },
+          "image": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Image",
+            "type": "string"
+          },
+          "mode": {
+            "default": "near",
+            "enum": [
+              "wide",
+              "near"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "title": "Body_detect_captured_frame_api_operator_classifier_detect_frame_post",
         "type": "object"
       },
       "Body_predict_api_operator_classifier_predict_post": {
@@ -701,6 +798,73 @@
           "detections"
         ],
         "title": "DetectionResponse",
+        "type": "object"
+      },
+      "FrameDetectionResponse": {
+        "properties": {
+          "crop_padding_ratio": {
+            "default": 0.05,
+            "title": "Crop Padding Ratio",
+            "type": "number"
+          },
+          "detections": {
+            "items": {
+              "$ref": "#/components/schemas/Detection"
+            },
+            "title": "Detections",
+            "type": "array"
+          },
+          "image_height": {
+            "exclusiveMinimum": 0.0,
+            "title": "Image Height",
+            "type": "integer"
+          },
+          "image_width": {
+            "exclusiveMinimum": 0.0,
+            "title": "Image Width",
+            "type": "integer"
+          },
+          "inference": {
+            "$ref": "#/components/schemas/DetectionInference"
+          },
+          "max_selected_boxes": {
+            "default": 60,
+            "title": "Max Selected Boxes",
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "wide",
+              "near"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "model": {
+            "$ref": "#/components/schemas/DetectionAnalysisModel"
+          },
+          "parking_analysis": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parking Analysis"
+          }
+        },
+        "required": [
+          "image_width",
+          "image_height",
+          "model",
+          "inference",
+          "detections",
+          "mode"
+        ],
+        "title": "FrameDetectionResponse",
         "type": "object"
       },
       "GapBackgroundRegion": {
@@ -3964,6 +4128,28 @@
         "title": "ResolvedReferenceSize",
         "type": "object"
       },
+      "SavedFrameClassification": {
+        "properties": {
+          "crops": {
+            "items": {
+              "$ref": "#/components/schemas/SelectedFrameCrop"
+            },
+            "title": "Crops",
+            "type": "array"
+          },
+          "saved_review_id": {
+            "format": "uuid",
+            "title": "Saved Review Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "crops",
+          "saved_review_id"
+        ],
+        "title": "SavedFrameClassification",
+        "type": "object"
+      },
       "SegmentationExperimentResult": {
         "properties": {
           "detections": {
@@ -4361,6 +4547,44 @@
           "confidence"
         ],
         "title": "SegmentedMotorcycle",
+        "type": "object"
+      },
+      "SelectedFrameCrop": {
+        "properties": {
+          "crop_url": {
+            "title": "Crop Url",
+            "type": "string"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "top3": {
+            "items": {
+              "$ref": "#/components/schemas/Prediction"
+            },
+            "title": "Top3",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "family",
+          "top3",
+          "crop_url"
+        ],
+        "title": "SelectedFrameCrop",
         "type": "object"
       },
       "SiteParkingStateResponse": {
@@ -5769,6 +5993,118 @@
         "tags": [
           "Classifier experiment"
         ]
+      }
+    },
+    "/api/operator/classifier/classify-frame": {
+      "post": {
+        "operationId": "classify_selected_frame_api_operator_classifier_classify_frame_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_classify_selected_frame_api_operator_classifier_classify_frame_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedFrameClassification"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Classify Selected Frame"
+      }
+    },
+    "/api/operator/classifier/detect-frame": {
+      "post": {
+        "operationId": "detect_captured_frame_api_operator_classifier_detect_frame_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_detect_captured_frame_api_operator_classifier_detect_frame_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FrameDetectionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Detect Captured Frame"
       }
     },
     "/api/operator/classifier/models": {
