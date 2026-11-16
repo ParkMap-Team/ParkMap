@@ -57,6 +57,13 @@ try {
   assert.equal(allowed.status, 200);
   assert.equal((await allowed.json()).site_id, "synthetic-site");
   assert.match(allowed.headers.get("cache-control"), /private.*no-store/);
+  const accessLogin = await fetch(base + "/api/vehicle-preference", { method: "POST",
+    headers: { "Content-Type": "application/json", Origin: base },
+    body: JSON.stringify({ access_token: "synthetic-line-token" }) });
+  assert.equal(accessLogin.status, 200);
+  const accessCookies = accessLogin.headers.getSetCookie().map(c => c.split(";", 1)[0]).join("; ");
+  assert.match(accessCookies, /parkmap_line_token_type=access/);
+  assert.equal((await fetch(state, { headers: { Cookie: accessCookies } })).status, 200);
   console.log("Vehicle gate integration passed: anonymous/unselected blocked, CSRF refused, saved account allowed.");
 } finally {
   processForTest.kill(); upstream.close();

@@ -35,13 +35,37 @@ class Account:
     user_id: str = field(repr=False)
 
 
-def account_key(authorization: str = Header(default="")) -> Account:
+def account_key(authorization: str = Header(default=""),
+                token_type: str = Header(default="id", alias="X-Line-Token-Type")) -> Account:
     channel = os.getenv("LINE_LOGIN_CHANNEL_ID", "").strip()
     if not channel:
         raise HTTPException(503, "LINE Login is not configured.")
     if not authorization.startswith("Bearer ") or not 1 <= len(authorization[7:]) <= 8192:
         reject_identity("missing_authorization")
     try:
+        if token_type == "access":
+            verified = requests.get("https://api.line.me/oauth2/v2.1/verify",
+                params={"access_token": authorization[7:]}, timeout=5)
+            if verified.status_code != 200:
+                reject_identity("access_provider_rejected", verified.status_code)
+            metadata = verified.json()
+            if (not isinstance(metadata, dict) or metadata.get("client_id") != channel
+                    or type(metadata.get("expires_in")) not in (int, float)
+                    or not 0 < metadata["expires_in"] < float("inf")
+                    or not isinstance(metadata.get("scope"), str)
+                    or "openid" not in metadata["scope"].split()):
+                reject_identity("invalid_access_metadata")
+            info = requests.get("https://api.line.me/oauth2/v2.1/userinfo",
+                headers={"Authorization": authorization}, timeout=5)
+            if info.status_code != 200:
+                reject_identity("userinfo_rejected", info.status_code)
+            user_info = info.json()
+            user = user_info.get("sub") if isinstance(user_info, dict) else None
+            if not isinstance(user, str) or not re.fullmatch(r"U[0-9a-f]{32}", user):
+                reject_identity("invalid_subject")
+            return Account(hashlib.sha256(user.encode()).hexdigest(), user)
+        if token_type != "id":
+            reject_identity("invalid_token_type")
         response = requests.post("https://api.line.me/oauth2/v2.1/verify",
             data={"id_token": authorization[7:], "client_id": channel}, timeout=5)
         if response.status_code != 200:
