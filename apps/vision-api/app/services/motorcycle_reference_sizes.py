@@ -5,7 +5,9 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-RULES_PATH = Path(__file__).resolve().parents[2] / "config/motorcycle_reference_sizes.json"
+APP_ROOT = Path(__file__).resolve().parents[2]
+RULES_PATH = APP_ROOT / "config/motorcycle_reference_sizes.json"
+PACKAGED_RULES_PATH = APP_ROOT / "defaults/motorcycle_reference_sizes.json"
 
 
 class ReferenceDimensions(BaseModel):
@@ -33,7 +35,13 @@ class ResolvedReferenceSize(ReferenceDimensions):
 
 def load_rules(path: Path | None = None) -> ReferenceSizeRules:
     # Read each analysis so editing the file takes effect without restarting.
-    return ReferenceSizeRules.model_validate_json((path or RULES_PATH).read_bytes())
+    try:
+        rules_json = (path or RULES_PATH).read_bytes()
+    except FileNotFoundError:
+        if path is not None:
+            raise
+        rules_json = PACKAGED_RULES_PATH.read_bytes()
+    return ReferenceSizeRules.model_validate_json(rules_json)
 
 
 def reference_size(rules: ReferenceSizeRules, family: str | None, score: float | None) -> ResolvedReferenceSize:
