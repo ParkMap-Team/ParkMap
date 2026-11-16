@@ -186,3 +186,16 @@ the ordered vertices differ by one positive uniform scale, rotation and translat
 Public proxy display_scale sizes the icon; physical widths/lengths and stored
 analysis remain unchanged. Reflection, non-uniform stretching and corner changes
 still fail closed. Scaled map coordinates are layout units, not new survey data.
+
+The requested LINE settings conversation adds a separate bot entrypoint in the
+Python project (ADR 0018). Its signed webhook offers twelve motorcycle models
+plus other, remembers one preference per verified account in Postgres, and
+confirms only after saving. The preference never changes parking fitting or
+proxy dimensions. LIFF still reads no LINE identity; Messaging API credentials
+exist only in the bot process runtime. Its independent `parkmap_line` schema and
+startup migrations leave the API migration history unchanged. Deploy/configure the bot before publishing
+the settings postback in the rich menu.
+
+Motorcycle preferences now live in LIFF (ADR 0019), superseding the OA chat flow. Verified LINE Login identity and a saved model are required before map pages or their state/photo proxies can be read. Settings do not affect physical fitting.
+
+After a successful explicit LIFF model save, the settings process attempts an OA confirmation (ADR 0019 amendment). Selection stays in LIFF; no chat webhook is restored.

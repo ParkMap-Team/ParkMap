@@ -1,3 +1,4 @@
+import { vehiclePreference } from "@/lib/vehicle-session";
 import { NextResponse } from "next/server";
 import { apiClient, upstreamFailureStatus } from "@/lib/api/server";
 
@@ -8,6 +9,7 @@ const UNAVAILABLE = { detail: "Photo is unavailable." };
 const VERSION = /^\d{1,16}$/;
 
 export async function GET(request: Request, { params }: { params: Promise<{ areaId: string }> }) {
+  if (!(await vehiclePreference())?.model_id) return new Response(null, { status: 403, headers: { "Cache-Control": "private, no-store" } });
   const { areaId } = await params;
   const version = new URL(request.url).searchParams.get("v");
   if (!version || !VERSION.test(version)) {
@@ -20,7 +22,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ area
       cache: "no-store",
     });
     if (response.ok && data) {
-      return new Response(data, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable" } });
+      return new Response(data, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "private, no-store" } });
     }
     return NextResponse.json(UNAVAILABLE, { status: upstreamFailureStatus(response.status), headers: { "Cache-Control": "no-store" } });
   } catch (error) {

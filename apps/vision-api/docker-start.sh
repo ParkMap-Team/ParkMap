@@ -1,5 +1,5 @@
 #!/bin/sh
-# Container entrypoint. PARKMAP_PROCESS selects what this container runs from the one API image.
+# Container entrypoint. API, worker, and LINE bot share this Python image.
 set -eu
 
 case "${PARKMAP_PROCESS:-api}" in
@@ -7,6 +7,12 @@ case "${PARKMAP_PROCESS:-api}" in
     # A single API instance runs, so migrations never race.
     python -m alembic upgrade head
     exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ;;
+  bot)
+    # Bot tables have an independent schema/history; the API needs no redeployment.
+    : "${LINE_LOGIN_CHANNEL_ID:?LINE_LOGIN_CHANNEL_ID is required}"
+    python -m app.db.line_migrations
+    exec uvicorn app.line_bot:app --host 0.0.0.0 --port 8000
     ;;
   worker)
     # Still-image loop or camera worker; configured only through environment variables.

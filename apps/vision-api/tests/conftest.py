@@ -7,9 +7,10 @@ from alembic.config import Config
 from sqlalchemy import text
 
 from app.db.session import get_engine, reset_engine
+from app.db.line_migrations import upgrade as upgrade_line_bot
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
-TABLES = "parkmap.area_frames, parkmap.parking_states, parkmap.calibrations, parkmap.lot_models, parkmap.lot_model_drafts, parkmap.parking_areas, parkmap.sites"
+TABLES = "parkmap.area_frames, parkmap_line.line_webhook_receipts, parkmap_line.line_motorcycle_preferences, parkmap.parking_states, parkmap.calibrations, parkmap.lot_models, parkmap.lot_model_drafts, parkmap.parking_areas, parkmap.sites"
 
 
 @pytest.fixture
@@ -21,6 +22,7 @@ def database(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", url)
     reset_engine()
     command.upgrade(Config(str(ALEMBIC_INI)), "head")
+    upgrade_line_bot()
     with get_engine().begin() as connection:
         connection.execute(text(f"TRUNCATE {TABLES} RESTART IDENTITY"))
     yield

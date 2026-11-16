@@ -1,0 +1,17 @@
+# 0019: Require motorcycle selection in LIFF
+
+Accepted 2026-11-15 at the owner's request. Supersedes ADR 0018's chat flow and ADR 0006's no-identity rule.
+
+LIFF initializes LINE Login and sends the raw openid ID token to its same-origin session endpoint. The Python settings process verifies it against LINE's fixed verify endpoint and trusted LINE_LOGIN_CHANNEL_ID (2011859796). Issuer, audience, expiry and user-ID shape are checked before hashing the verified sub. Browser-supplied user IDs are never accepted.
+
+The verified token lives only in an HttpOnly, Secure, SameSite=Lax cookie for at most one hour, never browser storage or logs. LINE expiry is checked on every protected request. POST/PUT require the configured public Origin and bounded JSON bodies. Map pages, parking-state and photo proxies fail closed until a saved model exists. Help and mobile-camera pairing retain their separate behavior. Successful saves return to the map; /settings lets the rider change the model. The authoritative thirteen choices remain in Python and do not change fitting dimensions.
+
+Existing hashed-account preferences are retained in parkmap_line. They are reusable when the LINE Login and Messaging API channels share the same Provider, as LINE user IDs are Provider-scoped. The old webhook endpoint and outbound chat replies are removed, and the rich-menu settings tile becomes a LIFF URI. Legacy event receipts remain solely to preserve migration history; no new chat events are processed. The existing lightweight settings process and independent database migrations are reused, with no vision API release required.
+
+Production needs PARKMAP_SETTINGS_URL on the LIFF server, PARKMAP_PUBLIC_ORIGIN matching its external HTTPS origin, LINE_LOGIN_CHANNEL_ID on the settings process, and openid on the LIFF app. No Messaging API secret or token is used by the runtime.
+
+Sources: https://developers.line.biz/en/docs/liff/using-user-profile/ and https://developers.line.biz/en/docs/line-login/verify-id-token/
+
+Amendment 2026-11-16: at the owner's request, a successful LIFF save attempts an OA push confirmation through the official Python SDK. Runtime LINE_CHANNEL_ACCESS_TOKEN is used again, but there is no webhook/chat settings flow. Only the verified ID token sub supplies the recipient, kept in request memory and excluded from object repr; database identity stays hashed. Commit precedes the provider call. Transport errors never undo a save. Each explicit save makes one bounded push attempt with a UUID retry key; polling makes none. LINE acceptance does not prove delivery to a blocked/non-friend user. See https://developers.line.biz/en/docs/messaging-api/retrying-api-request/ .
+
+Session recovery amendment (2026-11-16): production logs confirmed expired ID tokens on re-entry. LIFF now sends its access token. The server verifies client_id, positive expires_in and openid scope at LINE's verify endpoint, then obtains sub from LINE userinfo. Token kind is held in a second HttpOnly/Secure/SameSite cookie; existing ID sessions remain supported. Each protected request still checks LINE validity. No expiry check is bypassed. Expired external sessions can log in again; LIFF browser sessions offer close/reopen rather than the unsupported in-client login call. Sources: https://developers.line.biz/en/reference/liff/ and https://developers.line.biz/en/reference/line-login/ .

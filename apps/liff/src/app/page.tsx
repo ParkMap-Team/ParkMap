@@ -1,3 +1,4 @@
+import { vehiclePreference } from "@/lib/vehicle-session";
 import { LiffRedirect } from "@/components/liff-redirect";
 import { SiteList } from "@/components/site-list";
 import { requestLotModel, SiteScreen } from "@/components/site-screen";
@@ -18,6 +19,7 @@ function forwarding(state: string | string[] | undefined): boolean {
 // default site, else the only site, else the list.
 export default async function Home({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   if (forwarding((await searchParams)["liff.state"])) return <LiffRedirect />;
+  if (!(await vehiclePreference())?.model_id) return null;
   const { data: sites } = await apiClient().GET("/api/sites");
   const siteId = sites ? homeSiteId(sites, process.env.PARKMAP_DEFAULT_SITE_ID) : null;
   const site = sites?.find((item) => item.site_id === siteId);
