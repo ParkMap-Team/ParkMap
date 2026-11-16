@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
+      GH_TOKEN: ${{ github.token }}
       COOLIFY_URL: ${{ vars.COOLIFY_URL }}
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
       API_UUID: ${{ vars.COOLIFY_APP_API }}
@@ -19,6 +20,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          main_sha=$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')
+          test "$main_sha" = "6fdb9b7efb53569b878be277bb1c1b84f79258b9"
           api() {
             curl -fsS --max-time 20 -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" "$COOLIFY_URL/api/v1/$1"
           }
@@ -29,6 +32,7 @@ jobs:
             api "applications/$uuid" | jq -c '{build_pack,git_branch,git_commit_sha,status}'
             api "deployments/applications/$uuid?take=3" | jq -c '.deployments[] | {deployment_uuid,commit,status,created_at,updated_at}'
           done
+          api "applications/$API_UUID" | jq -e '.status == "running:healthy"' >/dev/null
           for id in k4bb6cm5nsv7vshn82nxn0j2 gvfyqktjow1zhzicolbwzca2; do
             api "deployments/$id" | jq -c '{deployment_uuid,status,updated_at,stages:(
               (.logs // "[]") | if type == "string" then (try fromjson catch []) else . end
@@ -36,3 +40,12 @@ jobs:
                 | scan("exporting layers|unpacking|Rolling update started|Rolling update completed|New container started|Waiting for healthcheck|no space left on device|out of memory|Build failed|Permission denied|Connection timed out|context canceled|Building docker image started"; "i")][-8:] else [] end
             )}'
           done
+  deploy-liff:
+    needs: inspect
+    uses: ./.github/workflows/deploy-coolify.yml
+    with:
+      app: parkmap-liff
+      application_uuid: ${{ vars.COOLIFY_APP_LIFF }}
+      image_tag: sha-6fdb9b7efb53569b878be277bb1c1b84f79258b9
+    secrets:
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
