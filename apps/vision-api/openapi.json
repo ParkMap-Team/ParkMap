@@ -2259,6 +2259,151 @@
         "title": "GroundReferenceDistance",
         "type": "object"
       },
+      "GuardBoothFit": {
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "family": {
+            "enum": [
+              "grand_filano",
+              "forza"
+            ],
+            "title": "Family",
+            "type": "string"
+          },
+          "holds": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GuardBoothFitHold"
+            },
+            "title": "Holds",
+            "type": "array"
+          },
+          "length_m": {
+            "title": "Length M",
+            "type": "number"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "polygon": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "$ref": "#/components/schemas/MetricGroundPoint"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polygon"
+          },
+          "route": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MetricGroundPoint"
+            },
+            "title": "Route",
+            "type": "array"
+          },
+          "width_m": {
+            "title": "Width M",
+            "type": "number"
+          }
+        },
+        "required": [
+          "family",
+          "width_m",
+          "length_m",
+          "observed_at"
+        ],
+        "title": "GuardBoothFit",
+        "type": "object"
+      },
+      "GuardBoothFitHold": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "polygon": {
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/MetricGroundPoint"
+              },
+              "type": "array"
+            },
+            "title": "Polygon",
+            "type": "array"
+          }
+        },
+        "required": [
+          "polygon",
+          "observed_at",
+          "expires_at"
+        ],
+        "title": "GuardBoothFitHold",
+        "type": "object"
+      },
+      "GuardBoothFitRequest": {
+        "properties": {
+          "family": {
+            "enum": [
+              "grand_filano",
+              "forza"
+            ],
+            "title": "Family",
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "request_id": {
+            "format": "uuid4",
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "family",
+          "request_id",
+          "observed_at"
+        ],
+        "title": "GuardBoothFitRequest",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -6363,6 +6508,56 @@
           }
         },
         "summary": "List Sites"
+      }
+    },
+    "/api/sites/{site_id}/guard-booth-fit": {
+      "post": {
+        "operationId": "reserve_guard_booth_fit_api_sites__site_id__guard_booth_fit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Site Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuardBoothFitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardBoothFit"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reserve Guard Booth Fit"
       }
     },
     "/api/sites/{site_id}/lot-model": {

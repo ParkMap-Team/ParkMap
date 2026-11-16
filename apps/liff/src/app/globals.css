@@ -119,3 +119,13 @@
         -webkit-tap-highlight-color: transparent;
     }
 }
+
+@keyframes parking-arrival {
+  from { opacity: 0.9; }
+  to { opacity: 0; }
+}
+
+@keyframes parking-status-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
