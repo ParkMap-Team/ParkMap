@@ -3,10 +3,16 @@
 from pathlib import Path
 from typing import Literal
 
-_TRAINING_RUNS = (
-    Path(__file__).resolve().parent.parent.parent.parent
-    / "tools/yolo-training/detection/runs"
-)
+_API_ROOT = Path(__file__).resolve().parents[1]
+_TRAINING_ROOT = _API_ROOT.parent.parent / "tools/yolo-training"
+_TRAINING_RUNS = _TRAINING_ROOT / "detection/runs"
+
+
+def classifier_runs(api_root: Path) -> Path:
+    return api_root.parent.parent / "tools/yolo-training/classification/runs"
+
+
+CLASSIFIER_RUNS = classifier_runs(_API_ROOT)
 BOX_WEIGHTS = _TRAINING_RUNS / "yolo26n/round-10_2026-11-09_10-04/weights/best.pt"
 SEGMENTATION_WEIGHTS = (
     _TRAINING_RUNS / "yolo26n-seg/round-08_2026-11-09_11-44/weights/best.pt"

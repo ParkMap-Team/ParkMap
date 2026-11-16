@@ -53,6 +53,52 @@ To use a different local box-detection checkpoint, set `PARKMAP_VIDEO_DETECTOR_P
 in the Vision API `.env` and restart the API. The video detector uses the configured
 motorcycle class ID.
 
+## Docker demo
+
+Build from the repository root on the machine that has the selected checkpoints.
+The script imports the operator checkpoint paths and stages only the three
+`best.pt` files. Use `linux/arm64` for an Apple Silicon Mac or `linux/amd64`
+for an Intel Mac. Docker Desktop must be running.
+
+```sh
+python3 tools/build-vision-demo.py --platform linux/arm64 --tag parkmap-vision-demo:demo-v1-arm64
+```
+
+On Windows PowerShell, use `apps/vision-api/.venv/Scripts/python.exe` in place
+of `python3` when using the Vision API virtual environment.
+
+Use an access-controlled registry to distribute an image containing checkpoints.
+Alternatively, export it to a private file and transfer that file to the Mac:
+
+```sh
+docker image save -o parkmap-vision-demo-demo-v1-arm64.tar parkmap-vision-demo:demo-v1-arm64
+# On the Mac, after transferring the archive:
+docker image load -i parkmap-vision-demo-demo-v1-arm64.tar
+```
+
+From the repository root on the Mac, open Docker Desktop and use one terminal
+for the following commands so the API and UI share the same private editor
+token. Set `PARKMAP_DEMO_IMAGE` to the loaded image or the private registry tag
+you pulled. Use Node.js and Corepack as described in the repository README.
+
+```sh
+corepack pnpm install --frozen-lockfile
+export PARKMAP_DEMO_IMAGE=parkmap-vision-demo:demo-v1-arm64
+export PARKMAP_EDITOR_TOKEN="$(openssl rand -hex 32)"
+docker compose -f compose.yaml -f compose.demo.yaml up -d --wait postgres vision-demo
+export PARKMAP_API_URL=http://127.0.0.1:8000
+export NEXT_PUBLIC_PARKMAP_API_URL="$PARKMAP_API_URL"
+corepack pnpm --filter @parkmap/calibration-ui dev --port 3000
+```
+
+Open <http://127.0.0.1:3000>, choose **Parking** and follow the video review
+steps above. The container runs the database migrations before starting the API.
+Saved results live in the PostgreSQL volume. To stop the demo API, use
+`docker compose -f compose.yaml -f compose.demo.yaml stop vision-demo` in the
+same terminal after stopping Calibration UI with Ctrl+C.
+
+## Legacy tracked video API
+
 In the video classification API, ByteTrack groups detections within one clip. Each crop gets 5% padding on each
 side before letterboxing. The API averages each class's probability across the
 track and displays **ไม่แน่ใจ** below three observations or 60% top average score.

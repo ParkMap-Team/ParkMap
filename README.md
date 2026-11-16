@@ -82,6 +82,13 @@ without starting services, use `--dry-run`. Its focused Windows tests are
 `node --test tools/start-dev.test.mjs`. The two native integration cases require
 free app ports and explicitly skip when development servers are already running.
 
+## Video Classification Docker demo
+
+The operator demo can run Vision API and PostgreSQL in Docker, with all three
+checkpoints packaged in the API image. Calibration UI runs on the host.
+Use the [Docker demo guide](docs/classifier-parking-experiment.md#docker-demo)
+to build the image or run it on macOS.
+
 ## LIFF app
 
 ```sh

@@ -24,6 +24,7 @@ from app.parking_inference_settings import (
     MAX_OPERATOR_UPLOAD_BYTES,
     MAX_OPERATOR_UPLOAD_MIB,
     NEAR_FRAME_IMGSZ,
+    classifier_runs,
 )
 from app.services.cv_service import ModelUnavailableError, cv_service
 from app.services.motorcycle_reference_sizes import (
@@ -49,7 +50,7 @@ from app.services.virtual_fitting_service import WIDTH_M
 router = APIRouter(prefix="/api/operator/classifier", tags=["Classifier experiment"], dependencies=[Depends(require_editor_token)])
 # Parent chaining stays at the filesystem root in the shallower Docker layout.
 API_ROOT = Path(__file__).resolve().parent.parent
-RUNS = API_ROOT.parent.parent / "tools/yolo-training/classification/runs"
+RUNS = classifier_runs(API_ROOT)
 SUPPORTED_ARCHITECTURES = frozenset({"resnet18", "efficientnet_b0", "yolo11n_cls", "convnext_tiny"})
 LOCK = Lock()
 _cache = None

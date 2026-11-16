@@ -1,5 +1,7 @@
 .env
+.env.*
 .venv/
+.venv.*/
 venv/
 **/__pycache__/
 **/*.py[cod]
@@ -18,7 +20,13 @@ tests/
 models/*.pt
 config/*.json
 models/*.onnx
+runs/
+photos/
+single-photo/
+**/*.pt
+**/*.onnx
 *.mp4
 *.mov
 *.mkv
 *.avi
+*.webm
