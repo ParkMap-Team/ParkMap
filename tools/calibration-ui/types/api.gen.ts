@@ -520,6 +520,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operator/classifier/video": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Classify Video */
+        post: operations["classify_video_api_operator_classifier_video_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operator/lot-model/sites/{site_id}/activate": {
         parameters: {
             query?: never;
@@ -895,6 +912,17 @@ export interface components {
         Body_analyze_hybrid_parking_api_hybrid_parking_analyze_post: {
             /** Image */
             image: string;
+        };
+        /** Body_classify_video_api_operator_classifier_video_post */
+        Body_classify_video_api_operator_classifier_video_post: {
+            /**
+             * Fps
+             * @default 1
+             * @enum {string}
+             */
+            fps: "1" | "2";
+            /** Video */
+            video: string;
         };
         /** Body_predict_api_operator_classifier_predict_post */
         Body_predict_api_operator_classifier_predict_post: {
@@ -2472,6 +2500,23 @@ export interface components {
             /** Site Id */
             site_id: string;
         };
+        /** TrackSummary */
+        TrackSummary: {
+            /** Family */
+            family: string | null;
+            /** First Time */
+            first_time: number;
+            /** Id */
+            id: number;
+            /** Last Time */
+            last_time: number;
+            /** Observations */
+            observations: number;
+            /** Preview Url */
+            preview_url: string | null;
+            /** Top3 */
+            top3: components["schemas"]["Prediction"][];
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -2484,6 +2529,15 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VideoClassification */
+        VideoClassification: {
+            /** Model Id */
+            model_id: string;
+            /** Sampled Frames */
+            sampled_frames: number;
+            /** Tracks */
+            tracks: components["schemas"]["TrackSummary"][];
         };
     };
     responses: never;
@@ -3414,6 +3468,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClassifierResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    classify_video_api_operator_classifier_video_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_classify_video_api_operator_classifier_video_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoClassification"];
                 };
             };
             /** @description Validation Error */

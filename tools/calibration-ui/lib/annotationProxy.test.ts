@@ -13,6 +13,29 @@ void test('classifier proxy forwards only explicit experiment routes with operat
   assert.equal(response.status, 200);
 });
 
+void test('video classification upload reaches only the local operator endpoint', async () => {
+  const body = new FormData();
+  body.set('video', new File(['clip'], 'demo.mp4', { type: 'video/mp4' }));
+  body.set('fps', '2');
+  const url = base + '/api/classifier?op=video';
+  const response = await proxyAnnotationRequest(new Request(url, { method: 'POST', headers: { Origin: base }, body }), {
+    ...options,
+    fetcher: async (upstream, init) => {
+      assert.equal(upstream, options.apiUrl + '/api/operator/classifier/video');
+      assert.equal(new Headers(init.headers).get('Authorization'), 'Bearer server-only-test');
+      const forwarded = await new Request(upstream, init).formData();
+      assert.equal(await (forwarded.get('video') as File).text(), 'clip');
+      assert.equal(forwarded.get('fps'), '2');
+      return Response.json({ tracks: [] });
+    },
+  });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  assert.equal((await proxyAnnotationRequest(new Request(url, {
+    method: 'POST', headers: { Origin: 'https://outside.example' }, body,
+  }), options)).status, 403);
+});
+
 void test('annotation proxy preserves multipart bytes and sends credentials only upstream', async () => {
   const body = new FormData(); body.set('image', new Blob([new Uint8Array([0, 255, 128])], { type: 'image/png' }), 'photo.png');
   const request = new Request(base + '/api/annotation?dataset=demo&op=upload', { method: 'POST', headers: { Origin: base }, body });

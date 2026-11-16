@@ -62,13 +62,20 @@ from app.services.ground_plane_homography_service import (
     HomographyInputError,
     ground_plane_homography_service,
 )
+from app.services.guard_booth_fitting import (
+    GuardBoothFit,
+    GuardBoothFitRequest,
+    RecordedPreviewHolds,
+)
 from app.services.live_state_service import (
     MAX_FUTURE_SKEW_S,
     evaluate_area_state,
     unmonitored_polygons,
 )
-from app.services.guard_booth_fitting import GuardBoothFit, GuardBoothFitRequest, RecordedPreviewHolds
-from app.services.lot_placement_service import place_area_state, placement_for_calibration
+from app.services.lot_placement_service import (
+    place_area_state,
+    placement_for_calibration,
+)
 from app.services.mobile_camera_sessions import MobileSessionError, mobile_sessions
 from app.services.motorcycle_fitting_service import motorcycle_fitting_service
 from app.services.parking_analysis_service import (
@@ -79,6 +86,7 @@ from app.services.physical_row_geometry_service import (
     measurement_fingerprint,
     physical_row_geometry_service,
 )
+from app.services.video_classifier import router as video_classifier_router
 
 SessionDependency = Depends(get_session)
 ImageFile = File(..., alias="image")
@@ -90,6 +98,7 @@ app = FastAPI(title="ParkMap API", version="0.2.0", description="API boundary fo
 app.include_router(lot_model_editor_router)
 app.include_router(annotations_router)
 app.include_router(classifier_router)
+app.include_router(video_classifier_router)
 app.include_router(mobile_operator_router)
 app.include_router(mobile_public_router)
 

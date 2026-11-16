@@ -1,4 +1,29 @@
-> Legacy experiment: the classifier and class-size controls have been removed from Parking. The current web flow uses Seg only. Training artifacts and explicit legacy operator APIs are retained; the UI instructions below describe the earlier experiment.
+## Classify Video demo
+
+Open Calibration UI through `start-dev.bat`, choose **Parking**, and select an
+authorized MP4 or WebM clip up to 30 seconds and 25 MB. **Capture Frame** displays
+a still locally. **Classify Video** sends the clip to the local operator API and
+samples at 1 FPS by default (2 FPS is available).
+
+The demo uses `best.pt` from `train-20261112-005242-convnext-ft-6ea9a9`
+under `tools/yolo-training/classification/runs-class-project/` or, if absent there,
+under `tools/yolo-training/classification/runs/`. The checkpoint contains the
+class order and preprocessing settings. A copy of `best.pt` is sufficient.
+When `run.json` is present, its checkpoint checksum is also checked.
+The video detector defaults to
+`tools/yolo-training/detection/runs/yolo26n/round-10_2026-11-09_10-04/weights/best.pt`.
+To use a different local box-detection checkpoint, set `PARKMAP_VIDEO_DETECTOR_PATH`
+in the Vision API `.env` and restart the API. The video detector uses the configured
+motorcycle class ID.
+
+ByteTrack groups detections within one clip. Each crop gets 5% padding on each
+side before letterboxing. The API averages each class's probability across the
+track and displays **ไม่แน่ใจ** below three observations or 60% top average score.
+These thresholds are demo defaults. Track IDs may split or switch when vehicles
+overlap. Processing removes the temporary clip and publishes no parking state.
+
+The rest of this page describes the earlier image classifier experiment and its
+legacy operator APIs.
 
 # Test motorcycle-family classifiers in Parking
 

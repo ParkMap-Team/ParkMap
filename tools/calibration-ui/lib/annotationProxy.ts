@@ -21,13 +21,14 @@ export async function proxyAnnotationRequest(request: Request, options: ProxyOpt
     'GET:samples': root, 'POST:upload': `${root}/images`, 'GET:image': `${root}/images/${id}`,
     'PUT:save': `${root}/samples/${id}`, 'POST:detect': `${root}/samples/${id}/detect`, 'POST:export': `${root}/export`,
   };
-  const classifierRoutes: Record<string, string> = { 'GET:models': '/api/operator/classifier/models', 'POST:predict': '/api/operator/classifier/predict', 'POST:analyze': '/api/operator/classifier/analyze' };
+  const classifierRoutes: Record<string, string> = { 'GET:models': '/api/operator/classifier/models', 'POST:predict': '/api/operator/classifier/predict', 'POST:analyze': '/api/operator/classifier/analyze', 'POST:video': '/api/operator/classifier/video' };
   const path = (classifier ? classifierRoutes : routes)[`${request.method}:${operation}`];
   if (!path) return reply(405, 'คำสั่งไม่รองรับ');
   const type = request.headers.get('Content-Type') ?? '';
-  if (['upload', 'predict', 'analyze'].includes(operation ?? '') && !type.startsWith('multipart/form-data;')) return reply(415, 'ส่งรูปด้วย multipart/form-data');
+  const isMultipart = ['upload', 'predict', 'analyze', 'video'].includes(operation ?? '');
+  if (isMultipart && !type.startsWith('multipart/form-data;')) return reply(415, 'ส่งไฟล์ด้วย multipart/form-data');
   if (operation === 'save' && type.split(';')[0].trim() !== 'application/json') return reply(415, 'ส่ง label เป็น JSON');
-  const limit = ['upload', 'predict', 'analyze'].includes(operation ?? '') ? 26 * 1024 * 1024 : 1024 * 1024;
+  const limit = isMultipart ? 26 * 1024 * 1024 : 1024 * 1024;
   if (Number(request.headers.get('Content-Length')) > limit) return reply(413, 'ข้อมูลใหญ่เกินกำหนด');
   try {
     let body: ArrayBuffer | undefined;
@@ -47,7 +48,7 @@ export async function proxyAnnotationRequest(request: Request, options: ProxyOpt
       body = bytes.buffer;
     }
     const response = await (options.fetcher ?? fetch)(options.apiUrl.replace(/\/$/, '') + path, {
-      method: request.method, body, cache: 'no-store', signal: AbortSignal.timeout(['detect', 'predict', 'analyze'].includes(operation ?? '') ? 120_000 : 30_000),
+      method: request.method, body, cache: 'no-store', signal: AbortSignal.timeout(operation === 'video' ? 300_000 : ['detect', 'predict', 'analyze'].includes(operation ?? '') ? 120_000 : 30_000),
       headers: { Authorization: `Bearer ${options.token}`, ...(type ? { 'Content-Type': type } : {}) },
     });
     return new Response(await response.arrayBuffer(), { status: response.status, headers: {

@@ -9,7 +9,13 @@ from dotenv import load_dotenv
 from PIL import Image, UnidentifiedImageError
 from ultralytics import YOLO
 
-from app.models import Detection, DetectionAnalysisModel, DetectionBBox, DetectionInference, DetectionResponse
+from app.models import (
+    Detection,
+    DetectionAnalysisModel,
+    DetectionBBox,
+    DetectionInference,
+    DetectionResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +27,10 @@ class ModelUnavailableError(RuntimeError):
 class ComputerVisionService:
     """Loads ParkMap's YOLO model once and performs motorcycle detection."""
 
-    def __init__(self) -> None:
+    def __init__(self, model_path: str | None = None) -> None:
         backend_root = Path(__file__).resolve().parents[2]
         load_dotenv(backend_root / ".env")
-        configured_path = Path(os.getenv("PARKMAP_MODEL_PATH", "models/best.pt"))
+        configured_path = Path(model_path or os.getenv("PARKMAP_MODEL_PATH", "models/best.pt"))
         self.model_path = configured_path if configured_path.is_absolute() else backend_root / configured_path
         self.imgsz = int(os.getenv("PARKMAP_MODEL_IMGSZ", "960"))
         self.confidence_threshold = float(os.getenv("PARKMAP_MODEL_CONF", "0.25"))
@@ -76,16 +82,7 @@ class ComputerVisionService:
 
         started_at = perf_counter()
         try:
-            with self._model_lock:
-                results = self._load_model().predict(
-                    source=decoded_image,
-                    imgsz=self.imgsz,
-                    conf=self.confidence_threshold,
-                    iou=self.nms_iou,
-                    device=self.device,
-                    classes=[self.class_id],
-                    verbose=False,
-                )
+            results = self.predict_frame(decoded_image)
         finally:
             decoded_image.close()
         processing_time_ms = (perf_counter() - started_at) * 1000
@@ -131,6 +128,22 @@ class ComputerVisionService:
             ),
             detections=detections,
         )
+
+    def predict_frame(self, source, *, max_detections: int = 300, detection_only: bool = False):
+        with self._model_lock:
+            model = self._load_model()
+            if detection_only and model.task != "detect":
+                raise ModelUnavailableError("Configure a YOLO detection checkpoint with PARKMAP_VIDEO_DETECTOR_PATH.")
+            return model.predict(
+                source=source,
+                imgsz=self.imgsz,
+                conf=self.confidence_threshold,
+                iou=self.nms_iou,
+                device=self.device,
+                classes=[self.class_id],
+                max_det=max_detections,
+                verbose=False,
+            )
 
 
 cv_service = ComputerVisionService()

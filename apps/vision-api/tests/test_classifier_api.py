@@ -185,6 +185,15 @@ def test_operator_can_predict_with_a_classifier_checkpoint(tmp_path, monkeypatch
     assert [r["family"] for r in predictions] == ["c", "b", "a"]
     assert abs(predictions[0]["score"] - .66524096) < 1e-6
 
+    if architecture == "convnext_tiny":
+        (folder / "run.json").unlink()
+        (folder / "val/metrics.json").unlink()
+        assert client.get("/api/operator/classifier/models").json() == []
+        loaded, labels, size, padding, transform = classifier.load_model("train-fixture", standalone_convnext=True)
+        assert (labels, size, padding) == (classes, 64, (124, 116, 104))
+        crop = Image.new("RGB", (40, 20), "blue")
+        assert classifier.crop_probabilities(crop, loaded, size, padding, transform).argmax().item() == 2
+
 
 def test_classifier_imports_from_the_shallow_container_layout(monkeypatch):
     name = "app._classifier_container_layout"

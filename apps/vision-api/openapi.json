@@ -248,6 +248,29 @@
         "title": "Body_analyze_hybrid_parking_api_hybrid_parking_analyze_post",
         "type": "object"
       },
+      "Body_classify_video_api_operator_classifier_video_post": {
+        "properties": {
+          "fps": {
+            "default": "1",
+            "enum": [
+              "1",
+              "2"
+            ],
+            "title": "Fps",
+            "type": "string"
+          },
+          "video": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Video",
+            "type": "string"
+          }
+        },
+        "required": [
+          "video"
+        ],
+        "title": "Body_classify_video_api_operator_classifier_video_post",
+        "type": "object"
+      },
       "Body_predict_api_operator_classifier_predict_post": {
         "properties": {
           "image": {
@@ -4404,6 +4427,66 @@
         "title": "SiteSummary",
         "type": "object"
       },
+      "TrackSummary": {
+        "properties": {
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "first_time": {
+            "title": "First Time",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_time": {
+            "title": "Last Time",
+            "type": "number"
+          },
+          "observations": {
+            "title": "Observations",
+            "type": "integer"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Url"
+          },
+          "top3": {
+            "items": {
+              "$ref": "#/components/schemas/Prediction"
+            },
+            "title": "Top3",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "observations",
+          "first_time",
+          "last_time",
+          "family",
+          "top3",
+          "preview_url"
+        ],
+        "title": "TrackSummary",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -4442,6 +4525,32 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VideoClassification": {
+        "properties": {
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          },
+          "sampled_frames": {
+            "title": "Sampled Frames",
+            "type": "integer"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/TrackSummary"
+            },
+            "title": "Tracks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "model_id",
+          "sampled_frames",
+          "tracks"
+        ],
+        "title": "VideoClassification",
         "type": "object"
       }
     }
@@ -5772,6 +5881,62 @@
         "tags": [
           "Classifier experiment"
         ]
+      }
+    },
+    "/api/operator/classifier/video": {
+      "post": {
+        "operationId": "classify_video_api_operator_classifier_video_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_classify_video_api_operator_classifier_video_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoClassification"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Classify Video"
       }
     },
     "/api/operator/lot-model/sites/{site_id}/activate": {

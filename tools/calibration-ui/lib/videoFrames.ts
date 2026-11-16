@@ -16,6 +16,7 @@ export async function captureVideoFrame(video: HTMLVideoElement): Promise<File> 
     throw new Error('The video is not ready for analysis yet.');
   }
 
+  const frameTime = video.currentTime;
   const canvas = document.createElement('canvas');
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
@@ -26,5 +27,5 @@ export async function captureVideoFrame(video: HTMLVideoElement): Promise<File> 
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((value) => value ? resolve(value) : reject(new Error('Unable to encode the current video frame.')), 'image/jpeg', 0.92);
   });
-  return new File([blob], `frame-${video.currentTime.toFixed(1)}s.jpg`, { type: 'image/jpeg' });
+  return new File([blob], `frame-${frameTime.toFixed(1)}s.jpg`, { type: 'image/jpeg' });
 }

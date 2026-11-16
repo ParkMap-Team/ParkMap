@@ -7,6 +7,7 @@ import json
 import math
 import re
 from pathlib import Path
+from pickle import UnpicklingError
 from threading import Lock
 from typing import Annotated, Any, Literal
 
@@ -129,33 +130,53 @@ def encode_preview(image):
     return "data:image/jpeg;base64," + base64.b64encode(stream.getvalue()).decode("ascii")
 
 
-def load_model(model_id):
+def load_model(model_id, *, standalone_convnext=False):
     global _cache
-    if model_id not in {item.id for item in available_models()}:
+    if not standalone_convnext and model_id not in {item.id for item in available_models()}:
         raise HTTPException(404, "Classifier model not found or training is incomplete.")
-    path = RUNS / model_id / "best.pt"
-    if path.is_symlink() or not path.resolve().is_relative_to(RUNS.resolve()):
+    root = RUNS
+    project_runs = RUNS.with_name("runs-class-project")
+    if standalone_convnext and (project_runs / model_id / "best.pt").is_file():
+        root = project_runs
+    path = root / model_id / "best.pt"
+    if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(root.resolve()):
         raise HTTPException(404, "Classifier model is unavailable.")
-    stamp = (model_id, path.stat().st_mtime_ns, path.stat().st_size)
+    metadata_path = path.with_name("run.json")
+    has_metadata = not standalone_convnext or metadata_path.exists()
+    stats = path.stat()
+    stamp = (path, stats.st_mtime_ns, stats.st_size,
+             metadata_path.stat().st_mtime_ns if has_metadata else None, standalone_convnext)
     if _cache and _cache[0] == stamp:
         return _cache[1:]
     import torch
     from torchvision import models, transforms
 
-    meta = json.loads((path.parent / "run.json").read_text(encoding="utf-8"))
-    with path.open("rb") as stream:
-        if hashlib.file_digest(stream, "sha256").hexdigest() != meta["best_checkpoint_sha256"]:
-            raise ValueError("Checkpoint hash mismatch")
-    checkpoint = torch.load(path, map_location="cpu", weights_only=True)
+    meta = json.loads(metadata_path.read_text(encoding="utf-8")) if has_metadata else None
+    if meta is not None:
+        with path.open("rb") as stream:
+            if hashlib.file_digest(stream, "sha256").hexdigest() != meta["best_checkpoint_sha256"]:
+                raise ValueError("Checkpoint hash mismatch")
+    try:
+        checkpoint = torch.load(path, map_location="cpu", weights_only=True)
+    except UnpicklingError as error:
+        raise ValueError("Unsupported classifier checkpoint") from error
+    if not isinstance(checkpoint, dict) or checkpoint.get("format_version") != 1:
+        raise ValueError("Unsupported classifier checkpoint")
     preprocessing = checkpoint["preprocessing"]
     architecture = checkpoint.get("architecture")
-    if checkpoint.get("format_version") != 1 or architecture not in SUPPORTED_ARCHITECTURES or preprocessing["protocol"] != "letterbox_rgb_v1":
+    if architecture not in SUPPORTED_ARCHITECTURES or preprocessing["protocol"] != "letterbox_rgb_v1":
         raise ValueError("Unsupported classifier checkpoint")
-    if architecture != meta.get("options", {}).get("architecture", "resnet18"):
+    if standalone_convnext and architecture != "convnext_tiny":
+        raise ValueError("Video classification requires a ConvNeXt Tiny checkpoint")
+    if meta is not None and architecture != meta.get("options", {}).get("architecture", "resnet18"):
         raise ValueError("Checkpoint architecture does not match run metadata")
     classes = checkpoint["classes"]
-    if classes != meta["dataset"]["classes"] or not 64 <= checkpoint["image_size"] <= 1024:
+    if (not isinstance(classes, list) or not classes or any(not isinstance(name, str) or not name.strip() for name in classes)
+            or len(set(classes)) != len(classes) or not isinstance(checkpoint["image_size"], int)
+            or not 64 <= checkpoint["image_size"] <= 1024):
         raise ValueError("Invalid classifier class order or image size")
+    if meta is not None and classes != meta["dataset"]["classes"]:
+        raise ValueError("Classifier classes do not match run metadata")
     torch.set_num_threads(2)
     state_dict = checkpoint["state_dict"]
     if architecture == "yolo11n_cls":
@@ -181,9 +202,18 @@ def load_model(model_id):
     return _cache[1:]
 
 
-def classify(decoded, model_id, mode, boxes=None):
+def crop_probabilities(crop, model, size, padding, transform):
     import torch
 
+    padded = ImageOps.pad(crop, (size, size), method=Image.Resampling.BILINEAR, color=padding)
+    with torch.inference_mode():
+        output = model(transform(padded).unsqueeze(0))
+        # YOLO returns (probabilities, logits) in eval mode.
+        logits = output[1] if isinstance(output, tuple) else output
+        return logits.softmax(1)[0]
+
+
+def classify(decoded, model_id, mode, boxes=None):
     with LOCK:
         model, classes, size, padding, transform = load_model(model_id)
         if boxes is not None:
@@ -204,13 +234,7 @@ def classify(decoded, model_id, mode, boxes=None):
             crop = decoded.crop((max(0, left), max(0, top), right, bottom))
             if min(crop.size) <= 0:
                 continue
-            padded = ImageOps.pad(crop, (size, size), method=Image.Resampling.BILINEAR, color=padding)
-            with torch.inference_mode():
-                output = model(transform(padded).unsqueeze(0))
-                # YOLO returns (probabilities, logits) in eval mode; use logits so
-                # softmax is applied once, matching the saved training evaluation.
-                logits = output[1] if isinstance(output, tuple) else output
-                scores, indices = logits.softmax(1)[0].topk(min(3, len(classes)))
+            scores, indices = crop_probabilities(crop, model, size, padding, transform).topk(min(3, len(classes)))
             crops.append(ClassifiedCrop(detection_index=detection_index, bbox=box, crop_url=encode_preview(crop), top3=[Prediction(family=classes[i], score=float(s)) for i, s in zip(indices.tolist(), scores.tolist(), strict=True)]))
         return ClassifierResult(model_id=model_id, image_width=decoded.width, image_height=decoded.height,
                                 preview_url=encode_preview(decoded), crops=crops)

@@ -3,6 +3,7 @@
 import { AlertCircle, ImagePlus, LoaderCircle, RotateCcw, ScanSearch } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { CameraMonitor } from '@/components/camera/CameraMonitor';
+import { VideoClassifier } from '@/components/camera/VideoClassifier';
 import { SegmentationExperiment } from '@/components/parking/SegmentationExperiment';
 import { getCalibration } from '@/lib/calibration';
 import { analyzeParkingSegmentation, MAX_UPLOAD_BYTES, SUPPORTED_IMAGE_TYPES } from '@/lib/detection';
@@ -35,7 +36,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const videoAnalysisBusyRef = useRef(false);
 
   useEffect(() => {
-    if (!file) return;
+    if (!file || (videoUrl && !videoAnalysisActive)) return;
     const controller = new AbortController();
     void getCalibration(controller.signal)
       .then((savedCalibration) => {
@@ -45,7 +46,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
         if (!(reason instanceof DOMException && reason.name === 'AbortError')) setSetupRequired(true);
       });
     return () => controller.abort();
-  }, [file]);
+  }, [file, videoUrl, videoAnalysisActive]);
   useEffect(() => () => controllerRef.current?.abort(), []);
   useEffect(() => previewUrl ? () => URL.revokeObjectURL(previewUrl) : undefined, [previewUrl]);
   useEffect(() => videoUrl ? () => URL.revokeObjectURL(videoUrl) : undefined, [videoUrl]);
@@ -105,6 +106,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
 
     setState('idle');
     setError(null);
+    setSetupRequired(false);
     setVideoProgress(null);
     setVideoAnalysisActive(false);    if (!selected) return;
     const isVideo = selected.type.startsWith('video/');
@@ -189,6 +191,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
 
       <div className="space-y-4">
         <CameraMonitor imageUrl={previewUrl} videoUrl={videoUrl} videoRef={videoRef} analysis={analysis} segmentation={segmentation} />
+        {videoUrl && file && <VideoClassifier key={videoUrl} file={file} />}
         <SegmentationExperiment primary result={segmentation} error={segmentationError} gaps={segmentationGaps} />
       </div>
     </div>
