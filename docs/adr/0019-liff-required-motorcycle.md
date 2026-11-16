@@ -11,3 +11,5 @@ Existing hashed-account preferences are retained in parkmap_line. They are reusa
 Production needs PARKMAP_SETTINGS_URL on the LIFF server, PARKMAP_PUBLIC_ORIGIN matching its external HTTPS origin, LINE_LOGIN_CHANNEL_ID on the settings process, and openid on the LIFF app. No Messaging API secret or token is used by the runtime.
 
 Sources: https://developers.line.biz/en/docs/liff/using-user-profile/ and https://developers.line.biz/en/docs/line-login/verify-id-token/
+
+Amendment 2026-11-16: at the owner's request, a successful LIFF save attempts an OA push confirmation through the official Python SDK. Runtime LINE_CHANNEL_ACCESS_TOKEN is used again, but there is no webhook/chat settings flow. Only the verified ID token sub supplies the recipient, kept in request memory and excluded from object repr; database identity stays hashed. Commit precedes the provider call. Transport errors never undo a save. Each explicit save makes one bounded push attempt with a UUID retry key; polling makes none. LINE acceptance does not prove delivery to a blocked/non-friend user. See https://developers.line.biz/en/docs/messaging-api/retrying-api-request/ .

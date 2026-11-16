@@ -197,3 +197,5 @@ startup migrations leave the API migration history unchanged. Deploy/configure t
 the settings postback in the rich menu.
 
 Motorcycle preferences now live in LIFF (ADR 0019), superseding the OA chat flow. Verified LINE Login identity and a saved model are required before map pages or their state/photo proxies can be read. Settings do not affect physical fitting.
+
+After a successful explicit LIFF model save, the settings process attempts an OA confirmation (ADR 0019 amendment). Selection stays in LIFF; no chat webhook is restored.
