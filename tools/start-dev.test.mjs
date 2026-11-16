@@ -44,6 +44,16 @@ test("no-worker leaves the basic development stack available", {
   assert.match(result.output, /Vision API:/);
 });
 
+test("Windows launcher finds Windows PowerShell without a PATH entry", {
+  skip: process.platform !== "win32",
+}, () => {
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toLowerCase() !== "path"));
+  env.PATH = join(process.env.SystemRoot, "System32");
+  const result = runAt(launcher, ["--no-worker", "--dry-run"], env);
+  assert.equal(result.status, 0, result.output);
+  assert.match(result.output, /Vision API:/);
+});
+
 function withNativeTools(callback) {
   const fixture = mkdtempSync(join(tmpdir(), "ParkMap native tools test "));
   try {
