@@ -29,3 +29,10 @@ jobs:
             api "applications/$uuid" | jq -c '{build_pack,git_branch,git_commit_sha,status}'
             api "deployments/applications/$uuid?take=3" | jq -c '.deployments[] | {deployment_uuid,commit,status,created_at,updated_at}'
           done
+          for id in k4bb6cm5nsv7vshn82nxn0j2 gvfyqktjow1zhzicolbwzca2; do
+            api "deployments/$id" | jq -c '{deployment_uuid,status,updated_at,stages:(
+              (.logs // "[]") | if type == "string" then (try fromjson catch []) else . end
+              | if type == "array" then [.[] | objects | .output // "" | strings
+                | scan("exporting layers|unpacking|Rolling update started|Rolling update completed|New container started|Waiting for healthcheck|no space left on device|out of memory|Build failed|Permission denied|Connection timed out|context canceled|Building docker image started"; "i")][-8:] else [] end
+            )}'
+          done
