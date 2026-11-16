@@ -1,0 +1,31 @@
+name: Guard Booth rollout recovery
+on:
+  push:
+    branches: [ops/guard-booth-rollout-recovery]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      COOLIFY_URL: ${{ vars.COOLIFY_URL }}
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+      API_UUID: ${{ vars.COOLIFY_APP_API }}
+      LIFF_UUID: ${{ vars.COOLIFY_APP_LIFF }}
+      WORKER_UUID: ${{ vars.COOLIFY_APP_WORKER }}
+    steps:
+      - name: Inspect Coolify release status
+        shell: bash
+        run: |
+          set -euo pipefail
+          api() {
+            curl -fsS --max-time 20 -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" "$COOLIFY_URL/api/v1/$1"
+          }
+          for entry in "api:$API_UUID" "liff:$LIFF_UUID" "worker:$WORKER_UUID"; do
+            name=${entry%%:*}
+            uuid=${entry#*:}
+            echo "Application: $name"
+            api "applications/$uuid" | jq -c '{build_pack,git_branch,git_commit_sha,status}'
+            api "deployments/applications/$uuid?take=3" | jq -c '.deployments[] | {deployment_uuid,commit,status,created_at,updated_at}'
+          done
