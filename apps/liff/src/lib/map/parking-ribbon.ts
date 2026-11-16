@@ -3,12 +3,12 @@ import type { MetricPoint } from "../api/types.ts";
 const CORNER_RADIUS_M = 0.55;
 const CORNER_STEPS = 8;
 const PROFILE = [
-  { offset: -0.46, rise: 0, across: 0 },
-  { offset: -0.30, rise: 0, across: 0.16 },
-  { offset: -0.27, rise: 0.10, across: 0.20 },
-  { offset: 0.27, rise: 0.10, across: 0.80 },
-  { offset: 0.30, rise: 0, across: 0.84 },
-  { offset: 0.46, rise: 0, across: 1 },
+  { offset: -0.54, rise: 0, across: 0 },
+  { offset: -0.41, rise: 0, across: 0.12 },
+  { offset: -0.36, rise: 0.14, across: 0.18 },
+  { offset: 0.36, rise: 0.14, across: 0.82 },
+  { offset: 0.41, rise: 0, across: 0.88 },
+  { offset: 0.54, rise: 0, across: 1 },
 ];
 
 function mix(a: MetricPoint, b: MetricPoint, t: number): MetricPoint {

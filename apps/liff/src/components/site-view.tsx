@@ -268,10 +268,10 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
   const displayMode = fitExpired || (currentHold && !activeHolds.includes(currentHold)) ? "waiting" : activeFitFamily ? "fit-preview" : classification;
   const boothHeadline = classification && (query.isPending && classification !== "unavailable"
     ? "กำลังโหลดสถานะลาน"
-    : activeFitFamily && fitQuery.isFetching && !fit
-      ? "กำลังหาตำแหน่งวางกรอบรถ"
-      : activeFitFamily && (fitQuery.isError || !fitRequestId)
+    : activeFitFamily && (fitQuery.isError || !fitRequestId)
         ? "โหลดผลทดลองวางกรอบไม่ได้"
+      : activeFitFamily && !matchingFit
+        ? "กำลังหาตำแหน่งวางกรอบรถ"
         : guardBoothHeadline(displayMode ?? classification, summary.currentAreas > 0, Boolean(destination) || (classification === "unknown" && summary.present.has("AVAILABLE")), Boolean(route)));
   const estimatedLandmarks = map.landmarks.some((landmark) => landmark.measurement_source === "ESTIMATED");
   const mapLoading = renderer.status3d === "checking" || (showsThreeD && renderer.status3d === "loading");
