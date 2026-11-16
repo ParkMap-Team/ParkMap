@@ -111,8 +111,8 @@ button alongside detection. Python runs YOLO once and reuses those boxes for
 native crops and classification, including each analyzed video frame. Parking
 and classifier failures are reported separately so successful detections remain
 visible. It uses the same
-operator-only loopback proxy, discovers completed local ResNet18, EfficientNet-B0
-or YOLO11n-cls runs, and loads
+operator-only loopback proxy, discovers completed local ResNet18, EfficientNet-B0,
+YOLO11n-cls or ConvNeXt Tiny runs, and loads
 their hash-verified `best.pt` with `weights_only=True`. Python owns EXIF handling,
 YOLO boxes, native-resolution crops, aspect-preserving padding, and top-three
 family scores. The standalone operator predict API retains a pre-cropped

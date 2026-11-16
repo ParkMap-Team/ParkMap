@@ -21,6 +21,8 @@ import {
 } from "@/lib/map/camera";
 import { type Flight, fly } from "@/lib/map/flight";
 import { axisHeading } from "@/lib/map/geometry";
+import { useRouteReveal } from "@/lib/map/use-route-reveal";
+import { routeArrow } from "@/lib/map/route-reveal";
 import { GROUND_KINDS, landmarkTop } from "@/lib/map/landmark-style";
 import { MOTORCYCLE_MODEL } from "@/lib/map/motorcycle-model";
 import { COLORS } from "@/lib/parking/presentation";
@@ -87,12 +89,15 @@ function LandmarkShape({ landmark, view, size }: { landmark: LotLandmark; view: 
   return null;
 }
 
-export default function LotPlan({ map, labels, selection, onSelect, insets, ref }: MapViewProps) {
+export default function LotPlan({ map, labels, selection, route, routeReplay, heldPolygons, overviewKey, onSelect, insets, ref }: MapViewProps) {
+  const { visibleRoute, revealing } = useRouteReveal(route, routeReplay);
+  const visibleSelection = revealing && selection?.destination ? null : selection;
   const container = useRef<HTMLDivElement>(null);
   const labelLayer = useRef<LabelLayerHandle>(null);
   const [size, setSize] = useState<Size | null>(null);
   const [view, setView] = useState<View2D | null>(null);
   const overview = useRef<View2D | null>(null);
+  const previousOverviewKey = useRef(overviewKey);
   const atOverview = useRef(true);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<{ moved: number; pinch: number | null }>({ moved: 0, pinch: null });
@@ -114,18 +119,6 @@ export default function LotPlan({ map, labels, selection, onSelect, insets, ref 
     return () => observer.disconnect();
   }, []);
 
-  // Plain numbers, so a poll that rebuilds the map with the same geometry does not refit.
-  const { minX, minY, maxX, maxY } = map.frame;
-  const { top, right, bottom, left } = insets;
-  useLayoutEffect(() => {
-    if (!size) return;
-    overview.current = overview2D({ minX, minY, maxX, maxY }, { ...size, insets: { top, right, bottom, left } });
-    if (!shown.current || atOverview.current) {
-      flight.current?.cancel();
-      setView(overview.current);
-    }
-  }, [size, minX, minY, maxX, maxY, top, right, bottom, left]);
-
   const stop = useCallback(() => flight.current?.cancel(), []);
 
   /** Glides from the view on screen to `target`, or jumps there when `ms` is 0. */
@@ -135,6 +128,24 @@ export default function LotPlan({ map, labels, selection, onSelect, insets, ref 
     if (!from) return;
     flight.current = fly(ms, ease, (t) => setView(mix2D(from, target, t)));
   }, []);
+
+  // Plain numbers, so a poll that rebuilds the map with the same geometry does not refit.
+  const { minX, minY, maxX, maxY } = map.frame;
+  const { top, right, bottom, left } = insets;
+  useLayoutEffect(() => {
+    if (!size) return;
+    const next = overview2D({ minX, minY, maxX, maxY }, { ...size, insets: { top, right, bottom, left } });
+    overview.current = next;
+    const changedOverview = previousOverviewKey.current !== overviewKey;
+    previousOverviewKey.current = overviewKey;
+    if (changedOverview && shown.current) {
+      atOverview.current = true;
+      moveTo(next, FLY_MS, easeInOut);
+    } else if (!shown.current || atOverview.current) {
+      flight.current?.cancel();
+      setView(next);
+    }
+  }, [size, minX, minY, maxX, maxY, top, right, bottom, left, overviewKey, moveTo]);
 
   const zoomAt = useCallback(
     (factor: number, anchor?: [number, number], ms = 0) => {
@@ -237,6 +248,11 @@ export default function LotPlan({ map, labels, selection, onSelect, insets, ref 
     }
   }
 
+  const routePoints = view && size && visibleRoute?.map((point) => toScreen(view, size, point).join(",")).join(" ");
+  const arrowPoints = view && size && revealing && visibleRoute
+    ? routeArrow(visibleRoute)?.map((point) => toScreen(view, size, point).join(",")).join(" ")
+    : undefined;
+
   return (
     <div
       ref={container}
@@ -306,15 +322,33 @@ export default function LotPlan({ map, labels, selection, onSelect, insets, ref 
             </g>
           ))}
           {map.landmarks.map((landmark) => !underAreas(landmark) && <LandmarkShape key={landmark.landmark_id} landmark={landmark} view={view} size={size} />)}
-          {selection?.polygon && (
+          {heldPolygons?.map((polygon, index) => (
+            <path key={index} d={pathOf(view, size, polygon)} fill={COLORS.HELD} fillRule="evenodd" stroke={COLORS.HELD_STROKE} strokeWidth={2} strokeDasharray="6 4" />
+          ))}
+          {visibleSelection?.polygon && !heldPolygons?.includes(visibleSelection.polygon) && (
             <g fill="none" strokeLinejoin="round">
-              <path d={pathOf(view, size, selection.polygon)} stroke={COLORS.SELECTED_HALO} strokeWidth={6} />
-              <path d={pathOf(view, size, selection.polygon)} stroke={COLORS.SELECTED} strokeWidth={3} />
+              <path d={pathOf(view, size, visibleSelection.polygon)} stroke={COLORS.SELECTED_HALO} strokeWidth={6} />
+              <path d={pathOf(view, size, visibleSelection.polygon)} stroke={visibleSelection.destination ? COLORS.ENTRANCE : COLORS.SELECTED} strokeWidth={3} />
             </g>
+          )}
+          {routePoints && (
+            <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points={routePoints} stroke="white" strokeWidth={10} />
+              <polyline points={routePoints} stroke={COLORS.ENTRANCE} strokeWidth={6} />
+              {arrowPoints && (
+                <>
+                  <polyline points={arrowPoints} stroke="white" strokeWidth={12} />
+                  <polyline points={arrowPoints} stroke={COLORS.ENTRANCE} strokeWidth={7} />
+                </>
+              )}
+            </g>
+          )}
+          {visibleSelection?.destination && visibleSelection.polygon && (
+            <path d={pathOf(view, size, visibleSelection.polygon)} fill="none" stroke="#60a5fa" strokeWidth={14} strokeLinejoin="round" opacity={0} className={routeReplay ? "animate-[parking-arrival_800ms_ease-out]" : "motion-safe:animate-[parking-arrival_800ms_ease-out]"} />
           )}
         </svg>
       )}
-      <LabelLayer ref={labelLayer} labels={labels} selection={selection} insets={insets} />
+      <LabelLayer ref={labelLayer} labels={labels} selection={visibleSelection} insets={insets} />
     </div>
   );
 }

@@ -67,7 +67,8 @@ from app.services.live_state_service import (
     evaluate_area_state,
     unmonitored_polygons,
 )
-from app.services.lot_placement_service import place_area_state
+from app.services.guard_booth_fitting import GuardBoothFit, GuardBoothFitRequest, RecordedPreviewHolds
+from app.services.lot_placement_service import place_area_state, placement_for_calibration
 from app.services.mobile_camera_sessions import MobileSessionError, mobile_sessions
 from app.services.motorcycle_fitting_service import motorcycle_fitting_service
 from app.services.parking_analysis_service import (
@@ -172,6 +173,28 @@ def get_site_parking_state(site_id: str = SiteId, session: Session = SessionDepe
             calibrations[area_id].payload if area_id in calibrations else {}, polygons.get(area_id),
         ), frames.get(area_id)) for area_id in area_ids],
     )
+
+
+_guard_booth_holds = RecordedPreviewHolds()
+
+
+@app.post("/api/sites/{site_id}/guard-booth-fit", response_model=GuardBoothFit)
+def reserve_guard_booth_fit(request: GuardBoothFitRequest, site_id: str = SiteId, session: Session = SessionDependency) -> GuardBoothFit:
+    if site_id != "sripatum" or os.getenv("PARKMAP_GUARD_BOOTH_FIT_PREVIEW") != "1":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    model = get_lot_model(site_id, session)
+    entrance = next((landmark.position for landmark in model.landmarks if landmark.landmark_id == "entrance-1" and landmark.kind == "ENTRANCE"), None)
+    area_model = next((area for area in model.parking_areas if area.parking_area_id == "sripatum-near-lot"), None)
+    if entrance is None or area_model is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    area_id = area_model.parking_area_id
+    calibration = repository.active_calibrations(session, [area_id]).get(area_id)
+    placement = placement_for_calibration(calibration.payload, area_model.polygon) if calibration else None
+    if placement is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Parking geometry is unavailable.")
+    state = get_site_parking_state(site_id, session)
+    area = next(area for area in state.areas if area.parking_area_id == area_id)
+    return _guard_booth_holds.reserve(area, request, entrance, placement.scale, now=datetime.now(UTC))
 
 
 def _frame_version(processed_at: datetime) -> int:

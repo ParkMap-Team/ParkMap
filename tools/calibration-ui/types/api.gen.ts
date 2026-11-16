@@ -729,6 +729,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sites/{site_id}/guard-booth-fit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reserve Guard Booth Fit */
+        post: operations["reserve_guard_booth_fit_api_sites__site_id__guard_booth_fit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sites/{site_id}/lot-model": {
         parameters: {
             query?: never;
@@ -1615,6 +1632,67 @@ export interface components {
              * @enum {string}
              */
             provenance: "ESTIMATED" | "MEASURED";
+        };
+        /** GuardBoothFit */
+        GuardBoothFit: {
+            /** Expires At */
+            expires_at?: string | null;
+            /**
+             * Family
+             * @enum {string}
+             */
+            family: "grand_filano" | "forza";
+            /**
+             * Holds
+             * @default []
+             */
+            holds: components["schemas"]["GuardBoothFitHold"][];
+            /** Length M */
+            length_m: number;
+            /** Observed At */
+            observed_at: string | null;
+            /** Polygon */
+            polygon?: components["schemas"]["MetricGroundPoint"][][] | null;
+            /**
+             * Route
+             * @default []
+             */
+            route: components["schemas"]["MetricGroundPoint"][];
+            /** Width M */
+            width_m: number;
+        };
+        /** GuardBoothFitHold */
+        GuardBoothFitHold: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            /** Polygon */
+            polygon: components["schemas"]["MetricGroundPoint"][][];
+        };
+        /** GuardBoothFitRequest */
+        GuardBoothFitRequest: {
+            /**
+             * Family
+             * @enum {string}
+             */
+            family: "grand_filano" | "forza";
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            /**
+             * Request Id
+             * Format: uuid4
+             */
+            request_id: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -3810,6 +3888,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SiteSummary"][];
+                };
+            };
+        };
+    };
+    reserve_guard_booth_fit_api_sites__site_id__guard_booth_fit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuardBoothFitRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardBoothFit"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

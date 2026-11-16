@@ -1,6 +1,6 @@
 "use client";
 
-import { MapControls, useGLTF } from "@react-three/drei";
+import { Line, MapControls, useGLTF } from "@react-three/drei";
 import { Canvas, type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import { type ComponentRef, Suspense, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
@@ -45,6 +45,7 @@ import {
 } from "@/lib/map/camera";
 import { type Flight, fly } from "@/lib/map/flight";
 import { axisHeading, fromWorld, toWorld } from "@/lib/map/geometry";
+import { useRouteReveal } from "@/lib/map/use-route-reveal";
 import { DETAIL } from "@/lib/map/landmark-style";
 import { type LotMap } from "@/lib/map/lot-map";
 import { MOTORCYCLE_MODEL, motorcyclePaint, motorcycleTransform } from "@/lib/map/motorcycle-model";
@@ -52,6 +53,7 @@ import { COLORS } from "@/lib/parking/presentation";
 import { cn } from "@/lib/utils";
 import { Surroundings } from "./lot-surroundings";
 import { LabelLayer, type LabelLayerHandle, type MapViewHandle, type MapViewProps } from "./map-overlay";
+import { ParkingRoute3D } from "./parking-route-3d";
 import { HEIGHT, Outline, Surface, asphalt, pattern } from "./scene-primitives";
 
 // The 3D view: lot geometry and its static surroundings from the lot model, the API's regions on
@@ -71,7 +73,7 @@ import { HEIGHT, Outline, Surface, asphalt, pattern } from "./scene-primitives";
 // Region edges draw before region surfaces: the API sends a region as many narrow cells, and the
 // surfaces cover the inner half of every edge, so only the outside of a run of cells keeps one and
 // the map draws no stall lines.
-const STATUS_ORDER = { area: 1, areaStroke: 2, regionStroke: 3, region: 4, footprint: 5, motorcycle: 6, selection: 7 };
+const STATUS_ORDER = { area: 1, areaStroke: 2, regionStroke: 3, region: 4, hold: 5, holdStroke: 6, footprint: 7, motorcycle: 8, selection: 9 };
 // Lambert light on an up-facing surface is (sky + light * cos) / PI times its colour. These make
 // ground its own colour, give the light enough of that share for a shadow to read, and turn walls
 // facing away from it darker than roofs so blocks read as blocks.
@@ -446,7 +448,29 @@ function Sun({ map }: { map: LotMap }) {
   );
 }
 
-function Selection({ polygon }: { polygon: MetricPolygon }) {
+function ParkingArrival({ polygon, replay }: { polygon: MetricPolygon; replay?: number }) {
+  const line = useRef<ComponentRef<typeof Line>>(null);
+  const invalidate = useThree((state) => state.invalidate);
+  const started = useRef<number | null>(null);
+  const points = useMemo(() => [...polygon[0], polygon[0][0]].map((point) => toWorld(point, HEIGHT.selection + 0.01)), [polygon]);
+  useFrame(() => {
+    if (!line.current?.visible) return;
+    if (started.current === null) {
+      if (!replay && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        line.current.visible = false;
+        return;
+      }
+      started.current = performance.now();
+    }
+    const progress = Math.min(1, (performance.now() - started.current) / 800);
+    line.current.material.opacity = 0.9 * (1 - progress) ** 2;
+    line.current.visible = progress < 1;
+    if (line.current.visible) invalidate();
+  });
+  return <Line ref={line} points={points} color="#60a5fa" lineWidth={14} transparent opacity={0} depthTest={false} depthWrite={false} renderOrder={34} />;
+}
+
+function Selection({ polygon, destination, routeReplay }: { polygon: MetricPolygon; destination?: boolean; routeReplay?: number }) {
   const invalidate = useThree((state) => state.invalidate);
   useEffect(() => {
     invalidate();
@@ -455,7 +479,8 @@ function Selection({ polygon }: { polygon: MetricPolygon }) {
   return (
     <>
       <Outline polygon={polygon} height={HEIGHT.selection} color={COLORS.SELECTED_HALO} width={6} statusOrder={STATUS_ORDER.selection} />
-      <Outline polygon={polygon} height={HEIGHT.selection + 0.005} color={COLORS.SELECTED} width={3} statusOrder={STATUS_ORDER.selection + 1} />
+      <Outline polygon={polygon} height={HEIGHT.selection + 0.005} color={destination ? COLORS.ENTRANCE : COLORS.SELECTED} width={3} statusOrder={STATUS_ORDER.selection + 1} />
+      {destination && <ParkingArrival polygon={polygon} replay={routeReplay} />}
     </>
   );
 }
@@ -464,11 +489,13 @@ function Selection({ polygon }: { polygon: MetricPolygon }) {
 function CameraRig({
   map,
   insets,
+  overviewKey,
   handle,
   labels,
 }: {
   map: LotMap;
   insets: MapViewProps["insets"];
+  overviewKey: MapViewProps["overviewKey"];
   handle: React.Ref<MapViewHandle>;
   labels: React.RefObject<LabelLayerHandle | null>;
 }) {
@@ -540,6 +567,7 @@ function CameraRig({
   // time it had left, so new data arriving during the opening flight does not hurry it.
   // Once people have moved the view, neither a resize nor new data moves it again.
   const opened = useRef(false);
+  const previousOverviewKey = useRef(overviewKey);
   const refit = useRef(() => {});
   refit.current = () => {
     if (!controls.current) return;
@@ -551,6 +579,12 @@ function CameraRig({
     }
     // A new size moves the zoom limit, which the camera may already be inside.
     tighten(camera.position.distanceTo(controls.current.target));
+    if (previousOverviewKey.current !== overviewKey) {
+      previousOverviewKey.current = overviewKey;
+      atOverview.current = true;
+      moveTo(overview, FLY_MS, easeInOut);
+      return;
+    }
     if (!atOverview.current) return;
     if (flight.current?.active) {
       moveTo(overview, Math.max(NUDGE_MS, landing.current - performance.now()), easeOut);
@@ -559,7 +593,7 @@ function CameraRig({
     flight.current?.cancel();
     apply(overview);
   };
-  useLayoutEffect(() => refit.current(), [overview]);
+  useLayoutEffect(() => refit.current(), [overview, overviewKey]);
   useEffect(() => () => flight.current?.cancel(), []);
 
   useImperativeHandle(handle, () => ({
@@ -653,13 +687,20 @@ function CameraRig({
   );
 }
 
-export default function LotScene({ map, labels, selection, onSelect, insets, onReady, onError, ref }: MapViewProps & { onReady(): void; onError(): void }) {
+export default function LotScene({ map, labels, selection, route, routeReplay, heldPolygons, overviewKey, onSelect, insets, onReady, onError, ref }: MapViewProps & { onReady(): void; onError(): void }) {
   const labelLayer = useRef<LabelLayerHandle>(null);
+  const { progress, revealing } = useRouteReveal(route, routeReplay);
+  const visibleSelection = revealing && selection?.destination ? null : selection;
   // Hidden until the scene has rendered, then faded in over the skeleton.
-  const [created, setCreated] = useState(false);
+  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  useLayoutEffect(() => {
+    if (!canvas) return;
+    canvas.addEventListener("webglcontextlost", onError);
+    return () => canvas.removeEventListener("webglcontextlost", onError);
+  }, [canvas, onError]);
   return (
     <div
-      className={cn("relative size-full transition-opacity duration-300 ease-out motion-reduce:transition-none", !created && "opacity-0")}
+      className={cn("relative size-full transition-opacity duration-300 ease-out motion-reduce:transition-none", !canvas && "opacity-0")}
       style={{ backgroundColor: COLORS.GROUND }}
     >
       <Canvas
@@ -667,20 +708,28 @@ export default function LotScene({ map, labels, selection, onSelect, insets, onR
         frameloop="demand"
         shadows={SHADOWS}
         camera={{ fov: FOV_DEG, near: 0.5, far: 2000 }}
-        onCreated={({ gl }) => {
-          gl.domElement.addEventListener("webglcontextlost", onError);
-          setCreated(true);
-        }}
+        onCreated={({ gl }) => setCanvas(gl.domElement)}
       >
         <color attach="background" args={[COLORS.GROUND]} />
         {/* A slightly cool sky over a warm ground bounce, and one fixed light, so walls and roofs read apart. */}
         <hemisphereLight args={[SKY_COLOR, BOUNCE_COLOR, SKY_INTENSITY]} />
         <Sun map={map} />
         <Ground map={map} onSelect={onSelect} onReady={onReady} />
-        {selection?.polygon && <Selection polygon={selection.polygon} />}
-        <CameraRig map={map} insets={insets} handle={ref ?? null} labels={labelLayer} />
+        {heldPolygons?.map((polygon, index) => (
+          <group key={index}>
+            <Surface polygon={polygon} height={HEIGHT.region} color={COLORS.HELD} statusOrder={STATUS_ORDER.hold} />
+            <Outline polygon={polygon} height={HEIGHT.region} color={COLORS.HELD_STROKE} width={2} dashed statusOrder={STATUS_ORDER.holdStroke} />
+          </group>
+        ))}
+        {visibleSelection?.polygon && (
+          heldPolygons?.includes(visibleSelection.polygon)
+            ? <ParkingArrival polygon={visibleSelection.polygon} replay={routeReplay} />
+            : <Selection polygon={visibleSelection.polygon} destination={visibleSelection.destination} routeReplay={routeReplay} />
+        )}
+        <ParkingRoute3D route={route} progress={progress} replay={routeReplay} />
+        <CameraRig map={map} insets={insets} overviewKey={overviewKey} handle={ref ?? null} labels={labelLayer} />
       </Canvas>
-      <LabelLayer ref={labelLayer} labels={labels} selection={selection} insets={insets} />
+      <LabelLayer ref={labelLayer} labels={labels} selection={visibleSelection} insets={insets} />
     </div>
   );
 }
