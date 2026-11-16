@@ -36,7 +36,7 @@ def test_verified_account_saves_and_reads_model(database, client, monkeypatch, m
 
 
 @pytest.mark.parametrize("claims", [{}, {"aud": "wrong"}, {"exp": 0}, {"sub": "bad"}])
-def test_invalid_identity_cannot_read_or_write(client, no_database, monkeypatch, claims):
+def test_invalid_identity_cannot_read_or_write(client, no_database, monkeypatch, claims, caplog):
     import requests
     class Response:
         status_code = 200
@@ -45,6 +45,9 @@ def test_invalid_identity_cannot_read_or_write(client, no_database, monkeypatch,
                     "exp": int(time.time()) + 600, **claims} if claims else {}
     monkeypatch.setattr(requests, "post", lambda *a, **kw: Response())
     assert client.get("/api/line/preferences", headers={"Authorization": "Bearer synthetic"}).status_code == 401
+    assert "line_identity_rejected reason=" in caplog.text
+    assert "U" + "1" * 32 not in caplog.text
+    assert "synthetic" not in caplog.text
 
 
 def test_provider_failure_never_grants_map_access(client, no_database, monkeypatch):
@@ -55,6 +58,25 @@ def test_provider_failure_never_grants_map_access(client, no_database, monkeypat
     response = client.get("/api/line/preferences", headers={"Authorization": "Bearer synthetic"})
     assert response.status_code == 503
     assert "synthetic-private-token" not in response.text
+
+
+@pytest.mark.parametrize("description,reason", [
+    ("IdToken expired synthetic-private-token", "provider_token_expired"),
+    ("Invalid audience synthetic-private-token", "provider_channel_mismatch"),
+    ("Invalid signature synthetic-private-token", "provider_signature_invalid"),
+    ("Invalid IdToken synthetic-private-token", "provider_rejected"),
+])
+def test_provider_rejection_logs_only_reason_code(client, no_database, monkeypatch, caplog, description, reason):
+    import requests
+    class Response:
+        status_code = 400
+        def json(self):
+            return {"error_description": description}
+    monkeypatch.setattr(requests, "post", lambda *a, **kw: Response())
+    response = client.get("/api/line/preferences", headers={"Authorization": "Bearer synthetic-private-token"})
+    assert response.status_code == 401
+    assert f"reason={reason} provider_status=400" in caplog.text
+    assert "synthetic-private-token" not in caplog.text + response.text
 
 
 @pytest.mark.parametrize("status", [200, 401, 500, 0])

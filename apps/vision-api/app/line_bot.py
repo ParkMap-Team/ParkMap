@@ -1,5 +1,6 @@
 """LIFF preferences with an OA confirmation after saving; no chat webhook."""
 import hashlib
+import logging
 import os
 import re
 import time
@@ -19,6 +20,13 @@ from app.db.session import open_session, DatabaseNotConfiguredError
 from app.services.line_motorcycle_settings import MODEL_LABELS
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+identity_log = logging.getLogger("parkmap.identity")
+
+
+def reject_identity(reason: str, provider_status: int | None = None) -> None:
+    # Only fixed internal reason codes and an HTTP status. Never token, sub, or provider body.
+    identity_log.warning("line_identity_rejected reason=%s provider_status=%s", reason, provider_status)
+    raise HTTPException(401, "Invalid LINE identity.")
 
 
 @dataclass(frozen=True)
@@ -32,17 +40,35 @@ def account_key(authorization: str = Header(default="")) -> Account:
     if not channel:
         raise HTTPException(503, "LINE Login is not configured.")
     if not authorization.startswith("Bearer ") or not 1 <= len(authorization[7:]) <= 8192:
-        raise HTTPException(401, "LINE login is required.")
+        reject_identity("missing_authorization")
     try:
         response = requests.post("https://api.line.me/oauth2/v2.1/verify",
             data={"id_token": authorization[7:], "client_id": channel}, timeout=5)
         if response.status_code != 200:
-            raise HTTPException(401, "Invalid LINE identity.")
+            reason = "provider_rejected"
+            try:
+                description = response.json().get("error_description", "")
+                if isinstance(description, str):
+                    if "expir" in description.lower():
+                        reason = "provider_token_expired"
+                    elif "audience" in description.lower() or "client_id" in description.lower():
+                        reason = "provider_channel_mismatch"
+                    elif "signature" in description.lower():
+                        reason = "provider_signature_invalid"
+            except (ValueError, TypeError, AttributeError):
+                pass
+            reject_identity(reason, response.status_code)
         claims = response.json()
-        if (claims.get("iss") != "https://access.line.me" or claims.get("aud") != channel
-                or type(claims.get("exp")) is not int or claims["exp"] <= time.time()
-                or not re.fullmatch(r"U[0-9a-f]{32}", claims.get("sub", ""))):
-            raise HTTPException(401, "Invalid LINE identity.")
+        if not isinstance(claims, dict):
+            reject_identity("invalid_claims")
+        if claims.get("iss") != "https://access.line.me":
+            reject_identity("invalid_issuer")
+        if claims.get("aud") != channel:
+            reject_identity("invalid_audience")
+        if type(claims.get("exp")) is not int or claims["exp"] <= time.time():
+            reject_identity("expired_or_invalid_expiry")
+        if not isinstance(claims.get("sub"), str) or not re.fullmatch(r"U[0-9a-f]{32}", claims["sub"]):
+            reject_identity("invalid_subject")
         return Account(hashlib.sha256(claims["sub"].encode()).hexdigest(), claims["sub"])
     except (requests.RequestException, ValueError, TypeError):
         raise HTTPException(503, "LINE identity verification is unavailable.") from None
