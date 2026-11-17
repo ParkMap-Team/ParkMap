@@ -18,7 +18,7 @@ on:
       timeout_minutes:
         required: false
         type: number
-        default: 10
+        default: 40
     secrets:
       COOLIFY_TOKEN:
         required: true
@@ -26,7 +26,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 45
     concurrency:
       group: deploy-${{ inputs.app }}
       cancel-in-progress: false
