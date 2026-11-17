@@ -79,7 +79,7 @@ def _row_direction(row: Polygon) -> float:
     return math.degrees(math.atan2(dy, dx)) % 180
 
 
-def fit_recorded_preview(area: ParkingAreaLiveState, family: PreviewFamily, entrance: MetricGroundPoint, scale: float, blocked: list[MetricPolygon] | None = None) -> GuardBoothFit:
+def fit_recorded_preview(area: ParkingAreaLiveState, family: PreviewFamily, entrance: MetricGroundPoint, scale: float, blocked: list[MetricPolygon] | None = None, preferred: MetricPolygon | None = None) -> GuardBoothFit:
     size = load_rules().classes[family]
     result = GuardBoothFit(family=family, width_m=size.width_m, length_m=size.length_m, observed_at=area.observed_at)
     if area.status != "DEMO" or area.source != "STILL_IMAGE_LOOP":
@@ -90,6 +90,7 @@ def fit_recorded_preview(area: ParkingAreaLiveState, family: PreviewFamily, entr
         *[polygon_shape(polygon) for polygon in blocked or []],
     ])
     candidates = []
+    previous_frame = polygon_shape(preferred) if preferred is not None else None
     width = (size.width_m + CLEARANCE_M) * scale
     length = (size.length_m + CLEARANCE_M) * scale
     for region in area.regions:
@@ -107,6 +108,11 @@ def fit_recorded_preview(area: ParkingAreaLiveState, family: PreviewFamily, entr
             continue
         free = band.intersection(row).difference(occupied)
         aisle = AISLES[region.row_id]
+        if previous_frame is not None and free.covers(previous_frame) and previous_frame.centroid.x < RIGHT_ACCESS_X:
+            candidates = [(-1, previous_frame.centroid.x, previous_frame.centroid.y, aisle, previous_frame)]
+            break
+        if previous_frame is not None:
+            free = free.difference(previous_frame)
         for frame in fit_frames(free, width, length, _row_direction(row)):
             x, y = frame.centroid.coords[0]
             if x < RIGHT_ACCESS_X:
@@ -128,28 +134,43 @@ class RecordedPreviewHolds:
     def __init__(self) -> None:
         self._lock = Lock()
         self._issued: dict[UUID, tuple[GuardBoothFit, GuardBoothFitHold]] = {}
+        self._earlier_holds: list[GuardBoothFitHold] = []
 
     def reserve(self, area: ParkingAreaLiveState, request: GuardBoothFitRequest, entrance: MetricGroundPoint, scale: float, now: datetime) -> GuardBoothFit:
         with self._lock:
             self._issued = {
                 key: item for key, item in self._issued.items() if now < item[1].expires_at + RETRY_WINDOW
             }
-            holds = [hold for _, hold in self._issued.values() if now < hold.expires_at]
+            self._earlier_holds = [hold for hold in self._earlier_holds if now < hold.expires_at]
+            holds = [*self._earlier_holds, *(hold for _, hold in self._issued.values() if now < hold.expires_at)]
+            if area.status != "DEMO" or area.source != "STILL_IMAGE_LOOP" or area.observed_at != request.observed_at:
+                return fit_recorded_preview(area.model_copy(update={"status": "STALE", "observed_at": None}),
+                                            request.family, entrance, scale).model_copy(update={"holds": holds})
             previous = self._issued.get(request.request_id)
+            previous_hold = None
             if previous:
-                result, hold = previous
-                if now >= hold.expires_at or area.status != "DEMO" or area.observed_at != hold.observed_at or request.family != result.family:
-                    result = result.model_copy(update={"polygon": None, "route": []})
-                return result.model_copy(update={"holds": holds})
+                result, previous_hold = previous
+                if request.family != result.family:
+                    return result.model_copy(update={"observed_at": None, "polygon": None, "route": [], "holds": holds})
+                if now >= previous_hold.expires_at:
+                    return result.model_copy(update={"observed_at": area.observed_at, "polygon": None, "route": [], "holds": holds})
+                if area.observed_at == previous_hold.observed_at:
+                    return result.model_copy(update={"holds": holds})
 
-            current = area.observed_at == request.observed_at
             result = fit_recorded_preview(
-                area if current else area.model_copy(update={"status": "STALE"}),
-                request.family, entrance, scale, blocked=[hold.polygon for hold in holds],
+                area, request.family, entrance, scale,
+                blocked=[hold.polygon for hold in holds if hold is not previous_hold],
+                preferred=previous_hold.polygon if previous_hold else None,
             )
             if result.polygon is None or result.observed_at is None:
                 return result.model_copy(update={"holds": holds})
-            hold = GuardBoothFitHold(polygon=result.polygon, observed_at=result.observed_at, expires_at=now + HOLD_DURATION)
+            if previous_hold:
+                if polygon_shape(previous_hold.polygon).equals(polygon_shape(result.polygon)):
+                    holds = [hold for hold in holds if hold is not previous_hold]
+                else:
+                    self._earlier_holds.append(previous_hold)
+            expires_at = previous_hold.expires_at if previous_hold else now + HOLD_DURATION
+            hold = GuardBoothFitHold(polygon=result.polygon, observed_at=result.observed_at, expires_at=expires_at)
             result.expires_at = hold.expires_at
             self._issued[request.request_id] = (result, hold)
             return result.model_copy(update={"holds": [*holds, hold]})

@@ -22,6 +22,8 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
 COPY . .
+COPY config/motorcycle_reference_sizes.json ./defaults/
+RUN python -c 'from app.services.motorcycle_reference_sizes import PACKAGED_RULES_PATH, load_rules; load_rules(PACKAGED_RULES_PATH)'
 
 # Linux sh must also be able to run the entrypoint after a Windows checkout.
 RUN sed -i 's/\r$//' docker-start.sh \

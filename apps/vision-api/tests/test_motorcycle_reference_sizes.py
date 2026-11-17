@@ -3,6 +3,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
+from app.services import motorcycle_reference_sizes
 from app.services.motorcycle_reference_sizes import load_rules, reference_size
 from app.services.virtual_fitting_service import LENGTH_M, WIDTH_M
 
@@ -13,6 +14,22 @@ def test_editable_catalog_keeps_the_standard_fallback():
     assert {"wave", "pcx", "adv", "grand_filano"} <= rules.classes.keys()
     assert (rules.fallback.width_m, rules.fallback.length_m) == (WIDTH_M, LENGTH_M)
     assert rules.fallback.basis == "INITIAL_STANDARD_NOT_MEASURED"
+
+
+def test_missing_mounted_catalog_uses_packaged_rules(tmp_path, monkeypatch):
+    mounted_catalog = tmp_path / "mount" / "motorcycle_reference_sizes.json"
+    packaged_catalog = motorcycle_reference_sizes.RULES_PATH
+    monkeypatch.setattr(motorcycle_reference_sizes, "RULES_PATH", mounted_catalog)
+    monkeypatch.setattr(motorcycle_reference_sizes, "PACKAGED_RULES_PATH", packaged_catalog)
+
+    assert {"grand_filano", "forza"} <= load_rules().classes.keys()
+    with pytest.raises(FileNotFoundError):
+        load_rules(mounted_catalog)
+
+    mounted_catalog.parent.mkdir()
+    mounted_catalog.write_text("{}")
+    with pytest.raises(ValidationError):
+        load_rules()
 
 
 def test_exact_class_mapping_reload_and_explicit_fallback(tmp_path):
