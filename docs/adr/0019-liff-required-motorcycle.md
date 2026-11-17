@@ -1,5 +1,7 @@
 # 0019: Require motorcycle selection in LIFF
 
+Development amendment (2026-11-17): `NODE_ENV=development` uses a synthetic saved `other` preference in both the client gate and server preference boundary. Local map editing requires no LINE login or settings service; no account data or OA message is written. All production builds and `next start` retain verification and saved-model gates. This does not bypass vision freshness or availability rules. Real LINE flows are tested in production mode or a separate deployed test environment.
+
 Accepted 2026-11-15 at the owner's request. Supersedes ADR 0018's chat flow and ADR 0006's no-identity rule.
 
 LIFF initializes LINE Login and sends the raw openid ID token to its same-origin session endpoint. The Python settings process verifies it against LINE's fixed verify endpoint and trusted LINE_LOGIN_CHANNEL_ID (2011859796). Issuer, audience, expiry and user-ID shape are checked before hashing the verified sub. Browser-supplied user IDs are never accepted.

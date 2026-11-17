@@ -14,6 +14,13 @@ export function VehicleGate({ children }: { children: React.ReactNode }) {
   async function initialize() {
     setError("");
     try {
+      if (process.env.NODE_ENV === "development") {
+        const response = await fetch("/api/vehicle-preference", { cache: "no-store" });
+        if (!response.ok) throw new Error("โหลดการตั้งค่าทดสอบไม่สำเร็จ");
+        const data: Preference = await response.json();
+        setPreference(data); setModel(data.model_id ?? "");
+        return;
+      }
       const { default: liff } = await import("@line/liff");
       const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
       if (!liffId) throw new Error("กรุณาเปิด ParkMap ผ่าน LINE");

@@ -5,6 +5,10 @@ export const TOKEN_TYPE_COOKIE = "parkmap_line_token_type";
 export type Preference = { model_id: string | null; models: { id: string; label: string }[] };
 
 export async function vehiclePreference(token?: string, model?: string, type?: "id" | "access"): Promise<Preference | null> {
+  // Only next dev skips account verification. Builds and next start always use LINE.
+  if (process.env.NODE_ENV === "development") {
+    return { model_id: "other", models: [{ id: "other", label: "อื่นๆ (ทดสอบในเครื่อง)" }] };
+  }
   const identity = token ?? (await cookies()).get(VEHICLE_COOKIE)?.value;
   if (!identity) return null;
   const tokenType = type ?? ((await cookies()).get(TOKEN_TYPE_COOKIE)?.value === "access" ? "access" : "id");
