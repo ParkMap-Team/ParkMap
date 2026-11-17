@@ -1,24 +1,26 @@
-name: Deploy Guard Booth API
+name: Deploy Guard Booth LIFF
 on:
   push:
     branches: [ops/guard-booth-rollout-recovery]
 permissions:
   contents: read
 concurrency:
-  group: deploy-parkmap-api
+  group: deploy-parkmap-liff
   cancel-in-progress: false
 jobs:
-  api:
+  liff:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       GH_TOKEN: ${{ github.token }}
       COOLIFY_URL: ${{ vars.COOLIFY_URL }}
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
-      APP_UUID: ${{ vars.COOLIFY_APP_API }}
+      API_UUID: ${{ vars.COOLIFY_APP_API }}
+      APP_UUID: ${{ vars.COOLIFY_APP_LIFF }}
       RELEASE: 6fdb9b7efb53569b878be277bb1c1b84f79258b9
+      OLD_LIFF_JOB: umic6qsvjqe6e8nh8bhnayyg
     steps:
-      - name: Deploy only the API without changing app settings
+      - name: Deploy LIFF after verifying the API rollout
         shell: bash
         run: |
           set -euo pipefail
@@ -27,14 +29,25 @@ jobs:
           }
           test "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" = "$RELEASE"
           base="$COOLIFY_URL/api/v1"
+          api "$base/applications/$API_UUID" | jq -e '.status == "running:healthy"' >/dev/null
+          api "$base/deployments/applications/$API_UUID?take=1" | jq -e --arg sha "$RELEASE" '.deployments[0] | .commit == $sha and .status == "finished"' >/dev/null
           api "$base/applications/$APP_UUID" | jq -e '.build_pack == "dockerfile" and .git_branch == "main" and .git_commit_sha == "HEAD" and .status == "running:healthy"' >/dev/null
-          if api "$base/deployments/applications/$APP_UUID?take=1" | jq -e --arg sha "$RELEASE" '.deployments[0] | .commit == $sha and .status == "finished"' >/dev/null; then
-            echo "API is already running the requested release."
+
+          latest=$(api "$base/deployments/applications/$APP_UUID?take=1" | jq -ec '.deployments[0]')
+          if jq -e --arg sha "$RELEASE" '.commit == $sha and .status == "finished"' <<< "$latest" >/dev/null; then
+            echo "LIFF is already running the requested release."
             exit 0
           fi
-          api "$base/deployments" | jq -e 'type == "array" and all(.[]; .deployment_uuid == "umic6qsvjqe6e8nh8bhnayyg" and .updated_at == "2026-11-16T14:38:56.000000Z")' >/dev/null
+
+          api "$base/deployments" | jq -e --arg id "$OLD_LIFF_JOB" 'type == "array" and all(.[]; .deployment_uuid == $id and .updated_at == "2026-11-16T14:38:56.000000Z")' >/dev/null
+          if jq -e --arg sha "$RELEASE" --arg id "$OLD_LIFF_JOB" '.deployment_uuid == $id and .commit == $sha and .status == "in_progress" and .updated_at == "2026-11-16T14:38:56.000000Z"' <<< "$latest" >/dev/null; then
+            api -X POST "$base/deployments/$OLD_LIFF_JOB/cancel" | jq -e '.status == "cancelled-by-user"' >/dev/null
+            echo "Cleared the stale LIFF deployment record."
+          fi
+          api "$base/deployments" | jq -e 'type == "array" and length == 0' >/dev/null
+
           deployment=$(api -X POST "$base/deploy?uuid=$APP_UUID&force=false" | jq -er '.deployments[0].deployment_uuid | select(type=="string" and test("^[a-z0-9]+$"))')
-          echo "API deployment $deployment"
+          echo "LIFF deployment $deployment"
           deadline=$((SECONDS + 2400))
           while (( SECONDS < deadline )); do
             if ! result=$(api "$base/deployments/$deployment"); then sleep 15; continue; fi
@@ -43,11 +56,11 @@ jobs:
               finished)
                 jq -e --arg sha "$RELEASE" '.commit == $sha' <<< "$result" >/dev/null
                 api "$base/applications/$APP_UUID" | jq -e '.status == "running:healthy"' >/dev/null
-                echo "API rollout complete for $RELEASE"
+                echo "LIFF rollout complete for $RELEASE"
                 exit 0 ;;
-              failed|cancel*) echo "API rollout ended: $status"; exit 1 ;;
+              failed|cancel*) echo "LIFF rollout ended: $status"; exit 1 ;;
             esac
             sleep 15
           done
-          echo "API rollout still pending after 40 minutes"
+          echo "LIFF rollout still pending after 40 minutes"
           exit 1
