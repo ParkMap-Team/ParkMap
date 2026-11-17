@@ -2446,6 +2446,28 @@
         "title": "GroundReferenceDistance",
         "type": "object"
       },
+      "GuardBoothClassification": {
+        "description": "Riders in clip order. No rider means no motorcycle rode into the booth zone.",
+        "properties": {
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          },
+          "riders": {
+            "items": {
+              "$ref": "#/components/schemas/GuardBoothRider"
+            },
+            "title": "Riders",
+            "type": "array"
+          }
+        },
+        "required": [
+          "model_id",
+          "riders"
+        ],
+        "title": "GuardBoothClassification",
+        "type": "object"
+      },
       "GuardBoothFit": {
         "properties": {
           "expires_at": {
@@ -2461,10 +2483,6 @@
             "title": "Expires At"
           },
           "family": {
-            "enum": [
-              "grand_filano",
-              "forza"
-            ],
             "title": "Family",
             "type": "string"
           },
@@ -2564,11 +2582,12 @@
       },
       "GuardBoothFitRequest": {
         "properties": {
+          "ends_with_photo": {
+            "default": false,
+            "title": "Ends With Photo",
+            "type": "boolean"
+          },
           "family": {
-            "enum": [
-              "grand_filano",
-              "forza"
-            ],
             "title": "Family",
             "type": "string"
           },
@@ -2589,6 +2608,90 @@
           "observed_at"
         ],
         "title": "GuardBoothFitRequest",
+        "type": "object"
+      },
+      "GuardBoothReferenceSize": {
+        "properties": {
+          "length_m": {
+            "title": "Length M",
+            "type": "number"
+          },
+          "width_m": {
+            "title": "Width M",
+            "type": "number"
+          }
+        },
+        "required": [
+          "width_m",
+          "length_m"
+        ],
+        "title": "GuardBoothReferenceSize",
+        "type": "object"
+      },
+      "GuardBoothRider": {
+        "description": "`family` is set only for a confidently classified rider; `arrival_s` is when it reaches the zone.",
+        "properties": {
+          "arrival_s": {
+            "title": "Arrival S",
+            "type": "number"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Url"
+          },
+          "reason": {
+            "enum": [
+              "CLASSIFIED",
+              "UNCERTAIN"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "reference_size": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GuardBoothReferenceSize"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "top3": {
+            "items": {
+              "$ref": "#/components/schemas/Prediction"
+            },
+            "title": "Top3",
+            "type": "array"
+          }
+        },
+        "required": [
+          "arrival_s",
+          "reason",
+          "family",
+          "top3",
+          "preview_url",
+          "reference_size"
+        ],
+        "title": "GuardBoothRider",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -7009,6 +7112,86 @@
           }
         },
         "summary": "List Sites"
+      }
+    },
+    "/api/sites/{site_id}/guard-booth-classification": {
+      "get": {
+        "operationId": "classify_guard_booth_clip_api_sites__site_id__guard_booth_classification_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Site Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardBoothClassification"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Classify Guard Booth Clip"
+      }
+    },
+    "/api/sites/{site_id}/guard-booth-clip": {
+      "get": {
+        "operationId": "get_guard_booth_clip_api_sites__site_id__guard_booth_clip_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Site Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "video/mp4": {},
+              "video/webm": {}
+            },
+            "description": "The entrance stand-in clip."
+          },
+          "404": {
+            "description": "No clip is configured."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Guard Booth Clip"
       }
     },
     "/api/sites/{site_id}/guard-booth-fit": {

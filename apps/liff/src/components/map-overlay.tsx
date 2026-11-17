@@ -32,6 +32,9 @@ export type MapViewHandle = {
   reveal(point: MetricPoint, bottom: number): void;
 };
 
+/** A Guard Booth rider's placement: outlined and pinned in the rider's colour. */
+export type MapMarker = { id: string; text: string; color: string; point: MetricPoint; polygon: MetricPolygon };
+
 export type MapViewProps = {
   map: LotMap;
   labels: MapLabel[];
@@ -40,6 +43,7 @@ export type MapViewProps = {
   route?: readonly MetricPoint[];
   routeReplay?: number;
   heldPolygons?: readonly MetricPolygon[];
+  markers?: readonly MapMarker[];
   /** Changes when a rider explicitly selects another overview. */
   overviewKey?: string;
   onSelect(point: MetricPoint | null): void;
@@ -63,7 +67,22 @@ export type LabelLayerHandle = {
   update(project: (point: MetricPoint) => [number, number] | null, size: Size, zoom: number): void;
 };
 
-type PlacedLabel = Pick<MapLabel, "id" | "text" | "kind" | "anchor"> & { direction: number | null };
+/** `raised` labels sit just above their point; a `pin` label is a pill of that colour pointing down at it. */
+type PlacedLabel = Pick<MapLabel, "id" | "text" | "kind" | "anchor"> & { direction: number | null; raised?: boolean; pin?: string };
+
+/** Height of a pin's point below its badge, which the badge sits above. */
+const PIN_POINT_PX = 10;
+
+function Pin({ text, color }: { text: string; color: string }) {
+  return (
+    <span className="relative flex h-10 min-w-10 items-center justify-center rounded-full px-3 text-lg leading-none font-bold text-white shadow-md ring-[3px] ring-white motion-safe:animate-pin-drop" style={{ backgroundColor: color }}>
+      {/* Two pulse rings draw the eye to a pin as it lands. */}
+      <span aria-hidden className="absolute inset-0 -z-10 rounded-full opacity-0 motion-safe:animate-pin-ring" style={{ backgroundColor: color }} />
+      {text}
+      <span aria-hidden className="absolute top-full left-1/2 -translate-x-1/2 border-x-8 border-x-transparent" style={{ borderTopWidth: PIN_POINT_PX, borderTopColor: color }} />
+    </span>
+  );
+}
 
 function LabelBody({ label }: { label: PlacedLabel }) {
   const arrow = label.direction !== null && (
@@ -108,17 +127,23 @@ const SELECTED_ID = "selected";
 export function LabelLayer({
   labels,
   selection,
+  markers,
   insets,
   ref,
 }: {
   labels: MapLabel[];
   selection: MapViewProps["selection"];
+  markers?: MapViewProps["markers"];
   insets: Insets;
   ref: Ref<LabelLayerHandle>;
 }) {
   const elements = useRef(new Map<string, HTMLDivElement>());
   const placed: PlacedLabel[] = labels.map((label) => ({ ...label, direction: label.landmark?.direction_rad ?? null }));
-  const all = selection ? [...placed, { id: SELECTED_ID, text: selection.text, kind: "AREA" as const, anchor: selection.point, direction: null }] : placed;
+  const all: PlacedLabel[] = [
+    ...placed,
+    ...(markers ?? []).map((marker) => ({ id: `marker-${marker.id}`, text: marker.text, kind: "AREA" as const, anchor: marker.point, direction: null, raised: true, pin: marker.color })),
+    ...(selection ? [{ id: SELECTED_ID, text: selection.text, kind: "AREA" as const, anchor: selection.point, direction: null, raised: true, pin: selection.destination ? COLORS.ENTRANCE : undefined }] : []),
+  ];
 
   useImperativeHandle(ref, () => ({
     update(project, size, zoom) {
@@ -127,9 +152,9 @@ export function LabelLayer({
         const element = elements.current.get(label.id);
         const screen = project(label.anchor);
         if (!element || !screen) continue;
-        // Selected labels sit just above the selected point instead of on it.
-        const anchor: [number, number] = label.id === SELECTED_ID ? [screen[0], screen[1] - 22] : screen;
-        const kind = label.id === SELECTED_ID ? "SELECTED" : label.kind;
+        // Selected and pinned labels sit just above their point instead of on it.
+        const anchor: [number, number] = label.pin ? [screen[0], screen[1] - element.offsetHeight / 2 - PIN_POINT_PX] : label.raised ? [screen[0], screen[1] - 22] : screen;
+        const kind = label.raised ? "SELECTED" : label.kind;
         candidates.push({ id: label.id, x: anchor[0], y: anchor[1], width: element.offsetWidth, height: element.offsetHeight, priority: LABEL_PRIORITY[kind], minZoom: LABEL_MIN_ZOOM[kind] });
         if (label.direction !== null) {
           const ahead = project({ x_m: label.anchor.x_m + Math.cos(label.direction) * 2, y_m: label.anchor.y_m + Math.sin(label.direction) * 2 });
@@ -157,11 +182,8 @@ export function LabelLayer({
           className="absolute top-0 left-0 whitespace-nowrap"
           style={{ visibility: "hidden" }}
         >
-          {label.id === SELECTED_ID && selection?.destination ? (
-            <span className="relative block rounded-md bg-blue-800 px-2 py-1 text-sm font-bold text-white ring-2 ring-white">
-              {label.text}
-              <ArrowUp className="absolute top-full left-1/2 size-5 -translate-x-1/2 rotate-180 rounded-full bg-blue-800 p-0.5 ring-2 ring-white" />
-            </span>
+          {label.pin ? (
+            <Pin text={label.text} color={label.pin} />
           ) : label.id === SELECTED_ID ? (
             <span className="rounded-md px-2 py-0.5 text-xs font-semibold text-white ring-2 ring-white" style={{ backgroundColor: COLORS.SELECTED }}>
               {label.text}

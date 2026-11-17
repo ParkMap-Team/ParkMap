@@ -62,6 +62,13 @@ from app.services.ground_plane_homography_service import (
     HomographyInputError,
     ground_plane_homography_service,
 )
+from app.services.guard_booth_clip import (
+    GuardBoothClassification,
+    GuardBoothClip,
+    GuardBoothClipClassifier,
+    configured_clip,
+    summarize,
+)
 from app.services.guard_booth_fitting import (
     GuardBoothFit,
     GuardBoothFitRequest,
@@ -78,6 +85,7 @@ from app.services.lot_placement_service import (
 )
 from app.services.mobile_camera_sessions import MobileSessionError, mobile_sessions
 from app.services.motorcycle_fitting_service import motorcycle_fitting_service
+from app.services.motorcycle_reference_sizes import load_rules
 from app.services.parking_analysis_service import (
     ParkingCalibrationUnavailableError,
     parking_analysis_service,
@@ -185,12 +193,47 @@ def get_site_parking_state(site_id: str = SiteId, session: Session = SessionDepe
 
 
 _guard_booth_holds = RecordedPreviewHolds()
+_guard_booth_classifier = GuardBoothClipClassifier()
+
+
+def _require_guard_booth_preview(site_id: str) -> None:
+    if site_id != "sripatum" or os.getenv("PARKMAP_GUARD_BOOTH_FIT_PREVIEW") != "1":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+
+def _guard_booth_clip(site_id: str) -> GuardBoothClip:
+    _require_guard_booth_preview(site_id)
+    clip = configured_clip()
+    if clip is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Guard Booth clip is configured.")
+    return clip
+
+
+@app.get(
+    "/api/sites/{site_id}/guard-booth-clip",
+    response_class=FileResponse,
+    responses={200: {"content": {"video/mp4": {}, "video/webm": {}}, "description": "The entrance stand-in clip."}, 404: {"description": "No clip is configured."}},
+)
+def get_guard_booth_clip(site_id: str = SiteId) -> FileResponse:
+    clip = _guard_booth_clip(site_id)
+    return FileResponse(clip.path, media_type=clip.media_type, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/sites/{site_id}/guard-booth-classification", response_model=GuardBoothClassification)
+def classify_guard_booth_clip(response: Response, site_id: str = SiteId) -> GuardBoothClassification:
+    clip = _guard_booth_clip(site_id)
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        evidence = _guard_booth_classifier.classify(clip)
+    # An unreadable clip (HTTPException from the video pipeline) and missing checkpoints are operator setup problems.
+    except (HTTPException, ModelUnavailableError, ImportError, KeyError, OSError, RuntimeError, ValueError) as error:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Guard Booth classification is unavailable.") from error
+    return summarize(evidence, clip.zone, load_rules())
 
 
 @app.post("/api/sites/{site_id}/guard-booth-fit", response_model=GuardBoothFit)
 def reserve_guard_booth_fit(request: GuardBoothFitRequest, site_id: str = SiteId, session: Session = SessionDependency) -> GuardBoothFit:
-    if site_id != "sripatum" or os.getenv("PARKMAP_GUARD_BOOTH_FIT_PREVIEW") != "1":
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    _require_guard_booth_preview(site_id)
     model = get_lot_model(site_id, session)
     entrance = next((landmark.position for landmark in model.landmarks if landmark.landmark_id == "entrance-1" and landmark.kind == "ENTRANCE"), None)
     area_model = next((area for area in model.parking_areas if area.parking_area_id == "sripatum-near-lot"), None)

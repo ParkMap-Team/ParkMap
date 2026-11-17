@@ -27,7 +27,7 @@ class ModelUnavailableError(RuntimeError):
 class ComputerVisionService:
     """Loads ParkMap's YOLO model once and performs motorcycle detection."""
 
-    def __init__(self, model_path: str | None = None) -> None:
+    def __init__(self, model_path: str | None = None, class_id_env: str = "PARKMAP_MODEL_CLASS_ID") -> None:
         backend_root = Path(__file__).resolve().parents[2]
         load_dotenv(backend_root / ".env")
         configured_path = Path(model_path or os.getenv("PARKMAP_MODEL_PATH", "models/best.pt"))
@@ -37,7 +37,8 @@ class ComputerVisionService:
         self.nms_iou = float(os.getenv("PARKMAP_MODEL_NMS_IOU", "0.50"))
         self.device = os.getenv("PARKMAP_DEVICE", "cpu")
         # The weights' motorcycle class: 0 for ParkMap's single-class weights, 3 for COCO-pretrained YOLO.
-        self.class_id = int(os.getenv("PARKMAP_MODEL_CLASS_ID", "0"))
+        # A detector with its own weights may name its own setting; unset, it shares the default one.
+        self.class_id = int(os.getenv(class_id_env) or os.getenv("PARKMAP_MODEL_CLASS_ID", "0"))
 
         self._model: YOLO | None = None
         self._model_lock = Lock()
@@ -61,7 +62,7 @@ class ComputerVisionService:
         names = getattr(self._model, "names", {}) or {}
         name = names.get(self.class_id) if isinstance(names, dict) else dict(enumerate(names)).get(self.class_id)
         if str(name).strip().lower() != "motorcycle":
-            logger.error("PARKMAP_MODEL_CLASS_ID=%s is %r in %s, not motorcycle", self.class_id, name, self.model_path)
+            logger.error("Class id %s is %r in %s, not motorcycle", self.class_id, name, self.model_path)
             self._model = None
             raise ModelUnavailableError("The detection model is unavailable.")
         logger.info("ParkMap YOLO model loaded from %s", self.model_path)

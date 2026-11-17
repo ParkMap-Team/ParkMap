@@ -780,6 +780,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sites/{site_id}/guard-booth-classification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Classify Guard Booth Clip */
+        get: operations["classify_guard_booth_clip_api_sites__site_id__guard_booth_classification_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sites/{site_id}/guard-booth-clip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Guard Booth Clip */
+        get: operations["get_guard_booth_clip_api_sites__site_id__guard_booth_clip_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sites/{site_id}/guard-booth-fit": {
         parameters: {
             query?: never;
@@ -1761,15 +1795,22 @@ export interface components {
              */
             provenance: "ESTIMATED" | "MEASURED";
         };
+        /**
+         * GuardBoothClassification
+         * @description Riders in clip order. No rider means no motorcycle rode into the booth zone.
+         */
+        GuardBoothClassification: {
+            /** Model Id */
+            model_id: string;
+            /** Riders */
+            riders: components["schemas"]["GuardBoothRider"][];
+        };
         /** GuardBoothFit */
         GuardBoothFit: {
             /** Expires At */
             expires_at?: string | null;
-            /**
-             * Family
-             * @enum {string}
-             */
-            family: "grand_filano" | "forza";
+            /** Family */
+            family: string;
             /**
              * Holds
              * @default []
@@ -1807,10 +1848,12 @@ export interface components {
         /** GuardBoothFitRequest */
         GuardBoothFitRequest: {
             /**
-             * Family
-             * @enum {string}
+             * Ends With Photo
+             * @default false
              */
-            family: "grand_filano" | "forza";
+            ends_with_photo: boolean;
+            /** Family */
+            family: string;
             /**
              * Observed At
              * Format: date-time
@@ -1821,6 +1864,33 @@ export interface components {
              * Format: uuid4
              */
             request_id: string;
+        };
+        /** GuardBoothReferenceSize */
+        GuardBoothReferenceSize: {
+            /** Length M */
+            length_m: number;
+            /** Width M */
+            width_m: number;
+        };
+        /**
+         * GuardBoothRider
+         * @description `family` is set only for a confidently classified rider; `arrival_s` is when it reaches the zone.
+         */
+        GuardBoothRider: {
+            /** Arrival S */
+            arrival_s: number;
+            /** Family */
+            family: string | null;
+            /** Preview Url */
+            preview_url: string | null;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "CLASSIFIED" | "UNCERTAIN";
+            reference_size: components["schemas"]["GuardBoothReferenceSize"] | null;
+            /** Top3 */
+            top3: components["schemas"]["Prediction"][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -4168,6 +4238,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SiteSummary"][];
+                };
+            };
+        };
+    };
+    classify_guard_booth_clip_api_sites__site_id__guard_booth_classification_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardBoothClassification"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_guard_booth_clip_api_sites__site_id__guard_booth_clip_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The entrance stand-in clip. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "video/mp4": unknown;
+                    "video/webm": unknown;
+                };
+            };
+            /** @description No clip is configured. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

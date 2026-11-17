@@ -41,6 +41,8 @@ try {
   const state = base + "/api/sites/synthetic-site/parking-state";
   assert.equal((await fetch(state)).status, 403);
   assert.equal((await fetch(base + "/api/sites/sripatum/guard-booth-fit", { method: "POST" })).status, 403);
+  assert.equal((await fetch(base + "/api/sites/sripatum/guard-booth-clip")).status, 403);
+  assert.equal((await fetch(base + "/api/sites/sripatum/guard-booth-classification")).status, 403);
   assert.equal((await fetch(base + "/api/parking-areas/example/frame?v=1")).status, 403);
   assert.equal((await fetch(base + "/api/vehicle-preference", { method: "POST",
     headers: { "Content-Type": "application/json", Origin: "https://untrusted.example" },

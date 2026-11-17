@@ -64,7 +64,8 @@ from app.services.segmentation_experiment_service import parking_segmentation_se
 
 VIDEO_LOCK = Lock()
 video_detector = ComputerVisionService(
-    os.getenv("PARKMAP_VIDEO_DETECTOR_PATH") or str(BOX_WEIGHTS)
+    os.getenv("PARKMAP_VIDEO_DETECTOR_PATH") or str(BOX_WEIGHTS),
+    class_id_env="PARKMAP_VIDEO_DETECTOR_CLASS_ID",
 )
 
 router = APIRouter(
@@ -122,6 +123,15 @@ FRAME_SELECTION = TypeAdapter(
 )
 
 
+@dataclass(frozen=True)
+class TrackPoint:
+    """Bottom centre of a tracked box, normalized to the frame: roughly where the wheels meet the ground."""
+
+    time: float
+    x: float
+    y: float
+
+
 @dataclass
 class TrackEvidence:
     scores: list[float] = field(default_factory=list)
@@ -129,6 +139,7 @@ class TrackEvidence:
     first_time: float = 0
     last_time: float = 0
     preview_url: str | None = None
+    path: list[TrackPoint] = field(default_factory=list)
 
     def add(self, time: float, scores: list[float]) -> None:
         if self.observations == 0:
@@ -282,7 +293,25 @@ def video_tracker(fps: int):
     return BYTETracker(IterableSimpleNamespace(**settings))
 
 
+@dataclass(frozen=True)
+class ClipEvidence:
+    sampled_frames: int
+    classes: list[str]
+    tracks: dict[int, TrackEvidence]
+
+
 def classify_clip(path: Path, model_id: str, fps: int) -> VideoClassification:
+    clip = track_clip(path, model_id, fps)
+    return VideoClassification(
+        model_id=model_id,
+        sampled_frames=clip.sampled_frames,
+        tracks=[
+            clip.tracks[key].summary(key, clip.classes) for key in sorted(clip.tracks)
+        ],
+    )
+
+
+def track_clip(path: Path, model_id: str, fps: int) -> ClipEvidence:
     capture = cv2.VideoCapture(str(path))
     try:
         source_fps = capture.get(cv2.CAP_PROP_FPS)
@@ -351,8 +380,9 @@ def classify_clip(path: Path, model_id: str, fps: int) -> VideoClassification:
                 track_id = int(track_id)
                 if track_id not in evidence and len(evidence) >= MAX_TRACKS:
                     raise HTTPException(422, "Too many tracks. Try a shorter video.")
+                box = boxes.xyxy[int(detection_index)]
                 left, top, right, bottom = crop_bounds(
-                    boxes.xyxy[int(detection_index)], frame.shape[1], frame.shape[0]
+                    box, frame.shape[1], frame.shape[0]
                 )
                 if left >= right or top >= bottom:
                     continue
@@ -366,12 +396,16 @@ def classify_clip(path: Path, model_id: str, fps: int) -> VideoClassification:
                     if track.preview_url is None:
                         crop.thumbnail(TRACK_CROP_PREVIEW_SIZE)
                         track.preview_url = encode_preview(crop)
-                track.add(index / source_fps, scores)
-        return VideoClassification(
-            model_id=model_id,
-            sampled_frames=sampled,
-            tracks=[evidence[key].summary(key, classes) for key in sorted(evidence)],
-        )
+                time = index / source_fps
+                track.add(time, scores)
+                track.path.append(
+                    TrackPoint(
+                        time=time,
+                        x=float(box[0] + box[2]) / 2 / frame.shape[1],
+                        y=float(box[3]) / frame.shape[0],
+                    )
+                )
+        return ClipEvidence(sampled_frames=sampled, classes=classes, tracks=evidence)
     finally:
         capture.release()
 
