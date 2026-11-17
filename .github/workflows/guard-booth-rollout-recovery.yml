@@ -1,62 +1,53 @@
-name: Guard Booth rollout recovery
+name: Deploy Guard Booth API
 on:
   push:
     branches: [ops/guard-booth-rollout-recovery]
 permissions:
   contents: read
+concurrency:
+  group: deploy-parkmap-api
+  cancel-in-progress: false
 jobs:
-  inspect:
+  api:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    outputs:
-      retry_api: ${{ steps.inspect.outputs.retry_api }}
+    timeout-minutes: 45
     env:
       GH_TOKEN: ${{ github.token }}
       COOLIFY_URL: ${{ vars.COOLIFY_URL }}
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
-      API_UUID: ${{ vars.COOLIFY_APP_API }}
-      LIFF_UUID: ${{ vars.COOLIFY_APP_LIFF }}
-      WORKER_UUID: ${{ vars.COOLIFY_APP_WORKER }}
+      APP_UUID: ${{ vars.COOLIFY_APP_API }}
+      RELEASE: 6fdb9b7efb53569b878be277bb1c1b84f79258b9
     steps:
-      - name: Inspect Coolify release status
-        id: inspect
+      - name: Deploy only the API without changing app settings
         shell: bash
         run: |
           set -euo pipefail
-          main_sha=$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')
-          test "$main_sha" = "6fdb9b7efb53569b878be277bb1c1b84f79258b9"
           api() {
-            curl -fsS --max-time 20 -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" "$COOLIFY_URL/api/v1/$1"
+            curl -fsS --max-time 20 -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" "$@"
           }
-          for entry in "api:$API_UUID" "liff:$LIFF_UUID" "worker:$WORKER_UUID"; do
-            name=${entry%%:*}
-            uuid=${entry#*:}
-            echo "Application: $name"
-            api "applications/$uuid" | jq -c '{build_pack,git_branch,git_commit_sha,status}'
-            api "deployments/applications/$uuid?take=3" | jq -c '.deployments[] | {deployment_uuid,commit,status,created_at,updated_at}'
-          done
-          api "applications/$API_UUID" | jq -e '.status == "running:healthy"' >/dev/null
-          old=k4bb6cm5nsv7vshn82nxn0j2
-          if api "deployments/applications/$API_UUID?take=1" | jq -e --arg id "$old" --arg sha "$main_sha" '.deployments | any(.deployment_uuid == $id and .commit == $sha and .status == "in_progress" and .updated_at == "2026-11-16T13:51:02.000000Z")' >/dev/null; then
-            curl -fsS --max-time 30 -X POST -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" \
-              "$COOLIFY_URL/api/v1/deployments/$old/cancel" | jq -e '.status == "cancelled-by-user"' >/dev/null
-            echo "Cancelled stuck deployment $old"
-            echo 'retry_api=true' >> "$GITHUB_OUTPUT"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" = "$RELEASE"
+          base="$COOLIFY_URL/api/v1"
+          api "$base/applications/$APP_UUID" | jq -e '.build_pack == "dockerfile" and .git_branch == "main" and .git_commit_sha == "HEAD" and .status == "running:healthy"' >/dev/null
+          if api "$base/deployments/applications/$APP_UUID?take=1" | jq -e --arg sha "$RELEASE" '.deployments[0] | .commit == $sha and .status == "finished"' >/dev/null; then
+            echo "API is already running the requested release."
+            exit 0
           fi
-          for id in k4bb6cm5nsv7vshn82nxn0j2 gvfyqktjow1zhzicolbwzca2; do
-            api "deployments/$id" | jq -c '{deployment_uuid,status,updated_at,stages:(
-              (.logs // "[]") | if type == "string" then (try fromjson catch []) else . end
-              | if type == "array" then [.[] | objects | .output // "" | strings
-                | scan("exporting layers|unpacking|Rolling update started|Rolling update completed|New container started|Waiting for healthcheck|no space left on device|out of memory|Build failed|Permission denied|Connection timed out|context canceled|Building docker image started"; "i")][-8:] else [] end
-            )}'
+          api "$base/deployments" | jq -e 'type == "array" and all(.[]; .deployment_uuid == "umic6qsvjqe6e8nh8bhnayyg" and .updated_at == "2026-11-16T14:38:56.000000Z")' >/dev/null
+          deployment=$(api -X POST "$base/deploy?uuid=$APP_UUID&force=false" | jq -er '.deployments[0].deployment_uuid | select(type=="string" and test("^[a-z0-9]+$"))')
+          echo "API deployment $deployment"
+          deadline=$((SECONDS + 2400))
+          while (( SECONDS < deadline )); do
+            if ! result=$(api "$base/deployments/$deployment"); then sleep 15; continue; fi
+            status=$(jq -r '.status // empty' <<< "$result")
+            case "$status" in
+              finished)
+                jq -e --arg sha "$RELEASE" '.commit == $sha' <<< "$result" >/dev/null
+                api "$base/applications/$APP_UUID" | jq -e '.status == "running:healthy"' >/dev/null
+                echo "API rollout complete for $RELEASE"
+                exit 0 ;;
+              failed|cancel*) echo "API rollout ended: $status"; exit 1 ;;
+            esac
+            sleep 15
           done
-  deploy-api:
-    needs: inspect
-    if: needs.inspect.outputs.retry_api == 'true'
-    uses: ./.github/workflows/deploy-coolify.yml
-    with:
-      app: parkmap-api
-      application_uuid: ${{ vars.COOLIFY_APP_API }}
-      image_tag: sha-6fdb9b7efb53569b878be277bb1c1b84f79258b9
-    secrets:
-      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          echo "API rollout still pending after 40 minutes"
+          exit 1
