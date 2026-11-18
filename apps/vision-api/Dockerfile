@@ -20,7 +20,8 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
 
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-dev --no-install-project
+# The line-bot group lets Coolify run the settings process from this image too, so no server builds one.
+RUN uv sync --locked --no-dev --group line-bot --no-install-project
 COPY . .
 COPY config/motorcycle_reference_sizes.json ./defaults/
 RUN python -c 'from app.services.motorcycle_reference_sizes import PACKAGED_RULES_PATH, load_rules; load_rules(PACKAGED_RULES_PATH)'

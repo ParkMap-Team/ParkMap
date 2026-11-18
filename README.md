@@ -226,7 +226,7 @@ Production runs on Coolify at <https://coolify.parkmap.dev>, project `ParkMap`, 
 2. Set `PARKMAP_IMAGE` on each resource to the new reference.
 3. Deploy with force rebuild, so Coolify does not reuse an image it built earlier from the same Git commit: the API first (it runs migrations), then the worker and the LIFF app.
 
-The LINE bot still builds `Dockerfile.bot` on the server; it installs only the `line-bot` dependency group, and the organisation does not let members create a GHCR package for it.
+The LINE bot (`parkmap-bot`) runs the API image as well, because the organisation does not let members create a GHCR package for it: `/Dockerfile.ghcr` with `/apps/vision-api` as context, the same `PARKMAP_IMAGE` as the API, and the runtime variable `PARKMAP_PROCESS=bot`. The API image installs the `line-bot` dependency group for it. Deploy it after the API.
 
 **Pulling private images.** The VPS is logged in to `ghcr.io` as root (`docker login ghcr.io`) with a classic personal access token that has only `read:packages`; Coolify 4.3.23 has no API for registry credentials. When that token expires, deploys fail while pulling; create a new token and log in again.
 

@@ -65,3 +65,5 @@ Postbacks and signature verification follow the official
 [webhook](https://developers.line.biz/en/docs/messaging-api/receiving-messages)
 contracts. This decision adds only signed-webhook preferences; ADR 0010's plate
 registration and tracking remain proposed.
+
+Image amendment (2026-11-18): the VPS no longer builds images, and the organisation does not allow a separate GHCR package for the bot. The bot therefore runs the API image with `PARKMAP_PROCESS=bot`; that image installs the locked `line-bot` dependency group alongside the API's dependencies, and `Dockerfile.bot` is removed. The process boundary, `parkmap_line` schema, migration history and runtime secrets are unchanged; the bot still imports no vision pipeline.
