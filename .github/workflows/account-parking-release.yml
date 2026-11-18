@@ -9,6 +9,21 @@ concurrency:
   group: account-parking-production-release
   cancel-in-progress: false
 jobs:
+  identity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    env:
+      COOLIFY_URL: ${{ vars.COOLIFY_URL }}
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+    steps:
+      - name: Read the existing bot public identifier without exposing its credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          envs=$(curl -fsS --max-time 20 -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_URL/api/v1/applications/svalht0ztkvtlwifegi9n9ly/envs")
+          token=$(jq -er '.[] | select(.key == "LINE_CHANNEL_ACCESS_TOKEN" and .is_preview == false) | .value | select(type == "string" and length > 20)' <<< "$envs")
+          curl -fsS --max-time 20 -H "Authorization: Bearer $token" https://api.line.me/v2/bot/info |
+            jq -er '.basicId | select(type == "string" and test("^@[A-Za-z0-9_.-]+$"))'
   release:
     runs-on: ubuntu-24.04
     timeout-minutes: 100
