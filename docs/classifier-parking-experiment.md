@@ -1,4 +1,112 @@
-> Legacy experiment: the classifier and class-size controls have been removed from Parking. The current web flow uses Seg only. Training artifacts and explicit legacy operator APIs are retained; the UI instructions below describe the earlier experiment.
+## Review and classify motorcycles in a video frame
+
+Open Calibration UI through `start-dev.bat`, choose **Parking**, and select an
+supported MP4 or WebM clip. Choose **YOLO26n Detect · Round 10** or
+**YOLO26n Seg · Round 8** as the detector. Both report boxes for frame review and
+cropping. **Auto Select Frame** samples up to six times spread
+through the video. It ranks candidates by their best crop, using YOLO confidence
+and a relative bonus of up to 15% for the crop's shorter side in pixels,
+capped at 224 pixels. Switch between the sampled times to inspect other crops
+without rerunning YOLO. One gallery shows crops from every analyzed frame with
+the timestamp and YOLO score on each card. Use the score filter to reveal
+weaker candidates and select crops across multiple timestamps in one review.
+To choose the time yourself, seek to it and press **Capture Frame** once to
+capture the image and detect motorcycles.
+The browser sends JPEG frames to the local operator API, then shows the chosen
+frame with numbered boxes beside the matching crop previews and detection scores.
+The previews preserve
+aspect ratio and add 5% padding on each side, clipped to the image edges.
+Open **วิดีโอต้นฉบับ** to seek to another time.
+The minimum score filter starts at 70%. Lower it to reveal weaker detections
+from the same frame without sending another request.
+Still images, **Capture Frame**, and **Auto Select Frame** in Parking use a
+YOLO input size of 640 pixels by default. For distant motorcycles, use
+**ตรวจแบบลานกว้าง** to rerun the selected frame at the configured inference size.
+
+Set the operator inference and crop parameters in
+`apps/vision-api/app/parking_inference_settings.py`. The API response includes
+the crop padding and selection limit so previews use the same settings as
+classification. Set frame sampling and preview parameters in
+`tools/calibration-ui/lib/parkingSettings.ts`.
+
+Select the crop cards you want to review and press **Classify Selected**. The API crops
+only those selections from the original JPEG, adds 5% padding on each side, and
+letterboxes each crop using the checkpoint's settings. It returns the crop and
+Top 3 scores, with **ไม่แน่ใจ** when the leading score is below 60%.
+Each successfully classified frame saves its selected crop previews, normalized
+boxes, detector confidence, clip ID, timestamp and Top 3 scores in PostgreSQL
+(`parkmap.frame_crop_classifications`, migration 0006). The UI marks crops as
+saved after the API confirms the write. Expand a crop's Top scores to review
+the predictions. Retries within a review update the same
+crop records. These operator results are private and separate from LIFF parking
+state.
+
+Frame classification and the separate operator video classification API use
+`best.pt` from `train-20261112-005242-convnext-ft-6ea9a9`
+under `tools/yolo-training/classification/runs-class-project/` or, if absent there,
+under `tools/yolo-training/classification/runs/`. The checkpoint contains the
+class order and preprocessing settings. A copy of `best.pt` is sufficient.
+When `run.json` is present, its checkpoint checksum is also checked.
+The video detector defaults to
+`tools/yolo-training/detection/runs/yolo26n/round-10_2026-11-09_10-04/weights/best.pt`.
+To use a different local box-detection checkpoint, set `PARKMAP_VIDEO_DETECTOR_PATH`
+in the Vision API `.env` and restart the API. The video detector uses the configured
+motorcycle class ID.
+
+## Docker demo
+
+Build from the repository root on the machine that has the selected checkpoints.
+The script imports the operator checkpoint paths and stages only the three
+`best.pt` files. Use `linux/arm64` for an Apple Silicon Mac or `linux/amd64`
+for an Intel Mac. Docker Desktop must be running.
+
+```sh
+python3 tools/build-vision-demo.py --platform linux/arm64 --tag parkmap-vision-demo:demo-v1-arm64
+```
+
+On Windows PowerShell, use `apps/vision-api/.venv/Scripts/python.exe` in place
+of `python3` when using the Vision API virtual environment.
+
+Use an access-controlled registry to distribute an image containing checkpoints.
+Alternatively, export it to a private file and transfer that file to the Mac:
+
+```sh
+docker image save -o parkmap-vision-demo-demo-v1-arm64.tar parkmap-vision-demo:demo-v1-arm64
+# On the Mac, after transferring the archive:
+docker image load -i parkmap-vision-demo-demo-v1-arm64.tar
+```
+
+From the repository root on the Mac, open Docker Desktop and use one terminal
+for the following commands so the API and UI share the same private editor
+token. Set `PARKMAP_DEMO_IMAGE` to the loaded image or the private registry tag
+you pulled. Use Node.js and Corepack as described in the repository README.
+
+```sh
+corepack pnpm install --frozen-lockfile
+export PARKMAP_DEMO_IMAGE=parkmap-vision-demo:demo-v1-arm64
+export PARKMAP_EDITOR_TOKEN="$(openssl rand -hex 32)"
+docker compose -f compose.yaml -f compose.demo.yaml up -d --wait postgres vision-demo
+export PARKMAP_API_URL=http://127.0.0.1:8000
+export NEXT_PUBLIC_PARKMAP_API_URL="$PARKMAP_API_URL"
+corepack pnpm --filter @parkmap/calibration-ui dev --port 3000
+```
+
+Open <http://127.0.0.1:3000>, choose **Parking** and follow the video review
+steps above. The container runs the database migrations before starting the API.
+Saved results live in the PostgreSQL volume. To stop the demo API, use
+`docker compose -f compose.yaml -f compose.demo.yaml stop vision-demo` in the
+same terminal after stopping Calibration UI with Ctrl+C.
+
+## Legacy tracked video API
+
+In the video classification API, ByteTrack groups detections within one clip. Each crop gets 5% padding on each
+side before letterboxing. The API averages each class's probability across the
+track and displays **ไม่แน่ใจ** below three observations or 60% top average score.
+These thresholds are demo defaults. Track IDs may split or switch when vehicles
+overlap. Processing removes the temporary clip and publishes no parking state.
+
+The rest of this page describes the earlier image classifier experiment and its
+legacy operator APIs.
 
 # Test motorcycle-family classifiers in Parking
 

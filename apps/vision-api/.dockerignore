@@ -1,5 +1,7 @@
 .env
+.env.*
 .venv/
+.venv.*/
 venv/
 **/__pycache__/
 **/*.py[cod]
@@ -19,7 +21,13 @@ models/*.pt
 config/*.json
 !config/motorcycle_reference_sizes.json
 models/*.onnx
+runs/
+photos/
+single-photo/
+**/*.pt
+**/*.onnx
 *.mp4
 *.mov
 *.mkv
 *.avi
+*.webm

@@ -89,7 +89,7 @@ function LandmarkShape({ landmark, view, size }: { landmark: LotLandmark; view: 
   return null;
 }
 
-export default function LotPlan({ map, labels, selection, route, routeReplay, heldPolygons, overviewKey, onSelect, insets, ref }: MapViewProps) {
+export default function LotPlan({ map, labels, selection, route, routeReplay, heldPolygons, markers, overviewKey, onSelect, insets, ref }: MapViewProps) {
   const { visibleRoute, revealing } = useRouteReveal(route, routeReplay);
   const visibleSelection = revealing && selection?.destination ? null : selection;
   const container = useRef<HTMLDivElement>(null);
@@ -331,6 +331,13 @@ export default function LotPlan({ map, labels, selection, route, routeReplay, he
               <path d={pathOf(view, size, visibleSelection.polygon)} stroke={visibleSelection.destination ? COLORS.ENTRANCE : COLORS.SELECTED} strokeWidth={3} />
             </g>
           )}
+          {markers?.map((marker) => (
+            <g key={marker.id} fill="none" strokeLinejoin="round">
+              <path d={pathOf(view, size, marker.polygon)} fill={marker.color} fillRule="evenodd" />
+              <path d={pathOf(view, size, marker.polygon)} stroke={COLORS.SELECTED_HALO} strokeWidth={6} />
+              <path d={pathOf(view, size, marker.polygon)} stroke={marker.color} strokeWidth={3} />
+            </g>
+          ))}
           {routePoints && (
             <g fill="none" strokeLinecap="round" strokeLinejoin="round">
               <polyline points={routePoints} stroke="white" strokeWidth={10} />
@@ -348,7 +355,7 @@ export default function LotPlan({ map, labels, selection, route, routeReplay, he
           )}
         </svg>
       )}
-      <LabelLayer ref={labelLayer} labels={labels} selection={visibleSelection} insets={insets} />
+      <LabelLayer ref={labelLayer} labels={labels} selection={visibleSelection} markers={markers} insets={insets} />
     </div>
   );
 }

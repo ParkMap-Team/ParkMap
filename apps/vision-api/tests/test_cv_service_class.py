@@ -76,3 +76,13 @@ def test_class_that_is_not_motorcycle_in_the_weights_makes_the_model_unavailable
 
     with pytest.raises(cv.ModelUnavailableError):
         ComputerVisionService().analyze_image(_image())
+
+
+def test_a_detector_with_its_own_class_setting_falls_back_to_the_shared_one(monkeypatch):
+    monkeypatch.setenv("PARKMAP_MODEL_CLASS_ID", "0")
+    monkeypatch.delenv("PARKMAP_VIDEO_DETECTOR_CLASS_ID", raising=False)
+    assert ComputerVisionService(class_id_env="PARKMAP_VIDEO_DETECTOR_CLASS_ID").class_id == 0
+
+    monkeypatch.setenv("PARKMAP_VIDEO_DETECTOR_CLASS_ID", "3")  # COCO-pretrained video detector
+    assert ComputerVisionService(class_id_env="PARKMAP_VIDEO_DETECTOR_CLASS_ID").class_id == 3
+    assert ComputerVisionService().class_id == 0

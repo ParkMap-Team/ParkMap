@@ -1,5 +1,6 @@
 // Server-only local operator proxy. Secrets never reach the browser or worker bindings.
 import type { ProxyOptions } from './lotModelProxy.ts';
+import { BYTES_PER_MIB, MAX_UPLOAD_MIB, OPERATOR_FRAME_TIMEOUT_MS, OPERATOR_JSON_LIMIT_MIB, OPERATOR_MULTIPART_OVERHEAD_MIB, OPERATOR_REQUEST_TIMEOUT_MS, OPERATOR_VIDEO_TIMEOUT_MS } from './parkingSettings.ts';
 
 const reply = (status: number, detail: string) => Response.json({ detail }, { status });
 
@@ -21,13 +22,14 @@ export async function proxyAnnotationRequest(request: Request, options: ProxyOpt
     'GET:samples': root, 'POST:upload': `${root}/images`, 'GET:image': `${root}/images/${id}`,
     'PUT:save': `${root}/samples/${id}`, 'POST:detect': `${root}/samples/${id}/detect`, 'POST:export': `${root}/export`,
   };
-  const classifierRoutes: Record<string, string> = { 'GET:models': '/api/operator/classifier/models', 'POST:predict': '/api/operator/classifier/predict', 'POST:analyze': '/api/operator/classifier/analyze' };
+  const classifierRoutes: Record<string, string> = { 'GET:models': '/api/operator/classifier/models', 'POST:predict': '/api/operator/classifier/predict', 'POST:analyze': '/api/operator/classifier/analyze', 'POST:video': '/api/operator/classifier/video', 'POST:detect-frame': '/api/operator/classifier/detect-frame', 'POST:classify-frame': '/api/operator/classifier/classify-frame' };
   const path = (classifier ? classifierRoutes : routes)[`${request.method}:${operation}`];
   if (!path) return reply(405, 'คำสั่งไม่รองรับ');
   const type = request.headers.get('Content-Type') ?? '';
-  if (['upload', 'predict', 'analyze'].includes(operation ?? '') && !type.startsWith('multipart/form-data;')) return reply(415, 'ส่งรูปด้วย multipart/form-data');
+  const isMultipart = ['upload', 'predict', 'analyze', 'video', 'detect-frame', 'classify-frame'].includes(operation ?? '');
+  if (isMultipart && !type.startsWith('multipart/form-data;')) return reply(415, 'ส่งไฟล์ด้วย multipart/form-data');
   if (operation === 'save' && type.split(';')[0].trim() !== 'application/json') return reply(415, 'ส่ง label เป็น JSON');
-  const limit = ['upload', 'predict', 'analyze'].includes(operation ?? '') ? 26 * 1024 * 1024 : 1024 * 1024;
+  const limit = (isMultipart ? MAX_UPLOAD_MIB + OPERATOR_MULTIPART_OVERHEAD_MIB : OPERATOR_JSON_LIMIT_MIB) * BYTES_PER_MIB;
   if (Number(request.headers.get('Content-Length')) > limit) return reply(413, 'ข้อมูลใหญ่เกินกำหนด');
   try {
     let body: ArrayBuffer | undefined;
@@ -46,8 +48,11 @@ export async function proxyAnnotationRequest(request: Request, options: ProxyOpt
       for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
       body = bytes.buffer;
     }
+    const timeout = operation === 'video' ? OPERATOR_VIDEO_TIMEOUT_MS
+      : ['detect', 'predict', 'analyze', 'detect-frame', 'classify-frame'].includes(operation ?? '') ? OPERATOR_FRAME_TIMEOUT_MS
+      : OPERATOR_REQUEST_TIMEOUT_MS;
     const response = await (options.fetcher ?? fetch)(options.apiUrl.replace(/\/$/, '') + path, {
-      method: request.method, body, cache: 'no-store', signal: AbortSignal.timeout(['detect', 'predict', 'analyze'].includes(operation ?? '') ? 120_000 : 30_000),
+      method: request.method, body, cache: 'no-store', signal: AbortSignal.timeout(timeout),
       headers: { Authorization: `Bearer ${options.token}`, ...(type ? { 'Content-Type': type } : {}) },
     });
     return new Response(await response.arrayBuffer(), { status: response.status, headers: {

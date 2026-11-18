@@ -485,6 +485,21 @@ function Selection({ polygon, destination, routeReplay }: { polygon: MetricPolyg
   );
 }
 
+function RiderMarker({ polygon, color }: { polygon: MetricPolygon; color: string }) {
+  const invalidate = useThree((state) => state.invalidate);
+  useEffect(() => {
+    invalidate();
+    return () => invalidate();
+  }, [polygon, color, invalidate]);
+  return (
+    <>
+      <Surface polygon={polygon} height={HEIGHT.selection} color={color} statusOrder={STATUS_ORDER.selection} />
+      <Outline polygon={polygon} height={HEIGHT.selection} color={COLORS.SELECTED_HALO} width={6} statusOrder={STATUS_ORDER.selection + 1} />
+      <Outline polygon={polygon} height={HEIGHT.selection + 0.005} color={color} width={3} statusOrder={STATUS_ORDER.selection + 2} />
+    </>
+  );
+}
+
 /** Owns the camera: overview on mount and resize, zoom and tilt limits, pan kept over the lot, moves, and labels. */
 function CameraRig({
   map,
@@ -687,7 +702,7 @@ function CameraRig({
   );
 }
 
-export default function LotScene({ map, labels, selection, route, routeReplay, heldPolygons, overviewKey, onSelect, insets, onReady, onError, ref }: MapViewProps & { onReady(): void; onError(): void }) {
+export default function LotScene({ map, labels, selection, route, routeReplay, heldPolygons, markers, overviewKey, onSelect, insets, onReady, onError, ref }: MapViewProps & { onReady(): void; onError(): void }) {
   const labelLayer = useRef<LabelLayerHandle>(null);
   const { progress, revealing } = useRouteReveal(route, routeReplay);
   const visibleSelection = revealing && selection?.destination ? null : selection;
@@ -726,10 +741,11 @@ export default function LotScene({ map, labels, selection, route, routeReplay, h
             ? <ParkingArrival polygon={visibleSelection.polygon} replay={routeReplay} />
             : <Selection polygon={visibleSelection.polygon} destination={visibleSelection.destination} routeReplay={routeReplay} />
         )}
+        {markers?.map((marker) => <RiderMarker key={marker.id} polygon={marker.polygon} color={marker.color} />)}
         <ParkingRoute3D route={route} progress={progress} replay={routeReplay} />
         <CameraRig map={map} insets={insets} overviewKey={overviewKey} handle={ref ?? null} labels={labelLayer} />
       </Canvas>
-      <LabelLayer ref={labelLayer} labels={labels} selection={visibleSelection} insets={insets} />
+      <LabelLayer ref={labelLayer} labels={labels} selection={visibleSelection} markers={markers} insets={insets} />
     </div>
   );
 }

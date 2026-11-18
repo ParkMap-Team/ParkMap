@@ -3,10 +3,10 @@
 import math
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Literal
+from typing import Annotated
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, UUID4
+from pydantic import AfterValidator, AwareDatetime, BaseModel, UUID4
 from shapely import get_parts, prepare
 from shapely.affinity import rotate
 from shapely.geometry import Polygon, box
@@ -16,10 +16,19 @@ from app.models import MetricGroundPoint, MetricPolygon, ParkingAreaLiveState
 from app.services.motorcycle_reference_sizes import load_rules
 from app.services.region_clipping_service import polygon_shape
 
-PreviewFamily = Literal["grand_filano", "forza"]
+
+def _configured_family(family: str) -> str:
+    if family not in load_rules().classes:
+        raise ValueError("Family has no configured reference size.")
+    return family
+
+
+PreviewFamily = Annotated[str, AfterValidator(_configured_family)]
 AISLES = {"row_2": 10.2, "row_3": 10.2, "row_4": 3.2, "row_5": 3.2}
 RIGHT_ACCESS_X = 28.9
 CLEARANCE_M = 0.05
+# Guards the band-depth cap against floating-point error in the rotated geometry (scaled units).
+DEPTH_TOLERANCE = 1e-6
 SEARCH_STEP_M = 0.10
 HOLD_DURATION = timedelta(minutes=2)
 RETRY_WINDOW = timedelta(minutes=5)
@@ -29,6 +38,8 @@ class GuardBoothFitRequest(BaseModel):
     family: PreviewFamily
     request_id: UUID4
     observed_at: AwareDatetime
+    # The Entrance clip replays one scene per photo, so its riders' holds end when the area shows another photo.
+    ends_with_photo: bool = False
 
 
 class GuardBoothFitHold(BaseModel):
@@ -38,7 +49,7 @@ class GuardBoothFitHold(BaseModel):
 
 
 class GuardBoothFit(BaseModel):
-    family: PreviewFamily
+    family: str
     width_m: float
     length_m: float
     observed_at: datetime | None
@@ -79,7 +90,13 @@ def _row_direction(row: Polygon) -> float:
     return math.degrees(math.atan2(dy, dx)) % 180
 
 
-def fit_recorded_preview(area: ParkingAreaLiveState, family: PreviewFamily, entrance: MetricGroundPoint, scale: float, blocked: list[MetricPolygon] | None = None, preferred: MetricPolygon | None = None) -> GuardBoothFit:
+def _band_depth(band, angle: float) -> float:
+    """The band's mean depth across its row, so a narrower end never shrinks the frame to a sliver."""
+    left, _, right, _ = rotate(band, -angle, origin=(0, 0)).bounds
+    return band.area / (right - left) - DEPTH_TOLERANCE
+
+
+def fit_recorded_preview(area: ParkingAreaLiveState, family: str, entrance: MetricGroundPoint, scale: float, blocked: list[MetricPolygon] | None = None, preferred: MetricPolygon | None = None) -> GuardBoothFit:
     size = load_rules().classes[family]
     result = GuardBoothFit(family=family, width_m=size.width_m, length_m=size.length_m, observed_at=area.observed_at)
     if area.status != "DEMO" or area.source != "STILL_IMAGE_LOOP":
@@ -106,14 +123,19 @@ def fit_recorded_preview(area: ParkingAreaLiveState, family: PreviewFamily, entr
         band = polygon_shape(region.display_polygon or region.polygon)
         if not band.is_valid:
             continue
-        free = band.intersection(row).difference(occupied)
+        available = band.intersection(row)
+        if available.is_empty:
+            continue
+        free = available.difference(occupied)
         aisle = AISLES[region.row_id]
         if previous_frame is not None and free.covers(previous_frame) and previous_frame.centroid.x < RIGHT_ACCESS_X:
             candidates = [(-1, previous_frame.centroid.x, previous_frame.centroid.y, aisle, previous_frame)]
             break
         if previous_frame is not None:
             free = free.difference(previous_frame)
-        for frame in fit_frames(free, width, length, _row_direction(row)):
+        # Only width decides a fit: a longer motorcycle may run past the row, so its frame is drawn at the band depth.
+        angle = _row_direction(row)
+        for frame in fit_frames(free, width, min(length, _band_depth(available, angle)), angle):
             x, y = frame.centroid.coords[0]
             if x < RIGHT_ACCESS_X:
                 distance = aisle + 8 + RIGHT_ACCESS_X - x + abs(y - aisle)
@@ -135,12 +157,16 @@ class RecordedPreviewHolds:
         self._lock = Lock()
         self._issued: dict[UUID, tuple[GuardBoothFit, GuardBoothFitHold]] = {}
         self._earlier_holds: list[GuardBoothFitHold] = []
+        self._ends_with_photo: set[UUID] = set()
 
     def reserve(self, area: ParkingAreaLiveState, request: GuardBoothFitRequest, entrance: MetricGroundPoint, scale: float, now: datetime) -> GuardBoothFit:
         with self._lock:
             self._issued = {
-                key: item for key, item in self._issued.items() if now < item[1].expires_at + RETRY_WINDOW
+                key: item for key, item in self._issued.items()
+                if now < item[1].expires_at + RETRY_WINDOW
+                and not (key in self._ends_with_photo and item[1].observed_at != area.observed_at)
             }
+            self._ends_with_photo &= self._issued.keys()
             self._earlier_holds = [hold for hold in self._earlier_holds if now < hold.expires_at]
             holds = [*self._earlier_holds, *(hold for _, hold in self._issued.values() if now < hold.expires_at)]
             if area.status != "DEMO" or area.source != "STILL_IMAGE_LOOP" or area.observed_at != request.observed_at:
@@ -173,4 +199,6 @@ class RecordedPreviewHolds:
             hold = GuardBoothFitHold(polygon=result.polygon, observed_at=result.observed_at, expires_at=expires_at)
             result.expires_at = hold.expires_at
             self._issued[request.request_id] = (result, hold)
+            if request.ends_with_photo:
+                self._ends_with_photo.add(request.request_id)
             return result.model_copy(update={"holds": [*holds, hold]})

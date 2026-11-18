@@ -27,7 +27,9 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 - **Proxy size tolerance**: the initial demo checks that the shared standard proxy footprint renders within ±30% of its documented reference dimensions; it does not compare a proxy with the real dimensions of an individual detected motorcycle and is not a production accuracy target.
 - **Proxy heading tolerance**: the initial demo evaluates the undirected long-axis angle within 15 degrees of a reference; headings separated by 180 degrees are equivalent because front versus rear is not currently resolved.
 - **Proxy reference set**: proxy evaluation uses the existing recorded demo line with manually annotated sample motorcycles containing a ground point, long axis, and reference length and width.
-- **Classifier reference-size experiment**: local Parking can map predicted families to editable width/length references and compare experimental occupied/free geometry with the standard result. Initial references equal the existing standard footprint, not individual measurements. Incoming vehicles keep standard fitting dimensions. Worker, published state and LIFF do not use these references; locked-reference validation is still required before replacing standard demo behavior.
+- **Classifier reference-size experiment**: local Parking can map predicted families to editable width/length references and compare experimental occupied/free geometry with the standard result. Initial references equal the existing standard footprint, not individual measurements. Incoming vehicles keep standard fitting dimensions. Worker, published state and LIFF availability do not use these references; only the recorded Guard Booth preview fits a sample frame with them, by width alone: a motorcycle longer than the row depth may run past it, so its frame is drawn at the band depth; locked-reference validation is still required before replacing standard demo behavior.
+- **Entrance clip**: a stand-in video that the recorded Sripatum Guard Booth preview plays in a panel beside the parking map. With a Still-image loop, each photo is one **scene**: the clip plays once from its start with that photo and waits on its last frame; the next photo restarts it, ends the previous scene's riders and releases their holds, so the camera and the lot always change together. The worker's `--hold-s` must cover the clip plus a poll. Without a current photo the clip simply loops. Each **rider** in it (a sustained track from the Classify Video pipeline that moves through the clip and reaches the booth zone) joins a queue under the clip when it reaches that zone: a card with a number, a colour, the rider's photo, its model and one short instruction with an icon (go to its pin, finding a place, park in the green space, or no place found), and a pin of the same number and colour on the map. Cards show no confidence score and keep a fixed size whatever they say, so the map never refits under them. Riders close together each keep their own card and fit request, so each is held a different place. A card stays 30 seconds whatever arrives after it; at most three are shown, and a fourth rider drops the oldest. Only a rider that arrives into an empty queue gets a route on the map, and only while it stays alone; riders close together get their pins only, so arrows never chase each other. A motorcycle parked in view does not move and is not a rider. A rider whose family is not confident is shown as an unknown model; a named family without a reference size gets no placement. The clip supports no accuracy claim and never changes published availability.
+- **Source wording**: LIFF shows no demo, sample, recorded or stand-in wording for any source; drivers see one finished product. The source stays explicit in the API (`RECORDED_REPLAY`, `STILL_IMAGE_LOOP`, `DEMO` and so on), and status semantics, stale and lost-connection warnings are unchanged.
 - **Vision API Python support**: `apps/vision-api` requires CPython `3.12`; the dependency lock, CI, local setup, and deployment instructions use Python 3.12 consistently.
 - **Vision API dependency workflow**: `apps/vision-api` installs its runtime and development dependency groups with `uv sync --locked --all-groups`; CI and local development use the committed `uv.lock` rather than compiling or installing requirements files.
 - **LIFF motorcycle proxy asset**: the LIFF app uses a generic motorcycle GLB 3D model bundled in the repository with a clearly documented license such as CC0 or Apache-2.0. It visualizes a detection's position, long-axis direction, and approximate size; it is not a reconstruction of the actual vehicle and is not loaded from a runtime-hosted external URL.
@@ -56,12 +58,19 @@ Occluded or uncertain intervals remain UNKNOWN. It does not evaluate vehicle
 length or access paths, and does not change worker/LIFF fitting. The irregular
 visible-patch experiment is retained as an inactive diagnostic, not the operator
 Analyze default. See docs/segmentation-gaps.md.
-Parking Analyze now uses the configured Seg model as its primary detector by default for both
-images and video frames. One segmentation inference feeds the image boxes,
+Parking offers YOLO26n Detect Round 10 and YOLO26n Seg Round 8. Image analysis
+with Seg also computes gaps at the standard reference width and the configured
+lateral margin. For videos,
+the operator can pick a still or ask the UI to sample up to six frames and
+rank them by YOLO detection score and crop size. The crop gallery includes
+detections across the analyzed frames and labels each crop with its timestamp.
+The operator can select crops from
+multiple frames to classify with ConvNeXt FT and save the results in the private
+operator database table. One segmentation inference for an uploaded image feeds the image boxes,
 masks and rectangular-gap diagnostics. The former Physical Map / Camera View,
 parking-state summary and bottom Summary section are removed from Parking;
-the Seg camera overlay and metric top-down gap map remain. Classifier controls and
-class-derived size experiments are removed from the web flow. Local trained
+the Seg camera overlay and metric top-down gap map remain. Class-derived size
+experiments are removed from the web flow. Local trained
 classifier artifacts and legacy operator APIs remain available separately;
 the worker now uses Seg for standard-size proxies and UNKNOWN row publication. A missing Seg model fails explicitly
 rather than silently substituting the original detector.

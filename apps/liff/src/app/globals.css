@@ -76,6 +76,100 @@
 }
 
 /*
+ * Guard Booth motion. Timings follow the Motion Reference catalogue (motion-reference.takayustudio.jp):
+ * toast in on a spring ~400ms with ~10% overshoot, follow-through 40ms later, map pins dropping in
+ * 400ms with a bounce, a 1.6s pulse ring, and a 600ms blur crossfade. Transforms and opacity only,
+ * so no card or panel ever changes size. Callers apply them under `motion-safe:`.
+ */
+@theme {
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --animate-rider-enter: rider-enter 400ms var(--ease-spring) both;
+    --animate-rider-settle: rider-settle 300ms var(--ease-out-strong) 40ms both;
+    --animate-content-swap: content-swap 240ms ease-out both;
+    --animate-icon-pop: icon-pop 400ms var(--ease-spring) both;
+    --animate-pin-drop: pin-drop 400ms ease-out both;
+    --animate-pin-ring: pin-ring 1600ms ease-out 400ms 2 forwards;
+    --animate-idle-ring: pin-ring 1600ms ease-out infinite;
+    --animate-scene-blur: scene-blur 600ms ease-in-out both;
+    --animate-toast-rise: toast-rise 400ms var(--ease-spring) both;
+
+    /* A new rider's card arrives at the top of the queue. */
+    @keyframes rider-enter {
+        from {
+            opacity: 0;
+            transform: translateY(-8px) scale(0.96);
+        }
+    }
+
+    /* The previous card follows through as it becomes a compact row. */
+    @keyframes rider-settle {
+        from {
+            opacity: 0.4;
+            transform: translateY(-8px);
+        }
+    }
+
+    /* What a card says changes without a hard cut. */
+    @keyframes content-swap {
+        from {
+            opacity: 0;
+            filter: blur(4px);
+        }
+    }
+
+    @keyframes icon-pop {
+        from {
+            transform: scale(0.5);
+        }
+    }
+
+    @keyframes pin-drop {
+        0% {
+            opacity: 0;
+            transform: translateY(-24px);
+        }
+        60% {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        80% {
+            transform: translateY(-5px);
+        }
+        100% {
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes pin-ring {
+        from {
+            opacity: 0.6;
+            transform: scale(1);
+        }
+        to {
+            opacity: 0;
+            transform: scale(2.2);
+        }
+    }
+
+    /* The camera blurs out of one lot photo's scene into the next. */
+    @keyframes scene-blur {
+        from {
+            opacity: 1;
+        }
+        to {
+            opacity: 0;
+        }
+    }
+
+    @keyframes toast-rise {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+    }
+}
+
+/*
  * Cool ink on paper. Chrome stays quiet so the five status colours own all the
  * saturation on screen. Pure white and black are avoided.
  */
