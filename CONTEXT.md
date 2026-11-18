@@ -46,6 +46,7 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 - **Synchronized replay**: an entrance video and a parking-area video replayed on one clock, aligned by a video offset set from an event visible in both, such as a clap or a flash. Plate handoff is only defined within a synchronized replay or between live cameras on one clock.
 - **Wrong-record rate**: the share of parking records whose position belongs to a motorcycle other than the registered plate's, measured against team-labelled ground truth. The target is zero; coverage, the share of entries that get a parking record, is reported alongside it.
 - **Entrance sighting**: the latest time the entrance camera produced a plate match for a registered plate. It is shown when there is no parking record, so the student knows the motorcycle entered even though its stop was not recorded.
+- **Marked spot**: where a rider said they parked: the ground point of the place the LINE parking guide recommended, saved by the rider after the route is drawn and kept under their verified LINE account for 24 hours (ADR 0021). It states where the rider said they parked and when, never that the motorcycle is still there, and it never affects availability.
 
 ## Current implementation
 

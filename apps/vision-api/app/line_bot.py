@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 import requests
 from fastapi import Depends, FastAPI, Header, HTTPException
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import SQLAlchemyError
 from linebot.v3.messaging import ApiClient, Configuration, MessagingApi, PushMessageRequest, TextMessage
 from linebot.v3.messaging.exceptions import ApiException
@@ -17,6 +17,7 @@ from urllib3.exceptions import HTTPError
 
 from app.db import line_settings
 from app.db.session import open_session, DatabaseNotConfiguredError
+from app.models import IDENTIFIER_PATTERN
 from app.services.line_motorcycle_settings import MODEL_LABELS
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -160,3 +161,49 @@ def put_preferences(selection: Selection, account: Account = Depends(account_key
     if selection.model_id not in MODEL_LABELS:
         raise HTTPException(422, "Unsupported motorcycle model.")
     return preference(account, selection.model_id)
+
+
+# A lot's metric ground frame spans tens of metres; this only bounds what a rider can store.
+MAX_SPOT_COORDINATE_M = 10_000
+
+
+class ParkedSpot(BaseModel):
+    """Where the rider says they parked (ADR 0021). Their own claim: never availability evidence."""
+    model_config = ConfigDict(extra="forbid")
+    site_id: str = Field(pattern=IDENTIFIER_PATTERN)
+    x_m: float = Field(ge=-MAX_SPOT_COORDINATE_M, le=MAX_SPOT_COORDINATE_M, allow_inf_nan=False)
+    y_m: float = Field(ge=-MAX_SPOT_COORDINATE_M, le=MAX_SPOT_COORDINATE_M, allow_inf_nan=False)
+
+
+def parked_spot(account: Account, spot: ParkedSpot | None = None, erase: bool = False):
+    try:
+        with open_session() as session:
+            line_settings.lock_account(session, account.key)
+            if erase:
+                line_settings.delete_parked_spot(session, account.key)
+            elif spot is not None:
+                line_settings.save_parked_spot(session, account.key, **spot.model_dump())
+            current = line_settings.parked_spot(session, account.key)
+            result = {"spot": None if current is None else {
+                **ParkedSpot.model_validate(current, from_attributes=True).model_dump(),
+                "saved_at": current.saved_at.isoformat()}}
+            # Commits a save, an erase, or the deletion of an expired spot.
+            session.commit()
+            return result
+    except (DatabaseNotConfiguredError, SQLAlchemyError):
+        raise HTTPException(503, "Parked spot storage is unavailable.") from None
+
+
+@app.get("/api/line/parked-spot")
+def get_parked_spot(account: Account = Depends(account_key)):
+    return parked_spot(account)
+
+
+@app.put("/api/line/parked-spot")
+def put_parked_spot(spot: ParkedSpot, account: Account = Depends(account_key)):
+    return parked_spot(account, spot)
+
+
+@app.delete("/api/line/parked-spot")
+def delete_parked_spot(account: Account = Depends(account_key)):
+    return parked_spot(account, erase=True)

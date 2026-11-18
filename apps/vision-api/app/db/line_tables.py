@@ -1,7 +1,7 @@
 """Bot-owned tables, isolated from the vision API migration history."""
 from datetime import datetime
 from typing import Any
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, Index, MetaData, Text, func, text
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, Float, Index, MetaData, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from app.services.line_motorcycle_settings import MODEL_LABELS
@@ -24,6 +24,18 @@ class LineMotorcyclePreference(Base):
     event_timestamp_ms: Mapped[int] = mapped_column(BigInteger)
     event_id: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class LineParkedSpot(Base):
+    """Where a rider said they parked (ADR 0021): their claim, never availability evidence."""
+
+    __tablename__ = "line_parked_spots"
+
+    account_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    site_id: Mapped[str] = mapped_column(Text)
+    x_m: Mapped[float] = mapped_column(Float)
+    y_m: Mapped[float] = mapped_column(Float)
+    saved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class LineWebhookReceipt(Base):
