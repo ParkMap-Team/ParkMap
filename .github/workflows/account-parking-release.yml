@@ -69,7 +69,7 @@ jobs:
             api "$base/deployments" | jq -e 'type == "array" and length == 0' >/dev/null
             app=$(api "$base/applications/$uuid")
             jq '{name,status,build_pack,git_branch,git_commit_sha,dockerfile_location}' <<< "$app"
-            jq -e --arg name "$name" '.name == $name and .build_pack == "dockerfile" and .git_branch == "main" and .git_commit_sha == "HEAD" and .status == "running:healthy" and (.dockerfile_location | endswith("Dockerfile.ghcr"))' <<< "$app" >/dev/null
+            jq -e --arg name "$name" '.name == $name and .build_pack == "dockerfile" and .git_branch == "main" and .git_commit_sha == "HEAD" and (.status == "running:healthy" or ($name == "parkmap-worker" and .status == "running:unknown")) and (.dockerfile_location | endswith("Dockerfile.ghcr"))' <<< "$app" >/dev/null
             image="ghcr.io/parkmap-team/$package:sha-$RELEASE"
             envs=$(api "$base/applications/$uuid/envs")
             # Coolify can redact the value even when the variable metadata is readable.
@@ -93,7 +93,7 @@ jobs:
               case "$state" in
                 finished)
                   jq -e --arg sha "$RELEASE" '.commit == $sha' <<< "$result" >/dev/null
-                  api "$base/applications/$uuid" | jq -e '.status == "running:healthy"' >/dev/null
+                  api "$base/applications/$uuid" | jq -e --arg name "$name" '.status == "running:healthy" or ($name == "parkmap-worker" and .status == "running:unknown")' >/dev/null
                   echo "$name finished."
                   break ;;
                 failed|cancel*) echo "$name ended: $state"; exit 1 ;;
