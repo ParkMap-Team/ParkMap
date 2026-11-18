@@ -28,6 +28,7 @@ jobs:
             jq '{deployment_uuid,status,commit,created_at,updated_at}' <<< "$latest"
             deployment=$(jq -r '.deployment_uuid // empty' <<< "$latest")
             if [ -n "$deployment" ]; then
+              api "deployments/$deployment" | jq '{response_keys:keys,logs_type:(.logs|type),logs_length:(.logs|length)}'
               api "deployments/$deployment" | jq -r '
                 (.logs // "[]") | if type == "string" then (fromjson? // []) else . end |
                 .[]? | .output // empty |
