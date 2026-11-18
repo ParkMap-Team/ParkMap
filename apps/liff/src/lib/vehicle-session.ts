@@ -28,6 +28,11 @@ export async function vehiclePreference(token?: string, model?: string, type?: "
     model === undefined ? undefined : { model_id: model }, token, type);
 }
 
+/** Verified opaque account key, confined to the Next server. */
+export async function recommendationOwner(): Promise<{ owner_key: string; model_id: string | null } | null> {
+  return settingsRequest("/api/line/recommendation-owner", "GET");
+}
+
 /** The session account's marked spot (ADR 0021): reads it, replaces it with `spot`, or erases it. */
 export async function parkedSpot(change?: ParkedSpotInput | "erase"): Promise<{ spot: ParkedSpot | null } | null> {
   return settingsRequest("/api/line/parked-spot", change === undefined ? "GET" : change === "erase" ? "DELETE" : "PUT",

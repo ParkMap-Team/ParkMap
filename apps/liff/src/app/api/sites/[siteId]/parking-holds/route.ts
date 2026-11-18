@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { apiClient, upstreamFailureStatus } from "@/lib/api/server";
 import { guardBoothFitEnabled } from "@/lib/parking/guard-booth-server";
-import { vehiclePreference } from "@/lib/vehicle-session";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ siteId: string }> }) {
-  if (!(await vehiclePreference())?.model_id) return new Response(null, { status: 403 });
   const { siteId } = await params;
   if (siteId !== "sripatum" || !guardBoothFitEnabled()) return new Response(null, { status: 404 });
   try {

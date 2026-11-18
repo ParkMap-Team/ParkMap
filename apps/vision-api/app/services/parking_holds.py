@@ -143,37 +143,42 @@ def mask_held_space(session: Session, site_id: str, area: ParkingAreaLiveState) 
 
 
 def reserve(session: Session, site_id: str, request: GuardBoothFitRequest, channel: Channel,
-            load: Callable[[], HoldContext], now: datetime) -> GuardBoothFit:
+            load: Callable[[], HoldContext], now: datetime, *, owner_key: str | None = None) -> GuardBoothFit:
     if channel == "LINE" and request.ends_with_photo:
         raise HTTPException(422, "LINE holds do not end with a preview photo.")
     context, holds = _locked(session, site_id, load, now)
     area = context.area
+    if channel == "LINE":
+        request = request.model_copy(update={"observed_at": area.observed_at or request.observed_at})
+    active = next((h for h in holds if owner_key and h.owner_key == owner_key and h.channel == "LINE"
+                   and h.stage in ("HELD", "AWAITING_CONFIRMATION")), None)
+    if active:
+        return _answer(active, context, holds, now)
     previous = session.get(ParkingHold, (site_id, request.request_id))
+    if previous and previous.owner_key != owner_key:
+        raise HTTPException(409, "Request ID belongs to another recommendation.")
     if previous and (previous.family != request.family or previous.channel != channel or previous.ends_with_photo != request.ends_with_photo):
         raise HTTPException(409, "Request ID already belongs to a different recommendation.")
     if previous:
-        result = GuardBoothFit.model_validate(previous.result)
-        result.stage = previous.stage
-        result.holds = _shown(holds)
-        # Keep issued geometry immutable; do not move a rider's instruction on a retry.
-        valid = fit_recorded_preview(area, request.family, context.entrance, context.scale,
-                                     preferred=result.polygon, blocked=[*_unsafe_polygons(area), *[h.polygon for h in result.holds if h.request_id != request.request_id]])
-        if (previous.stage != "HELD" or previous.geometry_version != context.geometry_version
-                or now >= previous.expires_at or request.observed_at != area.observed_at
-                or valid.polygon is None or not polygon_shape(valid.polygon).equals(polygon_shape(result.polygon))):
-            result.polygon, result.route = None, []
-        result.observed_at = area.observed_at
-        return result
+        return _answer(previous, context, holds, now, request.observed_at)
     result = fit_recorded_preview(area, request.family, context.entrance, context.scale, blocked=[*_unsafe_polygons(area), *[h.polygon for h in _shown(holds)]])
     result.request_id = request.request_id
-    if (request.observed_at != area.observed_at or area.processed_at is None
-            or any(h.stage in BLOCKING and h.geometry_version != context.geometry_version for h in holds)):
+    result.server_time = now
+    result.reason = "NO_FIT" if area.status == "DEMO" else "STATE_UNAVAILABLE"
+    if area.processed_at is None:
+        result.reason = "STATE_UNAVAILABLE"
+    elif request.observed_at != area.observed_at:
+        result.reason = "FRAME_CHANGED"
+    elif any(h.stage in BLOCKING and h.geometry_version != context.geometry_version for h in holds):
+        result.reason = "GEOMETRY_CHANGED"
+    if result.reason in ("STATE_UNAVAILABLE", "FRAME_CHANGED", "GEOMETRY_CHANGED"):
         result.polygon, result.route, result.observed_at = None, [], None
     if result.polygon is not None:
         result.expires_at = now + HOLD_DURATION
         result.stage = "HELD"
+        result.reason = "HELD"
         hold = ParkingHold(
-            site_id=site_id, request_id=request.request_id, channel=channel, family=request.family,
+            site_id=site_id, request_id=request.request_id, channel=channel, family=request.family, owner_key=owner_key,
             area_id=area.parking_area_id, geometry_version=context.geometry_version, ends_with_photo=request.ends_with_photo,
             stage="HELD", issued_at=now, expires_at=result.expires_at, observed_at=area.observed_at,
             processed_at=area.processed_at, result=result.model_dump(mode="json"),
@@ -183,4 +188,42 @@ def reserve(session: Session, site_id: str, request: GuardBoothFitRequest, chann
         session.flush()
         holds.append(hold)
     result.holds = _shown(holds)
+    return result
+
+
+def _answer(hold: ParkingHold, context: HoldContext, holds: list[ParkingHold], now: datetime, observed_at=None) -> GuardBoothFit:
+    area = context.area
+    result = GuardBoothFit.model_validate(hold.result)
+    result.stage, result.server_time, result.reason = hold.stage, now, hold.stage
+    result.holds = _shown(holds)
+    result.observed_at = area.observed_at
+    reason = None
+    if hold.stage != "HELD":
+        reason = hold.stage
+    elif hold.geometry_version != context.geometry_version:
+        reason = "GEOMETRY_CHANGED"
+    elif area.status not in ("LIVE", "DEMO"):
+        reason = "STATE_UNAVAILABLE"
+    elif now >= hold.expires_at:
+        reason = "AWAITING_CONFIRMATION"
+    elif observed_at is not None and observed_at != area.observed_at:
+        reason = "FRAME_CHANGED"
+    else:
+        valid = fit_recorded_preview(area, hold.family, context.entrance, context.scale, preferred=result.polygon,
+            blocked=[*_unsafe_polygons(area), *[h.polygon for h in result.holds if h.request_id != hold.request_id]])
+        if valid.polygon is None or not polygon_shape(valid.polygon).equals(polygon_shape(result.polygon)):
+            reason = "PLACEMENT_UNAVAILABLE"
+    if reason:
+        result.polygon, result.route, result.reason = None, [], reason
+    return result
+
+
+def owner_recommendation(session: Session, site_id: str, owner_key: str, load: Callable[[], HoldContext], now: datetime) -> GuardBoothFit | None:
+    context, holds = _locked(session, site_id, load, now)
+    owned = session.scalar(select(ParkingHold).where(ParkingHold.site_id == site_id, ParkingHold.channel == "LINE",
+        ParkingHold.owner_key == owner_key).order_by(ParkingHold.issued_at.desc()).limit(1))
+    if owned is None:
+        return None
+    result = _answer(owned, context, holds, now)
+    result.holds = [h for h in result.holds if h.request_id == owned.request_id]
     return result

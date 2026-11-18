@@ -872,7 +872,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Read Line Parking */
+        get: operations["read_line_parking_api_sites__site_id__parking_recommendation_get"];
         put?: never;
         /** Recommend Line Parking */
         post: operations["recommend_line_parking_api_sites__site_id__parking_recommendation_post"];
@@ -1856,6 +1857,8 @@ export interface components {
             observed_at: string | null;
             /** Polygon */
             polygon?: components["schemas"]["MetricGroundPoint"][][] | null;
+            /** Reason */
+            reason?: ("HELD" | "NO_FIT" | "STATE_UNAVAILABLE" | "FRAME_CHANGED" | "PLACEMENT_UNAVAILABLE" | "GEOMETRY_CHANGED" | "RELEASED" | "OCCUPIED_CONFIRMED" | "AWAITING_CONFIRMATION") | null;
             /** Request Id */
             request_id?: string | null;
             /**
@@ -1863,6 +1866,8 @@ export interface components {
              * @default []
              */
             route: components["schemas"]["MetricGroundPoint"][];
+            /** Server Time */
+            server_time?: string | null;
             /** Stage */
             stage?: ("HELD" | "AWAITING_CONFIRMATION" | "OCCUPIED_CONFIRMED" | "RELEASED") | null;
             /** Width M */
@@ -2063,6 +2068,28 @@ export interface components {
             x: number;
             /** Y */
             y: number;
+        };
+        /** LineParkingRequest */
+        LineParkingRequest: {
+            /**
+             * Ends With Photo
+             * @default false
+             */
+            ends_with_photo: boolean;
+            /** Family */
+            family: string;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            /** Owner Key */
+            owner_key: string;
+            /**
+             * Request Id
+             * Format: uuid4
+             */
+            request_id: string;
         };
         /** LiveRegion */
         LiveRegion: {
@@ -4464,6 +4491,39 @@ export interface operations {
             };
         };
     };
+    read_line_parking_api_sites__site_id__parking_recommendation_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Parkmap-Owner"?: string;
+            };
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardBoothFit"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     recommend_line_parking_api_sites__site_id__parking_recommendation_post: {
         parameters: {
             query?: never;
@@ -4475,7 +4535,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GuardBoothFitRequest"];
+                "application/json": components["schemas"]["LineParkingRequest"];
             };
         };
         responses: {

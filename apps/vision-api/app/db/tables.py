@@ -140,11 +140,16 @@ class ParkingHold(Base):
     """One issued recommendation, shared by API instances and entry channels."""
 
     __tablename__ = "parking_holds"
-    __table_args__ = (Index("parking_holds_active_site", "site_id", "stage"),)
+    __table_args__ = (
+        Index("parking_holds_active_site", "site_id", "stage"),
+        Index("parking_holds_one_active_line_owner", "site_id", "owner_key", unique=True,
+              postgresql_where=text("channel = 'LINE' AND owner_key IS NOT NULL AND stage IN ('HELD', 'AWAITING_CONFIRMATION')")),
+    )
 
     site_id: Mapped[str] = mapped_column(ForeignKey("sites.id"), primary_key=True)
     request_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
     channel: Mapped[str] = mapped_column(Text)
+    owner_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     family: Mapped[str] = mapped_column(Text)
     area_id: Mapped[str] = mapped_column(Text)
     geometry_version: Mapped[str] = mapped_column(Text)

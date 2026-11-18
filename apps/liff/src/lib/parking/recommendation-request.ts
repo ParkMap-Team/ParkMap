@@ -14,6 +14,15 @@ export function activeRecommendation(fit: { stage?: string | null; expires_at?: 
   return !!fit?.polygon && fit.stage === "HELD" && fit.observed_at === frame && !!fit.expires_at && now < Date.parse(fit.expires_at);
 }
 
+/** Translate elapsed client time onto the response's server clock. */
+export function recommendationTime(serverTime: string | null | undefined, receivedAt: number, now: number): number {
+  return serverTime ? Date.parse(serverTime) + Math.max(0, now - receivedAt) : now;
+}
+
+export function remainingHoldSeconds(expiresAt: string | null | undefined, serverTime: string | null | undefined, receivedAt: number, now: number): number {
+  return expiresAt ? Math.min(120, Math.max(0, Math.ceil((Date.parse(expiresAt) - recommendationTime(serverTime, receivedAt, now)) / 1000))) : 0;
+}
+
 /** A revisited photo is a new entrance scene; refresh of a recent scene reuses its IDs. */
 export function parkingSceneKey(storage: Pick<Storage, "getItem" | "setItem"> | null, siteId: string, frame: string, now: number): string {
   const key = `parkmap:scene:${siteId}`;

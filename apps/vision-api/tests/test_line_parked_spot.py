@@ -29,9 +29,21 @@ def as_account(monkeypatch, digit: str) -> dict[str, str]:
 
 
 def test_spot_requires_verified_identity(client, no_database):
+    assert client.get("/api/line/recommendation-owner").status_code == 401
     assert client.get("/api/line/parked-spot").status_code == 401
     assert client.put("/api/line/parked-spot", json=SPOT).status_code == 401
     assert client.delete("/api/line/parked-spot").status_code == 401
+
+
+def test_recommendation_identity_is_verified_stable_and_account_specific(database, client, monkeypatch):
+    headers = as_account(monkeypatch, "1")
+    client.put("/api/line/preferences", headers=headers, json={"model_id": "forza"})
+    first = client.get("/api/line/recommendation-owner", headers=headers).json()
+    assert first["model_id"] == "forza" and len(first["owner_key"]) == 64
+    assert "U" + "1" * 32 not in str(first)
+    assert client.get("/api/line/recommendation-owner", headers=headers).json() == first
+    other = client.get("/api/line/recommendation-owner", headers=as_account(monkeypatch, "2")).json()
+    assert other["owner_key"] != first["owner_key"] and other["model_id"] is None
 
 
 def test_rider_saves_replaces_and_deletes_their_spot(database, client, monkeypatch):

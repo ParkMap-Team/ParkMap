@@ -5,7 +5,8 @@ import type { GuardBoothMode } from "@/lib/parking/guard-booth";
 import { vehiclePreference } from "@/lib/vehicle-session";
 
 export async function SitePage({ siteId, guardBooth, fitPreviewEnabled, entranceClip }: { siteId: string; guardBooth?: GuardBoothMode; fitPreviewEnabled?: boolean; entranceClip?: boolean }) {
-  if (!(await vehiclePreference())?.model_id) return null;
+  if (!guardBooth && !(await vehiclePreference())?.model_id) return null;
+  if (guardBooth && siteId !== "sripatum") notFound();
   const client = apiClient();
   const [sites, lotModel] = await Promise.all([
     client.GET("/api/sites"),

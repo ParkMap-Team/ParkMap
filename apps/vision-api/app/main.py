@@ -1,6 +1,7 @@
 import hmac
 import json
 import os
+import re
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
@@ -22,6 +23,7 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from PIL import Image, UnidentifiedImageError
+from pydantic import Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
@@ -92,7 +94,11 @@ from app.services.parking_analysis_service import (
     ParkingCalibrationUnavailableError,
     parking_analysis_service,
 )
-from app.services.parking_holds import HoldContext, mask_held_space
+from app.services.parking_holds import (
+    HoldContext,
+    mask_held_space,
+    owner_recommendation,
+)
 from app.services.parking_holds import reserve as reserve_parking_hold
 from app.services.parking_holds import snapshot as parking_holds_snapshot
 from app.services.physical_row_geometry_service import (
@@ -264,15 +270,31 @@ def reserve_guard_booth_fit(request: GuardBoothFitRequest, site_id: str = SiteId
     _require_guard_booth_preview(site_id)
     result = reserve_parking_hold(session, site_id, request, "GUARD_BOOTH", lambda: _hold_context(site_id, session), datetime.now(UTC))
     session.commit()
+    result.holds = [h for h in result.holds if h.channel == "GUARD_BOOTH"]
     return result
 
 
+class LineParkingRequest(GuardBoothFitRequest):
+    owner_key: str = Field(pattern=r"^[0-9a-f]{64}$", repr=False)
+
+
 @app.post("/api/sites/{site_id}/parking-recommendation", response_model=GuardBoothFit)
-def recommend_line_parking(request: GuardBoothFitRequest, site_id: str = SiteId, session: Session = SessionDependency) -> GuardBoothFit:
+def recommend_line_parking(request: LineParkingRequest, site_id: str = SiteId, session: Session = SessionDependency) -> GuardBoothFit:
     # Called by the trusted LIFF server with its verified saved model. The Python
     # API is private, just as its other operator and map endpoints are.
     _require_guard_booth_preview(site_id)
-    result = reserve_parking_hold(session, site_id, request, "LINE", lambda: _hold_context(site_id, session), datetime.now(UTC))
+    result = reserve_parking_hold(session, site_id, request, "LINE", lambda: _hold_context(site_id, session), datetime.now(UTC), owner_key=request.owner_key)
+    session.commit()
+    result.holds = [h for h in result.holds if h.request_id == result.request_id]
+    return result
+
+
+@app.get("/api/sites/{site_id}/parking-recommendation", response_model=GuardBoothFit | None)
+def read_line_parking(site_id: str = SiteId, owner_key: str = Header(default="", alias="X-Parkmap-Owner"), session: Session = SessionDependency):
+    _require_guard_booth_preview(site_id)
+    if not re.fullmatch(r"[0-9a-f]{64}", owner_key):
+        raise HTTPException(403, "Verified owner required.")
+    result = owner_recommendation(session, site_id, owner_key, lambda: _hold_context(site_id, session), datetime.now(UTC))
     session.commit()
     return result
 
@@ -282,7 +304,7 @@ def get_parking_holds(site_id: str = SiteId, session: Session = SessionDependenc
     _require_guard_booth_preview(site_id)
     result = parking_holds_snapshot(session, site_id, lambda: _hold_context(site_id, session), datetime.now(UTC))
     session.commit()
-    return result
+    return [h for h in result if h.channel == "GUARD_BOOTH"]
 
 
 def _hold_context(site_id: str, session: Session) -> HoldContext:

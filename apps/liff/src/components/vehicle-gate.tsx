@@ -8,6 +8,7 @@ import { VehicleForm } from "@/components/vehicle-form";
 import { BOOT_STEPS } from "@/lib/boot-progress";
 import { lineProfile, type LineProfile } from "@/lib/line-profile";
 import type { Preference } from "@/lib/vehicle-session";
+import { isPublicBoothPath } from "@/lib/parking/public-booth";
 
 // Development only: with NEXT_PUBLIC_PARKMAP_DEV_LINE_LOGIN=1 the gate skips LIFF and sends the token
 // that scripts/dev-line-settings.mjs accepts, so the app runs in a desktop browser. The session route
@@ -44,7 +45,7 @@ async function savePreference(modelId: string): Promise<Preference> {
 
 export function VehicleGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const exempt = pathname === "/mobile-camera" || pathname === "/help";
+  const exempt = pathname === "/mobile-camera" || pathname === "/help" || isPublicBoothPath(pathname);
   const [preference, setPreference] = useState<Preference | null>(null);
   const [profile, setProfile] = useState<LineProfile | null>(null);
   const [error, setError] = useState("");

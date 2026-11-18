@@ -61,6 +61,8 @@ class GuardBoothFit(BaseModel):
     holds: list[GuardBoothFitHold] = []
     stage: Literal["HELD", "AWAITING_CONFIRMATION", "OCCUPIED_CONFIRMED", "RELEASED"] | None = None
     request_id: UUID | None = None
+    server_time: datetime | None = None
+    reason: Literal["HELD", "NO_FIT", "STATE_UNAVAILABLE", "FRAME_CHANGED", "PLACEMENT_UNAVAILABLE", "GEOMETRY_CHANGED", "RELEASED", "OCCUPIED_CONFIRMED", "AWAITING_CONFIRMATION"] | None = None
 
 
 def _samples(low: float, high: float) -> list[float]:
