@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeft, DoorOpen, Minus, Plus, RotateCcw, RotateCw, Scan, SquareParking, WifiOff } from "lucide-react";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { type ComponentProps, type KeyboardEvent, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
@@ -15,6 +15,8 @@ import { labelPoint } from "@/lib/map/geometry";
 import { activeParkingHolds, activeRiders, applyParkingHolds, enqueueRider, entranceClipOutcome, guardBoothFitFamily, guardBoothFrame, guardBoothHeadline, guardBoothModelName, guardBoothPreviewDestination, overlapsParkingHold, PARKING_HOLD_MS, RIDER_COLORS, riderGuide, routeRiderSeq, sripatumPreviewRoute, type GuardBoothMode, type GuardBoothOverview, type ParkingHold, type QueuedRider, type RiderFit } from "@/lib/parking/guard-booth";
 import { STATUS_LABELS, agoLabel, areaPhotos, timeLines, visibleAreas } from "@/lib/parking/presentation";
 import { useParkingState } from "@/lib/parking/use-parking-state";
+import { useParkingRecommendation } from "@/lib/parking/use-parking-recommendation";
+import { activeRecommendation, parkingRequestId, parkingSceneKey } from "@/lib/parking/recommendation-request";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
 import { type AreaRow, MapPanel, type PeekHeights, type SelectedDetails, type ShownPhoto, useWide } from "./map-panel";
@@ -104,7 +106,7 @@ function ControlButton({ className, ...props }: ComponentProps<typeof Button>) {
   return <Button variant="outline" size="icon" className={cn("size-11 rounded-lg bg-background shadow-sm", className)} {...props} />;
 }
 
-export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fitPreviewEnabled = false, entranceClip = false }: { siteId: string; siteName: string; lotModel: LotModel; listHref: string | null; guardBooth?: GuardBoothMode; fitPreviewEnabled?: boolean; entranceClip?: boolean }) {
+export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fitPreviewEnabled = false, entranceClip = false, recommendationsEnabled = false }: { siteId: string; siteName: string; lotModel: LotModel; listHref: string | null; guardBooth?: GuardBoothMode; fitPreviewEnabled?: boolean; entranceClip?: boolean; recommendationsEnabled?: boolean }) {
   const testingClassification = guardBooth === "preview" || guardBooth === "unknown";
   // The entrance clip's riders, newest first, and what the booth shows while none is queued.
   const [clipStatus, setClipStatus] = useState<ClipStatus>("classifying");
@@ -119,6 +121,12 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
   const [boothOverview, setBoothOverview] = useState<GuardBoothOverview>("entrance");
   const [holds, setHolds] = useState<readonly ParkingHold[]>([]);
   const [currentHold, setCurrentHold] = useState<ParkingHold | null>(null);
+  useEffect(() => {
+    if (!testingClassification) return;
+    let storage: Storage | null = null;
+    try { storage = sessionStorage; } catch { /* Disabled storage. */ }
+    setFitRequestId(parkingRequestId(storage, `${siteId}:BOOTH:manual`));
+  }, [testingClassification, siteId]);
   useEffect(() => {
     if (!testingClassification || classificationTest?.mode !== "classifying") return;
     const timeout = setTimeout(() => {
@@ -135,9 +143,30 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
   const receivedAgoS = query.data ? Math.max(0, now - query.dataUpdatedAt) / 1000 : 0;
   const areas = query.data ? visibleAreas(query.data, receivedAgoS, connectionLost) : null;
   const recordedFrame = areas?.find(({ status, source }) => status === "DEMO" && source === "STILL_IMAGE_LOOP")?.observed_at;
+  const lineRecommendation = useParkingRecommendation(siteId, recommendationsEnabled && !guardBooth, recordedFrame);
+  const sharedHolds = useQuery<NonNullable<GuardBoothFit["holds"]>>({
+    queryKey: ["parking-holds", siteId], enabled: fitPreviewEnabled || recommendationsEnabled,
+    retry: false, refetchInterval: 4000,
+    queryFn: async ({ signal }) => {
+      const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/parking-holds`, { signal, cache: "no-store" });
+      if (!response.ok) throw new Error("Parking holds unavailable");
+      return response.json();
+    },
+  });
+  const lineLedgerCurrent = sharedHolds.dataUpdatedAt < lineRecommendation.dataUpdatedAt ||
+    sharedHolds.data?.some((hold) => hold.request_id === lineRecommendation.data?.request_id && hold.stage === "HELD");
+  const lineFit = lineLedgerCurrent && !lineRecommendation.isError && !sharedHolds.isError && !connectionLost &&
+    activeRecommendation(lineRecommendation.data, recordedFrame, now) ? lineRecommendation.data : null;
   // The entrance clip replays one scene per recorded photo: another photo restarts the clip and ends
   // the riders of the previous one. A photo briefly missing from a poll does not end its scene.
   const [scene, setScene] = useState(recordedFrame);
+  const [sceneRequestKey, setSceneRequestKey] = useState<string>();
+  useEffect(() => {
+    if (!entranceClip || !scene) return;
+    let storage: Storage | null = null;
+    try { storage = sessionStorage; } catch { /* Disabled storage. */ }
+    setSceneRequestKey(parkingSceneKey(storage, siteId, scene, Date.now()));
+  }, [entranceClip, siteId, scene]);
   if (entranceClip && recordedFrame && recordedFrame !== scene) {
     setScene(recordedFrame);
     setRiderQueue([]);
@@ -166,6 +195,7 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
       queryFn: ({ signal }: { signal: AbortSignal }) => fetchFit(siteId, { family, request_id: requestId, observed_at: recordedFrame, ends_with_photo: entranceClip }, signal),
       retry: false,
       staleTime: Infinity,
+      refetchInterval: 4000,
     })),
   });
   // Every answer lists all current holds; the latest is kept while a new request is on its way.
@@ -174,7 +204,11 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
   /** The request's frame on the current recorded photo, until its hold expires. */
   const currentFit = (index: number) => {
     const data = fitRequests[index]?.family ? fitQueries[index]?.data : undefined;
-    if (!data || data.observed_at !== recordedFrame) return { matching: null, expired: false };
+    if (!data || data.observed_at !== recordedFrame || fitQueries[index]?.isError || sharedHolds.isError) return { matching: null, expired: false };
+    if (sharedHolds.dataUpdatedAt >= (fitQueries[index]?.dataUpdatedAt ?? 0)) {
+      const hold = sharedHolds.data?.find((hold) => hold.request_id === data.request_id);
+      if (data.polygon && hold?.stage !== "HELD") return { matching: { ...data, polygon: null, route: [], stage: hold?.stage ?? "RELEASED" }, expired: false };
+    }
     return { matching: data, expired: !!data.expires_at && now >= Date.parse(data.expires_at) };
   };
   const activeFitFamily = fitRequests[0]?.family ?? null;
@@ -272,9 +306,11 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
   const onArrival = useCallback((rider: GuardBoothRider) => {
     setSelection(null);
     arrivals.current += 1;
-    const arrival = { seq: arrivals.current, rider, arrivedAt: Date.now(), requestId: globalThis.crypto?.randomUUID?.() };
+    let storage: Storage | null = null;
+    try { storage = sessionStorage; } catch { /* Disabled storage. */ }
+    const arrival = { seq: arrivals.current, rider, arrivedAt: Date.now(), requestId: parkingRequestId(storage, `${siteId}:BOOTH:${sceneRequestKey}:${rider.arrival_s}`) };
     setRiderQueue((queue) => enqueueRider(queue, arrival, arrival.arrivedAt));
-  }, []);
+  }, [siteId, sceneRequestKey]);
 
   // A place selected on a phone stays clear of its own card once the card is measured.
   const selectedPoint = selection?.point ?? null;
@@ -337,17 +373,18 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
     return area && !area.unknownReason && area.regions.some(({ kind, polygon }) => kind === "AVAILABLE" && JSON.stringify(polygon) === JSON.stringify(hold.polygon))
       && !area.regions.some(({ kind, polygon }) => kind === "UNKNOWN" && overlapsParkingHold(polygon, hold.polygon));
   }).map(({ polygon }) => polygon);
-  const recordedHeldPolygons = classification === "unavailable" ? [] : (lastFitResponse?.holds ?? [])
-    .filter((hold) => hold.observed_at === recordedFrame && now < Date.parse(hold.expires_at))
+  const ledger = sharedHolds.dataUpdatedAt >= Math.max(...fitQueries.map((q) => q.dataUpdatedAt), 0) ? sharedHolds.data : lastFitResponse?.holds;
+  const recordedHeldPolygons = classification === "unavailable" ? [] : (ledger ?? [])
+    .filter((hold) => hold.stage !== "RELEASED" && hold.stage !== "OCCUPIED_CONFIRMED")
     .map((hold) => fit?.polygon && JSON.stringify(hold.polygon) === JSON.stringify(fit.polygon) ? fit.polygon : hold.polygon);
   const heldPolygons = [...syntheticHeldPolygons, ...recordedHeldPolygons];
   // The clip's riders are markers in their own colours rather than the one selected destination.
-  const destination = entranceClip ? null : fit?.polygon
+  const destination = lineFit?.polygon ? { polygon: lineFit.polygon, point: labelPoint(lineFit.polygon), text: "จอดตรงนี้", destination: true } : entranceClip ? null : fit?.polygon
     ? { polygon: fit.polygon, point: labelPoint(fit.polygon), text: "จอดตรงนี้", destination: true }
     : classification === "preview" && currentHold && heldPolygons.includes(currentHold.polygon)
     ? { polygon: currentHold.polygon, point: labelPoint(currentHold.polygon), text: "จอดตรงนี้", destination: true }
     : nextDestination;
-  const route = entranceClip
+  const route = lineFit?.route.length ? lineFit.route : entranceClip
     ? clipRoute
     : fit?.route.length ? fit.route : sripatumPreviewRoute(map, siteId, destination?.point);
   const markers: MapMarker[] = riders.flatMap(({ seq, slot }, index) => {
@@ -364,7 +401,9 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
     return matching.polygon && !expired ? "placed" : "no-space";
   };
   const displayMode = fitExpired || (currentHold && !activeHolds.includes(currentHold)) ? "waiting" : activeFitFamily ? "fit-preview" : classification;
-  const boothHeadline = classification && (query.isPending && classification !== "unavailable"
+  const boothHeadline = classification && (matchingFit?.stage === "OCCUPIED_CONFIRMED" ? "พื้นที่แนะนำมีรถจอดแล้ว"
+    : matchingFit?.stage === "AWAITING_CONFIRMATION" ? "ครบเวลา กำลังรอยืนยันพื้นที่"
+    : query.isPending && classification !== "unavailable"
     ? "กำลังโหลดสถานะลาน"
     : activeFitFamily && (fitQuery?.isError || !fitRequests[0]?.requestId)
         ? "หาที่จอดไม่ได้"
@@ -556,6 +595,28 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
         {!guardBooth && <MapPanel
           truth={
             <>
+              {recommendationsEnabled && (
+                <div className="space-y-2 rounded-xl border bg-background p-3" aria-label="แนะนำที่จอดสำหรับรถของฉัน">
+                  <p className="font-semibold">ที่จอดสำหรับรถของคุณ</p>
+                  <p className="text-xs text-muted-foreground">กรอบสีฟ้า คือพื้นที่ที่พักไว้ให้รถกำลังไปจอด</p>
+                  {lineRecommendation.family && <p className="text-sm">{guardBoothModelName(lineRecommendation.family)}</p>}
+                  <Button className="w-full" disabled={!recordedFrame || !lineRecommendation.family || lineRecommendation.family === "other" || lineRecommendation.isFetching || !!lineFit || lineRecommendation.data?.stage === "AWAITING_CONFIRMATION"} onClick={lineRecommendation.requestPlace}>
+                    {lineFit ? "พักพื้นที่ให้แล้ว" : lineRecommendation.isFetching ? "กำลังหาที่จอด" : "แนะนำที่จอด"}
+                  </Button>
+                  <p role="status" className="text-sm text-muted-foreground">
+                    {lineRecommendation.isError ? lineRecommendation.error.message
+                      : lineRecommendation.preferenceError ? "ยืนยันรุ่นรถไม่ได้ กรุณาเปิดผ่าน LINE อีกครั้ง"
+                      : lineRecommendation.family === "other" ? "ยังไม่มีขนาดอ้างอิงของรถรุ่นนี้ ดูพื้นที่ว่างบนแผนที่ได้"
+                      : sharedHolds.isError ? "ยังยืนยันสถานะพักพื้นที่ไม่ได้ กรุณาลองใหม่"
+                      : lineRecommendation.data?.stage === "AWAITING_CONFIRMATION" ? "ครบ 2 นาทีแล้ว กำลังรอภาพใหม่ยืนยันว่าพื้นที่ว่าง"
+                      : lineRecommendation.data?.stage === "OCCUPIED_CONFIRMED" ? "ตรวจพบรถจอดในพื้นที่แนะนำแล้ว"
+                      : lineFit?.expires_at ? `ไปตามเส้นสีน้ำเงิน พักพื้นที่อีก ${Math.max(0, Math.ceil((Date.parse(lineFit.expires_at) - now) / 1000))} วินาที`
+                      : lineRecommendation.data?.stage === "RELEASED" ? "คืนพื้นที่แล้ว กดขอจุดแนะนำใหม่ได้"
+                      : lineRecommendation.requested && lineRecommendation.data ? "ยังไม่พบพื้นที่ที่แนะนำได้จากข้อมูลล่าสุด"
+                      : "เมื่อกด ระบบจะพักพื้นที่ 2 นาที และกันไม่ให้แนะนำซ้ำกับป้อมยาม"}
+                  </p>
+                </div>
+              )}
               {(connectionLost || allStale) && (
                 <div role="alert" className="flex items-center gap-3 rounded-lg bg-alert py-1 pr-1 pl-3 text-sm text-alert-foreground">
                   <p className="flex-1">

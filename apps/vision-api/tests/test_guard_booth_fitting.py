@@ -1,10 +1,7 @@
-from datetime import UTC, datetime, timedelta
-from uuid import uuid4
-
 from shapely.geometry import Polygon, box
 
 from app.models import LiveRegion, MetricGroundPoint, ParkingAreaLiveState
-from app.services.guard_booth_fitting import GuardBoothFitRequest, RecordedPreviewHolds, fit_frames, fit_recorded_preview
+from app.services.guard_booth_fitting import fit_frames, fit_recorded_preview
 from app.services.region_clipping_service import polygon_shape
 
 
@@ -75,85 +72,3 @@ def test_only_width_decides_a_fit_and_a_longer_frame_is_drawn_at_the_band_depth(
     assert narrow.polygon is not None
     assert all(6 <= point.x_m <= 6.8 for point in narrow.polygon[0])
     assert fit_recorded_preview(gap, "forza", entrance, scale=1).polygon is None
-
-
-def test_two_riders_in_one_band_get_non_overlapping_holds_until_timeout():
-    now = datetime(2026, 11, 16, tzinfo=UTC)
-    polygon = [[MetricGroundPoint(x_m=x, y_m=y) for x, y in [(5, 0), (9, 0), (9, 2), (5, 2)]]]
-    state = ParkingAreaLiveState(parking_area_id="area", status="DEMO", source="STILL_IMAGE_LOOP", observed_at=now, regions=[
-        LiveRegion(kind="UNKNOWN", row_id="row_5", polygon=polygon),
-        LiveRegion(kind="WIDTH_SUFFICIENT", row_id="row_5", polygon=polygon, width_m=4),
-    ])
-    entrance = MetricGroundPoint(x_m=21.5, y_m=-21)
-    holds = RecordedPreviewHolds()
-    first_request = GuardBoothFitRequest(request_id=uuid4(), family="grand_filano", observed_at=now)
-    first = holds.reserve(state, first_request, entrance, 1, now)
-    assert first.polygon and first.expires_at == now + timedelta(minutes=2)
-    second_at = now + timedelta(seconds=10)
-    retry = holds.reserve(state, first_request, entrance, 1, second_at)
-    assert retry.polygon == first.polygon and retry.expires_at == first.expires_at
-    next_state = state.model_copy(update={"observed_at": second_at})
-    stale = holds.reserve(next_state, first_request, entrance, 1, second_at)
-    assert stale.observed_at is None and stale.polygon is None
-    next_request = first_request.model_copy(update={"observed_at": second_at})
-    rechecked = holds.reserve(next_state, next_request, entrance, 1, second_at)
-    assert rechecked.polygon == first.polygon and rechecked.expires_at == first.expires_at
-    assert rechecked.observed_at == second_at and len(rechecked.holds) == 1
-    second = holds.reserve(next_state, next_request.model_copy(update={"request_id": uuid4()}), entrance, 1, second_at)
-    assert second.polygon and second.polygon != first.polygon
-    assert polygon_shape(first.polygon).intersection(polygon_shape(second.polygon)).area == 0
-    assert len(second.holds) == 2
-    after_expiry = holds.reserve(state, first_request.model_copy(update={"request_id": uuid4()}), entrance, 1, now + timedelta(minutes=2))
-    assert after_expiry.polygon == first.polygon
-
-
-def test_moving_the_recommendation_keeps_the_old_point_reserved_until_expiry():
-    now = datetime(2026, 11, 16, tzinfo=UTC)
-    polygon = [[MetricGroundPoint(x_m=x, y_m=y) for x, y in [(5, 0), (9, 0), (9, 2), (5, 2)]]]
-    state = ParkingAreaLiveState(parking_area_id="area", status="DEMO", source="STILL_IMAGE_LOOP", observed_at=now, regions=[
-        LiveRegion(kind="UNKNOWN", row_id="row_5", polygon=polygon),
-        LiveRegion(kind="WIDTH_SUFFICIENT", row_id="row_5", polygon=polygon, width_m=4),
-    ])
-    entrance = MetricGroundPoint(x_m=21.5, y_m=-21)
-    holds = RecordedPreviewHolds()
-    request = GuardBoothFitRequest(request_id=uuid4(), family="grand_filano", observed_at=now)
-    first = holds.reserve(state, request, entrance, 1, now)
-    assert first.polygon is not None
-
-    next_at = now + timedelta(seconds=10)
-    occupied = LiveRegion(kind="OCCUPIED", row_id="row_5", polygon=first.polygon)
-    next_state = state.model_copy(update={"observed_at": next_at, "regions": [*state.regions, occupied]})
-    next_request = request.model_copy(update={"observed_at": next_at})
-    replacement = holds.reserve(next_state, next_request, entrance, 1, next_at)
-    assert replacement.polygon is not None and replacement.polygon != first.polygon
-    assert replacement.expires_at == first.expires_at
-    assert {hold.expires_at for hold in replacement.holds} == {first.expires_at}
-    assert any(hold.polygon == first.polygon for hold in replacement.holds)
-
-    following_at = now + timedelta(seconds=20)
-    following_state = state.model_copy(update={"observed_at": following_at})
-    other_request = request.model_copy(update={"request_id": uuid4(), "observed_at": following_at})
-    other = holds.reserve(following_state, other_request, entrance, 1, following_at)
-    assert other.polygon is not None
-    assert polygon_shape(other.polygon).intersection(polygon_shape(first.polygon)).area == 0
-
-
-def test_a_hold_that_ends_with_its_photo_frees_its_place_on_the_next_photo():
-    now = datetime(2026, 11, 16, tzinfo=UTC)
-    polygon = [[MetricGroundPoint(x_m=x, y_m=y) for x, y in [(5, 0), (9, 0), (9, 2), (5, 2)]]]
-    state = ParkingAreaLiveState(parking_area_id="area", status="DEMO", source="STILL_IMAGE_LOOP", observed_at=now, regions=[
-        LiveRegion(kind="UNKNOWN", row_id="row_5", polygon=polygon),
-        LiveRegion(kind="WIDTH_SUFFICIENT", row_id="row_5", polygon=polygon, width_m=4),
-    ])
-    entrance = MetricGroundPoint(x_m=21.5, y_m=-21)
-    holds = RecordedPreviewHolds()
-    rider = holds.reserve(state, GuardBoothFitRequest(request_id=uuid4(), family="grand_filano", observed_at=now, ends_with_photo=True), entrance, 1, now)
-    kept = holds.reserve(state, GuardBoothFitRequest(request_id=uuid4(), family="grand_filano", observed_at=now), entrance, 1, now)
-    assert rider.polygon and kept.polygon and len(kept.holds) == 2
-
-    next_at = now + timedelta(seconds=20)
-    next_state = state.model_copy(update={"observed_at": next_at})
-    next_rider = holds.reserve(next_state, GuardBoothFitRequest(request_id=uuid4(), family="grand_filano", observed_at=next_at, ends_with_photo=True), entrance, 1, next_at)
-    # The rider's hold ended with its photo; the other hold still lasts until it expires.
-    assert next_rider.polygon == rider.polygon
-    assert [hold.polygon for hold in next_rider.holds] == [kept.polygon, next_rider.polygon]

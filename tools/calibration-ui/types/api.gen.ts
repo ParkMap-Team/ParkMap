@@ -848,6 +848,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sites/{site_id}/parking-holds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Parking Holds */
+        get: operations["get_parking_holds_api_sites__site_id__parking_holds_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sites/{site_id}/parking-recommendation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recommend Line Parking */
+        post: operations["recommend_line_parking_api_sites__site_id__parking_recommendation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sites/{site_id}/parking-state": {
         parameters: {
             query?: never;
@@ -1822,16 +1856,22 @@ export interface components {
             observed_at: string | null;
             /** Polygon */
             polygon?: components["schemas"]["MetricGroundPoint"][][] | null;
+            /** Request Id */
+            request_id?: string | null;
             /**
              * Route
              * @default []
              */
             route: components["schemas"]["MetricGroundPoint"][];
+            /** Stage */
+            stage?: ("HELD" | "AWAITING_CONFIRMATION" | "OCCUPIED_CONFIRMED" | "RELEASED") | null;
             /** Width M */
             width_m: number;
         };
         /** GuardBoothFitHold */
         GuardBoothFitHold: {
+            /** Channel */
+            channel?: ("GUARD_BOOTH" | "LINE") | null;
             /**
              * Expires At
              * Format: date-time
@@ -1844,6 +1884,14 @@ export interface components {
             observed_at: string;
             /** Polygon */
             polygon: components["schemas"]["MetricGroundPoint"][][];
+            /** Request Id */
+            request_id?: string | null;
+            /**
+             * Stage
+             * @default HELD
+             * @enum {string}
+             */
+            stage: "HELD" | "AWAITING_CONFIRMATION" | "OCCUPIED_CONFIRMED" | "RELEASED";
         };
         /** GuardBoothFitRequest */
         GuardBoothFitRequest: {
@@ -4372,6 +4420,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LotModelResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_parking_holds_api_sites__site_id__parking_holds_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardBoothFitHold"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recommend_line_parking_api_sites__site_id__parking_recommendation_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuardBoothFitRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardBoothFit"];
                 };
             };
             /** @description Validation Error */

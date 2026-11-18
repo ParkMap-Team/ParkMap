@@ -2527,6 +2527,18 @@
             ],
             "title": "Polygon"
           },
+          "request_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
           "route": {
             "default": [],
             "items": {
@@ -2534,6 +2546,23 @@
             },
             "title": "Route",
             "type": "array"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "enum": [
+                  "HELD",
+                  "AWAITING_CONFIRMATION",
+                  "OCCUPIED_CONFIRMED",
+                  "RELEASED"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
           },
           "width_m": {
             "title": "Width M",
@@ -2551,6 +2580,21 @@
       },
       "GuardBoothFitHold": {
         "properties": {
+          "channel": {
+            "anyOf": [
+              {
+                "enum": [
+                  "GUARD_BOOTH",
+                  "LINE"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel"
+          },
           "expires_at": {
             "format": "date-time",
             "title": "Expires At",
@@ -2570,6 +2614,29 @@
             },
             "title": "Polygon",
             "type": "array"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "stage": {
+            "default": "HELD",
+            "enum": [
+              "HELD",
+              "AWAITING_CONFIRMATION",
+              "OCCUPIED_CONFIRMED",
+              "RELEASED"
+            ],
+            "title": "Stage",
+            "type": "string"
           }
         },
         "required": [
@@ -7285,6 +7352,100 @@
           }
         },
         "summary": "Get Lot Model"
+      }
+    },
+    "/api/sites/{site_id}/parking-holds": {
+      "get": {
+        "operationId": "get_parking_holds_api_sites__site_id__parking_holds_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Site Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GuardBoothFitHold"
+                  },
+                  "title": "Response Get Parking Holds Api Sites  Site Id  Parking Holds Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Parking Holds"
+      }
+    },
+    "/api/sites/{site_id}/parking-recommendation": {
+      "post": {
+        "operationId": "recommend_line_parking_api_sites__site_id__parking_recommendation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Site Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuardBoothFitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardBoothFit"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recommend Line Parking"
       }
     },
     "/api/sites/{site_id}/parking-state": {

@@ -20,3 +20,4 @@
 - [0018: Motorcycle settings in the LINE OA conversation](0018-line-motorcycle-settings.md)
 
 - [0019: Require motorcycle selection in LIFF](0019-liff-required-motorcycle.md)
+- [0020: Share recommendation holds across Guard Booth and LINE](0020-shared-recommendation-holds.md)
