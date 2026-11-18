@@ -111,14 +111,52 @@ def test_a_clip_is_classified_once_until_the_file_changes(monkeypatch, tmp_path)
         return evidence(*[ride(0)] * len(calls))
 
     monkeypatch.setattr(guard_booth_clip.video_classifier, "track_clip", track_clip)
-    classifier = GuardBoothClipClassifier()
-    first = classifier.classify(configured_clip())
-    assert classifier.classify(configured_clip()) is first
+    classifier = GuardBoothClipClassifier(start=run_now)
+    first = classifier.evidence(configured_clip())
+    assert classifier.evidence(configured_clip()) is first
     assert calls == [(path, guard_booth_clip.MODEL_ID, guard_booth_clip.CLIP_SAMPLE_FPS)]
 
     path.write_bytes(b"replaced clip")
     os.utime(path, ns=(1, 1))
-    assert len(classifier.classify(configured_clip()).tracks) == 2
+    assert len(classifier.evidence(configured_clip()).tracks) == 2
+
+
+def test_no_request_waits_while_the_clip_is_tracked(monkeypatch, tmp_path):
+    path = tmp_path / "clip.mp4"
+    path.write_bytes(b"clip")
+    monkeypatch.setenv(guard_booth_clip.CLIP_PATH_ENV, str(path))
+    monkeypatch.setattr(guard_booth_clip.video_classifier, "track_clip", lambda *_: evidence(ride(0)))
+    runs = []
+    classifier = GuardBoothClipClassifier(start=runs.append)
+    assert classifier.evidence(configured_clip()) is None
+    assert classifier.evidence(configured_clip()) is None
+    [run] = runs
+    run()
+    assert len(classifier.evidence(configured_clip()).tracks) == 1
+    assert len(runs) == 1
+
+
+def test_a_failed_run_is_reported_once_and_then_tracked_again(monkeypatch, tmp_path):
+    path = tmp_path / "clip.mp4"
+    path.write_bytes(b"clip")
+    monkeypatch.setenv(guard_booth_clip.CLIP_PATH_ENV, str(path))
+    outcomes = [OSError("disk"), evidence(ride(0))]
+
+    def track_clip(*_):
+        outcome = outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    monkeypatch.setattr(guard_booth_clip.video_classifier, "track_clip", track_clip)
+    classifier = GuardBoothClipClassifier(start=run_now)
+    with pytest.raises(OSError):
+        classifier.evidence(configured_clip())
+    assert len(classifier.evidence(configured_clip()).tracks) == 1
+
+
+def run_now(run):
+    run()
 
 
 @pytest.fixture
@@ -128,8 +166,21 @@ def booth_clip(monkeypatch, tmp_path):
     monkeypatch.setenv("PARKMAP_GUARD_BOOTH_FIT_PREVIEW", "1")
     monkeypatch.setenv(guard_booth_clip.CLIP_PATH_ENV, str(path))
     monkeypatch.delenv(guard_booth_clip.CLIP_ZONE_ENV, raising=False)
-    monkeypatch.setattr(main, "_guard_booth_classifier", GuardBoothClipClassifier())
+    monkeypatch.setattr(main, "_guard_booth_classifier", GuardBoothClipClassifier(start=run_now))
     return path
+
+
+def test_the_api_starts_tracking_the_clip_when_it_starts(booth_clip, monkeypatch):
+    runs = []
+    monkeypatch.setattr(main, "_guard_booth_classifier", GuardBoothClipClassifier(start=runs.append))
+    monkeypatch.setattr(guard_booth_clip.video_classifier, "track_clip", lambda *_: evidence(ride(3.0)))
+    with TestClient(app) as client:
+        assert len(runs) == 1
+        pending = client.get("/api/sites/sripatum/guard-booth-classification")
+        assert (pending.status_code, pending.headers["retry-after"], pending.headers["cache-control"]) == (503, str(guard_booth_clip.CLASSIFICATION_RETRY_S), "no-store")
+        runs[0]()
+        assert client.get("/api/sites/sripatum/guard-booth-classification").status_code == 200
+    assert len(runs) == 1
 
 
 def test_booth_endpoints_stay_hidden_without_the_preview_flag_or_a_clip(booth_clip, monkeypatch):
@@ -169,6 +220,7 @@ def test_booth_classification_setup_failures_are_unavailable(booth_clip, monkeyp
     monkeypatch.setattr(guard_booth_clip.video_classifier, "track_clip", fail)
     response = TestClient(app).get("/api/sites/sripatum/guard-booth-classification")
     assert response.status_code == 503
+    assert "retry-after" not in response.headers
 
 
 def test_fit_requests_accept_every_family_with_a_reference_size():

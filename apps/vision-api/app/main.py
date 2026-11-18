@@ -1,6 +1,7 @@
 import hmac
 import json
 import os
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from pathlib import Path as FilePath
@@ -63,6 +64,7 @@ from app.services.ground_plane_homography_service import (
     ground_plane_homography_service,
 )
 from app.services.guard_booth_clip import (
+    CLASSIFICATION_RETRY_S,
     GuardBoothClassification,
     GuardBoothClip,
     GuardBoothClipClassifier,
@@ -102,7 +104,16 @@ ImagesFile = File(..., alias="images")
 
 load_dotenv()
 
-app = FastAPI(title="ParkMap API", version="0.2.0", description="API boundary for ParkMap monitoring and the future CV pipeline.")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Tracking the entrance clip takes minutes on a server CPU; start it before the first visitor asks.
+    if os.getenv("PARKMAP_GUARD_BOOTH_FIT_PREVIEW") == "1" and (clip := configured_clip()) is not None:
+        _guard_booth_classifier.evidence(clip)
+    yield
+
+
+app = FastAPI(title="ParkMap API", version="0.2.0", description="API boundary for ParkMap monitoring and the future CV pipeline.", lifespan=lifespan)
 app.include_router(lot_model_editor_router)
 app.include_router(annotations_router)
 app.include_router(classifier_router)
@@ -219,15 +230,25 @@ def get_guard_booth_clip(site_id: str = SiteId) -> FileResponse:
     return FileResponse(clip.path, media_type=clip.media_type, headers={"Cache-Control": "no-store"})
 
 
-@app.get("/api/sites/{site_id}/guard-booth-classification", response_model=GuardBoothClassification)
+@app.get(
+    "/api/sites/{site_id}/guard-booth-classification",
+    response_model=GuardBoothClassification,
+    responses={503: {"description": "Still classifying the clip when `Retry-After` is set; otherwise unavailable."}},
+)
 def classify_guard_booth_clip(response: Response, site_id: str = SiteId) -> GuardBoothClassification:
     clip = _guard_booth_clip(site_id)
     response.headers["Cache-Control"] = "no-store"
     try:
-        evidence = _guard_booth_classifier.classify(clip)
+        evidence = _guard_booth_classifier.evidence(clip)
     # An unreadable clip (HTTPException from the video pipeline) and missing checkpoints are operator setup problems.
     except (HTTPException, ModelUnavailableError, ImportError, KeyError, OSError, RuntimeError, ValueError) as error:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Guard Booth classification is unavailable.") from error
+    if evidence is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Guard Booth classification is still running.",
+            headers={"Retry-After": str(CLASSIFICATION_RETRY_S), "Cache-Control": "no-store"},
+        )
     return summarize(evidence, clip.zone, load_rules())
 
 

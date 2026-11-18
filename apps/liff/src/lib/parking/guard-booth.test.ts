@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { GuardBoothRider, LotModel, MetricPolygon, ParkingAreaLiveState } from "../api/types.ts";
 import { buildLotMap } from "../map/lot-map.ts";
-import { activeParkingHolds, activeRiders, applyParkingHolds, arrivedRider, enqueueRider, entranceClipCrop, entranceClipOutcome, guardBoothFitFamily, guardBoothFrame, guardBoothHeadline, guardBoothModelName, guardBoothPreviewDestination, PARKING_HOLD_MS, RIDER_COLORS, RIDER_QUEUE_LIMIT, RIDER_QUEUE_MS, riderGuide, riderTitle, routeRiderSeq, sripatumPreviewRoute } from "./guard-booth.ts";
+import { activeParkingHolds, activeRiders, applyParkingHolds, arrivedRider, CLASSIFICATION_RETRY_MAX_MS, classificationRetryMs, enqueueRider, entranceClipCrop, entranceClipOutcome, guardBoothFitFamily, guardBoothFrame, guardBoothHeadline, guardBoothModelName, guardBoothPreviewDestination, PARKING_HOLD_MS, RIDER_COLORS, RIDER_QUEUE_LIMIT, RIDER_QUEUE_MS, riderGuide, riderTitle, routeRiderSeq, sripatumPreviewRoute } from "./guard-booth.ts";
 
 const polygon: MetricPolygon = [[{ x_m: 0, y_m: 0 }, { x_m: 2, y_m: 0 }, { x_m: 2, y_m: 2 }, { x_m: 0, y_m: 2 }]];
 const lot: LotModel = { schema_version: 1, site_id: "test", version: 1, outline: polygon, unmonitored: [], parking_areas: [{ parking_area_id: "area", polygon }] };
@@ -194,4 +194,12 @@ test("only a rider that arrived alone and is still alone gets the route", () => 
   assert.equal(routeRiderSeq(activeRiders(both, RIDER_QUEUE_MS)), undefined);
   // A rider arriving after the queue emptied gets it again.
   assert.equal(routeRiderSeq(enqueueRider(both, arrival(3, 5_000 + RIDER_QUEUE_MS), 5_000 + RIDER_QUEUE_MS)), 3);
+});
+
+test("the clip's riders are asked for again only while the API is still classifying it", () => {
+  assert.equal(classificationRetryMs(503, "5"), 5_000);
+  assert.equal(classificationRetryMs(503, "3600"), CLASSIFICATION_RETRY_MAX_MS);
+  for (const [status, retryAfter] of [[503, null], [503, "0"], [503, "soon"], [503, "1.5"], [502, "5"], [404, "5"]] as const) {
+    assert.equal(classificationRetryMs(status, retryAfter), undefined, `${status} ${retryAfter}`);
+  }
 });

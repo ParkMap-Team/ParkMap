@@ -7149,6 +7149,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "description": "Still classifying the clip when `Retry-After` is set; otherwise unavailable."
           }
         },
         "summary": "Classify Guard Booth Clip"

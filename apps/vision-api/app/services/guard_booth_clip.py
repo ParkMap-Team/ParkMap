@@ -1,17 +1,19 @@
 """Identify each motorcycle that rides into the Guard Booth entrance clip for the recorded preview.
 
 The clip is stand-in data configured by the operator. It runs through the operator video pipeline
-(sampled frames, ByteTrack, ConvNeXt averaged per track) and its track evidence is cached per clip
-file and model, because the clip loops on the booth screen. A rider is a sustained track that
-moves through the clip and reaches the booth zone; a parked motorcycle in view is not a rider.
+(sampled frames, ByteTrack, ConvNeXt averaged per track) in the background from API startup, and its
+track evidence is cached per clip file and model, because the clip loops on the booth screen. A rider
+is a sustained track that moves through the clip and reaches the booth zone; a parked motorcycle in
+view is not a rider.
 """
 
 import logging
 import math
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from threading import Lock
+from threading import Lock, Thread
 from typing import Literal
 
 from pydantic import BaseModel
@@ -27,6 +29,8 @@ logger = logging.getLogger(__name__)
 CLIP_PATH_ENV = "PARKMAP_GUARD_BOOTH_CLIP_PATH"
 CLIP_ZONE_ENV = "PARKMAP_GUARD_BOOTH_CLIP_ZONE"
 CLIP_SAMPLE_FPS = 5
+# How long a client waits before asking again while the clip is still being tracked.
+CLASSIFICATION_RETRY_S = 5
 # Net ground movement, as a fraction of the frame, between a track's first and last sighting.
 # Riders in the stand-in clip move 0.4 or more; a parked motorcycle ends within 0.1 of where it started.
 MIN_RIDER_TRAVEL = 0.15
@@ -140,19 +144,52 @@ def summarize(clip: ClipEvidence, zone: BoothZone, rules: ReferenceSizeRules) ->
     return GuardBoothClassification(model_id=MODEL_ID, riders=sorted(riders, key=lambda rider: rider.arrival_s))
 
 
+def _start_thread(run: Callable[[], None]) -> None:
+    Thread(target=run, name="guard-booth-clip", daemon=True).start()
+
+
 class GuardBoothClipClassifier:
-    """Keeps the latest clip evidence; a replaced clip file or model is tracked again."""
+    """Tracks the clip in the background, because tracking it on a server CPU takes minutes.
 
-    def __init__(self) -> None:
+    No request waits for tracking: `evidence` starts it and reports `None` until it is done. The latest
+    evidence is kept per clip file and model; a replaced clip file or model is tracked again. A failed
+    run is reported once, and the next request tracks the clip again.
+    """
+
+    def __init__(self, start: Callable[[Callable[[], None]], None] = _start_thread) -> None:
+        self._start = start
         self._lock = Lock()
-        self._cached: tuple[tuple[Path, tuple[int, int], str], ClipEvidence] | None = None
+        self._key: tuple[Path, tuple[int, int], str] | None = None
+        self._evidence: ClipEvidence | None = None
+        self._error: Exception | None = None
 
-    def classify(self, clip: GuardBoothClip) -> ClipEvidence:
+    def evidence(self, clip: GuardBoothClip) -> ClipEvidence | None:
+        """The clip's evidence, or `None` while it is tracked. A failed run raises its error."""
         key = (clip.path, clip.version, MODEL_ID)
         with self._lock:
-            if self._cached is None or self._cached[0] != key:
-                # Shares the detector and tracker with the operator video API.
-                with video_classifier.VIDEO_LOCK:
-                    evidence = video_classifier.track_clip(clip.path, MODEL_ID, CLIP_SAMPLE_FPS)
-                self._cached = (key, evidence)
-            return self._cached[1]
+            start = self._key != key
+            if start:
+                self._key, self._evidence, self._error = key, None, None
+        if start:
+            self._start(lambda: self._track(clip, key))
+        with self._lock:
+            if self._key != key:  # Another clip replaced this one meanwhile.
+                return None
+            if self._error is None:
+                return self._evidence
+            error, self._key, self._error = self._error, None, None
+        raise error
+
+    def _track(self, clip: GuardBoothClip, key: tuple[Path, tuple[int, int], str]) -> None:
+        evidence: ClipEvidence | None = None
+        error: Exception | None = None
+        try:
+            # Shares the detector and tracker with the operator video API.
+            with video_classifier.VIDEO_LOCK:
+                evidence = video_classifier.track_clip(clip.path, MODEL_ID, CLIP_SAMPLE_FPS)
+        except Exception as failure:  # A background run has no caller to raise to; the next request reports it.
+            logger.exception("Guard Booth clip tracking failed")
+            error = failure
+        with self._lock:
+            if self._key == key:
+                self._evidence, self._error = evidence, error

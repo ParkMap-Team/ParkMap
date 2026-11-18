@@ -127,9 +127,12 @@ the parking map, once per still-image photo: the next photo restarts it (see
 Entrance clip in `CONTEXT.md`). Run the worker with `--hold-s` at least the clip
 length plus the 4 s poll and the worker's analysis time, for example
 `--hold-s 25` for a 17.3 s clip; a shorter hold cuts the clip short. `guard-booth-clip` serves the file with Range support.
-`guard-booth-classification` runs the Classify Video detector, tracker and
-ConvNeXt on it at 5 sampled fps, caches the track evidence until the file or
-classifier changes, and returns its riders in arrival order. A rider is a track
+The API runs the Classify Video detector, tracker and ConvNeXt on it at 5
+sampled fps in the background from startup, because that takes minutes on a
+server CPU, and caches the track evidence in memory until the file or classifier
+changes. Until then `guard-booth-classification` answers 503 with `Retry-After`,
+and the page keeps preparing the camera and asks again; a 503 without it is a
+setup failure. Once tracked, it returns the clip's riders in arrival order. A rider is a track
 with at least `MIN_OBSERVATIONS` observations whose ground point (bottom centre
 of its box) ends at least 0.15 of the frame away from where it started, so a
 motorcycle parked in view is not a rider. Its `arrival_s` is when that ground
