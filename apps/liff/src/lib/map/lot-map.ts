@@ -83,6 +83,19 @@ export function buildLotMap(lotModel: LotModel, states: ParkingAreaLiveState[] |
   };
 }
 
+/**
+ * The lot as a rider's map draws it (ADR 0024): every area plain ground with its motorcycles, and of
+ * the live state only the free ground (`AVAILABLE` and `WIDTH_SUFFICIENT`), which the map shows as a
+ * soft shadow rather than cells, because the lot has no fixed spaces. An area without a current state
+ * has no regions, so nothing stale or unproven shows as free.
+ */
+export function plainLotMap(map: LotMap): LotMap {
+  return {
+    ...map,
+    areas: map.areas.map((area) => ({ ...area, unknownReason: null, regions: area.regions.filter(({ kind }) => kind === "AVAILABLE" || kind === "WIDTH_SUFFICIENT") })),
+  };
+}
+
 export type MapHit = { status: MapStatus; polygon: MetricPolygon; area: MapArea | null; unknownReason: UnknownReason | null; region?: LiveRegion };
 
 /** What the map shows at a ground point, in drawing order from the top; null outside the lot. */

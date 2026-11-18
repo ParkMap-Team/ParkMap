@@ -27,14 +27,18 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 - **Proxy size tolerance**: the initial demo checks that the shared standard proxy footprint renders within ±30% of its documented reference dimensions; it does not compare a proxy with the real dimensions of an individual detected motorcycle and is not a production accuracy target.
 - **Proxy heading tolerance**: the initial demo evaluates the undirected long-axis angle within 15 degrees of a reference; headings separated by 180 degrees are equivalent because front versus rear is not currently resolved.
 - **Proxy reference set**: proxy evaluation uses the existing recorded demo line with manually annotated sample motorcycles containing a ground point, long axis, and reference length and width.
-- **Classifier reference-size experiment**: local Parking can map predicted families to editable width/length references and compare experimental occupied/free geometry with the standard result. Initial references equal the existing standard footprint, not individual measurements. Incoming vehicles keep standard fitting dimensions. Worker, published state and LIFF do not use these references; locked-reference validation is still required before replacing standard demo behavior.
+- **Classifier reference-size experiment**: local Parking can map predicted families to editable width/length references and compare experimental occupied/free geometry with the standard result. Initial references equal the existing standard footprint, not individual measurements. Incoming vehicles keep standard fitting dimensions. Worker, published state and LIFF availability do not use these references; only the recorded Guard Booth preview fits a sample frame with them, by width alone: its frame spans the row's own depth whatever the motorcycle's length, since a longer motorcycle may run past the row; locked-reference validation is still required before replacing standard demo behavior.
+- **Entrance clip**: a stand-in video that the recorded Sripatum Guard Booth preview plays in a panel beside the parking map. With a Still-image loop, each photo is one **scene**: the clip plays once from its start with that photo and waits on its last frame; the next photo restarts it, ends the previous scene's riders and releases their holds, so the camera and the lot always change together. The worker's `--hold-s` must cover the clip plus a poll. Without a current photo the clip simply loops. Each **rider** in it (a sustained track from the Classify Video pipeline that moves through the clip and reaches the booth zone) joins a queue under the clip when it reaches that zone: a card with a number, a colour, the rider's photo, its model and one short instruction with an icon (go to its pin, finding a place, park in the green space, or no place found), and a pin of the same number and colour on the map. Cards show no confidence score and keep a fixed size whatever they say, so the map never refits under them. Riders close together each keep their own card and fit request, so each is held a different place. A card stays 30 seconds whatever arrives after it; at most three are shown, and a fourth rider drops the oldest. Only a rider that arrives into an empty queue gets a route on the map, and only while it stays alone; riders close together get their pins only, so arrows never chase each other. A motorcycle parked in view does not move and is not a rider. A rider whose family is not confident is shown as an unknown model; a named family without a reference size gets no placement. The clip supports no accuracy claim and never changes published availability.
+- **Source wording**: LIFF shows no demo, sample, recorded or stand-in wording for any source; drivers see one finished product. The source stays explicit in the API (`RECORDED_REPLAY`, `STILL_IMAGE_LOOP`, `DEMO` and so on), and status semantics, stale and lost-connection warnings are unchanged.
 - **Vision API Python support**: `apps/vision-api` requires CPython `3.12`; the dependency lock, CI, local setup, and deployment instructions use Python 3.12 consistently.
 - **Vision API dependency workflow**: `apps/vision-api` installs its runtime and development dependency groups with `uv sync --locked --all-groups`; CI and local development use the committed `uv.lock` rather than compiling or installing requirements files.
 - **LIFF motorcycle proxy asset**: the LIFF app uses a generic motorcycle GLB 3D model bundled in the repository with a clearly documented license such as CC0 or Apache-2.0. It visualizes a detection's position, long-axis direction, and approximate size; it is not a reconstruction of the actual vehicle and is not loaded from a runtime-hosted external URL.
 - **LIFF camera controls**: the 3D lot view starts in an elevated overview preset that frames the whole lot. It provides pan, zoom, rotation and tilt around the point in view, a reset control that returns to the overview, and an optional free-fly mode for arbitrary navigation through the static lot model; it does not provide an entrance-view preset. Changing the virtual viewpoint never creates new observation evidence or changes `UNKNOWN` or `UNMONITORED` ground into available space.
-- **LIFF map status colours**: 2D and 3D use the same API-status semantics: `AVAILABLE` is green, `ALMOST_AVAILABLE` is yellow, occupied evidence is red, `UNKNOWN` is a distinct non-availability colour, and `UNMONITORED` is a separate dark treatment. A legend explains the mapping.
+- **LIFF map status colours**: 2D and 3D use the same API-status semantics. The Guard Booth paints them all: `AVAILABLE` is green, `ALMOST_AVAILABLE` is yellow, occupied evidence is red, `UNKNOWN` is a distinct non-availability colour, and `UNMONITORED` is a separate dark treatment. A rider's map in LINE paints no cells (ADR 0024): the lot has no fixed spaces, so it shows plain ground, the detected motorcycles, the ground outside the cameras, and free ground (`AVAILABLE` and `WIDTH_SUFFICIENT`) as a soft neon-green glow with no edge or outline. Where the guide recommends, that free ground is only where the rider's saved model fits and the guide can route; the parking guide's recommended place is the one solid green block. The card still words the lot's state, and its key names only what the map draws.
+  _Avoid_: drawing free ground as cells or outlined boxes, or painting occupied, advisory or unknown ground, on a rider's map
 - **LIFF map fallback**: the LIFF app falls back to a top-down 2D map immediately when WebGL is unavailable, or when the 3D scene does not finish loading within 10 seconds; there is no runtime frame-rate trigger. Users can switch between 2D and 3D manually when both renderers are available.
-- **Near-me site list**: the LIFF `/nearby` page, opened from the rich menu, lists sites and offers a "use my location" action that sorts them by distance and shows each distance. The final has one real site, so sorting is proven with two seeded sites in tests; a second real site stays out of scope. The browser asks for location only when the user taps that action, computes distances on the device, and keeps the position in page memory only: it is never sent to the API, a Next route handler, logs, or analytics, and never stored in browser storage, so each visit asks again. The list renders by name without waiting for location, so a single site stays one tap away; if permission is denied, geolocation is unsupported, or no position arrives within 10 seconds, the list stays as it is with a short message and no sorting.
+- **Nearby parking map**: the LIFF `/nearby` tab, always available, shows a street map that always opens on the campus grounds, with a pin for every place to park a motorcycle within 2 km of the campus and nothing else over it (ADR 0022); tapping a pin opens a sheet with that place's details. Lots with cameras link to their live map; the other places are ones the team checked on foot, with their fee, hours, roof and photo, and OpenStreetMap places the team has not listed, marked as such. None of them makes an availability claim. Each place offers Google Maps directions. The page never asks for the rider's location and shows no distances; Google Maps finds the start of the directions itself. If the map cannot start, such as without WebGL, the places show as a list instead.
+  _Avoid_: showing a listed or OpenStreetMap place as free or full
 - **Entrance camera**: fixed camera at a site's entrance that reads the licence plates of entering motorcycles. It observes no parking area and makes no availability claim.
 - **Registered plate**: a licence plate, identified by its characters and number together with its province, that a student binds to their LINE account; one plate per account and one account per plate, and the first registration wins. Ownership is not verified, so a plate can be claimed by someone who is not its owner.
 - **Plate match**: an entrance-camera read matches a registered plate only on a confident read of the characters and number; it also needs the province when that is read confidently, and otherwise exactly one registered plate with those characters and number. Low-confidence reads are discarded, never matched approximately.
@@ -44,6 +48,7 @@ ParkMap is a fourth-year project at Sripatum University. Motorcycles are parked 
 - **Synchronized replay**: an entrance video and a parking-area video replayed on one clock, aligned by a video offset set from an event visible in both, such as a clap or a flash. Plate handoff is only defined within a synchronized replay or between live cameras on one clock.
 - **Wrong-record rate**: the share of parking records whose position belongs to a motorcycle other than the registered plate's, measured against team-labelled ground truth. The target is zero; coverage, the share of entries that get a parking record, is reported alongside it.
 - **Entrance sighting**: the latest time the entrance camera produced a plate match for a registered plate. It is shown when there is no parking record, so the student knows the motorcycle entered even though its stop was not recorded.
+- **Marked spot**: where a rider said they parked: the ground point of the place the LINE parking guide recommended, saved by the rider after the route is drawn and kept under their verified LINE account for 24 hours (ADR 0021). It states where the rider said they parked and when, never that the motorcycle is still there, and it never affects availability.
 
 ## Current implementation
 
@@ -56,12 +61,19 @@ Occluded or uncertain intervals remain UNKNOWN. It does not evaluate vehicle
 length or access paths, and does not change worker/LIFF fitting. The irregular
 visible-patch experiment is retained as an inactive diagnostic, not the operator
 Analyze default. See docs/segmentation-gaps.md.
-Parking Analyze now uses the configured Seg model as its primary detector by default for both
-images and video frames. One segmentation inference feeds the image boxes,
+Parking offers YOLO26n Detect Round 10 and YOLO26n Seg Round 8. Image analysis
+with Seg also computes gaps at the standard reference width and the configured
+lateral margin. For videos,
+the operator can pick a still or ask the UI to sample up to six frames and
+rank them by YOLO detection score and crop size. The crop gallery includes
+detections across the analyzed frames and labels each crop with its timestamp.
+The operator can select crops from
+multiple frames to classify with ConvNeXt FT and save the results in the private
+operator database table. One segmentation inference for an uploaded image feeds the image boxes,
 masks and rectangular-gap diagnostics. The former Physical Map / Camera View,
 parking-state summary and bottom Summary section are removed from Parking;
-the Seg camera overlay and metric top-down gap map remain. Classifier controls and
-class-derived size experiments are removed from the web flow. Local trained
+the Seg camera overlay and metric top-down gap map remain. Class-derived size
+experiments are removed from the web flow. Local trained
 classifier artifacts and legacy operator APIs remain available separately;
 the worker now uses Seg for standard-size proxies and UNKNOWN row publication. A missing Seg model fails explicitly
 rather than silently substituting the original detector.
@@ -117,7 +129,7 @@ These results never feed availability, incoming fitting, worker or LIFF.
 
 1. A recorded video from one fixed viewpoint stands in for the camera on the hidden parking area; the final deliverable is this replay, not an installed camera (ADR 0005). A separate entrance view may estimate incoming motorcycle dimensions.
 2. An inference worker processes frames, applies camera calibration and parking geometry, and publishes a timestamped state with confidence and evidence freshness.
-3. A student opens the web app from the LINE Official Account rich menu via LIFF and sees a surveyed map with green candidate regions, yellow advisory regions, and unknown regions. Opening an area shows the analysed photo the state was derived from (ADR 0017).
+3. A student opens the web app from the LINE Official Account rich menu via LIFF and sees the surveyed lot with its detected motorcycles, its free ground as a soft green shadow, and a sentence on its state; the parking guide paints the place it recommends green (ADR 0024). Opening an area shows the analysed photo the state was derived from (ADR 0017).
 4. Deferred beyond the first release: a dimension estimate from the entrance view may rank compatible candidate regions. Brand recognition alone cannot establish physical dimensions, and matching an entrance observation to the student viewing LIFF is unresolved. Until then, candidates are ranked for a standard motorcycle footprint.
 5. Proposed for the final, pending advisor approval (ADR 0010): a student who registered a plate opens "where I parked" and sees their parking record on the lot model, or, without one, the reason and their entrance sighting. The student marks nothing.
 
@@ -128,6 +140,15 @@ Three processes, all on Coolify (ADR 0005): the LIFF app, the FastAPI API with P
 The 3D map is a static surveyed lot model with detections drawn as motorcycle proxies. A single camera video does not establish hidden geometry or arbitrary viewpoints; validate the lot model against surveyed reference points before claiming it represents the real lot.
 
 ## Boundaries and safety
+
+Guard Booth and explicit LINE parking recommendations share PostgreSQL holds
+(ADR 0020). The whole recommended frame blocks both channels for two minutes;
+after that it remains blocked until fresh compatible Segment evidence confirms
+it empty. Segment confirms region occupancy without matching a rider across
+cameras. Retried requests keep their original frame and deadline. Ordinary map
+viewing creates no hold. Demo entrance scenes may end only their own marked
+preview holds, never LINE holds. The current Sripatum width-only fitter retains
+its existing experimental scope and aisle directions.
 
 - The Python service owns detection, calibration, occupancy, and recommendation calculations. The web app renders results and owns LIFF integration.
 - A LINE rich-menu URL can open LIFF without a bot server. Add a webhook service only when message/postback behavior is required; it need not be NestJS solely for a link.

@@ -16,12 +16,12 @@ export const STATUS_TEXT: Record<MapStatus, { label: string; detail: string; mar
     mark: "solid",
   },
   AVAILABLE: {
-    label: "มีพื้นที่จอด",
+    label: "มีที่ว่าง",
     detail: "ระบบพบพื้นที่ว่างพอสำหรับรถจักรยานยนต์ ณ เวลาที่ประมวลผล อาจเปลี่ยนไปก่อนที่คุณจะไปถึง",
     mark: "solid",
   },
   ALMOST_AVAILABLE: {
-    label: "อาจจอดได้หากมีการขยับรถ",
+    label: "อาจพอ ถ้าขยับรถข้างๆ",
     detail: "เป็นข้อมูลแนะนำเท่านั้น พื้นที่นี้จะพอจอดได้ก็ต่อเมื่อรถที่อยู่ใกล้เคียงขยับออกไป",
     mark: "dashed",
   },
@@ -41,16 +41,24 @@ export const STATUS_TEXT: Record<MapStatus, { label: string; detail: string; mar
     mark: "plain",
   },
   UNMONITORED: {
-    label: "อยู่นอกพื้นที่ตรวจสอบ",
+    label: "นอกมุมกล้อง",
     detail: "กล้องไม่ได้ดูแลส่วนนี้ ระบบจึงไม่รู้สถานะ",
     mark: "dots",
   },
 };
 
-/** The legend lists what can appear on the map, in the order a student reads it. */
-export const LEGEND_ORDER: MapStatus[] = ["AVAILABLE", "WIDTH_SUFFICIENT", "ALMOST_AVAILABLE", "OCCUPIED", "UNKNOWN", "UNMONITORED"];
-/** Compact legend requested for the student map; detailed states remain available on selection. */
-export const MAP_LEGEND_ORDER: MapStatus[] = ["AVAILABLE", "ALMOST_AVAILABLE", "OCCUPIED", "UNMONITORED"];
+/**
+ * A rider's map (ADR 0024) draws free ground as one soft shadow, the motorcycles, and the ground
+ * outside the cameras, so its key names only those. Free ground is one row named for the best free
+ * status present, the one a tap on it reports. The recommended place is labelled on the map.
+ */
+export type LegendRow = { status: MapStatus; present: boolean };
+
+/** One list that is both the key and the way to find each of its statuses on the map. */
+export function legendRows(present: ReadonlySet<MapStatus>): LegendRow[] {
+  const free: MapStatus = !present.has("AVAILABLE") && present.has("WIDTH_SUFFICIENT") ? "WIDTH_SUFFICIENT" : "AVAILABLE";
+  return ([free, "OCCUPIED", "UNMONITORED"] as const).map((status) => ({ status, present: present.has(status) }));
+}
 
 /** Why ground is unknown, only as far as the API says; an UNKNOWN region carries no reason. */
 export function unknownReasonText(reason: UnknownReason): string | null {

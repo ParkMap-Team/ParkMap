@@ -14,7 +14,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "node --experimental-strip-types --test \"src/**/*.test.ts\" \"scripts/**/*.test.ts\"",
     "api:generate": "openapi-typescript ../vision-api/openapi.json -o src/lib/api/schema.gen.ts",
-    "rich-menu": "node --experimental-strip-types scripts/rich-menu/deploy.ts"
+    "rich-menu": "node --experimental-strip-types scripts/rich-menu/deploy.ts",
+    "nearby:osm": "node --experimental-strip-types scripts/nearby-osm.ts"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
@@ -25,6 +26,7 @@
     "class-variance-authority": "0.7.1",
     "cn": "0.4.0",
     "lucide-react": "1.31.0",
+    "maplibre-gl": "6.16.0",
     "motion": "13.4.6",
     "next": "16.3.7",
     "openapi-fetch": "0.17.0",

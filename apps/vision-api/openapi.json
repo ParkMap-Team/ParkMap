@@ -195,6 +195,15 @@
             ],
             "title": "Primary Detector",
             "type": "string"
+          },
+          "segmentation_model": {
+            "default": "configured",
+            "enum": [
+              "configured",
+              "yolo26n-seg"
+            ],
+            "title": "Segmentation Model",
+            "type": "string"
           }
         },
         "required": [
@@ -246,6 +255,117 @@
           "image"
         ],
         "title": "Body_analyze_hybrid_parking_api_hybrid_parking_analyze_post",
+        "type": "object"
+      },
+      "Body_classify_selected_frame_api_operator_classifier_classify_frame_post": {
+        "properties": {
+          "boxes": {
+            "maxLength": 16000,
+            "title": "Boxes",
+            "type": "string"
+          },
+          "clip_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clip Id"
+          },
+          "frame_time_seconds": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frame Time Seconds"
+          },
+          "image": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Image",
+            "type": "string"
+          },
+          "review_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Id"
+          }
+        },
+        "required": [
+          "image",
+          "boxes"
+        ],
+        "title": "Body_classify_selected_frame_api_operator_classifier_classify_frame_post",
+        "type": "object"
+      },
+      "Body_classify_video_api_operator_classifier_video_post": {
+        "properties": {
+          "fps": {
+            "default": "1",
+            "enum": [
+              "1",
+              "2"
+            ],
+            "title": "Fps",
+            "type": "string"
+          },
+          "video": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Video",
+            "type": "string"
+          }
+        },
+        "required": [
+          "video"
+        ],
+        "title": "Body_classify_video_api_operator_classifier_video_post",
+        "type": "object"
+      },
+      "Body_detect_captured_frame_api_operator_classifier_detect_frame_post": {
+        "properties": {
+          "detector": {
+            "default": "yolo26n",
+            "enum": [
+              "yolo26n",
+              "yolo26n-seg"
+            ],
+            "title": "Detector",
+            "type": "string"
+          },
+          "image": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Image",
+            "type": "string"
+          },
+          "mode": {
+            "default": "near",
+            "enum": [
+              "wide",
+              "near"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "title": "Body_detect_captured_frame_api_operator_classifier_detect_frame_post",
         "type": "object"
       },
       "Body_predict_api_operator_classifier_predict_post": {
@@ -678,6 +798,73 @@
           "detections"
         ],
         "title": "DetectionResponse",
+        "type": "object"
+      },
+      "FrameDetectionResponse": {
+        "properties": {
+          "crop_padding_ratio": {
+            "default": 0.05,
+            "title": "Crop Padding Ratio",
+            "type": "number"
+          },
+          "detections": {
+            "items": {
+              "$ref": "#/components/schemas/Detection"
+            },
+            "title": "Detections",
+            "type": "array"
+          },
+          "image_height": {
+            "exclusiveMinimum": 0.0,
+            "title": "Image Height",
+            "type": "integer"
+          },
+          "image_width": {
+            "exclusiveMinimum": 0.0,
+            "title": "Image Width",
+            "type": "integer"
+          },
+          "inference": {
+            "$ref": "#/components/schemas/DetectionInference"
+          },
+          "max_selected_boxes": {
+            "default": 60,
+            "title": "Max Selected Boxes",
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "wide",
+              "near"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "model": {
+            "$ref": "#/components/schemas/DetectionAnalysisModel"
+          },
+          "parking_analysis": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parking Analysis"
+          }
+        },
+        "required": [
+          "image_width",
+          "image_height",
+          "model",
+          "inference",
+          "detections",
+          "mode"
+        ],
+        "title": "FrameDetectionResponse",
         "type": "object"
       },
       "GapBackgroundRegion": {
@@ -2259,6 +2446,28 @@
         "title": "GroundReferenceDistance",
         "type": "object"
       },
+      "GuardBoothClassification": {
+        "description": "Riders in clip order. No rider means no motorcycle rode into the booth zone.",
+        "properties": {
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          },
+          "riders": {
+            "items": {
+              "$ref": "#/components/schemas/GuardBoothRider"
+            },
+            "title": "Riders",
+            "type": "array"
+          }
+        },
+        "required": [
+          "model_id",
+          "riders"
+        ],
+        "title": "GuardBoothClassification",
+        "type": "object"
+      },
       "GuardBoothFit": {
         "properties": {
           "expires_at": {
@@ -2274,10 +2483,6 @@
             "title": "Expires At"
           },
           "family": {
-            "enum": [
-              "grand_filano",
-              "forza"
-            ],
             "title": "Family",
             "type": "string"
           },
@@ -2322,6 +2527,40 @@
             ],
             "title": "Polygon"
           },
+          "reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "HELD",
+                  "NO_FIT",
+                  "STATE_UNAVAILABLE",
+                  "FRAME_CHANGED",
+                  "PLACEMENT_UNAVAILABLE",
+                  "GEOMETRY_CHANGED",
+                  "RELEASED",
+                  "OCCUPIED_CONFIRMED",
+                  "AWAITING_CONFIRMATION"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
           "route": {
             "default": [],
             "items": {
@@ -2329,6 +2568,35 @@
             },
             "title": "Route",
             "type": "array"
+          },
+          "server_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server Time"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "enum": [
+                  "HELD",
+                  "AWAITING_CONFIRMATION",
+                  "OCCUPIED_CONFIRMED",
+                  "RELEASED"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
           },
           "width_m": {
             "title": "Width M",
@@ -2346,6 +2614,21 @@
       },
       "GuardBoothFitHold": {
         "properties": {
+          "channel": {
+            "anyOf": [
+              {
+                "enum": [
+                  "GUARD_BOOTH",
+                  "LINE"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel"
+          },
           "expires_at": {
             "format": "date-time",
             "title": "Expires At",
@@ -2365,6 +2648,29 @@
             },
             "title": "Polygon",
             "type": "array"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "stage": {
+            "default": "HELD",
+            "enum": [
+              "HELD",
+              "AWAITING_CONFIRMATION",
+              "OCCUPIED_CONFIRMED",
+              "RELEASED"
+            ],
+            "title": "Stage",
+            "type": "string"
           }
         },
         "required": [
@@ -2377,11 +2683,12 @@
       },
       "GuardBoothFitRequest": {
         "properties": {
+          "ends_with_photo": {
+            "default": false,
+            "title": "Ends With Photo",
+            "type": "boolean"
+          },
           "family": {
-            "enum": [
-              "grand_filano",
-              "forza"
-            ],
             "title": "Family",
             "type": "string"
           },
@@ -2402,6 +2709,90 @@
           "observed_at"
         ],
         "title": "GuardBoothFitRequest",
+        "type": "object"
+      },
+      "GuardBoothReferenceSize": {
+        "properties": {
+          "length_m": {
+            "title": "Length M",
+            "type": "number"
+          },
+          "width_m": {
+            "title": "Width M",
+            "type": "number"
+          }
+        },
+        "required": [
+          "width_m",
+          "length_m"
+        ],
+        "title": "GuardBoothReferenceSize",
+        "type": "object"
+      },
+      "GuardBoothRider": {
+        "description": "`family` is set only for a confidently classified rider; `arrival_s` is when it reaches the zone.",
+        "properties": {
+          "arrival_s": {
+            "title": "Arrival S",
+            "type": "number"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Url"
+          },
+          "reason": {
+            "enum": [
+              "CLASSIFIED",
+              "UNCERTAIN"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "reference_size": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GuardBoothReferenceSize"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "top3": {
+            "items": {
+              "$ref": "#/components/schemas/Prediction"
+            },
+            "title": "Top3",
+            "type": "array"
+          }
+        },
+        "required": [
+          "arrival_s",
+          "reason",
+          "family",
+          "top3",
+          "preview_url",
+          "reference_size"
+        ],
+        "title": "GuardBoothRider",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -2689,6 +3080,42 @@
           "y"
         ],
         "title": "LabelPoint",
+        "type": "object"
+      },
+      "LineParkingRequest": {
+        "properties": {
+          "ends_with_photo": {
+            "default": false,
+            "title": "Ends With Photo",
+            "type": "boolean"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "owner_key": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Owner Key",
+            "type": "string"
+          },
+          "request_id": {
+            "format": "uuid4",
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "family",
+          "request_id",
+          "observed_at",
+          "owner_key"
+        ],
+        "title": "LineParkingRequest",
         "type": "object"
       },
       "LiveRegion": {
@@ -3941,6 +4368,28 @@
         "title": "ResolvedReferenceSize",
         "type": "object"
       },
+      "SavedFrameClassification": {
+        "properties": {
+          "crops": {
+            "items": {
+              "$ref": "#/components/schemas/SelectedFrameCrop"
+            },
+            "title": "Crops",
+            "type": "array"
+          },
+          "saved_review_id": {
+            "format": "uuid",
+            "title": "Saved Review Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "crops",
+          "saved_review_id"
+        ],
+        "title": "SavedFrameClassification",
+        "type": "object"
+      },
       "SegmentationExperimentResult": {
         "properties": {
           "detections": {
@@ -4340,6 +4789,44 @@
         "title": "SegmentedMotorcycle",
         "type": "object"
       },
+      "SelectedFrameCrop": {
+        "properties": {
+          "crop_url": {
+            "title": "Crop Url",
+            "type": "string"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "top3": {
+            "items": {
+              "$ref": "#/components/schemas/Prediction"
+            },
+            "title": "Top3",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "family",
+          "top3",
+          "crop_url"
+        ],
+        "title": "SelectedFrameCrop",
+        "type": "object"
+      },
       "SiteParkingStateResponse": {
         "properties": {
           "areas": {
@@ -4404,6 +4891,66 @@
         "title": "SiteSummary",
         "type": "object"
       },
+      "TrackSummary": {
+        "properties": {
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "first_time": {
+            "title": "First Time",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_time": {
+            "title": "Last Time",
+            "type": "number"
+          },
+          "observations": {
+            "title": "Observations",
+            "type": "integer"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Url"
+          },
+          "top3": {
+            "items": {
+              "$ref": "#/components/schemas/Prediction"
+            },
+            "title": "Top3",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "observations",
+          "first_time",
+          "last_time",
+          "family",
+          "top3",
+          "preview_url"
+        ],
+        "title": "TrackSummary",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -4442,6 +4989,32 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VideoClassification": {
+        "properties": {
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          },
+          "sampled_frames": {
+            "title": "Sampled Frames",
+            "type": "integer"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/TrackSummary"
+            },
+            "title": "Tracks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "model_id",
+          "sampled_frames",
+          "tracks"
+        ],
+        "title": "VideoClassification",
         "type": "object"
       }
     }
@@ -5662,6 +6235,118 @@
         ]
       }
     },
+    "/api/operator/classifier/classify-frame": {
+      "post": {
+        "operationId": "classify_selected_frame_api_operator_classifier_classify_frame_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_classify_selected_frame_api_operator_classifier_classify_frame_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedFrameClassification"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Classify Selected Frame"
+      }
+    },
+    "/api/operator/classifier/detect-frame": {
+      "post": {
+        "operationId": "detect_captured_frame_api_operator_classifier_detect_frame_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_detect_captured_frame_api_operator_classifier_detect_frame_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FrameDetectionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Detect Captured Frame"
+      }
+    },
     "/api/operator/classifier/models": {
       "get": {
         "operationId": "list_models_api_operator_classifier_models_get",
@@ -5772,6 +6457,62 @@
         "tags": [
           "Classifier experiment"
         ]
+      }
+    },
+    "/api/operator/classifier/video": {
+      "post": {
+        "operationId": "classify_video_api_operator_classifier_video_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_classify_video_api_operator_classifier_video_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoClassification"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Classify Video"
       }
     },
     "/api/operator/lot-model/sites/{site_id}/activate": {
@@ -6510,6 +7251,89 @@
         "summary": "List Sites"
       }
     },
+    "/api/sites/{site_id}/guard-booth-classification": {
+      "get": {
+        "operationId": "classify_guard_booth_clip_api_sites__site_id__guard_booth_classification_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Site Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardBoothClassification"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "Still classifying the clip when `Retry-After` is set; otherwise unavailable."
+          }
+        },
+        "summary": "Classify Guard Booth Clip"
+      }
+    },
+    "/api/sites/{site_id}/guard-booth-clip": {
+      "get": {
+        "operationId": "get_guard_booth_clip_api_sites__site_id__guard_booth_clip_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Site Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "video/mp4": {},
+              "video/webm": {}
+            },
+            "description": "The entrance stand-in clip."
+          },
+          "404": {
+            "description": "No clip is configured."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Guard Booth Clip"
+      }
+    },
     "/api/sites/{site_id}/guard-booth-fit": {
       "post": {
         "operationId": "reserve_guard_booth_fit_api_sites__site_id__guard_booth_fit_post",
@@ -6600,8 +7424,159 @@
         "summary": "Get Lot Model"
       }
     },
+    "/api/sites/{site_id}/parking-holds": {
+      "get": {
+        "operationId": "get_parking_holds_api_sites__site_id__parking_holds_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Site Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GuardBoothFitHold"
+                  },
+                  "title": "Response Get Parking Holds Api Sites  Site Id  Parking Holds Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Parking Holds"
+      }
+    },
+    "/api/sites/{site_id}/parking-recommendation": {
+      "get": {
+        "operationId": "read_line_parking_api_sites__site_id__parking_recommendation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Site Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Parkmap-Owner",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Parkmap-Owner",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/GuardBoothFit"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Read Line Parking Api Sites  Site Id  Parking Recommendation Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Line Parking"
+      },
+      "post": {
+        "operationId": "recommend_line_parking_api_sites__site_id__parking_recommendation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Site Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LineParkingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardBoothFit"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recommend Line Parking"
+      }
+    },
     "/api/sites/{site_id}/parking-state": {
       "get": {
+        "description": "`family` asks for a rider's map: where the guide recommends, free ground only where that model fits (ADR 0024).",
         "operationId": "get_site_parking_state_api_sites__site_id__parking_state_get",
         "parameters": [
           {
@@ -6612,6 +7587,22 @@
               "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
               "title": "Site Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "family",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Family"
             }
           }
         ],

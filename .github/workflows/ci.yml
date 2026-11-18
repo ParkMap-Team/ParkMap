@@ -165,7 +165,10 @@ jobs:
       context: .
       dockerfile: apps/liff/Dockerfile
       push: ${{ github.event_name == 'push' }}
-      build_args: NEXT_PUBLIC_LIFF_ID=${{ vars.PRODUCTION_LIFF_ID }}
+      build_args: |
+        NEXT_PUBLIC_LIFF_ID=${{ vars.PRODUCTION_LIFF_ID }}
+        NEXT_PUBLIC_LINE_OA_ID=${{ vars.LINE_OA_ID }}
+        SOURCE_COMMIT=${{ github.sha }}
 
   # The API deploys first: it runs the migrations the worker and the LIFF app rely on.
   deploy-api:

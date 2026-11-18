@@ -15,10 +15,16 @@ export type LabelCandidate = {
   priority: number;
   /** The label shows only at this zoom (relative to the overview) or closer. */
   minZoom: number;
+  /** A pin points at its anchor, so it shows there or not at all; moved, it would point elsewhere. */
+  pinned?: boolean;
 };
 
-/** Entrances and exits first, then the selection, then the rest. */
+/**
+ * The destination pin first: it can only point at its place, so the labels that can move make way.
+ * Then entrances and exits, then the selection, then the rest.
+ */
 export const LABEL_PRIORITY = {
+  DESTINATION: 110,
   ENTRANCE: 100,
   EXIT: 100,
   ENTRANCE_EXIT: 100,
@@ -33,10 +39,11 @@ export const LABEL_PRIORITY = {
   ROAD: 20,
   WALKWAY: 20,
   TREE: 10,
-} as const satisfies Record<LandmarkKind | "SELECTED" | "AREA", number>;
+} as const satisfies Record<LandmarkKind | "DESTINATION" | "SELECTED" | "AREA", number>;
 
 /** Small features wait for a closer zoom so the overview stays readable. */
 export const LABEL_MIN_ZOOM = {
+  DESTINATION: 0,
   ENTRANCE: 0,
   EXIT: 0,
   ENTRANCE_EXIT: 0,
@@ -66,7 +73,8 @@ export function labelRect({ x, y, width, height }: Pick<LabelCandidate, "x" | "y
 /**
  * Where each shown label goes, by id, as its screen centre: inside the viewport, clear of blocked
  * areas such as the map controls, allowed at this zoom, and not overlapping a label of higher
- * priority. A label that does not fit on its anchor may sit just below, above, left, or right of it instead.
+ * priority. A label that does not fit on its anchor may sit just below, above, left, or right of it
+ * instead, unless it is pinned.
  */
 export function placeLabels(
   candidates: LabelCandidate[],
@@ -81,7 +89,7 @@ export function placeLabels(
     if (viewport.zoom < candidate.minZoom) continue;
     const down = candidate.height + GAP_PX;
     const side = candidate.width / 2 + GAP_PX;
-    for (const [dx, dy] of [[0, 0], [0, down], [0, -down], [-side, 0], [side, 0]]) {
+    for (const [dx, dy] of candidate.pinned ? [[0, 0]] : [[0, 0], [0, down], [0, -down], [-side, 0], [side, 0]]) {
       const rect = labelRect({ ...candidate, x: candidate.x + dx, y: candidate.y + dy });
       if (rect.x0 < 0 || rect.y0 < 0 || rect.x1 > viewport.width || rect.y1 > viewport.height) continue;
       if (placed.some((other) => overlaps(rect, other))) continue;

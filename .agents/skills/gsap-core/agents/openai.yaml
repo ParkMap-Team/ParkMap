@@ -1,0 +1,4 @@
+interface:
+  display_name: 'GSAP Core'
+  short_description: 'Create web animations using GSAP core APIs'
+  default_prompt: 'Use $gsap-core to implement this web animation.'

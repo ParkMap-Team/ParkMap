@@ -20,6 +20,17 @@ export const FOV_DEG = 30;
 export const MIN_ZOOM = 0.8;
 export const MAX_ZOOM = 6;
 export const ZOOM_STEP = 1.5;
+/**
+ * The near plane follows the camera's distance. Depth precision falls with distance over the near
+ * plane, and the flat layers (ground, paving, curbs) lie millimetres apart, so a fixed near plane
+ * lets them fight and flicker in the wide opening view. The camera never comes this close to anything.
+ */
+export const MIN_NEAR_M = 0.5;
+const NEAR_PER_DISTANCE = 0.03;
+
+export function nearPlane(distance: number): number {
+  return Math.max(MIN_NEAR_M, distance * NEAR_PER_DISTANCE);
+}
 /** The share of the free viewport the overview fills. */
 const FILL = 0.9;
 

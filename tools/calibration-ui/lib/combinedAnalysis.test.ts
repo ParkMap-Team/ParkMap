@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { analyzeParkingSegmentation } from './detection.ts';
+import { analyzeParkingSegmentation, detectMotorcycleFrame } from './detection.ts';
 import { proxyAnnotationRequest } from './annotationProxy.ts';
 
 void test('Analyze uses segmentation as primary without sending a classifier', async t => {
@@ -27,6 +27,36 @@ void test('Analyze uses segmentation as primary without sending a classifier', a
 void test('Analyze preserves upstream failure messages', async t => {
   t.mock.method(globalThis, 'fetch', async () => Response.json({ detail: 'YOLO unavailable' }, { status: 503 }));
   await assert.rejects(analyzeParkingSegmentation(new File(['x'], 'x.png')), /YOLO unavailable/);
+});
+
+void test('the Parking model selection reaches both image analysis and captured frames', async t => {
+  const image = new File(['pixels'], 'capture.png', { type: 'image/png' });
+  const signal = new AbortController().signal;
+  const received: Array<{ url: string; model: FormDataEntryValue | null; mode: FormDataEntryValue | null }> = [];
+  t.mock.method(globalThis, 'fetch', async (url: string, request: RequestInit) => {
+    const form = request.body as FormData;
+    const model = form.get(url.endsWith('detect-frame') ? 'detector' : 'segmentation_model');
+    received.push({ url, model, mode: form.get('mode') });
+    assert.equal(form.has('incoming_width_m'), false);
+    return Response.json({ detections: [], mode: form.get('mode') ?? 'near', crop_padding_ratio: 0.05, max_selected_boxes: 60 });
+  });
+  await analyzeParkingSegmentation(image, signal, false, undefined, 0, 'yolo26n-seg');
+  await detectMotorcycleFrame(image, 'yolo26n-seg', signal, 'wide');
+  await detectMotorcycleFrame(image, 'yolo26n', signal);
+  assert.deepEqual(received, [
+    { url: '/api/classifier?op=analyze', model: 'yolo26n-seg', mode: null },
+    { url: '/api/classifier?op=detect-frame', model: 'yolo26n-seg', mode: 'wide' },
+    { url: '/api/classifier?op=detect-frame', model: 'yolo26n', mode: null },
+  ]);
+});
+
+void test('frame detection reports an outdated API before using missing crop settings', async t => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ detections: [] }));
+  const image = new File(['pixels'], 'capture.png', { type: 'image/png' });
+  await assert.rejects(
+    detectMotorcycleFrame(image, 'yolo26n', new AbortController().signal),
+    /Vision API.*รีสตาร์ต/,
+  );
 });
 
 void test('combined Analyze proxy preserves multipart data and server-only authorization', async () => {

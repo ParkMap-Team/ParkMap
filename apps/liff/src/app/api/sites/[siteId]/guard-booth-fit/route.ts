@@ -1,21 +1,24 @@
 import { NextResponse } from "next/server";
 import { apiClient, upstreamFailureStatus } from "@/lib/api/server";
 import { guardBoothFitEnabled } from "@/lib/parking/guard-booth-server";
-import { vehiclePreference } from "@/lib/vehicle-session";
+import { parkingRequestBody } from "@/lib/parking/request-body";
+
+// The API accepts only families with a configured reference size.
+const FAMILY = /^[a-z0-9_]{1,64}$/;
 
 export async function POST(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
-  if (!(await vehiclePreference())?.model_id) return new Response(null, { status: 403, headers: { "Cache-Control": "private, no-store" } });
   const { siteId } = await params;
   if (siteId !== "sripatum" || !guardBoothFitEnabled()) return new NextResponse(null, { status: 404 });
-  const body: unknown = await request.json().catch(() => null);
+  const body: unknown = await parkingRequestBody(request).catch(() => null);
   if (!body || typeof body !== "object" || !("family" in body) || !("request_id" in body) || !("observed_at" in body) ||
-    (body.family !== "grand_filano" && body.family !== "forza") || typeof body.request_id !== "string" || typeof body.observed_at !== "string") {
+    typeof body.family !== "string" || !FAMILY.test(body.family) || typeof body.request_id !== "string" || typeof body.observed_at !== "string" ||
+    ("ends_with_photo" in body && typeof body.ends_with_photo !== "boolean")) {
     return NextResponse.json({ detail: "Invalid parking fit request." }, { status: 400 });
   }
   try {
     const { data, response } = await apiClient().POST("/api/sites/{site_id}/guard-booth-fit", {
       params: { path: { site_id: siteId } },
-      body: { family: body.family, request_id: body.request_id, observed_at: body.observed_at },
+      body: { family: body.family, request_id: body.request_id, observed_at: body.observed_at, ends_with_photo: "ends_with_photo" in body && body.ends_with_photo === true },
       cache: "no-store",
     });
     if (data) return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });

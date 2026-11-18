@@ -25,7 +25,7 @@ import { useRouteReveal } from "@/lib/map/use-route-reveal";
 import { routeArrow } from "@/lib/map/route-reveal";
 import { GROUND_KINDS, landmarkTop } from "@/lib/map/landmark-style";
 import { MOTORCYCLE_MODEL } from "@/lib/map/motorcycle-model";
-import { COLORS } from "@/lib/parking/presentation";
+import { COLORS, FREE_SHADOW } from "@/lib/parking/presentation";
 import { LabelLayer, type LabelLayerHandle, type MapViewProps } from "./map-overlay";
 
 // The 2D plan: the same lot model and API polygons as the 3D scene, drawn top-down in SVG with the
@@ -89,7 +89,7 @@ function LandmarkShape({ landmark, view, size }: { landmark: LotLandmark; view: 
   return null;
 }
 
-export default function LotPlan({ map, labels, selection, route, routeReplay, heldPolygons, overviewKey, onSelect, insets, ref }: MapViewProps) {
+export default function LotPlan({ map, labels, selection, route, routeReplay, heldPolygons, plain, markers, overviewKey, onSelect, insets, callout, ref }: MapViewProps) {
   const { visibleRoute, revealing } = useRouteReveal(route, routeReplay);
   const visibleSelection = revealing && selection?.destination ? null : selection;
   const container = useRef<HTMLDivElement>(null);
@@ -274,6 +274,9 @@ export default function LotPlan({ map, labels, selection, route, routeReplay, he
               <rect width={8} height={8} fill={COLORS.UNMONITORED} />
               <circle cx={4} cy={4} r={1.4} fill={COLORS.UNMONITORED_DOT} />
             </pattern>
+            <filter id="plan-soft" filterUnits="userSpaceOnUse" x={0} y={0} width={size.width} height={size.height}>
+              <feGaussianBlur stdDeviation={FREE_SHADOW.blurM * view.pxPerM} />
+            </filter>
           </defs>
           <path d={pathOf(view, size, map.outline)} fill={COLORS.LOT} fillRule="evenodd" />
           {map.unmonitored.map((polygon, index) => (
@@ -289,33 +292,44 @@ export default function LotPlan({ map, labels, selection, route, routeReplay, he
                 strokeWidth={1.5}
                 fillRule="evenodd"
               />
-              {/* The API sends a region as many narrow cells. Their edges go first at double width and
-                  the opaque fills over them, so only the outside of a run of cells keeps a thin edge
-                  and the map draws no stall lines. */}
-              {area.regions.map((region, index) => (
-                <path
-                  key={`edge-${index}`}
-                  d={pathOf(view, size, region.polygon)}
-                  fill="none"
-                  stroke={region.kind === "OCCUPIED" ? COLORS.OCCUPIED : (region.kind === "AVAILABLE" || region.kind === "WIDTH_SUFFICIENT") ? COLORS.AVAILABLE_STROKE : region.kind === "ALMOST_AVAILABLE" ? COLORS.ALMOST_AVAILABLE_STROKE : COLORS.UNKNOWN_HATCH}
-                  strokeWidth={region.kind === "UNKNOWN" ? 2 : 3}
-                  strokeDasharray={region.kind === "ALMOST_AVAILABLE" ? "6 4" : undefined}
-                />
-              ))}
-              {area.regions.map((region, index) => (
-                <path
-                  key={`fill-${index}`}
-                  d={pathOf(view, size, region.polygon)}
-                  fill={region.kind === "UNKNOWN" ? "url(#plan-hatch)" : COLORS[region.kind]}
-                  // A hairline of the fill closes the anti-aliased seam between two cells.
-                  stroke={region.kind === "UNKNOWN" ? "url(#plan-hatch)" : COLORS[region.kind]}
-                  strokeWidth={1}
-                  fillRule="evenodd"
-                />
-              ))}
+              {plain ? (
+                // The free cells blur together as one layer, so neither a cell edge nor a seam shows.
+                <g opacity={FREE_SHADOW.opacity} filter="url(#plan-soft)">
+                  {area.regions.map((region, index) => (
+                    <path key={index} d={pathOf(view, size, region.polygon)} fill={FREE_SHADOW.color} stroke={FREE_SHADOW.color} strokeWidth={1} fillRule="evenodd" />
+                  ))}
+                </g>
+              ) : (
+                <>
+                  {/* The API sends a region as many narrow cells. Their edges go first at double width and
+                      the opaque fills over them, so only the outside of a run of cells keeps a thin edge
+                      and the map draws no stall lines. */}
+                  {area.regions.map((region, index) => (
+                    <path
+                      key={`edge-${index}`}
+                      d={pathOf(view, size, region.polygon)}
+                      fill="none"
+                      stroke={region.kind === "OCCUPIED" ? COLORS.OCCUPIED : (region.kind === "AVAILABLE" || region.kind === "WIDTH_SUFFICIENT") ? COLORS.AVAILABLE_STROKE : region.kind === "ALMOST_AVAILABLE" ? COLORS.ALMOST_AVAILABLE_STROKE : COLORS.UNKNOWN_HATCH}
+                      strokeWidth={region.kind === "UNKNOWN" ? 2 : 3}
+                      strokeDasharray={region.kind === "ALMOST_AVAILABLE" ? "6 4" : undefined}
+                    />
+                  ))}
+                  {area.regions.map((region, index) => (
+                    <path
+                      key={`fill-${index}`}
+                      d={pathOf(view, size, region.polygon)}
+                      fill={region.kind === "UNKNOWN" ? "url(#plan-hatch)" : COLORS[region.kind]}
+                      // A hairline of the fill closes the anti-aliased seam between two cells.
+                      stroke={region.kind === "UNKNOWN" ? "url(#plan-hatch)" : COLORS[region.kind]}
+                      strokeWidth={1}
+                      fillRule="evenodd"
+                    />
+                  ))}
+                </>
+              )}
               {area.motorcycles.map(({ proxy, displayProxy, footprint }) => (
                 <g key={proxy.detection_id}>
-                  {!area.regions.some(region => region.kind === "OCCUPIED") && <path d={pathOf(view, size, footprint)} fill={COLORS.OCCUPIED} fillOpacity={0.85} />}
+                  {!plain && !area.regions.some(region => region.kind === "OCCUPIED") && <path d={pathOf(view, size, footprint)} fill={COLORS.OCCUPIED} fillOpacity={0.85} />}
                   <MotorcycleIcon proxy={displayProxy} view={view} size={size} />
                 </g>
               ))}
@@ -327,10 +341,19 @@ export default function LotPlan({ map, labels, selection, route, routeReplay, he
           ))}
           {visibleSelection?.polygon && !heldPolygons?.includes(visibleSelection.polygon) && (
             <g fill="none" strokeLinejoin="round">
+              {/* On a rider's plain map the destination is the only ground painted green, as one block. */}
+              {plain && visibleSelection.destination && <path d={pathOf(view, size, visibleSelection.polygon)} fill={COLORS.AVAILABLE} fillRule="evenodd" />}
               <path d={pathOf(view, size, visibleSelection.polygon)} stroke={COLORS.SELECTED_HALO} strokeWidth={6} />
               <path d={pathOf(view, size, visibleSelection.polygon)} stroke={visibleSelection.destination ? COLORS.ENTRANCE : COLORS.SELECTED} strokeWidth={3} />
             </g>
           )}
+          {markers?.map((marker) => (
+            <g key={marker.id} fill="none" strokeLinejoin="round">
+              <path d={pathOf(view, size, marker.polygon)} fill={marker.color} fillRule="evenodd" />
+              <path d={pathOf(view, size, marker.polygon)} stroke={COLORS.SELECTED_HALO} strokeWidth={6} />
+              <path d={pathOf(view, size, marker.polygon)} stroke={marker.color} strokeWidth={3} />
+            </g>
+          ))}
           {routePoints && (
             <g fill="none" strokeLinecap="round" strokeLinejoin="round">
               <polyline points={routePoints} stroke="white" strokeWidth={10} />
@@ -348,7 +371,7 @@ export default function LotPlan({ map, labels, selection, route, routeReplay, he
           )}
         </svg>
       )}
-      <LabelLayer ref={labelLayer} labels={labels} selection={visibleSelection} insets={insets} />
+      <LabelLayer ref={labelLayer} labels={labels} selection={visibleSelection} markers={markers} insets={insets} callout={callout} />
     </div>
   );
 }

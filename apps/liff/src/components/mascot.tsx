@@ -6,6 +6,7 @@ import confused from "@/assets/mascot/confused.webp";
 import happy from "@/assets/mascot/happy.webp";
 import ridingBody from "@/assets/mascot/riding-body.webp";
 import wheel from "@/assets/mascot/wheel.webp";
+import { ProgressFill } from "@/components/ui/progress-fill";
 import { cn } from "@/lib/utils";
 
 export type MascotMood = "happy" | "confused";
@@ -54,7 +55,8 @@ const ROAD_SPEED = 96;
 
 const toScene = (sourcePx: number) => (sourcePx / SOURCE) * SCENE;
 
-export function MascotLoading({ label }: { label: string }) {
+/** With `progress`, a bar fills by finished steps; without, loading dots sit under the label. */
+export function MascotLoading({ label, progress }: { label: string; progress?: { done: number; total: number } }) {
   return (
     <div role="status" className="flex flex-col items-center gap-3 text-sm text-muted-foreground">
       {/* CSS animations rather than motion: they start before hydration and stay smooth while the main thread loads the page. */}
@@ -99,7 +101,32 @@ export function MascotLoading({ label }: { label: string }) {
           className="absolute inset-0 animate-mascot-bob motion-reduce:animate-none"
         />
       </div>
-      {label}
+      {progress ? (
+        <>
+          <p key={label} className="motion-safe:animate-content-swap">{label}</p>
+          <ProgressFill {...progress} label={label} />
+        </>
+      ) : (
+        // The dots get their own line under the label, so they never read as part of the text.
+        <div className="flex flex-col items-center gap-2">
+          <p>{label}</p>
+          <LoadingDots />
+        </div>
+      )}
     </div>
+  );
+}
+
+/**
+ * The catalogue's Loading Dots, rising in turn; still with reduced motion. `compact` sits under a
+ * loading label; `large` stands alone, at the catalogue's full size.
+ */
+export function LoadingDots({ size = "compact" }: { size?: "compact" | "large" }) {
+  return (
+    <span aria-hidden className={cn("inline-flex items-center", size === "compact" ? "gap-[5px]" : "gap-3")}>
+      {[0, 90, 180].map((delay) => (
+        <span key={delay} className={cn("rounded-full bg-primary motion-safe:animate-loading-dots", size === "compact" ? "size-[5px]" : "size-2.5")} style={{ animationDelay: `${delay}ms` }} />
+      ))}
+    </span>
   );
 }

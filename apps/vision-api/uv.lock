@@ -444,6 +444,25 @@ wheels = [
 ]
 
 [[package]]
+name = "lap"
+version = "0.5.14"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e7/57/acf44b2f4be1f25eb1c8d07586ea07cfd27f5a6bc95daa7a59f9784bba32/lap-0.5.14.tar.gz", hash = "sha256:06488beb256649a291dc1d8bbd11920c8dc70c3e61057645f68131c479a2a549", size = 1545593, upload-time = "2026-11-03T12:33:14.067Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/23/d0/f8ca45b5b3adc680d17686717b3cfcfdb243e29d13dd41cb2aff5e438081/lap-0.5.14-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:caf886d69cf714b0bb54a769f02ca5b155a3d1f9c247e1aff8f63520830ada21", size = 1484111, upload-time = "2026-11-03T12:31:41.876Z" },
+    { url = "https://files.pythonhosted.org/packages/46/dc/220e64ab490593492c65bcde92aa59f93b3b4466187d2f8b34cfb1fd7d51/lap-0.5.14-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:85950881498b172730219942d1019d82e57a1492ab5fcddbea7d72b2bb72210e", size = 1482982, upload-time = "2026-11-03T12:31:43.48Z" },
+    { url = "https://files.pythonhosted.org/packages/74/35/437ba66f97c84df774bcb99c6786625504f92eaba87ada6eaadbe0320555/lap-0.5.14-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:e6be7a1e5444ab61e5bbc2f2ab9aef0b89c34599f254a343514fe3f95d3f2326", size = 1755611, upload-time = "2026-11-03T12:31:45.014Z" },
+    { url = "https://files.pythonhosted.org/packages/32/dd/4fdd9a3357cd3b219d994c4bafdaef9487851579b9dcb10282a907145cfe/lap-0.5.14-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:bc9cf76bad470374a2c7d1a50d58fa7848efda8731de15cc975a2872fec4fa45", size = 1748233, upload-time = "2026-11-03T12:31:47.007Z" },
+    { url = "https://files.pythonhosted.org/packages/e0/84/bfff59bcfdedb1fc181f7d5890ad971934d4d4202d556be0a4decacf90fb/lap-0.5.14-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:b54d9c04f26c6912b05d46d06141c26d6044c9f512028aca52eeb6aeea39a835", size = 1744957, upload-time = "2026-11-03T12:31:49.831Z" },
+    { url = "https://files.pythonhosted.org/packages/38/c7/d1ddaba696a3101b3b71f28daab69e486c0c1ad7d498719e909e94bcd8a4/lap-0.5.14-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:db95612b1120d81e454082f56c1a825789db00009b0acd49c529721130556898", size = 1758348, upload-time = "2026-11-03T12:31:51.473Z" },
+    { url = "https://files.pythonhosted.org/packages/7b/c8/3f28c95080212c9ecc9bcda36cc43338f0fe2f8f7607be0729f2f34143cd/lap-0.5.14-cp312-cp312-win_amd64.whl", hash = "sha256:5e0b6641557bc4d5f93a68c02aea8048a83592bf96bb5b4f2242de24dcaa9b7c", size = 1476766, upload-time = "2026-11-03T12:31:52.949Z" },
+    { url = "https://files.pythonhosted.org/packages/8c/50/654e6446b337fa297df984a04d03b0ec1bf0030b99620330c5c14744867a/lap-0.5.14-cp312-cp312-win_arm64.whl", hash = "sha256:6da7ee16e67ca8364692ab3ce75b7e4781353e32b85e2fd61464fa5c744f7450", size = 1469899, upload-time = "2026-11-03T12:31:54.484Z" },
+]
+
+[[package]]
 name = "line-bot-sdk"
 version = "3.27.0"
 source = { registry = "https://pypi.org/simple" }
@@ -646,6 +665,7 @@ dependencies = [
     { name = "alembic" },
     { name = "fastapi" },
     { name = "httpx" },
+    { name = "lap" },
     { name = "numpy" },
     { name = "opencv-python" },
     { name = "pi-heif" },
@@ -688,6 +708,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.13,<2.0" },
     { name = "fastapi", specifier = ">=0.115,<1.0" },
     { name = "httpx", specifier = ">=0.27,<1.0" },
+    { name = "lap", specifier = ">=0.5.12,<1" },
     { name = "numpy", specifier = ">=1.26,<3.0" },
     { name = "opencv-python", specifier = ">=4.6,<6.0" },
     { name = "pi-heif", specifier = ">=0.20,<1.0" },

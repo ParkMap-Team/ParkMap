@@ -11,7 +11,7 @@ def test_bot_migrations_are_repeatable_and_do_not_change_api_history(database):
     upgrade()
     with get_engine().connect() as connection:
         assert connection.scalar(text("SELECT version_num FROM parkmap.alembic_version")) == before
-        assert connection.scalar(text("SELECT version_num FROM parkmap_line.alembic_version")) == "0001_line_motorcycle_settings"
+        assert connection.scalar(text("SELECT version_num FROM parkmap_line.alembic_version")) == "0002_line_parked_spots"
         assert set(inspect(connection).get_table_names(schema="parkmap_line")) == {
-            "alembic_version", "line_motorcycle_preferences", "line_webhook_receipts",
+            "alembic_version", "line_motorcycle_preferences", "line_parked_spots", "line_webhook_receipts",
         }

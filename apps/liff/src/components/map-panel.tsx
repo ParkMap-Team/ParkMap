@@ -1,37 +1,31 @@
 "use client";
 
-import { ChevronUp, MapPin, Motorbike, X } from "lucide-react";
-import { type AnimationPlaybackControls, animate, useMotionValue } from "motion/react";
-import {
-  type CSSProperties,
-  type MouseEvent,
-  type PointerEvent,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { Dialog } from "@base-ui/react/dialog";
+import { ChevronRight, Motorbike, X } from "lucide-react";
+import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
-import { prefersReducedMotion } from "@/lib/map/flight";
-import { LEGEND_ORDER, MAP_LEGEND_ORDER, STATUS_TEXT, unknownReasonText } from "@/lib/map/legend";
+import { STATUS_TEXT, legendRows, unknownReasonText } from "@/lib/map/legend";
 import type { MapHit, MapStatus } from "@/lib/map/lot-map";
-import { type AreaPhoto, COLORS, type TimeLine } from "@/lib/parking/presentation";
-import { dragOffset, restsOpen } from "@/lib/sheet";
+import { type AreaPhoto, COLORS, FREE_SHADOW, type TimeLine } from "@/lib/parking/presentation";
 import { cn } from "@/lib/utils";
 
 // The text side of the map: a summary, the selected place, the photos the state was computed from,
-// the legend, and every status as a list. It never depends on the canvas, so the page reads the same without 3D
-// or without sight. On a phone it is a bottom sheet whose peek always shows the source notice and
-// the summary; on a wide screen it is a column beside the map.
+// and the legend, which also finds each shown status on the map. It never depends on the canvas, so the page reads the same without 3D
+// or without sight. On a phone it is a card that always shows the source notice and the summary, with
+// the details in a modal; on a wide screen it is a column beside the map.
+
+const FREE_SWATCH: CSSProperties = {
+  backgroundColor: COLORS.PARKING_AREA,
+  backgroundImage: `radial-gradient(closest-side, ${FREE_SHADOW.color}99, ${FREE_SHADOW.color}00)`,
+};
 
 const SWATCH_STYLES: Record<MapStatus, CSSProperties> = {
-  WIDTH_SUFFICIENT: { backgroundColor: COLORS.WIDTH_SUFFICIENT, border: `2px solid ${COLORS.AVAILABLE_STROKE}` },
-  AVAILABLE: { backgroundColor: COLORS.AVAILABLE, border: `2px solid ${COLORS.AVAILABLE_STROKE}` },
+  // A rider's map shows free ground as a soft green shadow on the parking ground (ADR 0024).
+  WIDTH_SUFFICIENT: FREE_SWATCH,
+  AVAILABLE: FREE_SWATCH,
   ALMOST_AVAILABLE: { backgroundColor: COLORS.ALMOST_AVAILABLE, border: `2px dashed ${COLORS.ALMOST_AVAILABLE_STROKE}` },
-  OCCUPIED: { backgroundColor: COLORS.OCCUPIED, color: "#ffffff" },
+  // A rider's map draws a motorcycle with no red footprint under it (ADR 0024).
+  OCCUPIED: { backgroundColor: COLORS.PARKING_AREA, border: `1px solid ${COLORS.PARKING_AREA_STROKE}` },
   UNKNOWN: { backgroundImage: `repeating-linear-gradient(-45deg, ${COLORS.UNKNOWN_HATCH} 0 2px, ${COLORS.UNKNOWN} 2px 6px)` },
   MONITORED: { backgroundColor: COLORS.PARKING_AREA, border: `1px solid ${COLORS.PARKING_AREA_STROKE}` },
   UNMONITORED: { backgroundColor: COLORS.UNMONITORED, backgroundImage: `radial-gradient(${COLORS.UNMONITORED_DOT} 1.5px, transparent 1.6px)`, backgroundSize: "6px 6px" },
@@ -62,7 +56,7 @@ function Selected({ details, full, onClear }: { details: SelectedDetails; full: 
   const { hit, areaName, change, times } = details;
   const reason = hit?.unknownReason ? unknownReasonText(hit.unknownReason) : null;
   return (
-    <section aria-label="จุดที่เลือก" className="rounded-lg border bg-card p-3">
+    <section aria-label="จุดที่เลือก" className="rounded-xl bg-muted p-3">
       <div className="flex items-start gap-2">
         {hit && <Swatch status={hit.status} className="mt-0.5" />}
         <div className="min-w-0 flex-1">
@@ -103,17 +97,33 @@ function Selected({ details, full, onClear }: { details: SelectedDetails; full: 
   );
 }
 
-function Legend({ present }: { present: Set<MapStatus> }) {
+/** The key, where each status the map shows now is also the way to find it. */
+function Legend({ present, onShow }: { present: Set<MapStatus>; onShow(status: MapStatus): void }) {
   return (
     <section aria-labelledby="legend-title">
-      <h2 id="legend-title" className="mb-2 text-sm font-semibold">
-        สัญลักษณ์บนแผนที่
+      <h2 id="legend-title" className="mb-1 text-sm font-semibold">
+        สีบนแผนที่
       </h2>
-      <ul className="grid grid-cols-1 gap-1.5 text-sm min-[480px]:grid-cols-2 lg:grid-cols-1">
-        {MAP_LEGEND_ORDER.map((status) => (
-          <li key={status} className={cn("flex items-center gap-2", !present.has(status) && !(status === "AVAILABLE" && present.has("WIDTH_SUFFICIENT")) && "text-muted-foreground")}>
-            <Swatch status={status === "AVAILABLE" && !present.has("AVAILABLE") && present.has("WIDTH_SUFFICIENT") ? "WIDTH_SUFFICIENT" : status} />
-            {STATUS_TEXT[status].label}
+      <ul className="-mx-2 text-sm">
+        {legendRows(present).map(({ status, present: shown }) => (
+          <li key={status}>
+            {shown ? (
+              <button
+                type="button"
+                onClick={() => onShow(status)}
+                className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2 text-left outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 active:bg-muted"
+              >
+                <Swatch status={status} />
+                <span className="flex-1">{STATUS_TEXT[status].label}</span>
+                <span className="sr-only">ดูบนแผนที่</span>
+                <ChevronRight aria-hidden className="size-4 text-muted-foreground" />
+              </button>
+            ) : (
+              <div className="flex min-h-11 items-center gap-3 px-2 text-muted-foreground">
+                <Swatch status={status} />
+                {STATUS_TEXT[status].label}
+              </div>
+            )}
           </li>
         ))}
       </ul>
@@ -143,7 +153,7 @@ function Photo({ photo, open }: { photo: ShownPhoto; open: boolean }) {
   }, [open, photo]);
   if (!shown) return null;
   return (
-    <figure className="overflow-hidden rounded-lg border bg-card">
+    <figure className="overflow-hidden rounded-xl bg-muted">
       {/* A plain image: the photo is already sized by the worker and served through this app's proxy. */}
       <img src={shown.url} width={shown.width} height={shown.height} alt={`ภาพจากกล้อง ${shown.name}`} className="block h-auto w-full" style={{ aspectRatio: `${shown.width} / ${shown.height}` }} />
       <figcaption className="px-3 py-2 text-xs text-muted-foreground">{shown.name}</figcaption>
@@ -167,31 +177,22 @@ function Photos({ photos, open }: { photos: ShownPhoto[]; open: boolean }) {
   );
 }
 
-function StatusList({ present, areas, onShow }: { present: Set<MapStatus>; areas: AreaRow[]; onShow(status: MapStatus): void }) {
-  const shown = LEGEND_ORDER.filter((status) => present.has(status));
+/** Each watched area's data status and age. */
+function Areas({ areas }: { areas: AreaRow[] }) {
+  if (areas.length === 0) return null;
   return (
-    <section aria-labelledby="status-list-title">
-      <h2 id="status-list-title" className="mb-2 text-sm font-semibold">
-        สถานะในแผนที่
+    <section aria-labelledby="areas-title">
+      <h2 id="areas-title" className="mb-1 text-sm font-semibold">
+        พื้นที่ที่ตรวจสอบ
       </h2>
-      <ul className="divide-y rounded-lg border bg-card">
+      <ul className="divide-y text-sm">
         {areas.map((area) => (
-          <li key={area.id} className="px-3 py-2 text-sm">
-            <p>{area.name}</p>
-            <p className="text-xs text-muted-foreground tabular-nums">
+          <li key={area.id} className="flex items-baseline justify-between gap-3 py-2.5">
+            <span className="min-w-0">{area.name}</span>
+            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
               {area.status}
               {area.time && ` · ${area.time}`}
-            </p>
-          </li>
-        ))}
-        {shown.map((status) => (
-          <li key={status} className="flex items-center gap-2 py-0.5 pr-1 pl-3 text-sm">
-            <Swatch status={status} />
-            <span className="flex-1">{STATUS_TEXT[status].label}</span>
-            <Button variant="ghost" className="h-11 text-xs" onClick={() => onShow(status)}>
-              <MapPin data-icon="inline-start" />
-              ดูบนแผนที่
-            </Button>
+            </span>
           </li>
         ))}
       </ul>
@@ -199,7 +200,7 @@ function StatusList({ present, areas, onShow }: { present: Set<MapStatus>; areas
   );
 }
 
-/** Tailwind's `lg` breakpoint, where the sheet becomes a column beside the map. */
+/** Tailwind's `lg` breakpoint, where the card becomes a column beside the map. */
 const WIDE_QUERY = "(min-width: 64rem)";
 
 function subscribeWide(onChange: () => void) {
@@ -216,22 +217,16 @@ export function useWide(): boolean {
   );
 }
 
-/** Movement before a press on the peek becomes a drag, so taps on its buttons still work. */
-const DRAG_SLOP_PX = 8;
-/** Only the last moments of a drag decide how fast it was released. */
-const VELOCITY_WINDOW_MS = 100;
-const SHEET_SPRING = { type: "spring", bounce: 0, visualDuration: 0.3 } as const;
-
-/** How much of the map the sheet covers at rest: with and without the selected place's card. */
+/** How much of the map the card covers at rest: with and without the selected place's card. */
 export type PeekHeights = { base: number; full: number };
-
-type Drag = { pointerId: number; startY: number; startOffset: number; dragging: boolean; samples: { t: number; y: number }[] };
+/** The floating card's gap to the map's bottom edge (`bottom-8`), clearing the guide circle that rises 20px above the tab bar. */
+const FLOAT_GAP_PX = 32;
 
 export function MapPanel({
   truth,
   viewNotice,
   headline,
-  headlineStatus,
+  updated,
   present,
   areas,
   photos,
@@ -248,7 +243,8 @@ export function MapPanel({
   /** About the map view itself, such as why it shows 2D; first in the details. */
   viewNotice: ReactNode;
   headline: string;
-  headlineStatus: MapStatus | null;
+  /** How old the shown state is, as a quiet line under the headline; null hides it. */
+  updated: string | null;
   present: Set<MapStatus>;
   areas: AreaRow[];
   /** The photo each shown area was computed from. */
@@ -256,6 +252,7 @@ export function MapPanel({
   /** Some landmarks were estimated from photos or imagery rather than measured on site. */
   estimatedLandmarks: boolean;
   selected: SelectedDetails | null;
+  /** Whether the details are open: always shown beside the map on a wide screen, a modal on a phone. */
   expanded: boolean;
   onExpandedChange(expanded: boolean): void;
   onClearSelection(): void;
@@ -263,211 +260,109 @@ export function MapPanel({
   onPeek(heights: PeekHeights): void;
 }) {
   const wide = useWide();
-  const sheet = useRef<HTMLElement>(null);
-  const peek = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLElement>(null);
   const card = useRef<HTMLDivElement>(null);
-  // Pixels the sheet is pushed down: 0 is open, `collapsed` shows only the peek.
-  const y = useMotionValue(0);
-  const collapsed = useRef(0);
-  const sheetHeight = useRef(0);
-  const motion = useRef<AnimationPlaybackControls | null>(null);
-  const drag = useRef<Drag | null>(null);
-  const suppressClick = useRef(false);
-  // Until the sheet is measured on a phone its details stay out of layout, so the first paint
-  // already shows the sheet at its peek instead of open.
-  const [measured, setMeasured] = useState(false);
-  const latest = useRef({ expanded, wide, onPeek });
-  latest.current = { expanded, wide, onPeek };
+  const latestOnPeek = useRef(onPeek);
+  latestOnPeek.current = onPeek;
+  const hasSelection = selected !== null;
 
-  // The motion value drives the transform directly, in the same frame it changes.
-  useLayoutEffect(
-    () =>
-      y.on("change", (offset) => {
-        if (sheet.current) sheet.current.style.transform = latest.current.wide ? "" : `translateY(${offset}px)`;
-      }),
-    [y],
-  );
-
-  const settle = useCallback(
-    (open: boolean, velocity?: number) => {
-      const target = open ? 0 : collapsed.current;
-      motion.current?.stop();
-      if (prefersReducedMotion() || latest.current.wide) {
-        y.set(target);
-        return;
-      }
-      motion.current = animate(y, target, velocity === undefined ? SHEET_SPRING : { ...SHEET_SPRING, velocity });
-    },
-    [y],
-  );
-
-  const measure = useCallback(() => {
-    const element = sheet.current;
-    const peekElement = peek.current;
-    if (!element || !peekElement) return;
-    const padding = parseFloat(getComputedStyle(element).paddingBottom) || 0;
-    const visible = peekElement.offsetHeight + padding;
-    latest.current.onPeek({ full: visible, base: visible - (card.current?.offsetHeight ?? 0) });
-    sheetHeight.current = element.offsetHeight;
-    const next = Math.max(0, element.offsetHeight - visible);
-    if (next === collapsed.current) return;
-    collapsed.current = next;
-    // The sheet grows and shrinks from its bottom edge, so a resting peek is kept in place at once;
-    // a sheet on its way down is sent to the new rest instead.
-    if (latest.current.wide || latest.current.expanded || drag.current?.dragging) return;
-    if (y.isAnimating()) settle(false);
-    else y.set(next);
-  }, [settle, y]);
-
+  // The map keeps its overview clear of the card, measured before the frame is painted.
   useLayoutEffect(() => {
-    setMeasured(true);
-  }, []);
-
-  // Measured again once the details join the layout, before that frame is painted.
-  useLayoutEffect(() => {
+    const element = panel.current;
+    if (!element) return;
+    const measure = () => {
+      const full = FLOAT_GAP_PX + element.offsetHeight;
+      latestOnPeek.current({ full, base: full - (card.current?.offsetHeight ?? 0) });
+    };
     measure();
     const observer = new ResizeObserver(measure);
-    if (sheet.current) observer.observe(sheet.current);
-    if (peek.current) observer.observe(peek.current);
+    observer.observe(element);
+    if (card.current) observer.observe(card.current);
     return () => observer.disconnect();
-  }, [measure, measured]);
-
-  // Between a column and a sheet the sheet rests where the state says, at once.
-  useLayoutEffect(() => {
-    const element = sheet.current;
-    if (!element) return;
-    motion.current?.stop();
-    if (wide) {
-      element.style.transform = "";
-      return;
-    }
-    y.jump(latest.current.expanded ? 0 : collapsed.current);
-    element.style.transform = `translateY(${y.get()}px)`;
-  }, [wide, y]);
-
-  // Opening or closing from a button or from the page glides. A released drag has already started
-  // its own glide with the finger's speed and recorded where it goes, so it is not restarted here.
-  const heading = useRef(expanded);
-  useLayoutEffect(() => {
-    if (heading.current === expanded) return;
-    heading.current = expanded;
-    if (!latest.current.wide) settle(expanded);
-  }, [expanded, settle]);
-
-  useEffect(() => () => motion.current?.stop(), []);
-
-  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
-    suppressClick.current = false;
-    if (wide || drag.current || !event.isPrimary || event.button !== 0) return;
-    drag.current = { pointerId: event.pointerId, startY: event.clientY, startOffset: 0, dragging: false, samples: [] };
-  }
-
-  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
-    const current = drag.current;
-    if (!current || current.pointerId !== event.pointerId) return;
-    if (!current.dragging) {
-      if (Math.abs(event.clientY - current.startY) < DRAG_SLOP_PX) return;
-      // The finger takes the sheet from wherever it is, even mid-glide.
-      motion.current?.stop();
-      current.dragging = true;
-      current.startY = event.clientY;
-      current.startOffset = y.get();
-      event.currentTarget.setPointerCapture(event.pointerId);
-    }
-    y.set(dragOffset(current.startOffset + event.clientY - current.startY, collapsed.current, sheetHeight.current));
-    current.samples.push({ t: event.timeStamp, y: event.clientY });
-    while (current.samples.length > 2 && event.timeStamp - current.samples[0].t > VELOCITY_WINDOW_MS) current.samples.shift();
-  }
-
-  function onPointerUp(event: PointerEvent<HTMLDivElement>) {
-    const current = drag.current;
-    if (!current || current.pointerId !== event.pointerId) return;
-    drag.current = null;
-    if (!current.dragging) return;
-    suppressClick.current = true;
-    const first = current.samples[0];
-    const last = current.samples[current.samples.length - 1];
-    const elapsed = last && first ? last.t - first.t : 0;
-    const velocity = elapsed > 0 ? ((last.y - first.y) / elapsed) * 1000 : 0;
-    const open = restsOpen(y.get(), velocity, collapsed.current);
-    heading.current = open;
-    settle(open, velocity);
-    if (open !== expanded) onExpandedChange(open);
-  }
-
-  function onPointerCancel(event: PointerEvent<HTMLDivElement>) {
-    const current = drag.current;
-    if (!current || current.pointerId !== event.pointerId) return;
-    drag.current = null;
-    if (current.dragging) settle(expanded);
-  }
-
-  // A drag that ends over a button must not also press it.
-  function onClickCapture(event: MouseEvent<HTMLDivElement>) {
-    if (!suppressClick.current) return;
-    suppressClick.current = false;
-    event.preventDefault();
-    event.stopPropagation();
-  }
+  }, [hasSelection]);
 
   const open = wide || expanded;
+  const summary = (
+    <>
+      {/* Announced only when the sentence changes, not on every poll. */}
+      <span aria-live="polite" className="min-w-0 flex-1 text-sm font-semibold">
+        {headline}
+      </span>
+      {/* Plain trailing text like a transit app's live time, not a badge; never announced, since it ticks every second. */}
+      {updated && <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{updated}</span>}
+    </>
+  );
+  const details = (
+    <>
+      {viewNotice}
+      <Legend present={present} onShow={onShow} />
+      <Areas areas={areas} />
+      <Photos photos={photos} open={open} />
+      <p className="border-t pt-4 text-xs text-pretty text-muted-foreground">
+        ตำแหน่งบนแผนที่คำนวณจากภาพกล้องหนึ่งตัว จึงเป็นค่าโดยประมาณ แนวรถแนวนอนประมาณจากกรอบในภาพ ไม่ใช่มุมหรือขนาดที่วัดจริง ระบบไม่มีการจองที่จอด และไม่ได้แบ่งช่องจอดตายตัว
+        {estimatedLandmarks && " อาคาร ต้นไม้ และสิ่งรอบลานวาดจากภาพถ่าย ตำแหน่งและขนาดเป็นค่าโดยประมาณ"}
+      </p>
+    </>
+  );
   return (
-    <aside
-      ref={sheet}
-      aria-label="สรุปสถานะลานจอด"
+    // On a phone the panel is a card floating clear of the screen's edges and the tab bar. It never
+    // follows a drag: inside LINE a downward swipe closes the whole app, so the details open in a
+    // modal from a tap instead. On a wide screen it is a column beside the map.
+    <div
       className={cn(
-        "absolute inset-x-0 bottom-0 z-10 flex max-h-[calc(100%-3.5rem)] flex-col rounded-t-xl border-t bg-background pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_20px_-12px_rgb(15_23_42/0.35)] will-change-transform",
-        "lg:static lg:max-h-none lg:min-h-0 lg:rounded-none lg:border-t-0 lg:border-l lg:pb-0 lg:shadow-none lg:will-change-auto",
+        "pointer-events-none absolute inset-x-3 top-3 bottom-8 z-10 flex flex-col justify-end",
+        "lg:pointer-events-auto lg:static lg:min-h-0",
       )}
     >
-      <div
-        ref={peek}
-        className="shrink-0 touch-none select-none lg:touch-auto lg:select-auto"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
-        onClickCapture={onClickCapture}
-      >
-        <div aria-hidden className="mx-auto mt-2 h-1 w-9 rounded-full bg-border lg:hidden" />
-        <div className="space-y-2 px-4 pt-2 empty:hidden lg:pt-4">{truth}</div>
-        <div className="flex items-center gap-2 px-4 py-2">
-          {headlineStatus && <Swatch status={headlineStatus} />}
-          {/* Announced only when the sentence changes, not on every poll. */}
-          <p aria-live="polite" className="min-w-0 flex-1 text-base font-semibold">
-            {headline}
-          </p>
-          <Button
-            variant="outline"
-            className="h-11 lg:hidden"
-            aria-expanded={expanded}
-            aria-controls="map-panel-details"
-            onClick={() => onExpandedChange(!expanded)}
-          >
-            {expanded ? "ย่อ" : "รายละเอียด"}
-            <ChevronUp data-icon="inline-end" className={cn("transition-transform duration-150 motion-reduce:transition-none", expanded && "rotate-180")} />
-          </Button>
-        </div>
-        {selected && (
-          <div ref={card} className="px-4 pb-3">
-            <Selected details={selected} full={open} onClear={onClearSelection} />
-          </div>
+      <aside
+        ref={panel}
+        aria-label="สรุปสถานะลานจอด"
+        className={cn(
+          "pointer-events-auto flex max-h-full flex-col overflow-y-auto overscroll-contain rounded-2xl border bg-background pb-[var(--safe-bottom)] shadow-[0_4px_12px_rgb(15_23_42/0.12)]",
+          "lg:max-h-none lg:min-h-0 lg:flex-1 lg:overflow-visible lg:rounded-none lg:border-0 lg:border-l lg:pb-0 lg:shadow-none",
         )}
-      </div>
-      <div
-        id="map-panel-details"
-        inert={!open}
-        className={cn("min-h-0 space-y-4 overflow-y-auto overscroll-contain px-4 pt-1 pb-4", !measured && "max-lg:hidden")}
       >
-        {viewNotice}
-        <Photos photos={photos} open={open} />
-        <Legend present={present} />
-        <StatusList present={present} areas={areas} onShow={onShow} />
-        <p className="text-xs text-muted-foreground">
-          ตำแหน่งบนแผนที่คำนวณจากภาพกล้องหนึ่งตัว จึงเป็นค่าโดยประมาณ แนวรถแนวนอนประมาณจากกรอบในภาพ ไม่ใช่มุมหรือขนาดที่วัดจริง ระบบไม่มีการจองที่จอด และไม่ได้แบ่งช่องจอดตายตัว
-          {estimatedLandmarks && " อาคาร ต้นไม้ และสิ่งรอบลานวาดจากภาพถ่าย ตำแหน่งและขนาดเป็นค่าโดยประมาณ"}
-        </p>
-      </div>
-    </aside>
+        <div className="shrink-0">
+          <div className="space-y-2 px-4 pt-3 empty:hidden lg:pt-4">{truth}</div>
+          {wide ? (
+            <div className="flex items-center gap-2 px-4 py-2.5">{summary}</div>
+          ) : (
+            <Dialog.Root open={expanded} onOpenChange={onExpandedChange}>
+              <Dialog.Trigger className="flex min-h-11 w-full items-center gap-2 px-4 py-2.5 text-left outline-none focus-visible:bg-muted">
+                {summary}
+                <span className="sr-only">ดูรายละเอียด</span>
+                <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+              </Dialog.Trigger>
+              <Dialog.Portal>
+                <Dialog.Backdrop className="fixed inset-0 z-50 min-h-dvh bg-black/30 transition-opacity duration-200 ease-out data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none" />
+                <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3">
+                  <Dialog.Popup className="flex max-h-[min(85dvh,44rem)] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-background text-foreground shadow-lg outline-none transition-[transform,opacity] duration-200 ease-out-strong data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none">
+                    <div className="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-2">
+                      <Dialog.Title className="text-title font-semibold">รายละเอียดลานจอด</Dialog.Title>
+                      <Dialog.Close aria-label="ปิด" className="grid size-11 place-items-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+                        <span className="grid size-9 place-items-center rounded-full bg-secondary text-secondary-foreground">
+                          <X aria-hidden className="size-5" />
+                        </span>
+                      </Dialog.Close>
+                    </div>
+                    <div className="min-h-0 space-y-5 overflow-y-auto overscroll-contain px-4 pt-1 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                      <div className="flex items-center gap-2">{summary}</div>
+                      {selected && <Selected details={selected} full onClear={onClearSelection} />}
+                      {details}
+                    </div>
+                  </Dialog.Popup>
+                </Dialog.Viewport>
+              </Dialog.Portal>
+            </Dialog.Root>
+          )}
+          {selected && (
+            <div ref={card} className="px-4 pb-3">
+              <Selected details={selected} full={wide} onClear={onClearSelection} />
+            </div>
+          )}
+        </div>
+        {wide && <div className="min-h-0 space-y-5 overflow-y-auto overscroll-contain px-4 pt-1 pb-4">{details}</div>}
+      </aside>
+    </div>
   );
 }

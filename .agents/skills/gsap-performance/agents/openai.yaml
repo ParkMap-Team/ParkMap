@@ -1,0 +1,4 @@
+interface:
+  display_name: 'GSAP Performance'
+  short_description: 'Keep GSAP animations smooth and efficient'
+  default_prompt: 'Use $gsap-performance to optimize these animations.'

@@ -80,7 +80,7 @@ PARKMAP_API_URL=https://<api> PARKMAP_WORKER_TOKEN=<token> \
   python -m app.worker --parking-area-id <area> --source rtsp://<camera>   # or a recorded video file or photo directory
 ```
 
-A file source is published as `RECORDED_REPLAY` and the LIFF app says so. A directory source is a still-image loop published as `STILL_IMAGE_LOOP` ([ADR 0011](../../docs/adr/0011-still-image-loop-demo-on-estimated-calibration.md)): photos are named `YYYYMMDD_HHMM[SS]...` after their local capture time (`--photo-utc-offset`, default `+07:00`), must match the calibration reference size, and each is held for `--hold-s` seconds (default 10). Calibration inputs may be `ESTIMATED`; a live camera on an estimated calibration reports every region `UNKNOWN`. Raw frames never leave the worker.
+A file source is published as `RECORDED_REPLAY`; the LIFF app does not label it (see Source wording in `CONTEXT.md`). A directory source is a still-image loop published as `STILL_IMAGE_LOOP` ([ADR 0011](../../docs/adr/0011-still-image-loop-demo-on-estimated-calibration.md)): photos are named `YYYYMMDD_HHMM[SS]...` after their local capture time (`--photo-utc-offset`, default `+07:00`), must match the calibration reference size, and each is held for `--hold-s` seconds (default 10). Calibration inputs may be `ESTIMATED`; a live camera on an estimated calibration reports every region `UNKNOWN`. Raw frames never leave the worker.
 
 After changing a Pydantic API model, run `python scripts/export_openapi.py` and regenerate the LIFF types (`pnpm --filter @parkmap/liff api:generate`). Schema changes need an Alembic revision in `migrations/versions/`; `tests/test_live_api.py` fails when tables and migrations drift.
 
@@ -109,8 +109,9 @@ policy as Parking Analyze. Restart the worker after changing weights or code.
 
 For the local Sripatum guard-booth preview, start the API with
 `PARKMAP_GUARD_BOOTH_FIT_PREVIEW=1` and run the still-image worker. The
-`guard-booth-fit` endpoint tests the reference width and length of Grand Filano
-or Forza against a current recorded Segment band. A successful request ID holds
+`guard-booth-fit` endpoint tests a classified family's reference width against
+a current recorded Segment band; length never rejects a fit, and a frame longer
+than the row is drawn at the band depth. A successful request ID holds
 its sample frame in the local API process for two minutes, so another request
 cannot receive overlapping space. The route is for inspection and the preview
 hold ends on API restart.
@@ -119,6 +120,34 @@ The same recorded preview may be enabled in a deployed environment by setting
 `PARKMAP_GUARD_BOOTH_FIT_PREVIEW=1` on the API and LIFF at runtime. The page uses
 the site's existing still-image worker and calibration. Open
 `/sites/sripatum/guard-booth?preview=known` to run it.
+
+With `PARKMAP_GUARD_BOOTH_CLIP_PATH` also set to a local `.mp4` or `.webm`, the
+Guard Booth page without `?preview=` plays that entrance clip in a panel beside
+the parking map, once per still-image photo: the next photo restarts it (see
+Entrance clip in `CONTEXT.md`). Run the worker with `--hold-s` at least the clip
+length plus the 4 s poll and the worker's analysis time, for example
+`--hold-s 25` for a 17.3 s clip; a shorter hold cuts the clip short. `guard-booth-clip` serves the file with Range support.
+The API runs the Classify Video detector, tracker and ConvNeXt on it at 5
+sampled fps in the background from startup, because that takes minutes on a
+server CPU, and caches the track evidence in memory until the file or classifier
+changes. Until then `guard-booth-classification` answers 503 with `Retry-After`,
+and the page keeps preparing the camera and asks again; a 503 without it is a
+setup failure. Once tracked, it returns the clip's riders in arrival order. A rider is a track
+with at least `MIN_OBSERVATIONS` observations whose ground point (bottom centre
+of its box) ends at least 0.15 of the frame away from where it started, so a
+motorcycle parked in view is not a rider. Its `arrival_s` is when that ground
+point first enters `PARKMAP_GUARD_BOOTH_CLIP_ZONE` (`left,top,right,bottom`
+fractions of the frame; the whole frame when unset). The page queues each rider
+as the clip reaches its arrival (at most three, each for 30 seconds) and fits it
+on the map with its own request ID, so riders close together get separate holds.
+Those requests set `ends_with_photo`, so their holds end when the area shows another photo.
+A classified family with a reference size in
+`config/motorcycle_reference_sizes.json` gets a fitted frame; a family without
+one is named but gets no placement until its size is added. A detector with COCO-pretrained weights sets
+`PARKMAP_VIDEO_DETECTOR_CLASS_ID=3`; unset, the video detector uses
+`PARKMAP_MODEL_CLASS_ID`. The clip is stand-in data and supports no accuracy
+claim. The production image ships no classifier weights, so there the
+classification returns `503` and the page shows an unknown model.
 It publishes standard-size motorcycle proxies only for assigned Seg detections.
 The current analysis checks width only, so all published row regions remain
 `UNKNOWN`; width-preview green/yellow is never promoted to LIFF availability.

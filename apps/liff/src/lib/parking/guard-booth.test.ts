@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { LotModel, MetricPolygon, ParkingAreaLiveState } from "../api/types.ts";
+import type { GuardBoothRider, LotModel, MetricPolygon, ParkingAreaLiveState } from "../api/types.ts";
 import { buildLotMap } from "../map/lot-map.ts";
-import { activeParkingHolds, applyParkingHolds, guardBoothFitFamily, guardBoothFrame, guardBoothHeadline, guardBoothPreviewDestination, PARKING_HOLD_MS, sripatumPreviewRoute } from "./guard-booth.ts";
+import { activeParkingHolds, activeRiders, applyParkingHolds, arrivedRider, CLASSIFICATION_RETRY_MAX_MS, classificationRetryMs, enqueueRider, entranceClipCrop, entranceClipOutcome, guardBoothFitFamily, guardBoothFrame, guardBoothHeadline, guardBoothModelName, guardBoothPreviewDestination, PARKING_HOLD_MS, RIDER_COLORS, RIDER_QUEUE_LIMIT, RIDER_QUEUE_MS, riderGuide, riderTitle, routeRiderSeq, sripatumPreviewRoute } from "./guard-booth.ts";
 
 const polygon: MetricPolygon = [[{ x_m: 0, y_m: 0 }, { x_m: 2, y_m: 0 }, { x_m: 2, y_m: 2 }, { x_m: 0, y_m: 2 }]];
 const lot: LotModel = { schema_version: 1, site_id: "test", version: 1, outline: polygon, unmonitored: [], parking_areas: [{ parking_area_id: "area", polygon }] };
@@ -106,4 +106,100 @@ test("a known classification on a current recorded frame uses the fitting API's 
   assert.equal(guardBoothFitFamily("fit-preview", "forza", true), "forza");
   assert.equal(guardBoothFitFamily("unknown", "forza", true), null);
   assert.equal(guardBoothFitFamily("preview", null, false), null);
+});
+
+const rider = (family: string | null, sized = true, arrival_s = 1): GuardBoothRider => ({
+  arrival_s, reason: family ? "CLASSIFIED" : "UNCERTAIN", family, top3: [{ family: family ?? "wave", score: family ? 0.9 : 0.4 }],
+  preview_url: "data:image/jpeg;base64,/9j/AA==", reference_size: family && sized ? { width_m: 0.7, length_m: 1.9 } : null,
+});
+
+test("only a classified family with a reference size gets a fitted frame", () => {
+  assert.deepEqual(entranceClipOutcome(rider("click")), { mode: "fit-preview", family: "click", fitFamily: "click" });
+  assert.deepEqual(entranceClipOutcome(rider("hd_road_glide", false)), { mode: "unknown", family: "hd_road_glide", fitFamily: null });
+  assert.deepEqual(entranceClipOutcome(rider(null)), { mode: "unknown", family: null, fitFamily: null });
+  assert.deepEqual(entranceClipOutcome(null), { mode: "unknown", family: null, fitFamily: null });
+});
+
+test("the booth follows the latest rider to reach the zone", () => {
+  const riders = [rider("click", true, 1), rider("forza", true, 2.5)];
+  assert.equal(arrivedRider(riders, 0.9), -1);
+  assert.equal(arrivedRider(riders, 1), 0);
+  assert.equal(arrivedRider(riders, 2.4), 0);
+  assert.equal(arrivedRider(riders, 17), 1);
+  assert.equal(arrivedRider([], 17), -1);
+});
+
+function arrival(seq: number, arrivedAt: number) {
+  return { seq, rider: rider("click"), arrivedAt, requestId: `request-${seq}` };
+}
+
+test("riders queue newest first, each in its own colour slot", () => {
+  let queue = enqueueRider([], arrival(1, 0), 0);
+  queue = enqueueRider(queue, arrival(2, 2_000), 2_000);
+  assert.deepEqual(queue.map(({ seq, slot, alone }) => [seq, slot, alone]), [[2, 1, false], [1, 0, true]]);
+  assert.equal(RIDER_COLORS.length, RIDER_QUEUE_LIMIT);
+});
+
+test("a fourth rider drops the oldest and takes its colour", () => {
+  let queue: ReturnType<typeof enqueueRider> = [];
+  for (const seq of [1, 2, 3, 4]) queue = enqueueRider(queue, arrival(seq, seq * 1_000), seq * 1_000);
+  assert.deepEqual(queue.map(({ seq, slot }) => [seq, slot]), [[4, 0], [3, 2], [2, 1]]);
+});
+
+test("a rider expires by time, not when another arrives", () => {
+  const queue = enqueueRider(enqueueRider([], arrival(1, 0), 0), arrival(2, 10_000), 10_000);
+  assert.equal(activeRiders(queue, RIDER_QUEUE_MS - 1), queue);
+  assert.deepEqual(activeRiders(queue, RIDER_QUEUE_MS).map(({ seq }) => seq), [2]);
+  assert.deepEqual(activeRiders(queue, 10_000 + RIDER_QUEUE_MS), []);
+  const next = enqueueRider(queue, arrival(3, RIDER_QUEUE_MS), RIDER_QUEUE_MS);
+  assert.deepEqual(next.map(({ seq, slot }) => [seq, slot]), [[3, 0], [2, 1]]);
+});
+
+test("a rider is sent to its pin once its frame is placed", () => {
+  assert.deepEqual(riderGuide(rider("click"), "placed", 2), { tone: "go", text: "ไปที่หมุด 2" });
+  assert.deepEqual(riderGuide(rider("click"), "pending", 1), { tone: "wait", text: "กำลังหาที่จอด" });
+  assert.deepEqual(riderGuide(rider("forza"), "no-space", 1), { tone: "stop", text: "ไม่มีที่ว่างพอสำหรับรุ่นนี้" });
+  assert.equal(riderGuide(rider("click"), "no-frame", 1).tone, "stop");
+});
+
+test("a rider without a placement of its own is sent to the free space", () => {
+  for (const unplaced of [rider("cbr650r", false), rider(null), null]) {
+    assert.deepEqual(riderGuide(unplaced, "placed", 1), { tone: "free", text: "จอดในพื้นที่สีเขียว" });
+  }
+});
+
+test("a rider is named by its model, or as unknown", () => {
+  assert.equal(riderTitle(rider("click")), "Honda Click");
+  assert.equal(riderTitle(rider("cbr650r", false)), "Honda CBR650R");
+  assert.equal(riderTitle(rider(null)), "ไม่ทราบรุ่นรถ");
+  assert.equal(riderTitle(null), "ตรวจรุ่นรถไม่ได้");
+  assert.equal(guardBoothModelName("new_family"), "new_family");
+});
+
+test("only an inline JPEG crop is shown", () => {
+  assert.equal(entranceClipCrop(rider("click")), "data:image/jpeg;base64,/9j/AA==");
+  for (const preview_url of ["https://example.com/crop.jpg", "data:image/svg+xml;base64,PHN2Zz4=", "data:image/jpeg;base64,\"><script>", null]) {
+    assert.equal(entranceClipCrop({ ...rider("click"), preview_url }), null);
+  }
+});
+
+test("only a rider that arrived alone and is still alone gets the route", () => {
+  assert.equal(routeRiderSeq([]), undefined);
+  const first = enqueueRider([], arrival(1, 0), 0);
+  assert.equal(routeRiderSeq(first), 1);
+  // A rider close behind leaves both with their pins only.
+  const both = enqueueRider(first, arrival(2, 5_000), 5_000);
+  assert.equal(routeRiderSeq(both), undefined);
+  // The later rider does not get the route when the earlier one expires.
+  assert.equal(routeRiderSeq(activeRiders(both, RIDER_QUEUE_MS)), undefined);
+  // A rider arriving after the queue emptied gets it again.
+  assert.equal(routeRiderSeq(enqueueRider(both, arrival(3, 5_000 + RIDER_QUEUE_MS), 5_000 + RIDER_QUEUE_MS)), 3);
+});
+
+test("the clip's riders are asked for again only while the API is still classifying it", () => {
+  assert.equal(classificationRetryMs(503, "5"), 5_000);
+  assert.equal(classificationRetryMs(503, "3600"), CLASSIFICATION_RETRY_MAX_MS);
+  for (const [status, retryAfter] of [[503, null], [503, "0"], [503, "soon"], [503, "1.5"], [502, "5"], [404, "5"]] as const) {
+    assert.equal(classificationRetryMs(status, retryAfter), undefined, `${status} ${retryAfter}`);
+  }
 });

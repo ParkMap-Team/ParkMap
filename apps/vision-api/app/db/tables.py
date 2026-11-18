@@ -3,6 +3,7 @@ that exposes `public` through a data API (for example Supabase) never publishes 
 
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import (
     BigInteger,
@@ -16,12 +17,12 @@ from sqlalchemy import (
     MetaData,
     Text,
     UniqueConstraint,
+    Uuid,
     func,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
 
 SCHEMA = "parkmap"
 
@@ -38,6 +39,19 @@ class Site(Base):
     latitude: Mapped[float] = mapped_column(Float)
     longitude: Mapped[float] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FrameCropClassification(Base):
+    """Private operator results for reviewed video crops."""
+
+    __tablename__ = "frame_crop_classifications"
+
+    review_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    crop_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    frame_time_seconds: Mapped[float | None] = mapped_column(Float)
+    model_id: Mapped[str] = mapped_column(Text)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    saved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class ParkingArea(Base):
@@ -120,3 +134,30 @@ class AreaFrame(Base):
     height: Mapped[int] = mapped_column(Integer)
     image: Mapped[bytes] = mapped_column(LargeBinary)
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ParkingHold(Base):
+    """One issued recommendation, shared by API instances and entry channels."""
+
+    __tablename__ = "parking_holds"
+    __table_args__ = (
+        Index("parking_holds_active_site", "site_id", "stage"),
+        Index("parking_holds_one_active_line_owner", "site_id", "owner_key", unique=True,
+              postgresql_where=text("channel = 'LINE' AND owner_key IS NOT NULL AND stage IN ('HELD', 'AWAITING_CONFIRMATION')")),
+    )
+
+    site_id: Mapped[str] = mapped_column(ForeignKey("sites.id"), primary_key=True)
+    request_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    channel: Mapped[str] = mapped_column(Text)
+    owner_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    family: Mapped[str] = mapped_column(Text)
+    area_id: Mapped[str] = mapped_column(Text)
+    geometry_version: Mapped[str] = mapped_column(Text)
+    ends_with_photo: Mapped[bool] = mapped_column(Boolean)
+    stage: Mapped[str] = mapped_column(Text)
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    result: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    history: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)

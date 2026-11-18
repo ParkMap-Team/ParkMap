@@ -1,42 +1,24 @@
-"use client";
-
-import { useLayoutEffect, useRef, useState } from "react";
-import type { MetricPolygon } from "@/lib/api/types";
-import { type Insets, type Size, overview2D, toScreen } from "@/lib/map/camera";
-import type { Bounds } from "@/lib/map/geometry";
+import type { Insets } from "@/lib/map/camera";
 import { COLORS } from "@/lib/parking/presentation";
+import { LoadingDots } from "./mascot";
 
 /**
- * What shows while a map view loads: the lot's outline from the lot model, where the overview will
- * put it, with no status at all. It sits behind both views, so the map arrives without a jump.
+ * What shows while a map view loads: bare ground behind both views, with no lot shape and no status,
+ * so nothing has to line up with the map as it fades in. The catalogue's Loading Dots rise in turn
+ * where the lot will appear; the words are for screen readers only.
  */
-export function MapSkeleton({ outline, bounds, insets, loading }: { outline: MetricPolygon; bounds: Bounds; insets: Insets; loading: boolean }) {
-  const container = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState<Size | null>(null);
-
-  useLayoutEffect(() => {
-    const element = container.current;
-    if (!element) return;
-    const observer = new ResizeObserver(([entry]) => {
-      const next = { width: entry.contentRect.width, height: entry.contentRect.height };
-      if (next.width > 0 && next.height > 0) setSize(next);
-    });
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  const view = size && overview2D(bounds, { ...size, insets });
-  const path = view && size ? outline.map((ring) => `M${ring.map((point) => toScreen(view, size, point).join(",")).join("L")}Z`).join("") : null;
+export function MapSkeleton({ insets, loading }: { insets: Insets; loading: boolean }) {
   return (
-    <div ref={container} className="absolute inset-0" style={{ backgroundColor: COLORS.GROUND }}>
-      {path && (
-        <svg aria-hidden className="absolute inset-0 size-full">
-          <path d={path} fill={COLORS.LOT} fillRule="evenodd" />
-        </svg>
-      )}
-      <p role="status" className="absolute inset-x-0 text-center text-sm text-muted-foreground" style={{ top: insets.top }}>
-        {loading && "กำลังโหลดแผนที่"}
-      </p>
+    <div className="absolute inset-0" style={{ backgroundColor: COLORS.GROUND }}>
+      {/* The overview centres the lot between the insets, so the dots sit where it will be. */}
+      <div role="status" className="absolute flex items-center justify-center" style={{ top: insets.top, right: insets.right, bottom: insets.bottom, left: insets.left }}>
+        {loading && (
+          <>
+            <span className="sr-only">กำลังโหลดแผนที่</span>
+            <LoadingDots size="large" />
+          </>
+        )}
+      </div>
     </div>
   );
 }

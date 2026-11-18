@@ -1,0 +1,18 @@
+# Operator demo overlay. Use together with the root compose.yaml.
+services:
+  vision-demo:
+    image: ${PARKMAP_DEMO_IMAGE:-parkmap-vision-demo:demo-v1}
+    environment:
+      DATABASE_URL: postgresql://parkmap:parkmap@postgres:5432/parkmap
+      PARKMAP_EDITOR_TOKEN: ${PARKMAP_EDITOR_TOKEN:?Set a private editor token for the demo}
+      PARKMAP_DEVICE: cpu
+    ports:
+      - "127.0.0.1:${PARKMAP_DEMO_API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20

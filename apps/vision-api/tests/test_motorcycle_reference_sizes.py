@@ -10,8 +10,8 @@ from app.services.virtual_fitting_service import LENGTH_M, WIDTH_M
 
 def test_editable_catalog_keeps_the_standard_fallback():
     rules = load_rules()
-    assert len(rules.classes) == 46
-    assert {"wave", "pcx", "adv", "grand_filano"} <= rules.classes.keys()
+    assert len(rules.classes) == 48
+    assert {"wave", "pcx", "adv", "grand_filano", "cbr650r", "hd_road_glide"} <= rules.classes.keys()
     assert (rules.fallback.width_m, rules.fallback.length_m) == (WIDTH_M, LENGTH_M)
     assert rules.fallback.basis == "INITIAL_STANDARD_NOT_MEASURED"
 

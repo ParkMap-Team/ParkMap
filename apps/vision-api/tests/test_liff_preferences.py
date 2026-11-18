@@ -116,5 +116,5 @@ def test_save_notifies_only_verified_user_after_commit(database, client, monkeyp
     assert response.status_code == 200 and response.json()["model_id"] == "pcx"
     assert response.json()["notification_status"] == ("accepted" if status == 200 else "failed")
     assert pushes == [{"to": user, "notificationDisabled": False,
-        "messages": [{"type": "text", "text": "บันทึกรุ่นรถของคุณเป็น pcx เรียบร้อยแล้ว 🏍️"}]}]
+        "messages": [{"type": "text", "text": "บันทึกรุ่นรถของคุณเป็น Honda PCX เรียบร้อยแล้ว 🏍️"}]}]
     assert user not in response.text and "synthetic-access-token" not in response.text

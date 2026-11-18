@@ -76,43 +76,220 @@
 }
 
 /*
- * Cool ink on paper. Chrome stays quiet so the five status colours own all the
- * saturation on screen. Pure white and black are avoided.
+ * Guard Booth motion. Timings follow the Motion Reference catalogue (motion-reference.takayustudio.jp):
+ * toast in on a spring ~400ms with ~10% overshoot, follow-through 40ms later, map pins dropping in
+ * 400ms with a bounce, a 1.6s pulse ring, and a 600ms blur crossfade. Transforms and opacity only,
+ * so no card or panel ever changes size. Callers apply them under `motion-safe:`.
+ */
+@theme {
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --animate-rider-enter: rider-enter 400ms var(--ease-spring) both;
+    --animate-rider-settle: rider-settle 300ms var(--ease-out-strong) 40ms both;
+    --animate-content-swap: content-swap 240ms ease-out both;
+    --animate-icon-pop: icon-pop 400ms var(--ease-spring) both;
+    --animate-pin-drop: pin-drop 400ms ease-out both;
+    --animate-pin-ring: pin-ring 1600ms ease-out 400ms 2 forwards;
+    --animate-idle-ring: pin-ring 1600ms ease-out infinite;
+    --animate-scene-blur: scene-blur 600ms ease-in-out both;
+    --animate-toast-rise: toast-rise 400ms var(--ease-spring) both;
+    /* The destination's callout springs out of its tail just as the pin finishes dropping. */
+    --animate-callout-pop: callout-pop 360ms var(--ease-spring) 300ms both;
+
+    /* A new rider's card arrives at the top of the queue. */
+    @keyframes rider-enter {
+        from {
+            opacity: 0;
+            transform: translateY(-8px) scale(0.96);
+        }
+    }
+
+    /* The previous card follows through as it becomes a compact row. */
+    @keyframes rider-settle {
+        from {
+            opacity: 0.4;
+            transform: translateY(-8px);
+        }
+    }
+
+    /* What a card says changes without a hard cut. */
+    @keyframes content-swap {
+        from {
+            opacity: 0;
+            filter: blur(4px);
+        }
+    }
+
+    @keyframes icon-pop {
+        from {
+            transform: scale(0.5);
+        }
+    }
+
+    @keyframes pin-drop {
+        0% {
+            opacity: 0;
+            transform: translateY(-24px);
+        }
+        60% {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        80% {
+            transform: translateY(-5px);
+        }
+        100% {
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes pin-ring {
+        from {
+            opacity: 0.6;
+            transform: scale(1);
+        }
+        to {
+            opacity: 0;
+            transform: scale(2.2);
+        }
+    }
+
+    /* The camera blurs out of one lot photo's scene into the next. */
+    @keyframes scene-blur {
+        from {
+            opacity: 1;
+        }
+        to {
+            opacity: 0;
+        }
+    }
+
+    @keyframes toast-rise {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+    }
+
+    @keyframes callout-pop {
+        from {
+            opacity: 0;
+            transform: scale(0.6);
+        }
+    }
+}
+
+/*
+ * App shell and error motion, picked from the same catalogue and kept under 300ms where it answers a
+ * tap: Fade + Slide for a screen arriving (600ms there, shortened for UI) and Error Shake for a failed
+ * retry. Callers apply them under `motion-safe:`.
+ *
+ * Loading motion is the catalogue's Loading category as it ships: Loading Dots (900ms easeInOutSine,
+ * 90ms stagger) under a label and over the loading map, Spinner Arc (900ms linear), Skeleton Resolve
+ * (860ms easeOutCubic) for the map taking over from its skeleton, and Progress Fill (1300ms
+ * easeInOutCubic, a transition in ui/progress-fill.tsx) for launch steps. One adaptation: a dot rises
+ * by its own height, so the compact dots rise 5px rather than the full-size 10px.
+ */
+@theme {
+    --ease-in-out-sine: cubic-bezier(0.37, 0, 0.63, 1);
+    --ease-out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
+    --ease-in-out-cubic: cubic-bezier(0.65, 0, 0.35, 1);
+    --animate-screen-enter: screen-enter 240ms var(--ease-out-strong) both;
+    --animate-error-shake: error-shake 360ms var(--ease-out-strong) both;
+    --animate-loading-dots: loading-dots 900ms var(--ease-in-out-sine) infinite;
+    --animate-spinner-arc: spinner-arc 900ms linear infinite;
+    --animate-skeleton-resolve: skeleton-resolve 860ms var(--ease-out-cubic) both;
+
+    @keyframes screen-enter {
+        from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+    }
+
+    @keyframes error-shake {
+        20% {
+            transform: translateX(-6px);
+        }
+        40% {
+            transform: translateX(5px);
+        }
+        60% {
+            transform: translateX(-3px);
+        }
+        80% {
+            transform: translateX(2px);
+        }
+    }
+
+    @keyframes loading-dots {
+        0%,
+        100% {
+            opacity: 0.35;
+            transform: translateY(0);
+        }
+        50% {
+            opacity: 1;
+            transform: translateY(-100%);
+        }
+    }
+
+    @keyframes spinner-arc {
+        to {
+            transform: rotate(1turn);
+        }
+    }
+
+    @keyframes skeleton-resolve {
+        from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+    }
+}
+
+/*
+ * ParkMap's identity, from the rich menu and the mascot: hot pink actions and deep
+ * wine on blush paper. Pink stays on controls and never enters the map, so the
+ * status colours keep their meaning. Primary is a step darker than the menu's
+ * #fa036c so white text on it meets 4.5:1.
  */
 :root {
-    --background: oklch(0.975 0.004 250);
-    --foreground: oklch(0.24 0.02 255);
-    --card: oklch(0.993 0.002 250);
-    --card-foreground: oklch(0.24 0.02 255);
-    --popover: oklch(0.993 0.002 250);
-    --popover-foreground: oklch(0.24 0.02 255);
-    --primary: oklch(0.28 0.025 255);
-    --primary-foreground: oklch(0.985 0.003 250);
-    --secondary: oklch(0.94 0.006 250);
-    --secondary-foreground: oklch(0.24 0.02 255);
-    --muted: oklch(0.945 0.006 250);
-    --muted-foreground: oklch(0.43 0.02 255);
-    --accent: oklch(0.93 0.008 250);
-    --accent-foreground: oklch(0.24 0.02 255);
+    --background: oklch(0.982 0.006 358);
+    --foreground: oklch(0.24 0.05 355);
+    --card: oklch(0.995 0.003 358);
+    --card-foreground: oklch(0.24 0.05 355);
+    --popover: oklch(0.995 0.003 358);
+    --popover-foreground: oklch(0.24 0.05 355);
+    --primary: oklch(0.592 0.237 9.2);
+    --primary-foreground: oklch(0.99 0.004 358);
+    --secondary: oklch(0.95 0.018 358);
+    --secondary-foreground: oklch(0.24 0.05 355);
+    --muted: oklch(0.955 0.014 358);
+    --muted-foreground: oklch(0.47 0.05 355);
+    --accent: oklch(0.94 0.022 358);
+    --accent-foreground: oklch(0.24 0.05 355);
     --destructive: oklch(0.5 0.17 27);
-    --border: oklch(0.86 0.008 250);
-    --input: oklch(0.86 0.008 250);
-    --ring: oklch(0.5 0.12 255);
-    /* Source and freshness notices: an inverted ink surface, never a status hue. */
-    --notice: oklch(0.28 0.025 255);
-    --notice-foreground: oklch(0.985 0.003 250);
+    --border: oklch(0.89 0.018 358);
+    --input: oklch(0.89 0.018 358);
+    --ring: oklch(0.632 0.252 8);
+    /* Source and freshness notices: the brand's wine surface, never a status hue. */
+    --notice: oklch(0.342 0.122 359);
+    --notice-foreground: oklch(0.99 0.004 358);
     /* Lost connection or stale data: a deep brick surface with paper text. */
     --alert: oklch(0.38 0.11 28);
     --alert-foreground: oklch(0.985 0.003 250);
     --radius: 0.625rem;
+    /* The bottom inset a screen pads itself with; the tab bar takes it over inside the app shell. */
+    --safe-bottom: env(safe-area-inset-bottom);
 }
 
 @layer base {
     * {
         @apply border-border outline-ring/50;
     }
+    /* A column, so every screen fills the viewport with `flex-1` inside or outside the app shell. */
     body {
-        @apply bg-background text-foreground;
+        @apply flex min-h-dvh flex-col bg-background text-foreground;
     }
     html {
         @apply font-sans;

@@ -8,6 +8,7 @@ import {
   MAX_ELEVATION_RAD,
   MAX_ZOOM,
   MIN_ELEVATION_RAD,
+  NO_INSETS,
   type View3D,
   cameraPosition,
   centreOn2D,
@@ -17,6 +18,7 @@ import {
   introView3D,
   mix2D,
   mix3D,
+  nearPlane,
   overview2D,
   overview3D,
   pan2D,
@@ -28,7 +30,7 @@ import {
   zoom2D,
 } from "./camera.ts";
 import type { Bounds } from "./geometry.ts";
-import { labelRect, placeLabels } from "./labels.ts";
+import { LABEL_PRIORITY, labelRect, placeLabels } from "./labels.ts";
 import { INITIAL_RENDERER, mountsThreeD, rendererReducer, type RendererEvent } from "./renderer.ts";
 
 const bounds: Bounds = { minX: -3, minY: 1, maxX: 29, maxY: 14 };
@@ -191,6 +193,20 @@ test("a label beside the controls moves to the left of its anchor", () => {
   assert.deepEqual(shown.get("exit"), [256, 150]);
 });
 
+test("a pin that does not fit over its point hides instead of pointing elsewhere", () => {
+  const entrance = { id: "entrance", x: 100, y: 100, width: 60, height: 20, priority: 100, minZoom: 0 };
+  const pin = { id: "pin", x: 110, y: 104, width: 60, height: 40, priority: 90, minZoom: 0, pinned: true };
+  assert.equal(placeLabels([entrance, pin], { width: 360, height: 400, zoom: 1 }).has("pin"), false);
+  assert.deepEqual(placeLabels([pin], { width: 360, height: 400, zoom: 1 }).get("pin"), [110, 104]);
+});
+
+test("a destination pin keeps its point and an entrance label in the way moves aside", () => {
+  const entrance = { id: "entrance", x: 100, y: 100, width: 60, height: 20, priority: LABEL_PRIORITY.ENTRANCE, minZoom: 0 };
+  const pin = { id: "pin", x: 130, y: 104, width: 60, height: 40, priority: LABEL_PRIORITY.DESTINATION, minZoom: 0, pinned: true };
+  const shown = placeLabels([entrance, pin], { width: 360, height: 400, zoom: 1 });
+  assert.deepEqual(Object.fromEntries(shown), { pin: [130, 104], entrance: [66, 100] });
+});
+
 test("small features get their labels when zoomed in", () => {
   const candidate = { id: "aisle", x: 100, y: 100, width: 60, height: 20, priority: 30, minZoom: 1.4 };
   assert.equal(placeLabels([candidate], { width: 360, height: 400, zoom: 1.5 }).has("aisle"), true);
@@ -257,4 +273,12 @@ test("reveal moves a hidden point just clear of what covers the map, and leaves 
   assert.equal(revealOffset(10, 800, 60, 300), 60 + 48 - 10);
   // When there is no free band left, nothing moves.
   assert.equal(revealOffset(600, 800, 400, 400), 0);
+});
+
+test("the near plane moves out with the camera, so distant flat layers keep their depth order", () => {
+  assert.equal(nearPlane(5), 0.5);
+  assert.equal(nearPlane(400), 12);
+  // Close in, it never clips what the camera can reach: the closest view at the lowest tilt.
+  const closest = overview3D({ minX: 0, minY: 0, maxX: 30, maxY: 20 }, { width: 390, height: 700, insets: NO_INSETS }).distance / MAX_ZOOM;
+  assert.ok(nearPlane(closest) < closest * Math.sin(MIN_ELEVATION_RAD) / 4);
 });

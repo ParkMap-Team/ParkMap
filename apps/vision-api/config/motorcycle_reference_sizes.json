@@ -57,6 +57,11 @@
       "length_m": 2.081,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
+    "cbr650r": {
+      "width_m": 0.75,
+      "length_m": 2.12,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
     "click": {
       "width_m": 0.679,
       "length_m": 1.92,
@@ -125,6 +130,11 @@
     "gtx125": {
       "width_m": 0.685,
       "length_m": 1.87,
+      "basis": "INITIAL_STANDARD_NOT_MEASURED"
+    },
+    "hd_road_glide": {
+      "width_m": 0.945,
+      "length_m": 2.41,
       "basis": "INITIAL_STANDARD_NOT_MEASURED"
     },
     "lead": {

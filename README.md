@@ -82,6 +82,13 @@ without starting services, use `--dry-run`. Its focused Windows tests are
 `node --test tools/start-dev.test.mjs`. The two native integration cases require
 free app ports and explicitly skip when development servers are already running.
 
+## Video Classification Docker demo
+
+The operator demo can run Vision API and PostgreSQL in Docker, with all three
+checkpoints packaged in the API image. Calibration UI runs on the host.
+Use the [Docker demo guide](docs/classifier-parking-experiment.md#docker-demo)
+to build the image or run it on macOS.
+
 ## LIFF app
 
 ```sh
@@ -198,15 +205,32 @@ Production runs on Coolify at <https://coolify.parkmap.dev>, project `ParkMap`, 
 | `parkmap-worker` | `ghcr.io/parkmap-team/parkmap-api` | `PARKMAP_PROCESS=worker`. Loops the Sripatum photos as a still-image loop and publishes through the API ([ADR 0011](docs/adr/0011-still-image-loop-demo-on-estimated-calibration.md)). Photos, weights, and calibration files come from the server directory `/srv/parkmap-demo`; see the [runbook](docs/still-image-loop-runbook.md). |
 | `parkmap-liff` | `ghcr.io/parkmap-team/parkmap-liff` | <https://app.parkmap.dev>, port 3001. Calls the API server-side through `PARKMAP_API_URL`. |
 
-`DATABASE_URL`, `PARKMAP_WORKER_TOKEN`, and `PARKMAP_API_URL` are Coolify environment variables and exist nowhere else. The API has one scheduled task, `purge-states` (daily, 30-day retention). Production lists only real sites: `seed-dev` and `publish-dev-state` are for local development and never run there. `NEXT_PUBLIC_LIFF_ID` is inlined into the LIFF bundle at build time from the repository variable `PRODUCTION_LIFF_ID`, so changing it needs a new image, not a Coolify restart.
+`DATABASE_URL`, `PARKMAP_WORKER_TOKEN`, and `PARKMAP_API_URL` are Coolify environment variables and exist nowhere else. The API has one scheduled task, `purge-states` (daily, 30-day retention). Production lists only real sites: `seed-dev` and `publish-dev-state` are for local development and never run there. `NEXT_PUBLIC_LIFF_ID` is inlined into the LIFF bundle at build time from the repository variable `PRODUCTION_LIFF_ID`, so changing it needs a new image, not a Coolify restart. Likewise `NEXT_PUBLIC_LINE_OA_ID` (the official account's LINE ID with its `@`, from the repository variable `LINE_OA_ID`) and `SOURCE_COMMIT` (the commit the settings tab shows as the version). A build outside CI passes the same three build arguments; without them the settings tab leaves out the report link and the version.
 
-**Pipeline.** Pull requests build both images without pushing them. A push to `main` pushes `sha-<commit>` images of the changed services to GHCR, then [`.github/workflows/deploy-coolify.yml`](.github/workflows/deploy-coolify.yml) pins that tag on each Coolify application, triggers the deployment, and waits for it: the API first (it runs migrations), then the worker, and the LIFF app once the API deploy succeeded or was not needed. The workflows read repository variables `COOLIFY_URL`, `COOLIFY_APP_API`, `COOLIFY_APP_WORKER`, `COOLIFY_APP_LIFF` (application UUIDs), and `PRODUCTION_LIFF_ID`, and the secret `COOLIFY_TOKEN`, a Coolify API token with the `read`, `write`, and `deploy` abilities. The private repository's plan has no protected environments, so these are repository-level and readable by every workflow in the repository.
+**Pipeline.** Pull requests build both images without pushing them. A push to `main` pushes `sha-<commit>` images of the changed services to GHCR, then [`.github/workflows/deploy-coolify.yml`](.github/workflows/deploy-coolify.yml) pins that tag on each Coolify application, triggers the deployment, and waits for it: the API first (it runs migrations), then the worker, and the LIFF app once the API deploy succeeded or was not needed. The workflows read repository variables `COOLIFY_URL`, `COOLIFY_APP_API`, `COOLIFY_APP_WORKER`, `COOLIFY_APP_LIFF` (application UUIDs), `PRODUCTION_LIFF_ID`, and `LINE_OA_ID`, and the secret `COOLIFY_TOKEN`, a Coolify API token with the `read`, `write`, and `deploy` abilities. The private repository's plan has no protected environments, so these are repository-level and readable by every workflow in the repository.
 
-**Manual feature-branch release (2026-11-14).** The LIFF, API and worker resources override the image-based setup above with Coolify Dockerfile builds from `feat/parking-free-space`, pinned to `d542f6f40e03f5760f70b8dac2078263e59fbebf`. LIFF uses `apps/liff/Dockerfile` with the repository root as context; API and worker use `/Dockerfile` with `/apps/vision-api` as context. Git auto-deployment is disabled. The public domain and production LIFF ID stay the same; `NEXT_PUBLIC_LIFF_ID` is a LIFF build-time variable. Backend credentials and configuration are runtime-only. The dashboard LIFF HTTP health-check override is disabled so its existing Node `HEALTHCHECK` checks `/help`; the API keeps its HTTP `/api/health` check and the worker serves no HTTP port. The official Seg model is mounted from the server, with its checksum verified against the local model (see the [runbook](docs/still-image-loop-runbook.md)). A successful local Coolify database backup was taken before API migration. Existing site layout and calibration are preserved by the migration, so copying local setup remains a separate reviewed operation. Before resuming the `main` image pipeline or its image-tag rollback, restore the affected resource to Docker Image mode with its GHCR image and intended `sha-<commit>` tag. The existing workflow updates only image tags and cannot release a new commit while these source pins remain active.
+**Release from a workstation (since 2026-11-18).** GitHub Actions cannot run for this repository, and the VPS (2 CPUs, 4 GB RAM) stalls when it builds images, so images are built on a workstation and the VPS only pulls them from GHCR. The LIFF, API and worker resources stay Coolify Dockerfile resources, because Coolify cannot switch an existing Git resource back to Docker Image mode and recreating them would move their server mounts. Their Dockerfile is `Dockerfile.ghcr`, only `FROM ${PARKMAP_IMAGE}`: LIFF uses `/apps/liff/Dockerfile.ghcr` with the repository root as context; API and worker use `/Dockerfile.ghcr` with `/apps/vision-api` as context. `PARKMAP_IMAGE` is a build-only variable on each resource holding the full image reference with its `sha-<commit>` tag; the worker runs the API image. The dashboard LIFF HTTP health-check override is disabled so the image's Node `HEALTHCHECK` checks `/help`; the API keeps its HTTP `/api/health` check and the worker serves no HTTP port. To release a `main` commit:
+
+1. Build `linux/amd64` images from `git archive <commit>`, never the working tree, with the contexts, Dockerfiles and build arguments of `ci.yml`, tag them `ghcr.io/parkmap-team/<image>:sha-<commit>`, and push them:
+
+   ```bash
+   git archive "$SHA:apps/vision-api" | docker buildx build --platform linux/amd64 --load \
+     -t "ghcr.io/parkmap-team/parkmap-api:sha-$SHA" -
+   git archive "$SHA" | docker buildx build --platform linux/amd64 --load -f apps/liff/Dockerfile \
+     --build-arg NEXT_PUBLIC_LIFF_ID=... --build-arg NEXT_PUBLIC_LINE_OA_ID=@... \
+     --build-arg SOURCE_COMMIT="$SHA" -t "ghcr.io/parkmap-team/parkmap-liff:sha-$SHA" -
+   docker push "ghcr.io/parkmap-team/parkmap-api:sha-$SHA"
+   docker push "ghcr.io/parkmap-team/parkmap-liff:sha-$SHA"
+   ```
+
+2. Set `PARKMAP_IMAGE` on each resource to the new reference.
+3. Deploy with force rebuild, so Coolify does not reuse an image it built earlier from the same Git commit: the API first (it runs migrations), then the worker and the LIFF app.
+
+The LINE bot (`parkmap-bot`) runs the API image as well, because the organisation does not let members create a GHCR package for it: `/Dockerfile.ghcr` with `/apps/vision-api` as context, the same `PARKMAP_IMAGE` as the API, and the runtime variable `PARKMAP_PROCESS=bot`. The API image installs the `line-bot` dependency group for it. Deploy it after the API.
 
 **Pulling private images.** The VPS is logged in to `ghcr.io` as root (`docker login ghcr.io`) with a classic personal access token that has only `read:packages`; Coolify 4.3.23 has no API for registry credentials. When that token expires, deploys fail while pulling; create a new token and log in again.
 
-**Rollback.** Re-run the deploy jobs of an earlier successful `main` CI run; they pin that run's image tag again. Equivalently, set the image tag of the application in Coolify to an earlier `sha-<commit>` and redeploy. Rolling back the API image does not downgrade the database schema.
+**Rollback.** Re-run the deploy jobs of an earlier successful `main` CI run; they pin that run's image tag again. Equivalently, set the image tag of the application in Coolify to an earlier `sha-<commit>` and redeploy; for a workstation release, set `PARKMAP_IMAGE` to an earlier tag and redeploy with force rebuild. Rolling back the API image does not downgrade the database schema.
 
 **Network.** Only ports 22, 80, and 443 are reachable from the internet. Coolify's direct ports (8000 for the dashboard, 6001 and 6002 for realtime and the terminal) are dropped in the `DOCKER-USER` iptables chain by `coolify-port-lockdown.service` on the VPS, because Docker-published ports bypass `ufw`. The dashboard and its realtime traffic go through the proxy at `coolify.parkmap.dev`.
 

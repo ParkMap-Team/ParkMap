@@ -1,7 +1,11 @@
 import type { LiveRegion, MotorcycleProxy } from '../api/types.ts';
 import { labelPoint, pointInPolygon, proxyFootprint } from './geometry.ts';
 
-/** Display-only fit to this detection's occupied band. No nearest-neighbour guessing. */
+/**
+ * Display-only fit to this detection's occupied band. No nearest-neighbour guessing. Only the width
+ * narrows to the band, never the length: a small motorcycle reads as a slim one, not a shrunken toy,
+ * and a band shorter than a motorcycle (a shallow row) does not shrink it either.
+ */
 export function fitProxyDisplay(proxy: MotorcycleProxy, regions: LiveRegion[]): MotorcycleProxy {
   const candidates = regions.filter(region => region.kind === 'OCCUPIED' && region.detection_id === proxy.detection_id
     && region.polygon.length === 1 && region.polygon[0].length >= 3);
@@ -27,10 +31,13 @@ export function fitProxyDisplay(proxy: MotorcycleProxy, regions: LiveRegion[]): 
   const alignment = Math.abs((longest.x * Math.cos(proxy.heading_rad) + longest.y * Math.sin(proxy.heading_rad)) / Math.hypot(longest.x, longest.y));
   if (alignment < .7) return proxy;
   const center = labelPoint(band.polygon);
+  // The width is tested across the part of the motorcycle that lies within the band's length.
+  const along = ring.map(p => (p.x_m - center.x_m) * Math.cos(proxy.heading_rad) + (p.y_m - center.y_m) * Math.sin(proxy.heading_rad));
+  const probeLength = Math.min(proxy.length_m, 2 * Math.min(Math.max(...along), -Math.min(...along)) * .98);
   let low = 0, high = 1;
   for (let step = 0; step < 24; step++) {
     const scale = (low + high) / 2;
-    const fitted = { ...proxy, center, length_m: proxy.length_m * scale, width_m: proxy.width_m * scale };
+    const fitted = { ...proxy, center, length_m: probeLength, width_m: proxy.width_m * scale };
     const corners = proxyFootprint(fitted)[0];
     const inside = corners.every((p, i) => {
       const next = corners[(i + 1) % corners.length];
@@ -40,5 +47,5 @@ export function fitProxyDisplay(proxy: MotorcycleProxy, regions: LiveRegion[]): 
     if (inside) low = scale;
     else high = scale;
   }
-  return { ...proxy, center, length_m: proxy.length_m * low * .9, width_m: proxy.width_m * low * .9 };
+  return { ...proxy, center, width_m: proxy.width_m * low * .9 };
 }
