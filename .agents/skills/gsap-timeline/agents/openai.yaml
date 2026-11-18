@@ -1,0 +1,4 @@
+interface:
+  display_name: 'GSAP Timeline'
+  short_description: 'Sequence coordinated motion with GSAP timelines'
+  default_prompt: 'Use $gsap-timeline to sequence this animation.'

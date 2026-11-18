@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Anti-Slop Design'
+  short_description: 'Improve UI quality and avoid generic design patterns'
+  default_prompt: 'Use $anti-slop-design to review and improve this interface while preserving its behavior.'

@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Design Taste'
+  short_description: 'Design and polish distinctive accessible interfaces'
+  default_prompt: 'Use $design-taste to design or polish this web interface.'
