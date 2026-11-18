@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPinned } from "lucide-react";
+import { LocateFixed, MapPinned, Scan } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,13 +9,12 @@ import { Button } from "@/components/ui/button";
 import type { LotModel } from "@/lib/api/types";
 import type { Insets } from "@/lib/map/camera";
 import { mapLabels } from "@/lib/map/legend";
-import { buildLotMap } from "@/lib/map/lot-map";
-import { type ParkedSpot, savedAtLabel, spotPoint } from "@/lib/parked-spot";
-import { guideFrame } from "@/lib/parking/guide";
+import { type ParkedSpot, type SpotView, parkedSpotMap, savedAtLabel, spotPoint, spotRing } from "@/lib/parked-spot";
 import { ViewErrorBoundary } from "./map-overlay";
 
 const LotPlan = dynamic(() => import("./lot-plan"), { ssr: false, loading: () => null });
-const INSETS: Insets = { top: 16, right: 16, bottom: 16, left: 16 };
+// The top clears the view toggle (top-3 + h-11) so the pin and labels never sit under it.
+const INSETS: Insets = { top: 64, right: 16, bottom: 16, left: 16 };
 
 /**
  * The rider's marked spot on the lot plan (ADR 0021). The plan carries no parking areas or live
@@ -25,13 +24,11 @@ export function ParkedSpotView({ siteName, lotModel, spot }: { siteName: string;
   const router = useRouter();
   const [erase, setErase] = useState<"idle" | "erasing" | "failed">("idle");
   const [mapFailed, setMapFailed] = useState(false);
-  // The overview frames the lot and the spot together.
-  const { map, labels, selection } = useMemo(() => {
-    const plan = buildLotMap(lotModel, []);
-    const point = spotPoint(spot);
-    const map = { ...plan, areas: [], frame: guideFrame(plan.frame, [point]) };
-    return { map, labels: mapLabels(map), selection: { point, polygon: null, text: "รถคุณ", destination: true } };
-  }, [lotModel, spot]);
+  // It opens close on the spot; the whole lot is one tap away, and either frame keeps the spot centred.
+  const [view, setView] = useState<SpotView>("spot");
+  const map = useMemo(() => parkedSpotMap(lotModel, spot, view), [lotModel, spot, view]);
+  const labels = useMemo(() => mapLabels(map), [map]);
+  const selection = useMemo(() => ({ point: spotPoint(spot), polygon: spotRing(spot), text: "รถคุณ", destination: true }), [spot]);
 
   async function onErase() {
     setErase("erasing");
@@ -47,9 +44,14 @@ export function ParkedSpotView({ siteName, lotModel, spot }: { siteName: string;
         {mapFailed ? (
           <p className="flex h-full items-center justify-center px-4 text-center text-sm text-muted-foreground">แสดงแผนที่ไม่ได้ในตอนนี้</p>
         ) : (
-          <ViewErrorBoundary onError={() => setMapFailed(true)}>
-            <LotPlan map={map} labels={labels} selection={selection} onSelect={() => {}} insets={INSETS} />
-          </ViewErrorBoundary>
+          <>
+            <ViewErrorBoundary onError={() => setMapFailed(true)}>
+              <LotPlan map={map} labels={labels} selection={selection} overviewKey={view} onSelect={() => {}} insets={INSETS} />
+            </ViewErrorBoundary>
+            <Button variant="outline" className="absolute top-3 right-3 h-11 gap-2 rounded-lg bg-background px-3 shadow-sm" onClick={() => setView(view === "spot" ? "lot" : "spot")}>
+              {view === "spot" ? <><Scan />ดูทั้งลาน</> : <><LocateFixed />ดูจุดจอด</>}
+            </Button>
+          </>
         )}
       </section>
       <div className="space-y-3 border-t px-4 pt-4 pb-4">

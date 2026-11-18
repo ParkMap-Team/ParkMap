@@ -182,7 +182,7 @@ export function LabelLayer({
         if (!element || !screen) continue;
         // Selected and pinned labels sit just above their point instead of on it.
         const anchor: [number, number] = label.pin ? [screen[0], screen[1] - element.offsetHeight / 2 - PIN_POINT_PX] : label.raised ? [screen[0], screen[1] - 22] : screen;
-        const kind = label.raised ? "SELECTED" : label.kind;
+        const kind = label.id === SELECTED_ID && selection?.destination ? "DESTINATION" : label.raised ? "SELECTED" : label.kind;
         candidates.push({ id: label.id, x: anchor[0], y: anchor[1], width: element.offsetWidth, height: element.offsetHeight, priority: LABEL_PRIORITY[kind], minZoom: LABEL_MIN_ZOOM[kind], pinned: !!label.pin });
         if (label.direction !== null) {
           const ahead = project({ x_m: label.anchor.x_m + Math.cos(label.direction) * 2, y_m: label.anchor.y_m + Math.sin(label.direction) * 2 });

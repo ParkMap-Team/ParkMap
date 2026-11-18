@@ -19,8 +19,12 @@ export type LabelCandidate = {
   pinned?: boolean;
 };
 
-/** Entrances and exits first, then the selection, then the rest. */
+/**
+ * The destination pin first: it can only point at its place, so the labels that can move make way.
+ * Then entrances and exits, then the selection, then the rest.
+ */
 export const LABEL_PRIORITY = {
+  DESTINATION: 110,
   ENTRANCE: 100,
   EXIT: 100,
   ENTRANCE_EXIT: 100,
@@ -35,10 +39,11 @@ export const LABEL_PRIORITY = {
   ROAD: 20,
   WALKWAY: 20,
   TREE: 10,
-} as const satisfies Record<LandmarkKind | "SELECTED" | "AREA", number>;
+} as const satisfies Record<LandmarkKind | "DESTINATION" | "SELECTED" | "AREA", number>;
 
 /** Small features wait for a closer zoom so the overview stays readable. */
 export const LABEL_MIN_ZOOM = {
+  DESTINATION: 0,
   ENTRANCE: 0,
   EXIT: 0,
   ENTRANCE_EXIT: 0,
