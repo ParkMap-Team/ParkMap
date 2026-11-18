@@ -13,5 +13,5 @@ export default async function SitePage({ params }: { params: Promise<{ siteId: s
   if (!sites) throw new Error("Site list request failed");
   const site = sites.find((item) => item.site_id === siteId);
   if (!site) notFound();
-  return <SiteScreen site={site} siteCount={sites.length} lotModel={lotModel} />;
+  return <SiteScreen site={site} lotModel={lotModel} />;
 }

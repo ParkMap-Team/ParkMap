@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 
 export default function NotFound() {
   return (
-    <MascotScreen mood="confused" title="ไม่พบหน้านี้" description="ลานจอดหรือหน้าที่เปิดอาจไม่มีอยู่แล้ว">
+    <MascotScreen mood="confused" title="ไม่พบหน้านี้" description="ลิงก์อาจเก่าหรือหน้านี้ถูกย้ายไปแล้ว กลับไปดูลานจอดได้เลย">
       <Button render={<Link href="/" />} nativeButton={false} className="h-11 px-5">
-        กลับหน้าแรก
+        ไปที่ลานจอด
       </Button>
     </MascotScreen>
   );

@@ -1,41 +1,92 @@
 "use client";
-import { useEffect, useState } from "react";
+import { createContext, use, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { MascotLoading } from "@/components/mascot";
+import { MascotScreen } from "@/components/mascot-screen";
+import { Button } from "@/components/ui/button";
+import { VehicleForm } from "@/components/vehicle-form";
+import { BOOT_STEPS } from "@/lib/boot-progress";
+import { lineProfile, type LineProfile } from "@/lib/line-profile";
 import type { Preference } from "@/lib/vehicle-session";
+
+// Development only: with NEXT_PUBLIC_PARKMAP_DEV_LINE_LOGIN=1 the gate skips LIFF and sends the token
+// that scripts/dev-line-settings.mjs accepts, so the app runs in a desktop browser. The session route
+// still verifies it upstream; production builds drop this branch, and the real service rejects it.
+const DEV_LINE_TOKEN = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_PARKMAP_DEV_LINE_LOGIN === "1"
+  ? "local-dev-line-token"
+  : null;
+
+type Vehicle = { preference: Preference; save(modelId: string): Promise<void> };
+const VehicleContext = createContext<Vehicle | null>(null);
+const ProfileContext = createContext<LineProfile | null>(null);
+
+/** The signed-in student's vehicle model and how to change it; only inside the gate. */
+export function useVehicle(): Vehicle {
+  const vehicle = use(VehicleContext);
+  if (!vehicle) throw new Error("useVehicle is used outside VehicleGate");
+  return vehicle;
+}
+
+/**
+ * The signed-in student's LINE name and picture, or null while it loads, in development, or when the
+ * LIFF app lacks the `profile` scope. Only the settings screen shows it; nothing waits on it.
+ */
+export function useLineProfile(): LineProfile | null {
+  return use(ProfileContext);
+}
+
+/** Saves the model through the session proxy and returns the stored preference. */
+async function savePreference(modelId: string): Promise<Preference> {
+  const response = await fetch("/api/vehicle-preference", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model_id: modelId }) });
+  if (!response.ok) throw new Error("บันทึกไม่สำเร็จ กรุณาลองใหม่");
+  return response.json();
+}
 
 export function VehicleGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const exempt = pathname === "/mobile-camera" || pathname === "/help";
   const [preference, setPreference] = useState<Preference | null>(null);
-  const [model, setModel] = useState("");
+  const [profile, setProfile] = useState<LineProfile | null>(null);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
   const [needsLogin, setNeedsLogin] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  // How many launch steps have finished; the loading screen fills its bar by this.
+  const [done, setDone] = useState(0);
   async function initialize() {
     setError("");
+    setDone(0);
     try {
-      const { default: liff } = await import("@line/liff");
-      const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
-      if (!liffId) throw new Error("กรุณาเปิด ParkMap ผ่าน LINE");
-      await liff.init({ liffId });
-      if (!liff.isLoggedIn()) {
-        if (liff.isInClient()) { setNeedsLogin(true); throw new Error("กรุณาปิดหน้า ParkMap แล้วเปิดจากเมนู OA ใหม่"); }
-        liff.login({ redirectUri: window.location.href }); return;
+      let token = DEV_LINE_TOKEN;
+      if (!token) {
+        const { default: liff } = await import("@line/liff");
+        const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+        if (!liffId) throw new Error("กรุณาเปิด ParkMap ผ่าน LINE");
+        await liff.init({ liffId });
+        if (!liff.isLoggedIn()) {
+          if (liff.isInClient()) { setNeedsLogin(true); throw new Error("กรุณาปิดหน้า ParkMap แล้วเปิดจากเมนู OA ใหม่"); }
+          liff.login({ redirectUri: window.location.href }); return;
+        }
+        token = liff.getAccessToken();
+        if (!token) { setNeedsLogin(true); throw new Error("กรุณาเข้าสู่ระบบ LINE ใหม่"); }
+        // Without the profile scope LINE refuses this, and settings shows the account without a name.
+        liff.getProfile().then((data) => setProfile(lineProfile(data)), () => setProfile(null));
       }
-      const token = liff.getAccessToken();
-      if (!token) { setNeedsLogin(true); throw new Error("กรุณาเข้าสู่ระบบ LINE ใหม่"); }
+      setDone(1);
       const cached = await fetch("/api/vehicle-preference", { cache: "no-store" });
       const response = await fetch("/api/vehicle-preference", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ access_token: token }) });
       if (!response.ok) {
-        setNeedsLogin(response.status === 401);
+        setNeedsLogin(response.status === 401 && !DEV_LINE_TOKEN);
         throw new Error(response.status === 401 ? "การเข้าสู่ระบบ LINE หมดอายุ กรุณาเปิด ParkMap ใหม่" : "ยืนยันบัญชีไม่สำเร็จ กรุณาลองใหม่");
       }
       setNeedsLogin(false);
       const data: Preference = await response.json();
-      setPreference(data); setModel(data.model_id ?? "");
+      setPreference(data);
       // Refresh server-rendered map content after a new session is established.
       if (data.model_id && pathname !== "/settings" && !cached.ok) window.location.reload();
-    } catch (e) { setError(e instanceof Error ? e.message : "โหลดการตั้งค่าไม่สำเร็จ"); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "โหลดการตั้งค่าไม่สำเร็จ");
+      setAttempt((count) => count + 1);
+    }
   }
   async function retry() {
     if (!needsLogin) { await initialize(); return; }
@@ -46,15 +97,31 @@ export function VehicleGate({ children }: { children: React.ReactNode }) {
   }
   useEffect(() => { if (!exempt) void initialize(); }, [exempt]); // eslint-disable-line react-hooks/exhaustive-deps
   if (exempt) return children;
-  if (!preference) return <main className="mx-auto max-w-md space-y-4 p-6"><h1 className="text-xl font-bold">ParkMap</h1><p role="status">{error || "กำลังตรวจสอบรุ่นรถของคุณ…"}</p>{error && <button onClick={() => void retry()} className="rounded-xl bg-pink-600 px-5 py-3 text-white">{needsLogin ? "ปิดหน้านี้แล้วเปิด ParkMap ใหม่" : "ลองใหม่"}</button>}</main>;
-  if (preference.model_id && pathname !== "/settings") return children;
-  async function save() {
-    setBusy(true); setError("");
-    try {
-      const response = await fetch("/api/vehicle-preference", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model_id: model }) });
-      if (!response.ok) throw new Error("บันทึกไม่สำเร็จ กรุณาลองใหม่");
-      window.location.assign("/");
-    } catch (e) { setError(e instanceof Error ? e.message : "บันทึกไม่สำเร็จ"); setBusy(false); }
+  if (!preference) {
+    if (!error) return <main className="grid flex-1 place-items-center bg-background p-4"><MascotLoading label={BOOT_STEPS[done]} progress={{ done, total: BOOT_STEPS.length }} /></main>;
+    return (
+      <MascotScreen mood="confused" title="เปิด ParkMap ไม่สำเร็จ" description={error} shakeKey={attempt}>
+        <Button onClick={() => void retry()} className="h-11 px-5">{needsLogin ? "ปิดหน้านี้แล้วเปิด ParkMap ใหม่" : "ลองใหม่"}</Button>
+      </MascotScreen>
+    );
   }
-  return <main className="mx-auto max-w-md space-y-5 px-5 py-8"><p className="font-bold text-pink-700">PARKMAP</p><h1 className="text-2xl font-bold">ตั้งค่ารุ่นรถของฉัน</h1><p className="text-sm text-muted-foreground">เลือกรุ่นรถและบันทึกก่อนเข้าไปดูแผนที่</p><label className="block space-y-2"><span>รุ่นรถของคุณ</span><select value={model} onChange={e => setModel(e.target.value)} className="w-full rounded-xl border bg-background p-3"><option value="" disabled>เลือกรุ่นรถ</option>{preference.models.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>{error && <p role="alert" className="text-red-700">{error}</p>}<button disabled={!model || busy} onClick={() => void save()} className="w-full rounded-xl bg-pink-600 p-3 font-semibold text-white disabled:opacity-40">{busy ? "กำลังบันทึก…" : "บันทึกและดูแผนที่"}</button></main>;
+  // A first visit chooses a model before any map; the server pages render nothing without one.
+  if (!preference.model_id) {
+    return (
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,var(--safe-bottom))] motion-safe:animate-screen-enter">
+        <h1 className="text-title font-semibold">ตั้งค่ารุ่นรถของฉัน</h1>
+        <p className="mt-1 text-sm text-muted-foreground">เลือกรุ่นรถก่อนดูแผนที่ ระบบใช้รุ่นรถเพื่อแนะนำที่จอดที่พอดีกับรถของคุณ</p>
+        <VehicleForm models={preference.models} initial="" submitLabel="บันทึกและดูแผนที่" onSave={async (modelId) => {
+          await savePreference(modelId);
+          window.location.assign("/");
+        }} />
+      </main>
+    );
+  }
+  const vehicle: Vehicle = { preference, save: async (modelId) => setPreference(await savePreference(modelId)) };
+  return (
+    <VehicleContext value={vehicle}>
+      <ProfileContext value={profile}>{children}</ProfileContext>
+    </VehicleContext>
+  );
 }

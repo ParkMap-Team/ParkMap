@@ -198,8 +198,8 @@ test("the summary counts detections and statuses, never free spaces", () => {
 
 test("the headline names what the map shows without a count or a promise", () => {
   const text = (states: ParkingAreaLiveState[] | null, lost = false) => headline(summarize(buildLotMap(lotModel, states)), lost);
-  assert.equal(text([live()]), "มีพื้นที่จอด");
-  assert.equal(text([live({ regions: [{ kind: "ALMOST_AVAILABLE", row_id: "r", polygon: rect(6, 2, 8, 3) }] })]), "อาจจอดได้หากมีการขยับรถ");
+  assert.equal(text([live()]), "มีที่ว่าง");
+  assert.equal(text([live({ regions: [{ kind: "ALMOST_AVAILABLE", row_id: "r", polygon: rect(6, 2, 8, 3) }] })]), "อาจพอ ถ้าขยับรถข้างๆ");
   assert.equal(text([live({ regions: [] })]), "ยังไม่พบพื้นที่จอดที่ยืนยันได้");
   assert.equal(text([live({ status: "STALE", regions: [] })]), "ยังยืนยันสถานะล่าสุดไม่ได้");
   assert.equal(text(null), "กำลังโหลดสถานะ");

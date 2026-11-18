@@ -25,6 +25,11 @@ export function guardBoothModelName(family: string): string {
   return MODEL_NAMES[family] ?? family;
 }
 
+/** True for a family the Guard Booth names, which are the families the fit API has reference sizes for. */
+export function isKnownFamily(family: string): boolean {
+  return Object.hasOwn(MODEL_NAMES, family);
+}
+
 /** What the booth shows for a rider in the entrance clip. `fitFamily` is set only when the family has a reference size. */
 export type EntranceClipOutcome = { mode: GuardBoothMode; family: string | null; fitFamily: string | null };
 

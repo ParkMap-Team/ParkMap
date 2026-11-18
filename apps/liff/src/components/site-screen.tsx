@@ -11,18 +11,11 @@ export function requestLotModel(siteId: string) {
 
 // One site's map, shared by the home screen and /sites/[siteId]. Parking state is not rendered on the
 // server: the browser polls it and judges its age on its own clock, so a server snapshot could look
-// fresher than it is.
-export async function SiteScreen({
-  site,
-  siteCount,
-  lotModel: request,
-}: {
-  site: SiteSummary;
-  siteCount: number;
-  lotModel: ReturnType<typeof requestLotModel>;
-}) {
+// fresher than it is. The parking guide shares its holds with the Guard Booth, so it is offered only
+// where the Guard Booth fit endpoint answers.
+export async function SiteScreen({ site, lotModel: request }: { site: SiteSummary; lotModel: ReturnType<typeof requestLotModel> }) {
   const lotModel = await request;
   if (lotModel.response.status === 404 || lotModel.response.status === 422) notFound();
   if (!lotModel.data) throw new Error(`Lot model request failed with ${lotModel.response.status}`);
-  return <SiteView siteId={site.site_id} siteName={site.name} lotModel={lotModel.data} listHref={siteCount > 1 ? "/sites" : null} recommendationsEnabled={site.site_id === "sripatum" && guardBoothFitEnabled()} />;
+  return <SiteView siteId={site.site_id} siteName={site.name} lotModel={lotModel.data} recommendationsEnabled={site.site_id === "sripatum" && guardBoothFitEnabled()} />;
 }

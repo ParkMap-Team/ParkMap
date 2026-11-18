@@ -16,11 +16,11 @@ export function LiffRedirect() {
     return () => clearTimeout(timer);
   }, []);
   return (
-    <main className="grid min-h-dvh place-items-center bg-background p-4">
+    <main className="grid flex-1 place-items-center bg-background p-4">
       <div className="flex flex-col items-center gap-4">
         <MascotLoading label="กำลังเปิดหน้า" />
         {stuck && (
-          <Link href="/" className="flex min-h-11 items-center px-3 text-sm underline underline-offset-4">
+          <Link href="/" className="flex min-h-11 items-center px-3 text-sm underline underline-offset-4 motion-safe:animate-screen-enter">
             ไปหน้าแรก
           </Link>
         )}
