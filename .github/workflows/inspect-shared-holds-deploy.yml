@@ -22,6 +22,7 @@ jobs:
           api() {
             curl -fsS --max-time 20 -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" "$COOLIFY_URL/api/v1/$1"
           }
+          api "servers" | jq 'map({name,is_reachable,is_usable,settings:(.settings | with_entries(select(.key|test("disk|sentinel|reachable|usable")) | select(.key|test("token|url|password|key";"i")|not)))})'
           for uuid in "$API_UUID" "$LIFF_UUID" "$WORKER_UUID"; do
             api "applications/$uuid" | jq '{name,status,build_pack,git_branch,git_commit_sha,docker_registry_image_tag}'
             latest=$(api "deployments/applications/$uuid?take=1" | jq -c '.deployments[0] // {}')
