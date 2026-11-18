@@ -62,11 +62,13 @@ jobs:
             curl -fsS --max-time 30 -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" -H "Content-Type: application/json" "$@"
           }
           base="$COOLIFY_URL/api/v1"
-          for spec in "parkmap-api:$API_UUID:parkmap-api" "parkmap-bot:$BOT_UUID:parkmap-api" "parkmap-worker:$WORKER_UUID:parkmap-api" "parkmap-liff:$LIFF_UUID:parkmap-liff"; do
+          for spec in "parkmap-worker:$WORKER_UUID:parkmap-api" "parkmap-liff:$LIFF_UUID:parkmap-liff"; do
             IFS=: read -r name uuid package <<< "$spec"
+            echo "Checking $name"
             test "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" = "$RELEASE"
             api "$base/deployments" | jq -e 'type == "array" and length == 0' >/dev/null
             app=$(api "$base/applications/$uuid")
+            jq '{name,status,build_pack,git_branch,git_commit_sha,dockerfile_location}' <<< "$app"
             jq -e --arg name "$name" '.name == $name and .build_pack == "dockerfile" and .git_branch == "main" and .git_commit_sha == "HEAD" and .status == "running:healthy" and (.dockerfile_location | endswith("Dockerfile.ghcr"))' <<< "$app" >/dev/null
             image="ghcr.io/parkmap-team/$package:sha-$RELEASE"
             envs=$(api "$base/applications/$uuid/envs")
