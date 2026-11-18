@@ -134,3 +134,25 @@ class AreaFrame(Base):
     height: Mapped[int] = mapped_column(Integer)
     image: Mapped[bytes] = mapped_column(LargeBinary)
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ParkingHold(Base):
+    """One issued recommendation, shared by API instances and entry channels."""
+
+    __tablename__ = "parking_holds"
+    __table_args__ = (Index("parking_holds_active_site", "site_id", "stage"),)
+
+    site_id: Mapped[str] = mapped_column(ForeignKey("sites.id"), primary_key=True)
+    request_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    channel: Mapped[str] = mapped_column(Text)
+    family: Mapped[str] = mapped_column(Text)
+    area_id: Mapped[str] = mapped_column(Text)
+    geometry_version: Mapped[str] = mapped_column(Text)
+    ends_with_photo: Mapped[bool] = mapped_column(Boolean)
+    stage: Mapped[str] = mapped_column(Text)
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    result: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    history: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)

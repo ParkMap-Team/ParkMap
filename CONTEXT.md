@@ -138,6 +138,15 @@ The 3D map is a static surveyed lot model with detections drawn as motorcycle pr
 
 ## Boundaries and safety
 
+Guard Booth and explicit LINE parking recommendations share PostgreSQL holds
+(ADR 0020). The whole recommended frame blocks both channels for two minutes;
+after that it remains blocked until fresh compatible Segment evidence confirms
+it empty. Segment confirms region occupancy without matching a rider across
+cameras. Retried requests keep their original frame and deadline. Ordinary map
+viewing creates no hold. Demo entrance scenes may end only their own marked
+preview holds, never LINE holds. The current Sripatum width-only fitter retains
+its existing experimental scope and aisle directions.
+
 - The Python service owns detection, calibration, occupancy, and recommendation calculations. The web app renders results and owns LIFF integration.
 - A LINE rich-menu URL can open LIFF without a bot server. Add a webhook service only when message/postback behavior is required; it need not be NestJS solely for a link.
 - Do not expose raw camera credentials, raw private footage, LINE access tokens, or identifiable user data to the browser; the exceptions are the analysed area photo (ADR 0017), whose display must be allowed by the footage policy, and a student's own registered plate, parking record, and entrance sighting, shown only to that student (ADR 0010). Recording, storage, access, blurring, training use, and deletion of real footage follow `docs/footage-policy.md`.

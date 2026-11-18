@@ -73,8 +73,8 @@ from app.services.guard_booth_clip import (
 )
 from app.services.guard_booth_fitting import (
     GuardBoothFit,
+    GuardBoothFitHold,
     GuardBoothFitRequest,
-    RecordedPreviewHolds,
 )
 from app.services.live_state_service import (
     MAX_FUTURE_SKEW_S,
@@ -92,6 +92,9 @@ from app.services.parking_analysis_service import (
     ParkingCalibrationUnavailableError,
     parking_analysis_service,
 )
+from app.services.parking_holds import HoldContext, mask_held_space
+from app.services.parking_holds import reserve as reserve_parking_hold
+from app.services.parking_holds import snapshot as parking_holds_snapshot
 from app.services.physical_row_geometry_service import (
     measurement_fingerprint,
     physical_row_geometry_service,
@@ -184,6 +187,11 @@ def get_lot_model(site_id: str = SiteId, session: Session = SessionDependency) -
 
 @app.get("/api/sites/{site_id}/parking-state", response_model=SiteParkingStateResponse)
 def get_site_parking_state(site_id: str = SiteId, session: Session = SessionDependency) -> SiteParkingStateResponse:
+    state = _site_parking_state(site_id, session)
+    return state.model_copy(update={"areas": [mask_held_space(session, site_id, area) for area in state.areas]})
+
+
+def _site_parking_state(site_id: str, session: Session) -> SiteParkingStateResponse:
     area_ids = [area.id for area in _require_site_areas(session, site_id)]
     calibrations = repository.active_calibrations(session, area_ids)
     lot_model = repository.active_lot_model(session, site_id)
@@ -203,7 +211,6 @@ def get_site_parking_state(site_id: str = SiteId, session: Session = SessionDepe
     )
 
 
-_guard_booth_holds = RecordedPreviewHolds()
 _guard_booth_classifier = GuardBoothClipClassifier()
 
 
@@ -255,6 +262,30 @@ def classify_guard_booth_clip(response: Response, site_id: str = SiteId) -> Guar
 @app.post("/api/sites/{site_id}/guard-booth-fit", response_model=GuardBoothFit)
 def reserve_guard_booth_fit(request: GuardBoothFitRequest, site_id: str = SiteId, session: Session = SessionDependency) -> GuardBoothFit:
     _require_guard_booth_preview(site_id)
+    result = reserve_parking_hold(session, site_id, request, "GUARD_BOOTH", lambda: _hold_context(site_id, session), datetime.now(UTC))
+    session.commit()
+    return result
+
+
+@app.post("/api/sites/{site_id}/parking-recommendation", response_model=GuardBoothFit)
+def recommend_line_parking(request: GuardBoothFitRequest, site_id: str = SiteId, session: Session = SessionDependency) -> GuardBoothFit:
+    # Called by the trusted LIFF server with its verified saved model. The Python
+    # API is private, just as its other operator and map endpoints are.
+    _require_guard_booth_preview(site_id)
+    result = reserve_parking_hold(session, site_id, request, "LINE", lambda: _hold_context(site_id, session), datetime.now(UTC))
+    session.commit()
+    return result
+
+
+@app.get("/api/sites/{site_id}/parking-holds", response_model=list[GuardBoothFitHold])
+def get_parking_holds(site_id: str = SiteId, session: Session = SessionDependency) -> list[GuardBoothFitHold]:
+    _require_guard_booth_preview(site_id)
+    result = parking_holds_snapshot(session, site_id, lambda: _hold_context(site_id, session), datetime.now(UTC))
+    session.commit()
+    return result
+
+
+def _hold_context(site_id: str, session: Session) -> HoldContext:
     model = get_lot_model(site_id, session)
     entrance = next((landmark.position for landmark in model.landmarks if landmark.landmark_id == "entrance-1" and landmark.kind == "ENTRANCE"), None)
     area_model = next((area for area in model.parking_areas if area.parking_area_id == "sripatum-near-lot"), None)
@@ -265,9 +296,9 @@ def reserve_guard_booth_fit(request: GuardBoothFitRequest, site_id: str = SiteId
     placement = placement_for_calibration(calibration.payload, area_model.polygon) if calibration else None
     if placement is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Parking geometry is unavailable.")
-    state = get_site_parking_state(site_id, session)
+    state = _site_parking_state(site_id, session)
     area = next(area for area in state.areas if area.parking_area_id == area_id)
-    return _guard_booth_holds.reserve(area, request, entrance, placement.scale, now=datetime.now(UTC))
+    return HoldContext(area=area, entrance=entrance, scale=placement.scale, geometry_version=f"{calibration.version}:lot-{model.version}")
 
 
 def _frame_version(processed_at: datetime) -> int:
@@ -357,7 +388,17 @@ def ingest_parking_state(publish: ParkingStatePublish, session: Session = Sessio
     with mobile_sessions.lock:
         if mobile_sessions.owns_area(publish.parking_area_id):
             return Response(status_code=status.HTTP_204_NO_CONTENT)
+        repository.lock_site(session, area.site_id)
         repository.insert_state(session, publish)
+        # Reconcile the same ledger on Segment updates even without a viewer.
+        # Unconfigured sites continue ingesting without recommendation geometry.
+        if area.site_id == "sripatum" and os.getenv("PARKMAP_GUARD_BOOTH_FIT_PREVIEW") == "1":
+            session.flush()
+            try:
+                parking_holds_snapshot(session, area.site_id, lambda: _hold_context(area.site_id, session), datetime.now(UTC))
+            except HTTPException as error:
+                if error.status_code not in (404, 503):
+                    raise
         try:
             session.commit()
         except IntegrityError as error:

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiClient, upstreamFailureStatus } from "@/lib/api/server";
 import { guardBoothFitEnabled } from "@/lib/parking/guard-booth-server";
 import { vehiclePreference } from "@/lib/vehicle-session";
+import { parkingRequestBody } from "@/lib/parking/request-body";
 
 // The API accepts only families with a configured reference size.
 const FAMILY = /^[a-z0-9_]{1,64}$/;
@@ -10,7 +11,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
   if (!(await vehiclePreference())?.model_id) return new Response(null, { status: 403, headers: { "Cache-Control": "private, no-store" } });
   const { siteId } = await params;
   if (siteId !== "sripatum" || !guardBoothFitEnabled()) return new NextResponse(null, { status: 404 });
-  const body: unknown = await request.json().catch(() => null);
+  const body: unknown = await parkingRequestBody(request).catch(() => null);
   if (!body || typeof body !== "object" || !("family" in body) || !("request_id" in body) || !("observed_at" in body) ||
     typeof body.family !== "string" || !FAMILY.test(body.family) || typeof body.request_id !== "string" || typeof body.observed_at !== "string" ||
     ("ends_with_photo" in body && typeof body.ends_with_photo !== "boolean")) {
