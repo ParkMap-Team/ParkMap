@@ -71,7 +71,8 @@ def test_active_mobile_session_prevents_photo_worker_overwriting(monkeypatch):
     manager.preview(item, "preview", 1)
     manager.approve(item.id, 1)
     writes = []
-    db = SimpleNamespace(get=lambda *_: SimpleNamespace(camera_id=state.camera_id), commit=lambda: None)
+    db = SimpleNamespace(get=lambda *_: SimpleNamespace(camera_id=state.camera_id, site_id="dev-site"), commit=lambda: None)
+    monkeypatch.setattr(main.repository, "lock_site", lambda *_: SimpleNamespace(id="dev-site"))
     monkeypatch.setattr(main.repository, "insert_state", lambda _db, value: writes.append(value))
     app.dependency_overrides[get_session] = lambda: db
     try:
