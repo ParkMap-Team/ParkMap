@@ -4,19 +4,82 @@ on:
     branches: [ops/account-parking-release]
 permissions:
   contents: read
+  actions: read
+concurrency:
+  group: account-parking-production-release
+  cancel-in-progress: false
 jobs:
-  inspect:
+  release:
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
+    timeout-minutes: 100
     env:
+      GH_TOKEN: ${{ github.token }}
       COOLIFY_URL: ${{ vars.COOLIFY_URL }}
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+      API_UUID: ${{ vars.COOLIFY_APP_API }}
+      WORKER_UUID: ${{ vars.COOLIFY_APP_WORKER }}
+      LIFF_UUID: ${{ vars.COOLIFY_APP_LIFF }}
+      BOT_UUID: svalht0ztkvtlwifegi9n9ly
+      RELEASE: e8c97b427ab1a49f0fbc0988c077e160d8e15bf2
+      CI_RUN: '44330052131'
     steps:
-      - name: Read release configuration only
+      - name: Wait for the existing main CI without queuing another image build
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsS --max-time 20 -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_URL/api/v1/applications" |
-            jq '[.[] | select(.name == "parkmap-api" or .name == "parkmap-liff" or .name == "parkmap-bot") | {name,uuid,status,build_pack,git_branch,git_commit_sha,dockerfile_location,docker_registry_image_name,docker_registry_image_tag}]'
-          curl -fsS --max-time 20 -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_URL/api/v1/deployments" |
-            jq '[.[] | {application_name,deployment_uuid,status,commit}]'
+          deadline=$((SECONDS + 5400))
+          while (( SECONDS < deadline )); do
+            run=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN")
+            test "$(jq -r '.head_sha' <<< "$run")" = "$RELEASE"
+            if [ "$(jq -r '.status' <<< "$run")" = completed ]; then
+              test "$(jq -r '.conclusion' <<< "$run")" = success
+              echo "Existing main CI passed; reusing its published images."
+              exit 0
+            fi
+            sleep 60
+          done
+          echo "Main CI is still pending; no release changes were made."
+          exit 1
+      - name: Deploy the matching API, account settings, worker and display
+        shell: bash
+        run: |
+          set -euo pipefail
+          api() {
+            curl -fsS --max-time 30 -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" -H "Content-Type: application/json" "$@"
+          }
+          base="$COOLIFY_URL/api/v1"
+          for spec in "parkmap-api:$API_UUID:parkmap-api" "parkmap-bot:$BOT_UUID:parkmap-api" "parkmap-worker:$WORKER_UUID:parkmap-api" "parkmap-liff:$LIFF_UUID:parkmap-liff"; do
+            IFS=: read -r name uuid package <<< "$spec"
+            test "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" = "$RELEASE"
+            api "$base/deployments" | jq -e 'type == "array" and length == 0' >/dev/null
+            app=$(api "$base/applications/$uuid")
+            jq -e --arg name "$name" '.name == $name and .build_pack == "dockerfile" and .git_branch == "main" and .git_commit_sha == "HEAD" and .status == "running:healthy" and (.dockerfile_location | endswith("Dockerfile.ghcr"))' <<< "$app" >/dev/null
+            image="ghcr.io/parkmap-team/$package:sha-$RELEASE"
+            envs=$(api "$base/applications/$uuid/envs")
+            jq -e --arg prefix "ghcr.io/parkmap-team/$package:" '[.[] | select(.key == "PARKMAP_IMAGE" and .is_preview == false)] | length == 1 and (.[0].is_buildtime == true) and (.[0].value | startswith($prefix))' <<< "$envs" >/dev/null
+            current=$(jq -r '.[] | select(.key == "PARKMAP_IMAGE" and .is_preview == false) | .value' <<< "$envs")
+            latest=$(api "$base/deployments/applications/$uuid?take=1" | jq -c '.deployments[0] // {}')
+            if [ "$current" = "$image" ] && jq -e --arg sha "$RELEASE" '.commit == $sha and .status == "finished"' <<< "$latest" >/dev/null; then
+              echo "$name already has the requested image."
+              continue
+            fi
+            # Only the image reference changes. Keep every credential, flag and other variable.
+            api -X PATCH "$base/applications/$uuid/envs" --data "$(jq -cn --arg value "$image" '{key:"PARKMAP_IMAGE",value:$value,is_preview:false}')" >/dev/null
+            job=$(api -X POST "$base/deploy?uuid=$uuid&force=false" | jq -er '.deployments[0].deployment_uuid | select(type == "string" and test("^[a-z0-9]+$"))')
+            echo "$name queued: $job"
+            deadline=$((SECONDS + 2400))
+            while (( SECONDS < deadline )); do
+              result=$(api "$base/deployments/$job")
+              state=$(jq -r '.status // empty' <<< "$result")
+              case "$state" in
+                finished)
+                  jq -e --arg sha "$RELEASE" '.commit == $sha' <<< "$result" >/dev/null
+                  api "$base/applications/$uuid" | jq -e '.status == "running:healthy"' >/dev/null
+                  echo "$name finished."
+                  break ;;
+                failed|cancel*) echo "$name ended: $state"; exit 1 ;;
+              esac
+              sleep 60
+            done
+            test "$state" = finished
+          done
