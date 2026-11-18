@@ -47,22 +47,17 @@ export const STATUS_TEXT: Record<MapStatus, { label: string; detail: string; mar
   },
 };
 
-/** The legend lists what can appear on the map, in the order a student reads it. */
-export const LEGEND_ORDER: MapStatus[] = ["AVAILABLE", "WIDTH_SUFFICIENT", "ALMOST_AVAILABLE", "OCCUPIED", "UNKNOWN", "UNMONITORED"];
-/** Compact legend requested for the student map; detailed states remain available on selection. */
-export const MAP_LEGEND_ORDER: MapStatus[] = ["AVAILABLE", "ALMOST_AVAILABLE", "OCCUPIED", "UNMONITORED"];
-
+/**
+ * A rider's map (ADR 0024) draws free ground as one soft shadow, the motorcycles, and the ground
+ * outside the cameras, so its key names only those. Free ground is one row named for the best free
+ * status present, the one a tap on it reports. The recommended place is labelled on the map.
+ */
 export type LegendRow = { status: MapStatus; present: boolean };
 
-/**
- * One list that is both the key and the way to find a status on the map: the compact key, plus any
- * other status the map shows now. Width-only green takes available's place when it is the only green.
- */
+/** One list that is both the key and the way to find each of its statuses on the map. */
 export function legendRows(present: ReadonlySet<MapStatus>): LegendRow[] {
-  const widthOnly = present.has("WIDTH_SUFFICIENT") && !present.has("AVAILABLE");
-  return LEGEND_ORDER
-    .filter((status) => present.has(status) || (MAP_LEGEND_ORDER.includes(status) && !(status === "AVAILABLE" && widthOnly)))
-    .map((status) => ({ status, present: present.has(status) }));
+  const free: MapStatus = !present.has("AVAILABLE") && present.has("WIDTH_SUFFICIENT") ? "WIDTH_SUFFICIENT" : "AVAILABLE";
+  return ([free, "OCCUPIED", "UNMONITORED"] as const).map((status) => ({ status, present: present.has(status) }));
 }
 
 /** Why ground is unknown, only as far as the API says; an UNKNOWN region carries no reason. */

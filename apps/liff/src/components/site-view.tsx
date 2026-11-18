@@ -11,8 +11,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { useGuide } from "@/components/parking-guide";
 import type { GuardBoothFit, GuardBoothRider, LotModel, ParkingAreaLiveState, SiteParkingState } from "@/lib/api/types";
 import { type Insets, ROTATE_STEP_RAD, ZOOM_STEP } from "@/lib/map/camera";
-import { STATUS_TEXT, areaLabel, headline, headlineStatus, mapLabels } from "@/lib/map/legend";
-import { type LotMap, type MapStatus, type Selection, buildLotMap, focusPoint, followSelection, selectAt, summarize } from "@/lib/map/lot-map";
+import { STATUS_TEXT, areaLabel, headline, mapLabels } from "@/lib/map/legend";
+import { type LotMap, type MapStatus, type Selection, buildLotMap, focusPoint, followSelection, plainLotMap, selectAt, summarize } from "@/lib/map/lot-map";
 import { FALLBACK_NOTICES, INITIAL_RENDERER, THREE_D_TIMEOUT_MS, detectWebGL, mountsThreeD, rendererReducer } from "@/lib/map/renderer";
 import { labelPoint } from "@/lib/map/geometry";
 import { activeParkingHolds, activeRiders, applyParkingHolds, enqueueRider, entranceClipOutcome, guardBoothFitFamily, guardBoothFrame, guardBoothHeadline, guardBoothModelName, guardBoothPreviewDestination, isKnownFamily, overlapsParkingHold, PARKING_HOLD_MS, RIDER_COLORS, riderGuide, type GuardBoothMode, type GuardBoothOverview, type ParkingHold, type QueuedRider, type RiderFit } from "@/lib/parking/guard-booth";
@@ -146,7 +146,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
     }, CLASSIFICATION_TEST_TIMEOUT_MS);
     return () => clearTimeout(timeout);
   }, [testingClassification, classificationTest]);
-  const query = useParkingState(siteId, !!guardBooth);
+  const query = useParkingState(siteId, guardBooth ? "booth" : "rider");
   const now = useNow(1000);
   // A failed poll means the current state cannot be confirmed, even if an older answer is kept.
   const connectionLost = query.isError;
@@ -255,8 +255,12 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
     if (guardBooth) return { ...visibleMap, areas, frame: guardBoothFrame(visibleMap, boothOverview) };
     return guideRoute ? { ...visibleMap, frame: guideFrame(visibleMap.frame, guideRoute) } : visibleMap;
   }, [classification, guardBooth, boothOverview, lotMap, lotModel, activeHolds, guideRoute]);
+  // A rider's map paints no cells (ADR 0024): the lot has no fixed spaces, so free ground is a soft
+  // shadow and only the recommended place is solid green. The card still words the state from the full map; the Guard Booth draws it all.
+  const shown = useMemo(() => (guardBooth ? map : plainLotMap(map)), [guardBooth, map]);
   const labels = useMemo(() => mapLabels(map), [map]);
   const summary = useMemo(() => summarize(map), [map]);
+  const shownPresent = useMemo(() => summarize(shown).present, [shown]);
 
   const [renderer, dispatch] = useReducer(rendererReducer, INITIAL_RENDERER);
   useEffect(() => dispatch({ type: "webgl", available: detectWebGL() }), []);
@@ -305,7 +309,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
 
   const [selection, setSelection] = useState<Selection | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const followed = useMemo(() => (selection ? followSelection(map, selection) : null), [map, selection]);
+  const followed = useMemo(() => (selection ? followSelection(shown, selection) : null), [shown, selection]);
   const selectionText = followed?.hit ? STATUS_TEXT[followed.hit.status].label : "ไม่มีข้อมูลตรงจุดนี้";
   const selectionPolygon = followed?.hit?.polygon ?? null;
   const mapSelection = useMemo(
@@ -319,7 +323,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
     times: timeLines(followed.hit?.area?.live ?? null, query.data ? query.dataUpdatedAt : null),
   };
 
-  const onSelect = useCallback((point: Selection["point"] | null) => setSelection(point ? selectAt(map, point) : null), [map]);
+  const onSelect = useCallback((point: Selection["point"] | null) => setSelection(point ? selectAt(shown, point) : null), [shown]);
   // Each rider reaching the booth joins the queue with its own fit request; earlier riders stay until they expire.
   const onArrival = useCallback((rider: GuardBoothRider) => {
     setSelection(null);
@@ -340,9 +344,9 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
   }, [selectedPoint, expanded, wide, cardShown, peek.full]);
 
   function showStatus(status: MapStatus) {
-    const point = focusPoint(map, status);
+    const point = focusPoint(shown, status);
     if (!point) return;
-    setSelection(selectAt(map, point));
+    setSelection(selectAt(shown, point));
     // On a phone the details modal closes so the map shows the place.
     setExpanded(false);
     view.current?.focus(point);
@@ -470,13 +474,14 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
   // when what it shows changes.
   const stage = useMemo(() => {
     const selection = destination ?? mapSelection;
-    const viewProps = { map, labels, selection, route, routeReplay, heldPolygons, markers, overviewKey, onSelect, insets, callout, ref: view };
+    // Other riders' holds are live state too, so only the Guard Booth draws them.
+    const viewProps = { map: shown, labels, selection, route, routeReplay, heldPolygons: guardBooth ? heldPolygons : undefined, plain: !guardBooth, markers, overviewKey, onSelect, insets, callout, ref: view };
     return (
       <ViewErrorBoundary key={renderer.mode} onError={onFailed}>
         {renderer.status3d === "checking" ? null : showsThreeD ? <LotScene {...viewProps} onReady={onReady} onError={onFailed} /> : <LotPlan {...viewProps} />}
       </ViewErrorBoundary>
     );
-  }, [map, labels, mapSelection, destination, route, routeReplay, heldPolygons, markers, overviewKey, onSelect, insets, callout, renderer.mode, renderer.status3d, showsThreeD, onReady, onFailed]);
+  }, [shown, labels, mapSelection, destination, route, routeReplay, heldPolygons, guardBooth, markers, overviewKey, onSelect, insets, callout, renderer.mode, renderer.status3d, showsThreeD, onReady, onFailed]);
 
   return (
     <main className={cn("flex flex-col overflow-hidden bg-background text-foreground", guardBooth ? "h-dvh" : "min-h-0 flex-1")}>
@@ -652,7 +657,6 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
           truth={
             <>
               {guideState && <GuideNotice status={guideState} model={lineFamily && isKnownFamily(lineFamily) ? guardBoothModelName(lineFamily) : null} secondsLeft={guideSecondsLeft} onRetry={guide.start} onClose={guide.stop} />}
-              {recommendationsEnabled && heldPolygons.length > 0 && <p className="text-xs text-muted-foreground">กรอบเส้นประสีฟ้า คือพื้นที่ที่พักไว้ให้รถที่กำลังไปจอด</p>}
               {(connectionLost || allStale) && (
                 <div role="alert" className="flex items-center gap-3 rounded-lg bg-alert py-1 pr-1 pl-3 text-sm text-alert-foreground">
                   <p className="flex-1">
@@ -681,8 +685,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
           headline={headline(summary, connectionLost)}
           // The truth notice already speaks for lost or stale data, so the age only shows when it is current.
           updated={query.isPending || connectionLost || allStale ? null : age}
-          headlineStatus={headlineStatus(summary)}
-          present={summary.present}
+          present={shownPresent}
           areas={areas ? areaRows(map, areas) : []}
           photos={photos}
           estimatedLandmarks={estimatedLandmarks}
@@ -699,7 +702,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
 }
 
 const GUIDE_TEXT: Record<GuideStatus, (model: string, secondsLeft: number) => string> = {
-  unavailable: () => "ตอนนี้ยังแนะนำที่จอดไม่ได้ ดูพื้นที่ว่างบนแผนที่แทนได้",
+  unavailable: () => "ตอนนี้ยังแนะนำที่จอดไม่ได้ ลองใหม่ภายหลัง",
   "unsupported-model": () => "ยังไม่มีขนาดของรุ่นรถนี้ เลือกรุ่นรถในตั้งค่าเพื่อให้แนะนำได้",
   "unverified-model": () => "ยืนยันรุ่นรถไม่ได้ กรุณาเปิดผ่าน LINE อีกครั้ง",
   searching: (model) => `กำลังหาที่จอดสำหรับ ${model}`,

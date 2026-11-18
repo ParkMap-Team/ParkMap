@@ -1,3 +1,4 @@
+import math
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -179,6 +180,36 @@ def test_deadline_needs_new_empty_evidence_and_keeps_occlusion_blocked(database)
         assert [stage["stage"] for stage in hold.history] == ["HELD", "AWAITING_CONFIRMATION", "RELEASED"]
 
 
+def tilted_context(at=NOW):
+    """A 0.9 m gap between two parked bikes in a row turned 20 degrees, like a camera's row."""
+    angle = math.radians(20)
+
+    def along(start, end, depth=1.9):
+        corners = [(start, 0), (end, 0), (end, depth), (start, depth)]
+        return [[MetricGroundPoint(x_m=5 + x * math.cos(angle) - y * math.sin(angle), y_m=x * math.sin(angle) + y * math.cos(angle)) for x, y in corners]]
+    return HoldContext(
+        area=ParkingAreaLiveState(parking_area_id="area", status="DEMO", source="STILL_IMAGE_LOOP", observed_at=at, processed_at=at, regions=[
+            LiveRegion(kind="UNKNOWN", row_id="row_5", polygon=along(0, 6)),
+            LiveRegion(kind="OCCUPIED", row_id="row_5", polygon=along(0.2, 1.0)),
+            LiveRegion(kind="WIDTH_SUFFICIENT", row_id="row_5", polygon=along(1.0, 1.9), width_m=0.9, reasons=["FOOTPRINT_NOT_PROVEN"]),
+            LiveRegion(kind="OCCUPIED", row_id="row_5", polygon=along(1.9, 2.7)),
+        ]),
+        entrance=MetricGroundPoint(x_m=21.5, y_m=-21), scale=1, geometry_version="cal-1:lot-1",
+    )
+
+
+def test_a_tight_gap_in_a_tilted_row_keeps_its_place_and_frees_it_on_fresh_empty_evidence(database):
+    """Floating-point residue in rotated geometry must not drop a held place or keep it held forever."""
+    seed()
+    request = GuardBoothFitRequest(request_id=uuid4(), family="grand_filano", observed_at=NOW)
+    first = issue(request, evidence=tilted_context())
+    assert first.polygon is not None
+    retry = issue(request, at=NOW + timedelta(seconds=4), evidence=tilted_context())
+    assert retry.polygon == first.polygon and retry.stage == "HELD"
+    deadline = NOW + timedelta(minutes=2)
+    assert read(tilted_context(deadline), deadline) == []
+
+
 def test_segment_occupancy_confirms_region_without_identifying_the_rider(database):
     seed()
     request = GuardBoothFitRequest(request_id=uuid4(), family="grand_filano", observed_at=NOW)
@@ -302,6 +333,12 @@ def test_api_entrypoints_share_a_transactional_ledger(database, monkeypatch):
     assert client.get("/api/sites/sripatum/parking-recommendation", headers={"X-Parkmap-Owner": "b" * 64}).json() is None
     current = client.get("/api/sites/sripatum/parking-state").json()["areas"][0]
     assert any("RECOMMENDATION_HELD" in r["reasons"] for r in current["regions"])
+    # A rider's map shows only ground where its model fits, never the held places.
+    rider = client.get("/api/sites/sripatum/parking-state", params={"family": "grand_filano"})
+    assert rider.status_code == 200, rider.text
+    green = [polygon_shape(LiveRegion.model_validate(r).polygon) for r in rider.json()["areas"][0]["regions"] if r["kind"] == "WIDTH_SUFFICIENT"]
+    assert green and all(p.intersection(polygon_shape(first.polygon)).area <= 1e-8 for p in green)
+    assert client.get("/api/sites/sripatum/parking-state", params={"family": "not-a-model"}).status_code == 422
     # A subsequent Segment observation confirms occupancy in the held region.
     payload["processed_at"] = (now + timedelta(seconds=1)).isoformat()
     payload["regions"].append({"kind": "OCCUPIED", "polygon": regions[1]["polygon"]})

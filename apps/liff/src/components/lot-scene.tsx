@@ -47,12 +47,12 @@ import {
   viewFrom,
 } from "@/lib/map/camera";
 import { type Flight, fly } from "@/lib/map/flight";
-import { axisHeading, fromWorld, toWorld } from "@/lib/map/geometry";
+import { axisHeading, boundsOf, fromWorld, toWorld } from "@/lib/map/geometry";
 import { useRouteReveal } from "@/lib/map/use-route-reveal";
 import { DETAIL } from "@/lib/map/landmark-style";
-import { type LotMap } from "@/lib/map/lot-map";
+import { type LotMap, type MapArea } from "@/lib/map/lot-map";
 import { MOTORCYCLE_MODEL, motorcyclePaint, motorcycleTransform } from "@/lib/map/motorcycle-model";
-import { COLORS } from "@/lib/parking/presentation";
+import { COLORS, FREE_SHADOW } from "@/lib/parking/presentation";
 import { cn } from "@/lib/utils";
 import { Surroundings } from "./lot-surroundings";
 import { LabelLayer, type LabelLayerHandle, type MapViewHandle, type MapViewProps } from "./map-overlay";
@@ -321,12 +321,70 @@ function Motorcycles({ proxies, onReady }: { proxies: MotorcycleProxy[]; onReady
   );
 }
 
+const FREE_SHADOW_PX_PER_M = 16;
+const FREE_SHADOW_MAX_PX = 2048;
+
+/**
+ * A rider's free ground (ADR 0024): one faint green shadow per area with soft edges, drawn as a
+ * texture so the API's narrow cells blur into one shape and no cell edge or seam shows. The cells go
+ * on a mask first; a canvas shadow of the mask then softens it, which every browser draws (unlike a
+ * canvas `filter`).
+ */
+function FreeShadow({ regions }: { regions: MapArea["regions"] }) {
+  const shadow = useMemo(() => {
+    if (regions.length === 0) return null;
+    const margin = 3 * FREE_SHADOW.blurM;
+    const bounds = boundsOf(regions.flatMap(({ polygon }) => polygon.flat()));
+    const [widthM, heightM] = [bounds.maxX - bounds.minX + 2 * margin, bounds.maxY - bounds.minY + 2 * margin];
+    const pxPerM = Math.min(FREE_SHADOW_PX_PER_M, FREE_SHADOW_MAX_PX / Math.max(widthM, heightM));
+    const [width, height] = [Math.ceil(widthM * pxPerM), Math.ceil(heightM * pxPerM)];
+    // Canvas y runs down from the far (+y) edge, which is the top of the texture on the plane.
+    const toCanvas = ({ x_m, y_m }: MetricPoint): [number, number] => [(x_m - bounds.minX + margin) * pxPerM, (bounds.maxY + margin - y_m) * pxPerM];
+    const mask = document.createElement("canvas");
+    mask.width = width;
+    mask.height = height;
+    const maskContext = mask.getContext("2d")!;
+    maskContext.fillStyle = "#000000";
+    for (const { polygon } of regions) {
+      maskContext.beginPath();
+      for (const ring of polygon) {
+        ring.forEach((point, index) => (index === 0 ? maskContext.moveTo(...toCanvas(point)) : maskContext.lineTo(...toCanvas(point))));
+        maskContext.closePath();
+      }
+      maskContext.fill("evenodd");
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d")!;
+    // The mask is drawn off the canvas and only its blurred shadow lands on it.
+    context.shadowColor = FREE_SHADOW.color;
+    context.shadowBlur = 2 * FREE_SHADOW.blurM * pxPerM;
+    context.shadowOffsetX = width;
+    context.drawImage(mask, -width, 0);
+    const texture = new CanvasTexture(canvas);
+    texture.colorSpace = SRGBColorSpace;
+    const center = { x_m: bounds.minX - margin + widthM / 2, y_m: bounds.minY - margin + heightM / 2 };
+    return { texture, center, widthM, heightM };
+  }, [regions]);
+  useEffect(() => () => shadow?.texture.dispose(), [shadow]);
+  if (!shadow) return null;
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={toWorld(shadow.center, HEIGHT.region)} renderOrder={STATUS_ORDER.region}>
+      <planeGeometry args={[shadow.widthM, shadow.heightM]} />
+      <meshBasicMaterial map={shadow.texture} transparent opacity={FREE_SHADOW.opacity} depthTest={false} depthWrite={false} toneMapped={false} />
+    </mesh>
+  );
+}
+
 function Ground({
   map,
+  plain,
   onSelect,
   onReady,
 }: {
   map: LotMap;
+  plain?: boolean;
   onSelect(point: MetricPoint | null): void;
   onReady(): void;
 }) {
@@ -373,30 +431,34 @@ function Ground({
           {/* Where no region covers it, a monitored area shows the asphalt it is: still a status layer, so nothing in front hides it. */}
           <Surface polygon={area.polygon} height={HEIGHT.area} map={area.unknownReason ? hatch : asphalt} statusOrder={STATUS_ORDER.area} />
           <Outline polygon={area.polygon} height={HEIGHT.area} color={COLORS.PARKING_AREA_STROKE} width={1} statusOrder={STATUS_ORDER.areaStroke} />
-          {area.regions.map((region, index) => (
-            <group key={index}>
-              <Surface
-                polygon={region.polygon}
-                height={HEIGHT.region}
-                color={region.kind === "UNKNOWN" ? undefined : statusPaint(COLORS[region.kind])}
-                map={region.kind === "UNKNOWN" ? hatch : paint}
-                statusOrder={STATUS_ORDER.region}
-              />
-              {region.kind !== "UNKNOWN" && (
-                <Outline
+          {plain ? (
+            <FreeShadow regions={area.regions} />
+          ) : (
+            area.regions.map((region, index) => (
+              <group key={index}>
+                <Surface
                   polygon={region.polygon}
                   height={HEIGHT.region}
-                  color={region.kind === "OCCUPIED" ? COLORS.OCCUPIED : (region.kind === "AVAILABLE" || region.kind === "WIDTH_SUFFICIENT") ? COLORS.AVAILABLE_STROKE : COLORS.ALMOST_AVAILABLE_STROKE}
-                  width={3}
-                  dashed={region.kind === "ALMOST_AVAILABLE"}
-                  statusOrder={STATUS_ORDER.regionStroke}
+                  color={region.kind === "UNKNOWN" ? undefined : statusPaint(COLORS[region.kind])}
+                  map={region.kind === "UNKNOWN" ? hatch : paint}
+                  statusOrder={STATUS_ORDER.region}
                 />
-              )}
-            </group>
-          ))}
+                {region.kind !== "UNKNOWN" && (
+                  <Outline
+                    polygon={region.polygon}
+                    height={HEIGHT.region}
+                    color={region.kind === "OCCUPIED" ? COLORS.OCCUPIED : (region.kind === "AVAILABLE" || region.kind === "WIDTH_SUFFICIENT") ? COLORS.AVAILABLE_STROKE : COLORS.ALMOST_AVAILABLE_STROKE}
+                    width={3}
+                    dashed={region.kind === "ALMOST_AVAILABLE"}
+                    statusOrder={STATUS_ORDER.regionStroke}
+                  />
+                )}
+              </group>
+            ))
+          )}
         </group>
       ))}
-      <Footprints proxies={map.areas.filter(area => !area.regions.some(region => region.kind === "OCCUPIED")).flatMap(area => area.motorcycles.map(({ displayProxy }) => displayProxy))} />
+      <Footprints proxies={plain ? [] : map.areas.filter(area => !area.regions.some(region => region.kind === "OCCUPIED")).flatMap(area => area.motorcycles.map(({ displayProxy }) => displayProxy))} />
       {/* The model loads behind Suspense; tokens and the rest of the map show at once. */}
       <Suspense fallback={<Tokens proxies={proxies} />}>
         <Motorcycles proxies={proxies} onReady={onReady} />
@@ -473,7 +535,7 @@ function ParkingArrival({ polygon, replay }: { polygon: MetricPolygon; replay?: 
   return <Line ref={line} points={points} color="#60a5fa" lineWidth={14} transparent opacity={0} depthTest={false} depthWrite={false} renderOrder={34} />;
 }
 
-function Selection({ polygon, destination, routeReplay }: { polygon: MetricPolygon; destination?: boolean; routeReplay?: number }) {
+function Selection({ polygon, destination, fill, routeReplay }: { polygon: MetricPolygon; destination?: boolean; fill?: boolean; routeReplay?: number }) {
   const invalidate = useThree((state) => state.invalidate);
   useEffect(() => {
     invalidate();
@@ -481,6 +543,8 @@ function Selection({ polygon, destination, routeReplay }: { polygon: MetricPolyg
   }, [polygon, invalidate]);
   return (
     <>
+      {/* On a rider's plain map the destination is the only ground painted green, as one block, under the motorcycles. */}
+      {fill && <Surface polygon={polygon} height={HEIGHT.region} color={statusPaint(COLORS.AVAILABLE)} statusOrder={STATUS_ORDER.region} />}
       <Outline polygon={polygon} height={HEIGHT.selection} color={COLORS.SELECTED_HALO} width={6} statusOrder={STATUS_ORDER.selection} />
       <Outline polygon={polygon} height={HEIGHT.selection + 0.005} color={destination ? COLORS.ENTRANCE : COLORS.SELECTED} width={3} statusOrder={STATUS_ORDER.selection + 1} />
       {destination && <ParkingArrival polygon={polygon} replay={routeReplay} />}
@@ -711,7 +775,7 @@ function CameraRig({
   );
 }
 
-export default function LotScene({ map, labels, selection, route, routeReplay, heldPolygons, markers, overviewKey, onSelect, insets, callout, onReady, onError, ref }: MapViewProps & { onReady(): void; onError(): void }) {
+export default function LotScene({ map, labels, selection, route, routeReplay, heldPolygons, plain, markers, overviewKey, onSelect, insets, callout, onReady, onError, ref }: MapViewProps & { onReady(): void; onError(): void }) {
   const labelLayer = useRef<LabelLayerHandle>(null);
   const { progress, revealing } = useRouteReveal(route, routeReplay);
   const visibleSelection = revealing && selection?.destination ? null : selection;
@@ -738,7 +802,7 @@ export default function LotScene({ map, labels, selection, route, routeReplay, h
         {/* A slightly cool sky over a warm ground bounce, and one fixed light, so walls and roofs read apart. */}
         <hemisphereLight args={[SKY_COLOR, BOUNCE_COLOR, SKY_INTENSITY]} />
         <Sun map={map} />
-        <Ground map={map} onSelect={onSelect} onReady={onReady} />
+        <Ground map={map} plain={plain} onSelect={onSelect} onReady={onReady} />
         {heldPolygons?.map((polygon, index) => (
           <group key={index}>
             <Surface polygon={polygon} height={HEIGHT.region} color={COLORS.HELD} statusOrder={STATUS_ORDER.hold} />
@@ -748,7 +812,7 @@ export default function LotScene({ map, labels, selection, route, routeReplay, h
         {visibleSelection?.polygon && (
           heldPolygons?.includes(visibleSelection.polygon)
             ? <ParkingArrival polygon={visibleSelection.polygon} replay={routeReplay} />
-            : <Selection polygon={visibleSelection.polygon} destination={visibleSelection.destination} routeReplay={routeReplay} />
+            : <Selection polygon={visibleSelection.polygon} destination={visibleSelection.destination} fill={plain && visibleSelection.destination} routeReplay={routeReplay} />
         )}
         {markers?.map((marker) => <RiderMarker key={marker.id} polygon={marker.polygon} color={marker.color} />)}
         <ParkingRoute3D route={route} progress={progress} replay={routeReplay} />

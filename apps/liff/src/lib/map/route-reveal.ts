@@ -1,6 +1,15 @@
 import type { MetricPoint } from "../api/types.ts";
 
 export const ROUTE_REVEAL_MS = 2300;
+/** How long the chevrons flow along the route once it is drawn; rendering then stops to spare the battery. */
+export const ROUTE_FLOW_S = 7;
+const ROUTE_FLOW_FADE_S = 1;
+
+/** The chevrons' opacity, so they fade out before the flow stops instead of freezing mid-stride. */
+export function routeFlowOpacity(elapsedS: number): number {
+  const t = Math.min(1, Math.max(0, (ROUTE_FLOW_S - elapsedS) / ROUTE_FLOW_FADE_S));
+  return t * t * (3 - 2 * t);
+}
 
 /** Use the last part of the drawn route so the arrow turns smoothly through a corner. */
 export function routeArrow(points: readonly MetricPoint[]): MetricPoint[] | undefined {

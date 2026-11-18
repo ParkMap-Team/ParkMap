@@ -21,7 +21,9 @@ from app.services.guard_booth_fitting import (
     GuardBoothFit,
     GuardBoothFitHold,
     GuardBoothFitRequest,
+    covers,
     fit_recorded_preview,
+    free_ground_for,
 )
 from app.services.region_clipping_service import polygon_shape
 
@@ -43,6 +45,11 @@ def _unsafe_polygons(area: ParkingAreaLiveState):
     return [r.display_polygon or r.polygon for r in area.regions
             if r.kind in ("UNKNOWN", "ALMOST_AVAILABLE") and
             (not demo or r.kind != "UNKNOWN" or r.row_id not in AISLES or bool(set(r.reasons) - allowed))]
+
+
+def rider_free_ground(area: ParkingAreaLiveState, family: str, scale: float) -> ParkingAreaLiveState:
+    """Free ground for a rider's model on a held-masked area, avoiding what a recommendation avoids."""
+    return free_ground_for(area, family, scale, blocked=_unsafe_polygons(area))
 
 
 def _transition(hold: ParkingHold, stage: str, now: datetime, area: ParkingAreaLiveState, reason: str) -> None:
@@ -89,7 +96,7 @@ def _reconcile(holds: list[ParkingHold], context: HoldContext, now: datetime) ->
             # Demo UNKNOWN row envelopes coexist with width bands. Actual
             # occlusion or other uncertainty still vetoes release.
             unsafe = unary_union([polygon_shape(p) for p in _unsafe_polygons(area)])
-            if empty.covers(frame) and frame.intersection(unsafe).area <= 1e-8:
+            if covers(empty, frame) and frame.intersection(unsafe).area <= 1e-8:
                 _transition(hold, "RELEASED", now, area, "FRESH_EMPTY_AFTER_DEADLINE")
                 continue
         if hold.stage != "OCCUPIED_CONFIRMED":

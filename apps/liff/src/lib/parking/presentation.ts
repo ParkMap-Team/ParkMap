@@ -116,6 +116,12 @@ export const COLORS = {
 } as const;
 
 /**
+ * Free ground on a rider's map (ADR 0024): a soft neon-green glow with no edge, so it reads as room
+ * on the asphalt rather than a cell to claim. The same in 2D and 3D.
+ */
+export const FREE_SHADOW = { color: "#39ff88", opacity: 0.5, blurM: 0.3 } as const;
+
+/**
  * Paints for the 3D motorcycle model, light to dark. Greys only, so a motorcycle never reads as a
  * status colour; the soft occupied glow under it carries the status.
  */

@@ -890,7 +890,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Site Parking State */
+        /**
+         * Get Site Parking State
+         * @description `family` asks for a rider's map: where the guide recommends, free ground only where that model fits (ADR 0024).
+         */
         get: operations["get_site_parking_state_api_sites__site_id__parking_state_get"];
         put?: never;
         post?: never;
@@ -4561,7 +4564,9 @@ export interface operations {
     };
     get_site_parking_state_api_sites__site_id__parking_state_get: {
         parameters: {
-            query?: never;
+            query?: {
+                family?: string | null;
+            };
             header?: never;
             path: {
                 site_id: string;

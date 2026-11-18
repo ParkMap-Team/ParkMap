@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { LotModel, ParkingAreaLiveState } from "../api/types.ts";
-import { buildLotMap, focusPoint, followSelection, hitTest, selectAt, summarize } from "./lot-map.ts";
+import { buildLotMap, focusPoint, followSelection, hitTest, plainLotMap, selectAt, summarize } from "./lot-map.ts";
 import { areaLabel, headline, headlineStatus, landmarkLabel, mapLabels, unknownReasonText } from "./legend.ts";
 
 const rect = (x0: number, y0: number, x1: number, y1: number) => [
@@ -31,6 +31,30 @@ test("explicit row occupancy wins over the generic motorcycle footprint", () => 
   })]);
   assert.equal(hitTest(map, { x_m: 3.5, y_m: 2.5 })?.status, "OCCUPIED");
   assert.equal(hitTest(map, { x_m: 4.5, y_m: 2.5 })?.status, "WIDTH_SUFFICIENT");
+});
+
+test("a rider's plain map keeps the ground, motorcycles, and free ground, and no other live state", () => {
+  const motorcycle = { detection_id: "d1", center: { x_m: 4, y_m: 2.5 }, heading_rad: 0, length_m: 2, width_m: .66, confidence: .9, display_scale: 1 };
+  const map = buildLotMap(lotModel, [live({
+    regions: [
+      { kind: "AVAILABLE", polygon: rect(6, 2, 8, 3) },
+      { kind: "WIDTH_SUFFICIENT", polygon: rect(8, 2, 9, 3), width_m: 1, reasons: ["FOOTPRINT_NOT_PROVEN"] },
+      { kind: "ALMOST_AVAILABLE", polygon: rect(9, 2, 10, 3) },
+      { kind: "UNKNOWN", polygon: rect(10, 2, 12, 3) },
+      { kind: "OCCUPIED", polygon: rect(12, 2, 13, 3) },
+    ],
+    motorcycles: [motorcycle],
+  })]);
+  const plain = plainLotMap(map);
+  assert.equal(hitTest(plain, { x_m: 7, y_m: 2.5 })?.status, "AVAILABLE");
+  assert.equal(hitTest(plain, { x_m: 8.5, y_m: 2.5 })?.status, "WIDTH_SUFFICIENT");
+  assert.equal(hitTest(map, { x_m: 9.5, y_m: 2.5 })?.status, "ALMOST_AVAILABLE");
+  for (const x_m of [9.5, 11, 12.5]) assert.equal(hitTest(plain, { x_m, y_m: 2.5 })?.status, "MONITORED");
+  assert.equal(hitTest(plain, { x_m: 4, y_m: 2.5 })?.status, "OCCUPIED");
+  // An area with no current state is plain ground too: not hatched, and never free.
+  const stale = plainLotMap(buildLotMap(lotModel, [live({ status: "STALE", regions: [{ kind: "AVAILABLE", polygon: rect(6, 2, 8, 3) }] })]));
+  assert.equal(hitTest(stale, { x_m: 7, y_m: 2.5 })?.status, "MONITORED");
+  assert.equal(plain.frame, map.frame);
 });
 
 test("ROI display clipping preserves the analysis colour and width without drawing outside its display shape", () => {
