@@ -30,7 +30,7 @@ import {
   zoom2D,
 } from "./camera.ts";
 import type { Bounds } from "./geometry.ts";
-import { labelRect, placeLabels } from "./labels.ts";
+import { LABEL_PRIORITY, labelRect, placeLabels } from "./labels.ts";
 import { INITIAL_RENDERER, mountsThreeD, rendererReducer, type RendererEvent } from "./renderer.ts";
 
 const bounds: Bounds = { minX: -3, minY: 1, maxX: 29, maxY: 14 };
@@ -198,6 +198,13 @@ test("a pin that does not fit over its point hides instead of pointing elsewhere
   const pin = { id: "pin", x: 110, y: 104, width: 60, height: 40, priority: 90, minZoom: 0, pinned: true };
   assert.equal(placeLabels([entrance, pin], { width: 360, height: 400, zoom: 1 }).has("pin"), false);
   assert.deepEqual(placeLabels([pin], { width: 360, height: 400, zoom: 1 }).get("pin"), [110, 104]);
+});
+
+test("a destination pin keeps its point and an entrance label in the way moves aside", () => {
+  const entrance = { id: "entrance", x: 100, y: 100, width: 60, height: 20, priority: LABEL_PRIORITY.ENTRANCE, minZoom: 0 };
+  const pin = { id: "pin", x: 130, y: 104, width: 60, height: 40, priority: LABEL_PRIORITY.DESTINATION, minZoom: 0, pinned: true };
+  const shown = placeLabels([entrance, pin], { width: 360, height: 400, zoom: 1 });
+  assert.deepEqual(Object.fromEntries(shown), { pin: [130, 104], entrance: [66, 100] });
 });
 
 test("small features get their labels when zoomed in", () => {
