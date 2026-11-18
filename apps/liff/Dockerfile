@@ -4,9 +4,14 @@ WORKDIR /repo
 RUN corepack enable
 COPY . .
 RUN pnpm install --frozen-lockfile --filter @parkmap/liff
-# Public LIFF ID, inlined into the client bundle at build time.
+# Public LIFF ID, the official account's LINE ID, and the commit settings shows as the version, all
+# inlined into the client bundle at build time.
 ARG NEXT_PUBLIC_LIFF_ID
+ARG NEXT_PUBLIC_LINE_OA_ID
+ARG SOURCE_COMMIT
 ENV NEXT_PUBLIC_LIFF_ID=$NEXT_PUBLIC_LIFF_ID \
+  NEXT_PUBLIC_LINE_OA_ID=$NEXT_PUBLIC_LINE_OA_ID \
+  NEXT_PUBLIC_APP_COMMIT=$SOURCE_COMMIT \
   NEXT_TELEMETRY_DISABLED=1
 RUN pnpm --filter @parkmap/liff build
 

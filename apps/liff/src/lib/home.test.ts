@@ -4,16 +4,20 @@ import { homeSiteId } from "./home.ts";
 
 const sites = [{ site_id: "dev-site" }, { site_id: "sripatum" }];
 
+test("home opens Sripatum when nothing is configured", () => {
+  assert.equal(homeSiteId(sites), "sripatum");
+});
+
 test("home opens the configured site when it exists", () => {
-  assert.equal(homeSiteId(sites, "sripatum"), "sripatum");
+  assert.equal(homeSiteId(sites, "dev-site"), "dev-site");
 });
 
-test("home opens the only site when none is configured", () => {
-  assert.equal(homeSiteId([{ site_id: "sripatum" }], undefined), "sripatum");
+test("home opens the only site when the configured one is missing", () => {
+  assert.equal(homeSiteId([{ site_id: "dev-site" }]), "dev-site");
 });
 
-test("home lists the sites when the choice is not clear", () => {
-  assert.equal(homeSiteId(sites, undefined), null);
+test("home opens no site when the choice is not clear", () => {
+  assert.equal(homeSiteId([{ site_id: "dev-site" }, { site_id: "other" }]), null);
   assert.equal(homeSiteId(sites, "gone"), null);
-  assert.equal(homeSiteId([], "sripatum"), null);
+  assert.equal(homeSiteId([]), null);
 });

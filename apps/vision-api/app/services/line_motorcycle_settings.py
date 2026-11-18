@@ -1,6 +1,7 @@
+# Keys are the stored model IDs and fitting classes; values are the names riders see.
 MODEL_LABELS = {
-    "click": "click", "aerox": "aerox", "nmax": "nmax", "scoopy": "scoopy",
-    "wave": "wave", "pcx": "pcx", "fino": "fino", "forza": "forza",
-    "grand_filano": "grand_filano", "hd_road_glide": "hd_road_glide",
-    "cbr650r": "cbr650r", "xmax": "xmax", "other": "อื่นๆ",
+    "click": "Honda Click", "aerox": "Yamaha Aerox", "nmax": "Yamaha NMAX", "scoopy": "Honda Scoopy",
+    "wave": "Honda Wave", "pcx": "Honda PCX", "fino": "Yamaha Fino", "forza": "Honda Forza",
+    "grand_filano": "Yamaha Grand Filano", "hd_road_glide": "Harley-Davidson Road Glide",
+    "cbr650r": "Honda CBR650R", "xmax": "Yamaha XMAX", "other": "ไม่ระบุ",
 }

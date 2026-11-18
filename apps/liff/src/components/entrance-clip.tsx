@@ -1,10 +1,11 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CircleOff, LoaderCircle, type LucideIcon, MapPin, Motorbike, SquareParking, TriangleAlert, Video } from "lucide-react";
+import { CircleOff, type LucideIcon, MapPin, Motorbike, SquareParking, TriangleAlert, Video } from "lucide-react";
 import { type CSSProperties, type SyntheticEvent, useEffect, useRef, useState } from "react";
 import type { GuardBoothClassification, GuardBoothRider } from "@/lib/api/types";
 import { type RiderGuide, arrivedRider, classificationRetryMs, entranceClipCrop, riderGuide, riderTitle } from "@/lib/parking/guard-booth";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 // The Guard Booth entrance camera beside the parking map. It reports each rider as the clip reaches
@@ -82,7 +83,7 @@ export function EntranceClip({ siteId, scene, onStatus, onArrival }: {
   const chip = failed
     ? { Icon: TriangleAlert, text: "เปิดกล้องไม่ได้" }
     : query.isPending
-    ? { Icon: LoaderCircle, text: "กำลังเตรียมกล้อง", spin: true }
+    ? { Icon: null, text: "กำลังเตรียมกล้อง" }
     : query.isError
     ? { Icon: TriangleAlert, text: "ตรวจรุ่นรถไม่ได้" }
     : { Icon: Video, text: "ทางเข้า" };
@@ -106,7 +107,7 @@ export function EntranceClip({ siteId, scene, onStatus, onArrival }: {
       {scene && <div key={scene} aria-hidden className="pointer-events-none absolute inset-0 bg-black/30 opacity-0 backdrop-blur-md motion-safe:animate-scene-blur" />}
       <figcaption aria-live="polite" className="absolute top-2 left-2 flex items-center gap-1.5 rounded-full bg-black/60 py-1 pr-3 pl-2 text-sm font-semibold text-white backdrop-blur-sm">
         <span key={chip.text} className="flex items-center gap-1.5 motion-safe:animate-content-swap">
-          <chip.Icon aria-hidden className={cn("size-4", chip.spin && "motion-safe:animate-spin")} />
+          {chip.Icon ? <chip.Icon aria-hidden className="size-4" /> : <Spinner />}
           {chip.text}
         </span>
       </figcaption>
@@ -114,19 +115,20 @@ export function EntranceClip({ siteId, scene, onStatus, onArrival }: {
   );
 }
 
-const GUIDE_ICONS: Record<RiderGuide["tone"], LucideIcon> = { go: MapPin, wait: LoaderCircle, free: SquareParking, stop: CircleOff };
+const GUIDE_ICONS: Record<Exclude<RiderGuide["tone"], "wait">, LucideIcon> = { go: MapPin, free: SquareParking, stop: CircleOff };
 const GUIDE_TEXT: Record<RiderGuide["tone"], string> = { go: "", wait: "text-muted-foreground", free: "text-green-700", stop: "text-red-700" };
 /** The large card's instruction is a sign: white on the rider's colour for `go`, on a status colour otherwise. */
 const GUIDE_SIGN: Record<RiderGuide["tone"], string> = { go: "text-white", wait: "bg-muted text-muted-foreground", free: "bg-green-700 text-white", stop: "bg-red-700 text-white" };
 
 /** The instruction's icon: the rider's colour for `go` and a status colour otherwise, or the text colour without `color`. */
 function GuideIcon({ guide, color, className }: { guide: RiderGuide; color?: string; className: string }) {
+  if (guide.tone === "wait") return <Spinner className={cn("border-[3px]", color !== undefined && GUIDE_TEXT.wait, className)} />;
   const Icon = GUIDE_ICONS[guide.tone];
   return (
     <Icon
       aria-hidden
       strokeWidth={2.5}
-      className={cn("shrink-0", color !== undefined && GUIDE_TEXT[guide.tone], guide.tone === "wait" ? "motion-safe:animate-spin" : guide.tone === "go" && "motion-safe:animate-icon-pop", className)}
+      className={cn("shrink-0", color !== undefined && GUIDE_TEXT[guide.tone], guide.tone === "go" && "motion-safe:animate-icon-pop", className)}
       style={guide.tone === "go" && color !== undefined ? { color } : undefined}
     />
   );

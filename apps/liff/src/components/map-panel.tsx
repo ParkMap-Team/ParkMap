@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronUp, MapPin, Motorbike, X } from "lucide-react";
+import { ChevronRight, ChevronUp, Motorbike, X } from "lucide-react";
 import { type AnimationPlaybackControls, animate, useMotionValue } from "motion/react";
 import {
   type CSSProperties,
@@ -16,14 +16,14 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { prefersReducedMotion } from "@/lib/map/flight";
-import { LEGEND_ORDER, MAP_LEGEND_ORDER, STATUS_TEXT, unknownReasonText } from "@/lib/map/legend";
+import { STATUS_TEXT, legendRows, unknownReasonText } from "@/lib/map/legend";
 import type { MapHit, MapStatus } from "@/lib/map/lot-map";
 import { type AreaPhoto, COLORS, type TimeLine } from "@/lib/parking/presentation";
 import { dragOffset, restsOpen } from "@/lib/sheet";
 import { cn } from "@/lib/utils";
 
 // The text side of the map: a summary, the selected place, the photos the state was computed from,
-// the legend, and every status as a list. It never depends on the canvas, so the page reads the same without 3D
+// and the legend, which also finds each shown status on the map. It never depends on the canvas, so the page reads the same without 3D
 // or without sight. On a phone it is a bottom sheet whose peek always shows the source notice and
 // the summary; on a wide screen it is a column beside the map.
 
@@ -62,7 +62,7 @@ function Selected({ details, full, onClear }: { details: SelectedDetails; full: 
   const { hit, areaName, change, times } = details;
   const reason = hit?.unknownReason ? unknownReasonText(hit.unknownReason) : null;
   return (
-    <section aria-label="จุดที่เลือก" className="rounded-lg border bg-card p-3">
+    <section aria-label="จุดที่เลือก" className="rounded-xl bg-muted p-3">
       <div className="flex items-start gap-2">
         {hit && <Swatch status={hit.status} className="mt-0.5" />}
         <div className="min-w-0 flex-1">
@@ -103,17 +103,33 @@ function Selected({ details, full, onClear }: { details: SelectedDetails; full: 
   );
 }
 
-function Legend({ present }: { present: Set<MapStatus> }) {
+/** The key, where each status the map shows now is also the way to find it. */
+function Legend({ present, onShow }: { present: Set<MapStatus>; onShow(status: MapStatus): void }) {
   return (
     <section aria-labelledby="legend-title">
-      <h2 id="legend-title" className="mb-2 text-sm font-semibold">
-        สัญลักษณ์บนแผนที่
+      <h2 id="legend-title" className="mb-1 text-sm font-semibold">
+        สีบนแผนที่
       </h2>
-      <ul className="grid grid-cols-1 gap-1.5 text-sm min-[480px]:grid-cols-2 lg:grid-cols-1">
-        {MAP_LEGEND_ORDER.map((status) => (
-          <li key={status} className={cn("flex items-center gap-2", !present.has(status) && !(status === "AVAILABLE" && present.has("WIDTH_SUFFICIENT")) && "text-muted-foreground")}>
-            <Swatch status={status === "AVAILABLE" && !present.has("AVAILABLE") && present.has("WIDTH_SUFFICIENT") ? "WIDTH_SUFFICIENT" : status} />
-            {STATUS_TEXT[status].label}
+      <ul className="-mx-2 text-sm">
+        {legendRows(present).map(({ status, present: shown }) => (
+          <li key={status}>
+            {shown ? (
+              <button
+                type="button"
+                onClick={() => onShow(status)}
+                className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2 text-left outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 active:bg-muted"
+              >
+                <Swatch status={status} />
+                <span className="flex-1">{STATUS_TEXT[status].label}</span>
+                <span className="sr-only">ดูบนแผนที่</span>
+                <ChevronRight aria-hidden className="size-4 text-muted-foreground" />
+              </button>
+            ) : (
+              <div className="flex min-h-11 items-center gap-3 px-2 text-muted-foreground">
+                <Swatch status={status} />
+                {STATUS_TEXT[status].label}
+              </div>
+            )}
           </li>
         ))}
       </ul>
@@ -143,7 +159,7 @@ function Photo({ photo, open }: { photo: ShownPhoto; open: boolean }) {
   }, [open, photo]);
   if (!shown) return null;
   return (
-    <figure className="overflow-hidden rounded-lg border bg-card">
+    <figure className="overflow-hidden rounded-xl bg-muted">
       {/* A plain image: the photo is already sized by the worker and served through this app's proxy. */}
       <img src={shown.url} width={shown.width} height={shown.height} alt={`ภาพจากกล้อง ${shown.name}`} className="block h-auto w-full" style={{ aspectRatio: `${shown.width} / ${shown.height}` }} />
       <figcaption className="px-3 py-2 text-xs text-muted-foreground">{shown.name}</figcaption>
@@ -167,31 +183,22 @@ function Photos({ photos, open }: { photos: ShownPhoto[]; open: boolean }) {
   );
 }
 
-function StatusList({ present, areas, onShow }: { present: Set<MapStatus>; areas: AreaRow[]; onShow(status: MapStatus): void }) {
-  const shown = LEGEND_ORDER.filter((status) => present.has(status));
+/** Each watched area's data status and age. */
+function Areas({ areas }: { areas: AreaRow[] }) {
+  if (areas.length === 0) return null;
   return (
-    <section aria-labelledby="status-list-title">
-      <h2 id="status-list-title" className="mb-2 text-sm font-semibold">
-        สถานะในแผนที่
+    <section aria-labelledby="areas-title">
+      <h2 id="areas-title" className="mb-1 text-sm font-semibold">
+        พื้นที่ที่ตรวจสอบ
       </h2>
-      <ul className="divide-y rounded-lg border bg-card">
+      <ul className="divide-y text-sm">
         {areas.map((area) => (
-          <li key={area.id} className="px-3 py-2 text-sm">
-            <p>{area.name}</p>
-            <p className="text-xs text-muted-foreground tabular-nums">
+          <li key={area.id} className="flex items-baseline justify-between gap-3 py-2.5">
+            <span className="min-w-0">{area.name}</span>
+            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
               {area.status}
               {area.time && ` · ${area.time}`}
-            </p>
-          </li>
-        ))}
-        {shown.map((status) => (
-          <li key={status} className="flex items-center gap-2 py-0.5 pr-1 pl-3 text-sm">
-            <Swatch status={status} />
-            <span className="flex-1">{STATUS_TEXT[status].label}</span>
-            <Button variant="ghost" className="h-11 text-xs" onClick={() => onShow(status)}>
-              <MapPin data-icon="inline-start" />
-              ดูบนแผนที่
-            </Button>
+            </span>
           </li>
         ))}
       </ul>
@@ -224,6 +231,8 @@ const SHEET_SPRING = { type: "spring", bounce: 0, visualDuration: 0.3 } as const
 
 /** How much of the map the sheet covers at rest: with and without the selected place's card. */
 export type PeekHeights = { base: number; full: number };
+/** The floating card's gap to the map's bottom edge (`bottom-8`), clearing the guide circle that rises 20px above the tab bar. */
+const FLOAT_GAP_PX = 32;
 
 type Drag = { pointerId: number; startY: number; startOffset: number; dragging: boolean; samples: { t: number; y: number }[] };
 
@@ -232,6 +241,7 @@ export function MapPanel({
   viewNotice,
   headline,
   headlineStatus,
+  updated,
   present,
   areas,
   photos,
@@ -249,6 +259,8 @@ export function MapPanel({
   viewNotice: ReactNode;
   headline: string;
   headlineStatus: MapStatus | null;
+  /** How old the shown state is, as a quiet line under the headline; null hides it. */
+  updated: string | null;
   present: Set<MapStatus>;
   areas: AreaRow[];
   /** The photo each shown area was computed from. */
@@ -307,7 +319,8 @@ export function MapPanel({
     if (!element || !peekElement) return;
     const padding = parseFloat(getComputedStyle(element).paddingBottom) || 0;
     const visible = peekElement.offsetHeight + padding;
-    latest.current.onPeek({ full: visible, base: visible - (card.current?.offsetHeight ?? 0) });
+    // Heights from the map's bottom edge, so they include the gap the floating card keeps below it.
+    latest.current.onPeek({ full: FLOAT_GAP_PX + visible, base: FLOAT_GAP_PX + visible - (card.current?.offsetHeight ?? 0) });
     sheetHeight.current = element.offsetHeight;
     const next = Math.max(0, element.offsetHeight - visible);
     if (next === collapsed.current) return;
@@ -411,13 +424,32 @@ export function MapPanel({
   }
 
   const open = wide || expanded;
+  const summary = (
+    <>
+      {headlineStatus && <Swatch status={headlineStatus} className="size-4" />}
+      {/* Announced only when the sentence changes, not on every poll. */}
+      <span aria-live="polite" className="min-w-0 flex-1 text-sm font-semibold">
+        {headline}
+      </span>
+      {/* Plain trailing text like a transit app's live time, not a badge; never announced, since it ticks every second. */}
+      {updated && <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{updated}</span>}
+    </>
+  );
   return (
+    // On a phone the sheet is a card floating clear of the screen's edges and the tab bar. The frame
+    // clips the part a resting card keeps below its peek, and casts the shadow of what shows.
+    <div
+      className={cn(
+        "pointer-events-none absolute inset-x-3 top-3 bottom-8 z-10 flex flex-col justify-end overflow-hidden rounded-2xl drop-shadow-[0_4px_12px_rgb(15_23_42/0.12)]",
+        "lg:pointer-events-auto lg:static lg:min-h-0 lg:overflow-visible lg:rounded-none lg:drop-shadow-none",
+      )}
+    >
     <aside
       ref={sheet}
       aria-label="สรุปสถานะลานจอด"
       className={cn(
-        "absolute inset-x-0 bottom-0 z-10 flex max-h-[calc(100%-3.5rem)] flex-col rounded-t-xl border-t bg-background pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_20px_-12px_rgb(15_23_42/0.35)] will-change-transform",
-        "lg:static lg:max-h-none lg:min-h-0 lg:rounded-none lg:border-t-0 lg:border-l lg:pb-0 lg:shadow-none lg:will-change-auto",
+        "pointer-events-auto flex max-h-[calc(100%-3rem)] flex-col rounded-2xl border bg-background pb-[var(--safe-bottom)] will-change-transform",
+        "lg:max-h-none lg:min-h-0 lg:flex-1 lg:rounded-none lg:border-0 lg:border-l lg:pb-0 lg:will-change-auto",
       )}
     >
       <div
@@ -429,25 +461,27 @@ export function MapPanel({
         onPointerCancel={onPointerCancel}
         onClickCapture={onClickCapture}
       >
-        <div aria-hidden className="mx-auto mt-2 h-1 w-9 rounded-full bg-border lg:hidden" />
-        <div className="space-y-2 px-4 pt-2 empty:hidden lg:pt-4">{truth}</div>
-        <div className="flex items-center gap-2 px-4 py-2">
-          {headlineStatus && <Swatch status={headlineStatus} />}
-          {/* Announced only when the sentence changes, not on every poll. */}
-          <p aria-live="polite" className="min-w-0 flex-1 text-base font-semibold">
-            {headline}
-          </p>
-          <Button
-            variant="outline"
-            className="h-11 lg:hidden"
+        <div aria-hidden className="mx-auto mt-1.5 h-1 w-8 rounded-full bg-border lg:hidden" />
+        <div className="space-y-2 px-4 pt-1.5 empty:hidden lg:pt-4">{truth}</div>
+        {wide ? (
+          <div className="flex items-center gap-2 px-4 py-2.5">{summary}</div>
+        ) : (
+          // The summary row is the sheet's one toggle, beside dragging its handle.
+          <button
+            type="button"
             aria-expanded={expanded}
             aria-controls="map-panel-details"
             onClick={() => onExpandedChange(!expanded)}
+            className="flex min-h-11 w-full items-center gap-2 px-4 pt-1.5 pb-2.5 text-left outline-none focus-visible:bg-muted"
           >
-            {expanded ? "ย่อ" : "รายละเอียด"}
-            <ChevronUp data-icon="inline-end" className={cn("transition-transform duration-150 motion-reduce:transition-none", expanded && "rotate-180")} />
-          </Button>
-        </div>
+            {summary}
+            <span className="sr-only">{expanded ? "ย่อรายละเอียด" : "ดูรายละเอียด"}</span>
+            <ChevronUp
+              aria-hidden
+              className={cn("size-4 shrink-0 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none", expanded && "rotate-180")}
+            />
+          </button>
+        )}
         {selected && (
           <div ref={card} className="px-4 pb-3">
             <Selected details={selected} full={open} onClear={onClearSelection} />
@@ -457,17 +491,18 @@ export function MapPanel({
       <div
         id="map-panel-details"
         inert={!open}
-        className={cn("min-h-0 space-y-4 overflow-y-auto overscroll-contain px-4 pt-1 pb-4", !measured && "max-lg:hidden")}
+        className={cn("min-h-0 space-y-5 overflow-y-auto overscroll-contain px-4 pt-1 pb-4", !measured && "max-lg:hidden")}
       >
         {viewNotice}
+        <Legend present={present} onShow={onShow} />
+        <Areas areas={areas} />
         <Photos photos={photos} open={open} />
-        <Legend present={present} />
-        <StatusList present={present} areas={areas} onShow={onShow} />
-        <p className="text-xs text-muted-foreground">
+        <p className="border-t pt-4 text-xs text-pretty text-muted-foreground">
           ตำแหน่งบนแผนที่คำนวณจากภาพกล้องหนึ่งตัว จึงเป็นค่าโดยประมาณ แนวรถแนวนอนประมาณจากกรอบในภาพ ไม่ใช่มุมหรือขนาดที่วัดจริง ระบบไม่มีการจองที่จอด และไม่ได้แบ่งช่องจอดตายตัว
           {estimatedLandmarks && " อาคาร ต้นไม้ และสิ่งรอบลานวาดจากภาพถ่าย ตำแหน่งและขนาดเป็นค่าโดยประมาณ"}
         </p>
       </div>
     </aside>
+    </div>
   );
 }

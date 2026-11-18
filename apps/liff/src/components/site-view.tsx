@@ -1,18 +1,22 @@
 "use client";
 
-import { ArrowLeft, DoorOpen, Minus, Plus, RotateCcw, RotateCw, Scan, SquareParking, WifiOff } from "lucide-react";
+import { DoorOpen, Ellipsis, Minus, Plus, RotateCcw, RotateCw, Scan, SquareParking, WifiOff, X } from "lucide-react";
+import { Popover } from "@base-ui/react/popover";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { type ComponentProps, type KeyboardEvent, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { useGuide } from "@/components/parking-guide";
 import type { GuardBoothFit, GuardBoothRider, LotModel, ParkingAreaLiveState, SiteParkingState } from "@/lib/api/types";
 import { type Insets, ROTATE_STEP_RAD, ZOOM_STEP } from "@/lib/map/camera";
 import { STATUS_TEXT, areaLabel, headline, headlineStatus, mapLabels } from "@/lib/map/legend";
 import { type LotMap, type MapStatus, type Selection, buildLotMap, focusPoint, followSelection, selectAt, summarize } from "@/lib/map/lot-map";
 import { FALLBACK_NOTICES, INITIAL_RENDERER, THREE_D_TIMEOUT_MS, detectWebGL, mountsThreeD, rendererReducer } from "@/lib/map/renderer";
 import { labelPoint } from "@/lib/map/geometry";
-import { activeParkingHolds, activeRiders, applyParkingHolds, enqueueRider, entranceClipOutcome, guardBoothFitFamily, guardBoothFrame, guardBoothHeadline, guardBoothModelName, guardBoothPreviewDestination, overlapsParkingHold, PARKING_HOLD_MS, RIDER_COLORS, riderGuide, routeRiderSeq, sripatumPreviewRoute, type GuardBoothMode, type GuardBoothOverview, type ParkingHold, type QueuedRider, type RiderFit } from "@/lib/parking/guard-booth";
+import { activeParkingHolds, activeRiders, applyParkingHolds, enqueueRider, entranceClipOutcome, guardBoothFitFamily, guardBoothFrame, guardBoothHeadline, guardBoothModelName, guardBoothPreviewDestination, isKnownFamily, overlapsParkingHold, PARKING_HOLD_MS, RIDER_COLORS, riderGuide, routeRiderSeq, sripatumPreviewRoute, type GuardBoothMode, type GuardBoothOverview, type ParkingHold, type QueuedRider, type RiderFit } from "@/lib/parking/guard-booth";
+import { type GuideStatus, guideStatus } from "@/lib/parking/guide";
 import { STATUS_LABELS, agoLabel, areaPhotos, timeLines, visibleAreas } from "@/lib/parking/presentation";
 import { useParkingState } from "@/lib/parking/use-parking-state";
 import { useParkingRecommendation } from "@/lib/parking/use-parking-recommendation";
@@ -24,7 +28,7 @@ import { type MapMarker, type MapViewHandle, ViewErrorBoundary } from "./map-ove
 import { MapSkeleton } from "./map-skeleton";
 import { BoothIdle, type ClipStatus, EntranceClip, RiderCard } from "./entrance-clip";
 
-// The site screen: a header with how old the data is, then the map with a sheet over it that says
+// The site screen: the map with a chip saying how old the data is, and a sheet over it that says
 // the same thing in text and shows the photos it was computed from. The API decides every status; this screen only
 // lays it out. The map shows at once: there is nothing to tap before it.
 
@@ -48,7 +52,7 @@ function useLotMap(lotModel: LotModel, data: SiteParkingState | undefined, areas
   return built.map;
 }
 
-/** How old the shown state is, in the header: the oldest area's age as the API measures it. */
+/** How old the shown state is, under the card's headline: the oldest area's age as the API measures it. */
 function freshness(areas: ParkingAreaLiveState[] | null): string | null {
   if (!areas) return null;
   const ages = areas.flatMap((area) => (area.age_s == null ? [] : [area.age_s]));
@@ -106,8 +110,16 @@ function ControlButton({ className, ...props }: ComponentProps<typeof Button>) {
   return <Button variant="outline" size="icon" className={cn("size-11 rounded-lg bg-background shadow-sm", className)} {...props} />;
 }
 
-export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fitPreviewEnabled = false, entranceClip = false, recommendationsEnabled = false }: { siteId: string; siteName: string; lotModel: LotModel; listHref: string | null; guardBooth?: GuardBoothMode; fitPreviewEnabled?: boolean; entranceClip?: boolean; recommendationsEnabled?: boolean }) {
+function MenuButton({ className, ...props }: ComponentProps<typeof Button>) {
+  return <Button variant="outline" className={cn("h-11 justify-start gap-2 rounded-lg px-3 [&_svg:not([class*='size-'])]:size-5", className)} {...props} />;
+}
+
+export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEnabled = false, entranceClip = false, recommendationsEnabled = false }: { siteId: string; siteName: string; lotModel: LotModel; guardBooth?: GuardBoothMode; fitPreviewEnabled?: boolean; entranceClip?: boolean; recommendationsEnabled?: boolean }) {
   const testingClassification = guardBooth === "preview" || guardBooth === "unknown";
+  // The tab bar's parking guide asks the server for a place sized for the model saved with the
+  // student's LINE account, held and shared with the Guard Booth.
+  const guide = useGuide();
+  const guiding = !guardBooth && guide.active;
   // The entrance clip's riders, newest first, and what the booth shows while none is queued.
   const [clipStatus, setClipStatus] = useState<ClipStatus>("classifying");
   const [riderQueue, setRiderQueue] = useState<readonly QueuedRider[]>([]);
@@ -155,8 +167,14 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
   });
   const lineLedgerCurrent = sharedHolds.dataUpdatedAt < lineRecommendation.dataUpdatedAt ||
     sharedHolds.data?.some((hold) => hold.request_id === lineRecommendation.data?.request_id && hold.stage === "HELD");
-  const lineFit = lineLedgerCurrent && !lineRecommendation.isError && !sharedHolds.isError && !connectionLost &&
+  // The map shows the student's place only while the guide is on; closing it leaves the hold to expire.
+  const lineFit = guiding && lineLedgerCurrent && !lineRecommendation.isError && !sharedHolds.isError && !connectionLost &&
     activeRecommendation(lineRecommendation.data, recordedFrame, now) ? lineRecommendation.data : null;
+  const { family: lineFamily, requestPlace } = lineRecommendation;
+  useEffect(() => {
+    // Each press asks once, after the server has said which model the student saved.
+    if (guiding && lineFamily && isKnownFamily(lineFamily) && guide.claim()) requestPlace();
+  }, [guiding, guide, lineFamily, requestPlace]);
   // The entrance clip replays one scene per recorded photo: another photo restarts the clip and ends
   // the riders of the previous one. A photo briefly missing from a poll does not end its scene.
   const [scene, setScene] = useState(recordedFrame);
@@ -278,7 +296,8 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
   const insets = useMemo<Insets>(
     () => ({
       top: boothTop + CONTROL_BAND_PX,
-      right: CONTROL_BAND_PX,
+      // Only the Guard Booth keeps a column of controls on the right; a student's map has one menu button at the top.
+      right: guardBooth ? CONTROL_BAND_PX : EDGE_GAP_PX,
       bottom: wide || guardBooth ? EDGE_GAP_PX : peek.base + ABOVE_SHEET_PX,
       left: entranceClip && wide && boothPanelSize.width ? boothPanelSize.width + 2 * EDGE_GAP_PX : EDGE_GAP_PX,
     }),
@@ -413,6 +432,31 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
   const estimatedLandmarks = map.landmarks.some((landmark) => landmark.measurement_source === "ESTIMATED");
   const mapLoading = renderer.status3d === "checking" || (showsThreeD && renderer.status3d === "loading");
   const overviewKey = guardBooth ? boothOverview : undefined;
+  const lineAnswer = lineRecommendation.data?.observed_at === recordedFrame ? lineRecommendation.data : undefined;
+  const guideState = guiding ? guideStatus({
+    enabled: recommendationsEnabled, loading: query.isPending, recordedFrame: !!recordedFrame, family: lineFamily,
+    preferenceError: lineRecommendation.preferenceError, failed: lineRecommendation.isError || sharedHolds.isError,
+    requested: lineRecommendation.requested, answer: lineAnswer, held: !!lineFit,
+    expired: !!lineAnswer?.expires_at && now >= Date.parse(lineAnswer.expires_at),
+  }) : null;
+  const guideSecondsLeft = lineFit?.expires_at ? Math.max(0, Math.ceil((Date.parse(lineFit.expires_at) - now) / 1000)) : 0;
+
+  const viewSwitch = (
+    <div role="group" aria-label="มุมมองแผนที่" className={cn("flex h-11 overflow-hidden rounded-lg border bg-background shadow-sm", !guardBooth && "w-full")}>
+      {(["3d", "2d"] as const).map((mode) => (
+        <Button
+          key={mode}
+          variant="ghost"
+          className={cn("h-full rounded-none font-semibold", guardBooth ? "w-12" : "flex-1", renderer.mode === mode && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}
+          aria-pressed={renderer.mode === mode}
+          disabled={mode === "3d" && renderer.status3d === "unavailable"}
+          onClick={() => dispatch({ type: "choose", mode })}
+        >
+          {mode === "3d" ? "3D" : "2D"}
+        </Button>
+      ))}
+    </div>
+  );
 
   // The map is kept apart from the clock: the header and sheet re-render every second, the map only
   // when what it shows changes.
@@ -427,18 +471,9 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
   }, [map, labels, mapSelection, destination, route, routeReplay, heldPolygons, markers, overviewKey, onSelect, insets, renderer.mode, renderer.status3d, showsThreeD, onReady, onFailed]);
 
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
-      {!guardBooth && <header className={cn("flex shrink-0 items-center gap-1 border-b pt-[max(0.25rem,env(safe-area-inset-top))] pr-4 pb-1", listHref ? "pl-1" : "pl-4")}>
-        {listHref && (
-          <Link href={listHref} aria-label="เลือกลานจอดอื่น" className={buttonVariants({ variant: "ghost", size: "icon", className: "size-11" })}>
-            <ArrowLeft className="size-5" />
-          </Link>
-        )}
-        <div className="min-w-0 flex-1 py-0.5">
-          <h1 className="truncate text-base font-semibold">{siteName}</h1>
-          <p className="text-xs text-muted-foreground tabular-nums">{query.isPending ? "กำลังโหลดสถานะ" : age}</p>
-        </div>
-      </header>}
+    <main className={cn("flex flex-col overflow-hidden bg-background text-foreground", guardBooth ? "h-dvh" : "min-h-0 flex-1")}>
+      {/* LINE's own bar already names the app, so the lot's name is for screen readers only. */}
+      {!guardBooth && <h1 className="sr-only">{siteName}</h1>}
 
       <div className={cn("relative min-h-0 flex-1 overflow-hidden", !guardBooth && "lg:grid lg:grid-cols-[minmax(0,1fr)_380px]")}>
         <section
@@ -451,8 +486,9 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
           onKeyDown={onMapKey}
           className={cn("absolute inset-0 overflow-hidden outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset", !guardBooth && "lg:relative lg:inset-auto lg:min-h-0")}
         >
-          <MapSkeleton outline={map.outline} bounds={map.frame} insets={insets} loading={mapLoading} />
-          <div className="absolute inset-0">{stage}</div>
+          <MapSkeleton insets={insets} loading={mapLoading} />
+          {/* The catalogue's Skeleton Resolve: the view stays hidden while it loads, then fades up over the bare ground. */}
+          <div className={cn("absolute inset-0", mapLoading ? "opacity-0" : "motion-safe:animate-skeleton-resolve")}>{stage}</div>
 
         {classification && (
           // A fixed size: what the panel says never resizes it, so the map never refits under it.
@@ -463,7 +499,7 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
               <div className="relative shrink-0">
                 <EntranceClip siteId={siteId} scene={scene} onStatus={setClipStatus} onArrival={onArrival} />
                 {boothAlert && (
-                  <p role="alert" className="absolute inset-x-2 bottom-2 flex items-center gap-2 rounded-lg bg-red-700 px-3 py-1.5 text-sm font-semibold text-white motion-safe:animate-toast-rise">
+                  <p role="alert" className="absolute inset-x-2 bottom-2 flex items-center gap-2 rounded-lg bg-alert px-3 py-1.5 text-sm font-semibold text-alert-foreground motion-safe:animate-toast-rise">
                     <WifiOff aria-hidden className="size-4 shrink-0" />
                     {boothAlert}
                   </p>
@@ -489,7 +525,7 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
             </p>
             {displayMode !== "waiting" && (fitModel || displayMode === "preview" || displayMode === "no-fit") && <p className="font-semibold">{fitModel ?? "Honda Wave 125i"}</p>}
             {classification === "unknown" && !fitModel && <p>ไม่ทราบรุ่นรถ</p>}
-            {boothAlert && <p role="alert" className="flex items-center gap-2 font-semibold text-red-700"><WifiOff aria-hidden className="size-4 shrink-0" />{boothAlert}</p>}
+            {boothAlert && <p role="alert" className="flex items-center gap-2 font-semibold text-alert"><WifiOff aria-hidden className="size-4 shrink-0" />{boothAlert}</p>}
             {testingClassification && (
               <div role="group" aria-label="ทดสอบสถานะจอป้อมยาม" className="pointer-events-auto flex flex-wrap gap-2 border-t pt-3">
                 {CLASSIFICATION_TESTS.map(([mode, label]) => (
@@ -524,99 +560,91 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
           </div>
         )}
 
-          {/* The view switch keeps its corner in both views; the turn buttons join it on the left in 3D. */}
-          <div className="absolute top-3 right-3 flex items-center gap-2" style={boothTop ? { top: boothTop + EDGE_GAP_PX } : undefined}>
-            {guardBooth && (
-              <div role="group" aria-label="กรอบแผนที่จอป้อมยาม" className="flex h-11 overflow-hidden rounded-lg border bg-background shadow-sm">
-                {GUARD_BOOTH_OVERVIEWS.map(([overview, label, Icon]) => (
-                  <Button
-                    key={overview}
-                    variant="ghost"
-                    aria-label={label}
-                    title={label}
-                    aria-pressed={boothOverview === overview}
-                    className={cn("h-full w-12 rounded-none", boothOverview === overview && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}
-                    onClick={() => {
-                      if (boothOverview === overview) view.current?.reset(true);
-                      else setBoothOverview(overview);
-                    }}
-                  >
-                    <Icon className="size-5" />
-                  </Button>
-                ))}
+          {guardBooth ? (
+            <>
+              {/* The view switch keeps its corner in both views; the turn buttons join it on the left in 3D. */}
+              <div className="absolute top-3 right-3 flex items-center gap-2" style={boothTop ? { top: boothTop + EDGE_GAP_PX } : undefined}>
+                <div role="group" aria-label="กรอบแผนที่จอป้อมยาม" className="flex h-11 overflow-hidden rounded-lg border bg-background shadow-sm">
+                  {GUARD_BOOTH_OVERVIEWS.map(([overview, label, Icon]) => (
+                    <Button
+                      key={overview}
+                      variant="ghost"
+                      aria-label={label}
+                      title={label}
+                      aria-pressed={boothOverview === overview}
+                      className={cn("h-full w-12 rounded-none", boothOverview === overview && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}
+                      onClick={() => {
+                        if (boothOverview === overview) view.current?.reset(true);
+                        else setBoothOverview(overview);
+                      }}
+                    >
+                      <Icon className="size-5" />
+                    </Button>
+                  ))}
+                </div>
+                {renderer.mode === "3d" && (
+                  <div role="group" aria-label="หมุนแผนที่" className="flex gap-2">
+                    <ControlButton aria-label="หมุนซ้าย" onClick={() => view.current?.rotateBy?.(ROTATE_STEP_RAD, true)}>
+                      <RotateCcw />
+                    </ControlButton>
+                    <ControlButton aria-label="หมุนขวา" onClick={() => view.current?.rotateBy?.(-ROTATE_STEP_RAD, true)}>
+                      <RotateCw />
+                    </ControlButton>
+                  </div>
+                )}
+                {viewSwitch}
               </div>
-            )}
-            {renderer.mode === "3d" && (
-              <div role="group" aria-label="หมุนแผนที่" className="flex gap-2">
-                <ControlButton aria-label="หมุนซ้าย" onClick={() => view.current?.rotateBy?.(ROTATE_STEP_RAD, true)}>
-                  <RotateCcw />
-                </ControlButton>
-                <ControlButton aria-label="หมุนขวา" onClick={() => view.current?.rotateBy?.(-ROTATE_STEP_RAD, true)}>
-                  <RotateCw />
-                </ControlButton>
-              </div>
-            )}
-            <div role="group" aria-label="มุมมองแผนที่" className="flex h-11 overflow-hidden rounded-lg border bg-background shadow-sm">
-              {(["3d", "2d"] as const).map((mode) => (
-                <Button
-                  key={mode}
-                  variant="ghost"
-                  className={cn("h-full w-12 rounded-none font-semibold", renderer.mode === mode && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}
-                  aria-pressed={renderer.mode === mode}
-                  disabled={mode === "3d" && renderer.status3d === "unavailable"}
-                  onClick={() => dispatch({ type: "choose", mode })}
-                >
-                  {mode === "3d" ? "3D" : "2D"}
-                </Button>
-              ))}
-            </div>
-          </div>
 
-          {/* Zoom and overview ride just above the sheet's peek on a phone. */}
-          <div
-            className="absolute right-3 bottom-0 flex flex-col items-end gap-2 transition-transform duration-200 ease-out-strong motion-reduce:transition-none"
-            style={{ transform: `translateY(-${wide || guardBooth ? EDGE_GAP_PX : peek.full + ABOVE_SHEET_PX}px)` }}
-          >
-            <div role="group" aria-label="ซูม" className="flex flex-col overflow-hidden rounded-lg border bg-background shadow-sm">
-              <Button variant="ghost" size="icon" className="size-11 rounded-none" aria-label="ซูมเข้า" onClick={() => view.current?.zoomBy(ZOOM_STEP, true)}>
-                <Plus />
-              </Button>
-              <Button variant="ghost" size="icon" className="size-11 rounded-none border-t" aria-label="ซูมออก" onClick={() => view.current?.zoomBy(1 / ZOOM_STEP, true)}>
-                <Minus />
-              </Button>
-            </div>
-            {/* As narrow as the other controls, so it stays inside the band labels keep clear of. */}
-            <ControlButton aria-label={guardBooth ? "กลับมุมมองที่เลือก" : "ดูทั้งลาน"} onClick={() => view.current?.reset(true)}>
-              <Scan />
-            </ControlButton>
-          </div>
+              <div className="absolute right-3 bottom-3 flex flex-col items-end gap-2">
+                <div role="group" aria-label="ซูม" className="flex flex-col overflow-hidden rounded-lg border bg-background shadow-sm">
+                  <Button variant="ghost" size="icon" className="size-11 rounded-none" aria-label="ซูมเข้า" onClick={() => view.current?.zoomBy(ZOOM_STEP, true)}>
+                    <Plus />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="size-11 rounded-none border-t" aria-label="ซูมออก" onClick={() => view.current?.zoomBy(1 / ZOOM_STEP, true)}>
+                    <Minus />
+                  </Button>
+                </div>
+                {/* As narrow as the other controls, so it stays inside the band labels keep clear of. */}
+                <ControlButton aria-label="กลับมุมมองที่เลือก" onClick={() => view.current?.reset(true)}>
+                  <Scan />
+                </ControlButton>
+              </div>
+            </>
+          ) : (
+            // A student's map keeps one button so the lot stays clear; the controls wait in its menu, and
+            // touch gestures and the keys still move, zoom and turn the map.
+            <Popover.Root>
+              <Popover.Trigger render={<ControlButton aria-label="ตัวเลือกแผนที่" className="absolute top-3 right-3" />}>
+                <Ellipsis />
+              </Popover.Trigger>
+              <Popover.Portal>
+                <Popover.Positioner side="bottom" align="end" sideOffset={8} collisionPadding={12} className="z-50">
+                  <Popover.Popup className="w-60 origin-[var(--transform-origin)] space-y-3 rounded-2xl border bg-background p-3 text-foreground shadow-lg outline-none transition-[transform,opacity] duration-150 ease-out-strong data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 motion-reduce:transition-none">
+                    <Popover.Title className="text-sm font-semibold">ตัวเลือกแผนที่</Popover.Title>
+                    {viewSwitch}
+                    <div className="grid grid-cols-2 gap-2">
+                      {renderer.mode === "3d" && (
+                        <>
+                          <MenuButton onClick={() => view.current?.rotateBy?.(ROTATE_STEP_RAD, true)}><RotateCcw />หมุนซ้าย</MenuButton>
+                          <MenuButton onClick={() => view.current?.rotateBy?.(-ROTATE_STEP_RAD, true)}><RotateCw />หมุนขวา</MenuButton>
+                        </>
+                      )}
+                      <MenuButton onClick={() => view.current?.zoomBy(ZOOM_STEP, true)}><Plus />ซูมเข้า</MenuButton>
+                      <MenuButton onClick={() => view.current?.zoomBy(1 / ZOOM_STEP, true)}><Minus />ซูมออก</MenuButton>
+                      <MenuButton className="col-span-2" onClick={() => view.current?.reset(true)}><Scan />ดูทั้งลาน</MenuButton>
+                    </div>
+                  </Popover.Popup>
+                </Popover.Positioner>
+              </Popover.Portal>
+            </Popover.Root>
+          )}
         </section>
 
         {!guardBooth && <MapPanel
           truth={
             <>
-              {recommendationsEnabled && (
-                <div className="space-y-2 rounded-xl border bg-background p-3" aria-label="แนะนำที่จอดสำหรับรถของฉัน">
-                  <p className="font-semibold">ที่จอดสำหรับรถของคุณ</p>
-                  <p className="text-xs text-muted-foreground">กรอบสีฟ้า คือพื้นที่ที่พักไว้ให้รถกำลังไปจอด</p>
-                  {lineRecommendation.family && <p className="text-sm">{guardBoothModelName(lineRecommendation.family)}</p>}
-                  <Button className="w-full" disabled={!recordedFrame || !lineRecommendation.family || lineRecommendation.family === "other" || lineRecommendation.isFetching || !!lineFit || lineRecommendation.data?.stage === "AWAITING_CONFIRMATION"} onClick={lineRecommendation.requestPlace}>
-                    {lineFit ? "พักพื้นที่ให้แล้ว" : lineRecommendation.isFetching ? "กำลังหาที่จอด" : "แนะนำที่จอด"}
-                  </Button>
-                  <p role="status" className="text-sm text-muted-foreground">
-                    {lineRecommendation.isError ? lineRecommendation.error.message
-                      : lineRecommendation.preferenceError ? "ยืนยันรุ่นรถไม่ได้ กรุณาเปิดผ่าน LINE อีกครั้ง"
-                      : lineRecommendation.family === "other" ? "ยังไม่มีขนาดอ้างอิงของรถรุ่นนี้ ดูพื้นที่ว่างบนแผนที่ได้"
-                      : sharedHolds.isError ? "ยังยืนยันสถานะพักพื้นที่ไม่ได้ กรุณาลองใหม่"
-                      : lineRecommendation.data?.stage === "AWAITING_CONFIRMATION" ? "ครบ 2 นาทีแล้ว กำลังรอภาพใหม่ยืนยันว่าพื้นที่ว่าง"
-                      : lineRecommendation.data?.stage === "OCCUPIED_CONFIRMED" ? "ตรวจพบรถจอดในพื้นที่แนะนำแล้ว"
-                      : lineFit?.expires_at ? `ไปตามเส้นสีน้ำเงิน พักพื้นที่อีก ${Math.max(0, Math.ceil((Date.parse(lineFit.expires_at) - now) / 1000))} วินาที`
-                      : lineRecommendation.data?.stage === "RELEASED" ? "คืนพื้นที่แล้ว กดขอจุดแนะนำใหม่ได้"
-                      : lineRecommendation.requested && lineRecommendation.data ? "ยังไม่พบพื้นที่ที่แนะนำได้จากข้อมูลล่าสุด"
-                      : "เมื่อกด ระบบจะพักพื้นที่ 2 นาที และกันไม่ให้แนะนำซ้ำกับป้อมยาม"}
-                  </p>
-                </div>
-              )}
+              {guideState && <GuideNotice status={guideState} model={lineFamily && isKnownFamily(lineFamily) ? guardBoothModelName(lineFamily) : null} secondsLeft={guideSecondsLeft} onRetry={guide.start} onClose={guide.stop} />}
+              {recommendationsEnabled && heldPolygons.length > 0 && <p className="text-xs text-muted-foreground">กรอบเส้นประสีฟ้า คือพื้นที่ที่พักไว้ให้รถที่กำลังไปจอด</p>}
               {(connectionLost || allStale) && (
                 <div role="alert" className="flex items-center gap-3 rounded-lg bg-alert py-1 pr-1 pl-3 text-sm text-alert-foreground">
                   <p className="flex-1">
@@ -643,6 +671,8 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
             )
           }
           headline={headline(summary, connectionLost)}
+          // The truth notice already speaks for lost or stale data, so the age only shows when it is current.
+          updated={query.isPending || connectionLost || allStale ? null : age}
           headlineStatus={headlineStatus(summary)}
           present={summary.present}
           areas={areas ? areaRows(map, areas) : []}
@@ -657,5 +687,35 @@ export function SiteView({ siteId, siteName, lotModel, listHref, guardBooth, fit
         />}
       </div>
     </main>
+  );
+}
+
+const GUIDE_TEXT: Record<GuideStatus, (model: string, secondsLeft: number) => string> = {
+  unavailable: () => "ตอนนี้ยังแนะนำที่จอดไม่ได้ ดูพื้นที่ว่างบนแผนที่แทนได้",
+  "unsupported-model": () => "ยังไม่มีขนาดของรุ่นรถนี้ เลือกรุ่นรถในตั้งค่าเพื่อให้แนะนำได้",
+  "unverified-model": () => "ยืนยันรุ่นรถไม่ได้ กรุณาเปิดผ่าน LINE อีกครั้ง",
+  searching: (model) => `กำลังหาที่จอดสำหรับ ${model}`,
+  failed: () => "หาที่จอดไม่สำเร็จ ลองใหม่อีกครั้ง",
+  "no-fit": (model) => `ตอนนี้ไม่มีที่ว่างที่ ${model} จอดได้พอดี`,
+  found: (model, secondsLeft) => `ตามลูกศรไปยังที่จอดที่พอดีกับ ${model} พักไว้ให้อีก ${secondsLeft} วินาที`,
+  confirming: () => "ครบเวลาพักที่จอดแล้ว กำลังรอภาพใหม่ยืนยันว่าพื้นที่ว่าง",
+  parked: () => "ตรวจพบรถจอดในพื้นที่แนะนำแล้ว",
+  released: () => "คืนที่จอดที่พักไว้แล้ว ขอที่จอดใหม่ได้",
+};
+const GUIDE_ACTIONS: Partial<Record<GuideStatus, string>> = { failed: "ลองใหม่", "no-fit": "หาอีกครั้ง", released: "แนะนำใหม่" };
+
+/** What the parking guide found, at the top of the sheet. A retry after a released hold asks for a new place. */
+function GuideNotice({ status, model, secondsLeft, onRetry, onClose }: { status: GuideStatus; model: string | null; secondsLeft: number; onRetry(): void; onClose(): void }) {
+  const action = GUIDE_ACTIONS[status];
+  return (
+    <div className={cn("flex items-center gap-2 rounded-lg py-1 pr-1 pl-3 text-sm", status === "found" ? "bg-primary text-primary-foreground" : "bg-muted")}>
+      {status === "searching" && <Spinner />}
+      <p role="status" className="min-w-0 flex-1 py-2 text-pretty">
+        <span key={status} className="inline-block motion-safe:animate-content-swap">{GUIDE_TEXT[status](model ?? "รถของคุณ", secondsLeft)}</span>
+      </p>
+      {action && <Button variant="outline" className="h-11 text-foreground" onClick={onRetry}>{action}</Button>}
+      {status === "unsupported-model" && <Button variant="outline" className="h-11 text-foreground" render={<Link href="/settings" />} nativeButton={false}>ตั้งค่า</Button>}
+      <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="ปิดการแนะนำที่จอด" onClick={onClose}><X /></Button>
+    </div>
   );
 }
