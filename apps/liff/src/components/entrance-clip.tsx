@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CircleOff, LoaderCircle, type LucideIcon, MapPin, Motorbike, SquareParking, TriangleAlert, Video } from "lucide-react";
 import { type CSSProperties, type SyntheticEvent, useEffect, useRef, useState } from "react";
 import type { GuardBoothClassification, GuardBoothRider } from "@/lib/api/types";
-import { type RiderGuide, arrivedRider, entranceClipCrop, riderGuide, riderTitle } from "@/lib/parking/guard-booth";
+import { type RiderGuide, arrivedRider, classificationRetryMs, entranceClipCrop, riderGuide, riderTitle } from "@/lib/parking/guard-booth";
 import { cn } from "@/lib/utils";
 
 // The Guard Booth entrance camera beside the parking map. It reports each rider as the clip reaches
@@ -16,6 +16,13 @@ import { cn } from "@/lib/utils";
 
 /** What the booth shows while no rider is queued. */
 export type ClipStatus = "classifying" | "waiting" | "unknown";
+
+/** The API is still classifying the clip; ask again after `retryMs`. */
+class ClassificationPending extends Error {
+  constructor(readonly retryMs: number) {
+    super("Guard Booth classification is still running");
+  }
+}
 
 export function EntranceClip({ siteId, scene, onStatus, onArrival }: {
   siteId: string;
@@ -42,10 +49,15 @@ export function EntranceClip({ siteId, scene, onStatus, onArrival }: {
     queryKey: ["guard-booth-classification", siteId],
     queryFn: async ({ signal }): Promise<GuardBoothClassification> => {
       const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/guard-booth-classification`, { signal, cache: "no-store" });
-      if (!response.ok) throw new Error(`Guard Booth classification failed with ${response.status}`);
+      if (!response.ok) {
+        const retryMs = classificationRetryMs(response.status, response.headers.get("Retry-After"));
+        throw retryMs === undefined ? new Error(`Guard Booth classification failed with ${response.status}`) : new ClassificationPending(retryMs);
+      }
       return response.json();
     },
-    retry: false,
+    // The camera keeps "preparing" while the API classifies the clip; only a real failure stops asking.
+    retry: (_failures, error) => error instanceof ClassificationPending,
+    retryDelay: (_failures, error) => (error instanceof ClassificationPending ? error.retryMs : 0),
     staleTime: Infinity,
   });
   const riders = query.data?.riders;

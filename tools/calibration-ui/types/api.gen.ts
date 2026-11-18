@@ -4271,6 +4271,13 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Still classifying the clip when `Retry-After` is set; otherwise unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     get_guard_booth_clip_api_sites__site_id__guard_booth_clip_get: {

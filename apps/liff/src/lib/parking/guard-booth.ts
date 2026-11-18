@@ -36,6 +36,19 @@ export function entranceClipOutcome(rider: GuardBoothRider | null): EntranceClip
   return { mode: "fit-preview", family: rider.family, fitFamily: rider.family };
 }
 
+/** The longest wait between asks while the API is still classifying the entrance clip. */
+export const CLASSIFICATION_RETRY_MAX_MS = 60_000;
+
+/**
+ * How long to wait before asking for the clip's riders again: the API answers 503 with `Retry-After`
+ * while it is still classifying the clip. `undefined` when the answer is a failure, not a wait.
+ */
+export function classificationRetryMs(status: number, retryAfter: string | null): number | undefined {
+  if (status !== 503 || retryAfter === null) return undefined;
+  const seconds = Number(retryAfter);
+  return Number.isInteger(seconds) && seconds > 0 ? Math.min(seconds * 1000, CLASSIFICATION_RETRY_MAX_MS) : undefined;
+}
+
 /** The latest rider to have reached the booth zone by `time` seconds into the clip, or -1 before the first. */
 export function arrivedRider(riders: readonly GuardBoothRider[], time: number): number {
   return riders.findLastIndex(({ arrival_s }) => arrival_s <= time);
