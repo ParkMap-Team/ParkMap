@@ -9,6 +9,8 @@ The workflow comes from `csi-spu/showcase/.agents/skills`, adapted to ParkMap. N
 | `$domain-modeling`, `$grill-with-docs`, `$research`, `$prototype`, `$wayfinder` | Resolve uncertain product or technical decisions |
 | `$to-spec`, `$to-tickets` | Turn decisions into a spec and delivery slices |
 | `$handoff` | Transfer unfinished work |
+| `$anti-slop-design`, `$design-taste` | Guide distinctive, restrained web UI design and avoid generic patterns |
+| `$gsap-core`, `$gsap-timeline`, `$gsap-scrolltrigger`, `$gsap-react`, `$gsap-performance` | Build and tune GSAP animations, including React lifecycle and scroll interactions |
 
 Each skill lives in `.agents/skills/<name>/SKILL.md`. Read only the skill relevant to the task.
 

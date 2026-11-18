@@ -1,0 +1,4 @@
+interface:
+  display_name: 'GSAP React'
+  short_description: 'Use GSAP safely with React component lifecycles'
+  default_prompt: 'Use $gsap-react to implement this animation in React.'

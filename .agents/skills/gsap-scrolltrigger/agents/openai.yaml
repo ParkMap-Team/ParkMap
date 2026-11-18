@@ -1,0 +1,4 @@
+interface:
+  display_name: 'GSAP ScrollTrigger'
+  short_description: 'Create scroll-driven animations with GSAP'
+  default_prompt: 'Use $gsap-scrolltrigger to create this scroll animation.'
