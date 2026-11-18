@@ -1,11 +1,14 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useRef } from "react";
 import type { GuardBoothFit } from "../api/types";
-import { parkingRequestId } from "./recommendation-request";
 
-export function useParkingRecommendation(siteId: string, enabled: boolean, observedAt: string | null | undefined) {
+export function useParkingRecommendation(siteId: string, enabled: boolean) {
+  const client = useQueryClient();
+  const requestId = useRef<string | null>(null);
+  const key = ["line-parking-recommendation", siteId];
+  const url = `/api/sites/${encodeURIComponent(siteId)}/parking-recommendation`;
   const preference = useQuery<{ model_id: string | null }>({
     queryKey: ["parking-vehicle"], enabled, staleTime: 60_000,
     queryFn: async () => {
@@ -14,45 +17,34 @@ export function useParkingRecommendation(siteId: string, enabled: boolean, obser
       return response.json();
     },
   });
-  const family = preference.data?.model_id;
-  const key = `${siteId}:LINE:${family}`;
-  const [request, setRequest] = useState<{ key: string; id: string } | null>(null);
-  useEffect(() => {
-    if (!enabled || !family) return;
-    try {
-      // Only restore a request the rider previously initiated explicitly.
-      if (sessionStorage.getItem(`parkmap:recommendation:${key}`)) setRequest({ key, id: parkingRequestId(sessionStorage, key) });
-    } catch { /* No browser storage; the rider can still request in this visit. */ }
-  }, [enabled, family, key]);
-  const id = request?.key === key ? request.id : null;
-  const query = useQuery<GuardBoothFit>({
-    queryKey: ["line-parking-recommendation", siteId, id, observedAt],
-    enabled: enabled && !!id && !!family && !!observedAt,
-    retry: false, refetchInterval: 4000,
+  const query = useQuery<GuardBoothFit | null>({
+    queryKey: key, enabled: enabled && !!preference.data?.model_id, retry: false,
+    refetchInterval: (q) => q.state.data?.stage === "HELD" || q.state.data?.stage === "AWAITING_CONFIRMATION" ? 4000 : false,
     queryFn: async ({ signal }) => {
-      const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/parking-recommendation`, {
-        method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ request_id: id, observed_at: observedAt }), signal,
-      });
+      const response = await fetch(url, { signal, cache: "no-store" });
+      if (!response.ok) throw new Error("ตรวจคำแนะนำเดิมไม่ได้ กรุณาลองใหม่");
+      return response.json();
+    },
+  });
+  const mutation = useMutation({
+    retry: false,
+    mutationFn: async (id: string): Promise<GuardBoothFit> => {
+      await client.cancelQueries({ queryKey: key });
+      const response = await fetch(url, { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: id }) });
       const body = await response.json();
       if (!response.ok) throw new Error(body.detail ?? "ยังแนะนำที่จอดไม่ได้ กรุณาลองใหม่");
       return body;
     },
+    onSuccess: (data) => { client.setQueryData(key, data); },
   });
+  const requestPlace = useCallback(() => {
+    if (mutation.isPending) return;
+    if (!requestId.current || query.data?.stage === "RELEASED" || query.data?.stage === "OCCUPIED_CONFIRMED" || query.data?.stage == null) requestId.current = crypto.randomUUID();
+    mutation.mutate(requestId.current);
+  }, [mutation, query.data?.stage]);
   return {
-    ...query, requested: !!id, family,
-    requestPlace: () => {
-      if (!family) return;
-      let storage: Storage | null = null;
-      try { storage = sessionStorage; } catch { /* Disabled storage. */ }
-      // An explicit new request after a terminal outcome gets a new ID. Refresh
-      // and network retries continue using the existing ID and original expiry.
-      if (query.data?.stage === "RELEASED" || query.data?.stage === "OCCUPIED_CONFIRMED") {
-        try { storage?.removeItem(`parkmap:recommendation:${key}`); } catch { /* Disabled storage. */ }
-        setRequest({ key, id: parkingRequestId(storage, key) });
-      } else if (id) void query.refetch();
-      else setRequest({ key, id: parkingRequestId(storage, key) });
-    },
-    preferenceError: preference.isError,
+    ...query, isError: query.isError || mutation.isError, error: mutation.error ?? query.error,
+    isRequesting: mutation.isPending, requested: mutation.isPending || query.data != null,
+    family: query.data?.family ?? preference.data?.model_id, requestPlace, preferenceError: preference.isError,
   };
 }

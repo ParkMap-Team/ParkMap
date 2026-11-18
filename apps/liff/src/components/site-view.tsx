@@ -15,12 +15,12 @@ import { STATUS_TEXT, areaLabel, headline, headlineStatus, mapLabels } from "@/l
 import { type LotMap, type MapStatus, type Selection, buildLotMap, focusPoint, followSelection, selectAt, summarize } from "@/lib/map/lot-map";
 import { FALLBACK_NOTICES, INITIAL_RENDERER, THREE_D_TIMEOUT_MS, detectWebGL, mountsThreeD, rendererReducer } from "@/lib/map/renderer";
 import { labelPoint } from "@/lib/map/geometry";
-import { activeParkingHolds, activeRiders, applyParkingHolds, enqueueRider, entranceClipOutcome, guardBoothFitFamily, guardBoothFrame, guardBoothHeadline, guardBoothModelName, guardBoothPreviewDestination, isKnownFamily, overlapsParkingHold, PARKING_HOLD_MS, RIDER_COLORS, riderGuide, routeRiderSeq, sripatumPreviewRoute, type GuardBoothMode, type GuardBoothOverview, type ParkingHold, type QueuedRider, type RiderFit } from "@/lib/parking/guard-booth";
-import { type GuideStatus, guideFrame, guideStatus } from "@/lib/parking/guide";
+import { activeParkingHolds, activeRiders, applyParkingHolds, enqueueRider, entranceClipOutcome, guardBoothFitFamily, guardBoothFrame, guardBoothHeadline, guardBoothModelName, guardBoothPreviewDestination, isKnownFamily, overlapsParkingHold, PARKING_HOLD_MS, RIDER_COLORS, riderGuide, type GuardBoothMode, type GuardBoothOverview, type ParkingHold, type QueuedRider, type RiderFit } from "@/lib/parking/guard-booth";
+import { type GuideStatus, displayedGuideRoute, guideFrame, guideStatus } from "@/lib/parking/guide";
 import { STATUS_LABELS, agoLabel, areaPhotos, timeLines, visibleAreas } from "@/lib/parking/presentation";
 import { useParkingState } from "@/lib/parking/use-parking-state";
 import { useParkingRecommendation } from "@/lib/parking/use-parking-recommendation";
-import { activeRecommendation, parkingRequestId, parkingSceneKey } from "@/lib/parking/recommendation-request";
+import { activeRecommendation, parkingRequestId, parkingSceneKey, recommendationTime, remainingHoldSeconds } from "@/lib/parking/recommendation-request";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
 import { type AreaRow, MapPanel, type PeekHeights, type SelectedDetails, type ShownPhoto, useWide } from "./map-panel";
@@ -127,7 +127,6 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
   const arrivals = useRef(0);
   const [classificationTest, setClassificationTest] = useState<{ mode: GuardBoothMode } | null>(null);
   const [routeReplay, setRouteReplay] = useState(0);
-  const [routedSeq, setRoutedSeq] = useState<number>();
   const [fitFamily, setFitFamily] = useState<GuardBoothFit["family"] | null>(null);
   const [fitRequestId, setFitRequestId] = useState(() => testingClassification ? globalThis.crypto?.randomUUID?.() : undefined);
   const [lastFitResponse, setLastFitResponse] = useState<GuardBoothFit | null>(null);
@@ -147,7 +146,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
     }, CLASSIFICATION_TEST_TIMEOUT_MS);
     return () => clearTimeout(timeout);
   }, [testingClassification, classificationTest]);
-  const query = useParkingState(siteId);
+  const query = useParkingState(siteId, !!guardBooth);
   const now = useNow(1000);
   // A failed poll means the current state cannot be confirmed, even if an older answer is kept.
   const connectionLost = query.isError;
@@ -156,9 +155,9 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
   const receivedAgoS = query.data ? Math.max(0, now - query.dataUpdatedAt) / 1000 : 0;
   const areas = query.data ? visibleAreas(query.data, receivedAgoS, connectionLost) : null;
   const recordedFrame = areas?.find(({ status, source }) => status === "DEMO" && source === "STILL_IMAGE_LOOP")?.observed_at;
-  const lineRecommendation = useParkingRecommendation(siteId, recommendationsEnabled && !guardBooth, recordedFrame);
+  const lineRecommendation = useParkingRecommendation(siteId, recommendationsEnabled && !guardBooth);
   const sharedHolds = useQuery<NonNullable<GuardBoothFit["holds"]>>({
-    queryKey: ["parking-holds", siteId], enabled: fitPreviewEnabled || recommendationsEnabled,
+    queryKey: ["parking-holds", siteId, "GUARD_BOOTH"], enabled: !!guardBooth && fitPreviewEnabled,
     retry: false, refetchInterval: 4000,
     queryFn: async ({ signal }) => {
       const response = await fetch(`/api/sites/${encodeURIComponent(siteId)}/parking-holds`, { signal, cache: "no-store" });
@@ -166,11 +165,16 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
       return response.json();
     },
   });
-  const lineLedgerCurrent = sharedHolds.dataUpdatedAt < lineRecommendation.dataUpdatedAt ||
-    sharedHolds.data?.some((hold) => hold.request_id === lineRecommendation.data?.request_id && hold.stage === "HELD");
+  const lineClock = recommendationTime(lineRecommendation.data?.server_time, lineRecommendation.dataUpdatedAt, now);
   // The map shows the student's place only while the guide is on; closing it leaves the hold to expire.
-  const lineFit = guiding && lineLedgerCurrent && !lineRecommendation.isError && !sharedHolds.isError && !connectionLost &&
-    activeRecommendation(lineRecommendation.data, recordedFrame, now) ? lineRecommendation.data : null;
+  const lineFit = guiding && !lineRecommendation.isError && !connectionLost &&
+    activeRecommendation(lineRecommendation.data, recordedFrame, lineClock) ? lineRecommendation.data : null;
+  const restoredGuide = useRef(false);
+  useEffect(() => {
+    if (guardBooth || restoredGuide.current || !lineRecommendation.isSuccess) return;
+    restoredGuide.current = true;
+    if (lineRecommendation.data?.stage === "HELD" || lineRecommendation.data?.stage === "AWAITING_CONFIRMATION") guide.resume();
+  }, [guardBooth, guide, lineRecommendation.isSuccess, lineRecommendation.data?.stage]);
   const { family: lineFamily, requestPlace } = lineRecommendation;
   useEffect(() => {
     // Each press asks once, after the server has said which model the student saved.
@@ -228,21 +232,12 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
       const hold = sharedHolds.data?.find((hold) => hold.request_id === data.request_id);
       if (data.polygon && hold?.stage !== "HELD") return { matching: { ...data, polygon: null, route: [], stage: hold?.stage ?? "RELEASED" }, expired: false };
     }
-    return { matching: data, expired: !!data.expires_at && now >= Date.parse(data.expires_at) };
+    return { matching: data, expired: !!data.expires_at && recommendationTime(data.server_time, fitQueries[index]?.dataUpdatedAt ?? now, now) >= Date.parse(data.expires_at) };
   };
   const activeFitFamily = fitRequests[0]?.family ?? null;
   const fitQuery = fitQueries[0];
   const { matching: matchingFit, expired: fitExpired } = currentFit(0);
   const fit = fitExpired ? null : matchingFit;
-  // Only a clip rider alone at the booth gets a route; riders close together get their pins only.
-  const routeSeq = routeRiderSeq(riders);
-  const soloFit = routeSeq === undefined ? null : currentFit(0);
-  const clipRoute = soloFit?.matching?.route.length && !soloFit.expired ? soloFit.matching.route : undefined;
-  if (routeSeq !== routedSeq) {
-    setRoutedSeq(routeSeq);
-    // Another rider's arrow is drawn again even when its route matches the previous one.
-    if (routeSeq !== undefined) setRouteReplay((current) => current + 1);
-  }
   const shownFamily = entranceClip ? newest?.family : activeFitFamily ?? (classification === "fit-preview" ? fitFamily : null);
   const fitModel = shownFamily ? guardBoothModelName(shownFamily) : undefined;
   const lotMap = useLotMap(lotModel, query.data, areas);
@@ -396,7 +391,9 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
     return area && !area.unknownReason && area.regions.some(({ kind, polygon }) => kind === "AVAILABLE" && JSON.stringify(polygon) === JSON.stringify(hold.polygon))
       && !area.regions.some(({ kind, polygon }) => kind === "UNKNOWN" && overlapsParkingHold(polygon, hold.polygon));
   }).map(({ polygon }) => polygon);
-  const ledger = sharedHolds.dataUpdatedAt >= Math.max(...fitQueries.map((q) => q.dataUpdatedAt), 0) ? sharedHolds.data : lastFitResponse?.holds;
+  const ledger = guardBooth
+    ? sharedHolds.dataUpdatedAt >= Math.max(...fitQueries.map((q) => q.dataUpdatedAt), 0) ? sharedHolds.data : lastFitResponse?.holds
+    : lineRecommendation.data?.holds;
   const recordedHeldPolygons = classification === "unavailable" ? [] : (ledger ?? [])
     .filter((hold) => hold.stage !== "RELEASED" && hold.stage !== "OCCUPIED_CONFIRMED")
     .map((hold) => fit?.polygon && JSON.stringify(hold.polygon) === JSON.stringify(fit.polygon) ? fit.polygon : hold.polygon);
@@ -407,9 +404,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
     : classification === "preview" && currentHold && heldPolygons.includes(currentHold.polygon)
     ? { polygon: currentHold.polygon, point: labelPoint(currentHold.polygon), text: "จอดตรงนี้", destination: true }
     : nextDestination;
-  const route = lineFit?.route.length ? lineFit.route : entranceClip
-    ? clipRoute
-    : fit?.route.length ? fit.route : sripatumPreviewRoute(map, siteId, destination?.point);
+  const route = displayedGuideRoute(!!guardBooth, lineFit?.route);
   const markers: MapMarker[] = riders.flatMap(({ seq, slot }, index) => {
     const { matching, expired } = currentFit(index);
     if (!matching?.polygon || expired) return [];
@@ -436,14 +431,14 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
   const estimatedLandmarks = map.landmarks.some((landmark) => landmark.measurement_source === "ESTIMATED");
   const mapLoading = renderer.status3d === "checking" || (showsThreeD && renderer.status3d === "loading");
   const overviewKey = guardBooth ? boothOverview : guideRoute ? "guide" : undefined;
-  const lineAnswer = lineRecommendation.data?.observed_at === recordedFrame ? lineRecommendation.data : undefined;
+  const lineAnswer = lineRecommendation.data;
   const guideState = guiding ? guideStatus({
     enabled: recommendationsEnabled, loading: query.isPending, recordedFrame: !!recordedFrame, family: lineFamily,
-    preferenceError: lineRecommendation.preferenceError, failed: lineRecommendation.isError || sharedHolds.isError,
-    requested: lineRecommendation.requested, answer: lineAnswer, held: !!lineFit,
-    expired: !!lineAnswer?.expires_at && now >= Date.parse(lineAnswer.expires_at),
+    preferenceError: lineRecommendation.preferenceError, failed: lineRecommendation.isError,
+    requested: lineRecommendation.requested, answer: lineRecommendation.isRequesting ? null : lineAnswer, held: !!lineFit,
+    expired: !!lineAnswer?.expires_at && lineClock >= Date.parse(lineAnswer.expires_at),
   }) : null;
-  const guideSecondsLeft = lineFit?.expires_at ? Math.max(0, Math.ceil((Date.parse(lineFit.expires_at) - now) / 1000)) : 0;
+  const guideSecondsLeft = remainingHoldSeconds(lineFit?.expires_at, lineFit?.server_time, lineRecommendation.dataUpdatedAt, now);
   // The found place's pin offers to save it as where the rider parked (ADR 0021). The pin, and so the
   // offer, shows once the route has drawn to it.
   const foundRequest = guideState === "found" && lineFit?.request_id && destination ? lineFit.request_id : undefined;
@@ -712,6 +707,7 @@ const GUIDE_TEXT: Record<GuideStatus, (model: string, secondsLeft: number) => st
   "no-fit": (model) => `ตอนนี้ไม่มีที่ว่างที่ ${model} จอดได้พอดี`,
   found: (model, secondsLeft) => `ตามลูกศรไปยังที่จอดที่พอดีกับ ${model} พักไว้ให้อีก ${secondsLeft} วินาที`,
   confirming: () => "ครบเวลาพักที่จอดแล้ว กำลังรอภาพใหม่ยืนยันว่าพื้นที่ว่าง",
+  checking: () => "กำลังตรวจจุดเดิมกับภาพล่าสุด ยังพักพื้นที่เดิมไว้ ไม่ได้ย้ายจุดแนะนำ",
   parked: () => "ตรวจพบรถจอดในพื้นที่แนะนำแล้ว",
   released: () => "คืนที่จอดที่พักไว้แล้ว ขอที่จอดใหม่ได้",
 };

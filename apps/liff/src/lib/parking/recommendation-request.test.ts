@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { activeRecommendation, parkingRequestId, parkingSceneKey } from "./recommendation-request.ts";
+import { activeRecommendation, parkingRequestId, parkingSceneKey, recommendationTime, remainingHoldSeconds } from "./recommendation-request.ts";
+
+test("countdown follows the server clock, never exceeds two minutes, and never goes negative", () => {
+  const server = "2026-11-18T00:00:00Z";
+  const expiry = "2026-11-18T00:02:00Z";
+  const client = Date.parse(server) + 3600_000;
+  assert.equal(remainingHoldSeconds(expiry, server, client, client), 120);
+  assert.equal(remainingHoldSeconds(expiry, server, client, client + 35_000), 85);
+  assert.equal(remainingHoldSeconds(expiry, server, client, client + 150_000), 0);
+  assert.equal(remainingHoldSeconds(expiry, server, client, client - 1000), 120);
+  assert.equal(recommendationTime(server, client, client + 35_000), Date.parse(server) + 35_000);
+});
 
 test("refreshes reuse the same request, while another vehicle has its own request", () => {
   const values = new Map<string, string>();

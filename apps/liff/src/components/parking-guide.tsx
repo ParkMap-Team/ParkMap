@@ -8,8 +8,8 @@ import { isMapPath } from "@/lib/tabs";
  * `claim` is true once per press, so a map that mounts or re-renders does not ask twice. The request
  * and its ID live with the map's recommendation, which keeps them across a refresh.
  */
-type Guide = { active: boolean; presses: number; claim(): boolean; start(): void; stop(): void };
-const GuideContext = createContext<Guide>({ active: false, presses: 0, claim: () => false, start() {}, stop() {} });
+type Guide = { active: boolean; presses: number; claim(): boolean; start(): void; resume(): void; stop(): void };
+const GuideContext = createContext<Guide>({ active: false, presses: 0, claim: () => false, start() {}, resume() {}, stop() {} });
 
 export function useGuide(): Guide {
   return use(GuideContext);
@@ -26,6 +26,7 @@ export function GuideProvider({ children }: { children: React.ReactNode }) {
   const guide: Guide = {
     active,
     presses,
+    resume() { setActive(true); },
     claim() {
       if (claimed.current === presses) return false;
       claimed.current = presses;

@@ -5,13 +5,20 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.session import get_engine, reset_engine
 from app.db.tables import ParkingHold, Site
 from app.models import LiveRegion, MetricGroundPoint, ParkingAreaLiveState
 from app.services.guard_booth_fitting import GuardBoothFitRequest
-from app.services.parking_holds import HoldContext, mask_held_space, reserve, snapshot
+from app.services.parking_holds import (
+    HoldContext,
+    mask_held_space,
+    owner_recommendation,
+    reserve,
+    snapshot,
+)
 from app.services.region_clipping_service import polygon_shape
 
 NOW = datetime(2026, 11, 18, tzinfo=UTC)
@@ -34,11 +41,25 @@ def seed():
         session.commit()
 
 
-def issue(request, channel="GUARD_BOOTH", at=NOW, evidence=None):
+def issue(request, channel="GUARD_BOOTH", at=NOW, evidence=None, owner=None):
     with Session(get_engine()) as session:
-        result = reserve(session, "sripatum", request, channel, lambda: evidence or context(at), at)
+        result = reserve(session, "sripatum", request, channel, lambda: evidence or context(at), at, owner_key=owner)
         session.commit()
         return result
+
+
+def test_one_line_account_recovers_one_hold_across_new_requests_and_restart(database):
+    seed()
+    request = GuardBoothFitRequest(request_id=uuid4(), family="grand_filano", observed_at=NOW)
+    first = issue(request, "LINE", owner="a" * 64)
+    reset_engine()
+    other = issue(request.model_copy(update={"request_id": uuid4()}), "LINE", owner="a" * 64)
+    assert other.request_id == first.request_id and other.expires_at == first.expires_at
+    with Session(get_engine()) as session:
+        restored = owner_recommendation(session, "sripatum", "a" * 64, lambda: context(), NOW)
+        assert restored.request_id == first.request_id
+        assert owner_recommendation(session, "sripatum", "b" * 64, lambda: context(), NOW) is None
+        session.commit()
 
 
 def test_line_and_booth_share_durable_non_overlapping_holds(database):
@@ -75,6 +96,58 @@ def test_concurrent_retries_of_one_request_create_exactly_one_hold(database):
         results = list(pool.map(lambda _: issue(request), range(4)))
     assert all(result.polygon == results[0].polygon and len(result.holds) == 1 for result in results)
     assert len(read(context(), NOW)) == 1
+
+
+def test_concurrent_new_ids_for_one_account_reuse_one_hold(database):
+    seed()
+    def arrive(_):
+        return issue(GuardBoothFitRequest(request_id=uuid4(), family="forza", observed_at=NOW), "LINE", owner="a" * 64)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        results = list(pool.map(arrive, range(4)))
+    assert len({r.request_id for r in results}) == 1
+    assert len(read(context(), NOW)) == 1
+
+
+def test_status_never_allocates_or_moves_a_point_and_other_accounts_cannot_claim_it(database):
+    seed()
+    request = GuardBoothFitRequest(request_id=uuid4(), family="grand_filano", observed_at=NOW)
+    first = issue(request, "LINE", owner="a" * 64)
+    with pytest.raises(HTTPException) as error:
+        issue(request, "LINE", owner="b" * 64)
+    assert error.value.status_code == 409
+    at = NOW + timedelta(seconds=10)
+    changed = context(at)
+    changed.area.regions.append(LiveRegion(kind="UNKNOWN", polygon=first.polygon))
+    with Session(get_engine()) as session:
+        answer = owner_recommendation(session, "sripatum", "a" * 64, lambda: changed, at)
+        assert answer.reason == "PLACEMENT_UNAVAILABLE" and answer.polygon is None
+        assert answer.expires_at == first.expires_at
+        session.commit()
+    with Session(get_engine()) as session:
+        restored = owner_recommendation(session, "sripatum", "a" * 64, lambda: context(at), at)
+        assert restored.polygon == first.polygon
+        session.commit()
+    deadline = NOW + timedelta(minutes=2)
+    with Session(get_engine()) as session:
+        released = owner_recommendation(session, "sripatum", "a" * 64, lambda: context(deadline), deadline)
+        assert released.stage == "RELEASED" and released.polygon is None
+        assert len(list(session.scalars(select(ParkingHold)))) == 1
+        session.commit()
+    again = issue(request.model_copy(update={"request_id": uuid4()}), "LINE", owner="a" * 64, at=deadline)
+    assert again.stage == "HELD" and again.request_id != first.request_id
+    assert again.expires_at == deadline + timedelta(minutes=2)
+
+
+def test_database_enforces_one_active_hold_per_line_account(database):
+    seed()
+    issue(GuardBoothFitRequest(request_id=uuid4(), family="grand_filano", observed_at=NOW), "LINE", owner="a" * 64)
+    with Session(get_engine()) as session:
+        original = session.scalar(select(ParkingHold))
+        duplicate = {column.key: getattr(original, column.key) for column in ParkingHold.__table__.columns}
+        duplicate["request_id"] = uuid4()
+        session.add(ParkingHold(**duplicate))
+        with pytest.raises(IntegrityError):
+            session.commit()
 
 
 def read(evidence, at):
@@ -213,12 +286,20 @@ def test_api_entrypoints_share_a_transactional_ledger(database, monkeypatch):
     assert booth.status_code == 200, booth.text
     assert booth.json()["polygon"], booth.text
     body["request_id"] = str(uuid4())
+    assert client.post("/api/sites/sripatum/parking-recommendation", json=body).status_code == 422
+    assert client.get("/api/sites/sripatum/parking-recommendation").status_code == 403
+    body["owner_key"] = "a" * 64
     line = client.post("/api/sites/sripatum/parking-recommendation", json=body)
     assert line.status_code == 200 and line.json()["polygon"], line.text
     from app.services.guard_booth_fitting import GuardBoothFit
     first, second = GuardBoothFit.model_validate(booth.json()), GuardBoothFit.model_validate(line.json())
     assert polygon_shape(first.polygon).intersection(polygon_shape(second.polygon)).area == 0
-    assert {h["channel"] for h in client.get("/api/sites/sripatum/parking-holds").json()} == {"LINE", "GUARD_BOOTH"}
+    assert {h["channel"] for h in client.get("/api/sites/sripatum/parking-holds").json()} == {"GUARD_BOOTH"}
+    assert {h["channel"] for h in line.json()["holds"]} == {"LINE"}
+    restored = client.get("/api/sites/sripatum/parking-recommendation", headers={"X-Parkmap-Owner": "a" * 64})
+    assert restored.json()["request_id"] == line.json()["request_id"]
+    assert restored.json()["expires_at"] == line.json()["expires_at"]
+    assert client.get("/api/sites/sripatum/parking-recommendation", headers={"X-Parkmap-Owner": "b" * 64}).json() is None
     current = client.get("/api/sites/sripatum/parking-state").json()["areas"][0]
     assert any("RECOMMENDATION_HELD" in r["reasons"] for r in current["regions"])
     # A subsequent Segment observation confirms occupancy in the held region.

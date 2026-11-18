@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { guideFrame, guideStatus } from "./guide.ts";
+import { displayedGuideRoute, guideFrame, guideStatus } from "./guide.ts";
+
+test("the booth uses numbered coloured frames without a route, while LINE retains its route", () => {
+  const route = [{ x_m: 20, y_m: 5 }, { x_m: 10, y_m: 5 }];
+  assert.equal(displayedGuideRoute(true, route), undefined);
+  assert.equal(displayedGuideRoute(false, route), route);
+  assert.equal(displayedGuideRoute(false, undefined), undefined);
+});
 
 const ready = { enabled: true, loading: false, recordedFrame: true, family: "click", preferenceError: false, failed: false, requested: true, answer: null, held: false, expired: false };
 
@@ -31,7 +38,9 @@ test("a request moves from searching to its answer", () => {
 });
 
 test("a place shown on another photo or before the ledger agrees is not claimed", () => {
-  assert.equal(guideStatus({ ...ready, answer: { stage: "HELD", polygon: [] } }), "searching");
+  assert.equal(guideStatus({ ...ready, answer: { stage: "HELD", polygon: [] } }), "checking");
+  assert.equal(guideStatus({ ...ready, answer: { stage: "HELD", polygon: null, reason: "PLACEMENT_UNAVAILABLE" } }), "checking");
+  assert.equal(guideStatus({ ...ready, answer: { polygon: null, reason: "STATE_UNAVAILABLE" } }), "unavailable");
 });
 
 test("a hold ends by confirmation, by a parked rider, or by release", () => {

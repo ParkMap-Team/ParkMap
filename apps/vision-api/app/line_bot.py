@@ -9,14 +9,20 @@ from dataclasses import dataclass, field
 
 import requests
 from fastapi import Depends, FastAPI, Header, HTTPException
+from linebot.v3.messaging import (
+    ApiClient,
+    Configuration,
+    MessagingApi,
+    PushMessageRequest,
+    TextMessage,
+)
+from linebot.v3.messaging.exceptions import ApiException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import SQLAlchemyError
-from linebot.v3.messaging import ApiClient, Configuration, MessagingApi, PushMessageRequest, TextMessage
-from linebot.v3.messaging.exceptions import ApiException
 from urllib3.exceptions import HTTPError
 
 from app.db import line_settings
-from app.db.session import open_session, DatabaseNotConfiguredError
+from app.db.session import DatabaseNotConfiguredError, open_session
 from app.models import IDENTIFIER_PATTERN
 from app.services.line_motorcycle_settings import MODEL_LABELS
 
@@ -154,6 +160,15 @@ def health():
 @app.get("/api/line/preferences")
 def get_preferences(account: Account = Depends(account_key)):
     return preference(account)
+
+
+RecommendationAccount = Depends(account_key)
+
+
+@app.get("/api/line/recommendation-owner")
+def recommendation_owner(account: Account = RecommendationAccount):
+    # Server-to-server only. Never returned by the public LIFF preference proxy.
+    return {"owner_key": account.key, "model_id": preference(account)["model_id"]}
 
 
 @app.put("/api/line/preferences")

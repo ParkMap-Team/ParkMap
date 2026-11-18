@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiClient, upstreamFailureStatus } from "@/lib/api/server";
 import { guardBoothFitEnabled } from "@/lib/parking/guard-booth-server";
-import { vehiclePreference } from "@/lib/vehicle-session";
 
 // The entrance clip the Guard Booth screen plays before it names the model. Range requests pass
 // through so the browser can seek and resume the video.
@@ -11,7 +10,6 @@ const RANGE = /^bytes=\d*-\d*$/;
 const PASSED_HEADERS = ["Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"] as const;
 
 export async function GET(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
-  if (!(await vehiclePreference())?.model_id) return new Response(null, { status: 403, headers: { "Cache-Control": "private, no-store" } });
   const { siteId } = await params;
   if (siteId !== "sripatum" || !guardBoothFitEnabled()) return NextResponse.json(UNAVAILABLE, { status: 404, headers: { "Cache-Control": "no-store" } });
   const range = request.headers.get("Range");
