@@ -1,0 +1,4 @@
+# Coolify release without a server-side build: runs an image already pushed to GHCR.
+# PARKMAP_IMAGE is a Coolify build variable, e.g. ghcr.io/parkmap-team/parkmap-liff:sha-<commit>.
+ARG PARKMAP_IMAGE
+FROM ${PARKMAP_IMAGE}
