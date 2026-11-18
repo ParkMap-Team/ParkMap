@@ -49,6 +49,11 @@ export type MapViewProps = {
   onSelect(point: MetricPoint | null): void;
   /** Map edges covered by controls and the sheet, in pixels: the overview fits inside them. */
   insets: Insets;
+  /**
+   * Controls that belong to the destination, shown with its pin and only while the pin shows. They
+   * are placed when the map moves, so they keep one size whatever they show.
+   */
+  callout?: ReactNode;
   ref?: Ref<MapViewHandle>;
 };
 
@@ -72,6 +77,8 @@ type PlacedLabel = Pick<MapLabel, "id" | "text" | "kind" | "anchor"> & { directi
 
 /** Height of a pin's point below its badge, which the badge sits above. */
 const PIN_POINT_PX = 10;
+/** Space between the destination pin and its callout. */
+const CALLOUT_GAP_PX = 6;
 
 function Pin({ text, color }: { text: string; color: string }) {
   return (
@@ -129,21 +136,42 @@ export function LabelLayer({
   selection,
   markers,
   insets,
+  callout,
   ref,
 }: {
   labels: MapLabel[];
   selection: MapViewProps["selection"];
   markers?: MapViewProps["markers"];
   insets: Insets;
+  callout?: ReactNode;
   ref: Ref<LabelLayerHandle>;
 }) {
   const elements = useRef(new Map<string, HTMLDivElement>());
+  const calloutElement = useRef<HTMLDivElement>(null);
   const placed: PlacedLabel[] = labels.map((label) => ({ ...label, direction: label.landmark?.direction_rad ?? null }));
   const all: PlacedLabel[] = [
     ...placed,
     ...(markers ?? []).map((marker) => ({ id: `marker-${marker.id}`, text: marker.text, kind: "AREA" as const, anchor: marker.point, direction: null, raised: true, pin: marker.color })),
     ...(selection ? [{ id: SELECTED_ID, text: selection.text, kind: "AREA" as const, anchor: selection.point, direction: null, raised: true, pin: selection.destination ? COLORS.ENTRANCE : undefined }] : []),
   ];
+
+  /** Puts the callout over the destination pin, or under its point when the top of the map has no room. */
+  function placeCallout(project: (point: MetricPoint) => [number, number] | null, size: Size, pinCentre: [number, number] | undefined) {
+    const element = calloutElement.current;
+    if (!element) return;
+    const pin = elements.current.get(SELECTED_ID);
+    const point = selection?.destination ? project(selection.point) : null;
+    if (!pinCentre || !pin || !point) {
+      element.style.visibility = "hidden";
+      return;
+    }
+    const { offsetWidth: width, offsetHeight: height } = element;
+    const above = pinCentre[1] - pin.offsetHeight / 2 - CALLOUT_GAP_PX - height;
+    const y = above >= insets.top ? above : point[1] + CALLOUT_GAP_PX;
+    const x = Math.min(Math.max(pinCentre[0] - width / 2, insets.left), size.width - insets.right - width);
+    element.style.visibility = "visible";
+    element.style.transform = `translate(${x}px, ${y}px)`;
+  }
 
   useImperativeHandle(ref, () => ({
     update(project, size, zoom) {
@@ -155,7 +183,7 @@ export function LabelLayer({
         // Selected and pinned labels sit just above their point instead of on it.
         const anchor: [number, number] = label.pin ? [screen[0], screen[1] - element.offsetHeight / 2 - PIN_POINT_PX] : label.raised ? [screen[0], screen[1] - 22] : screen;
         const kind = label.raised ? "SELECTED" : label.kind;
-        candidates.push({ id: label.id, x: anchor[0], y: anchor[1], width: element.offsetWidth, height: element.offsetHeight, priority: LABEL_PRIORITY[kind], minZoom: LABEL_MIN_ZOOM[kind] });
+        candidates.push({ id: label.id, x: anchor[0], y: anchor[1], width: element.offsetWidth, height: element.offsetHeight, priority: LABEL_PRIORITY[kind], minZoom: LABEL_MIN_ZOOM[kind], pinned: !!label.pin });
         if (label.direction !== null) {
           const ahead = project({ x_m: label.anchor.x_m + Math.cos(label.direction) * 2, y_m: label.anchor.y_m + Math.sin(label.direction) * 2 });
           if (ahead) element.style.setProperty("--direction", `${Math.atan2(ahead[0] - screen[0], screen[1] - ahead[1])}rad`);
@@ -167,33 +195,47 @@ export function LabelLayer({
         element.style.visibility = centre ? "visible" : "hidden";
         if (centre) element.style.transform = `translate(${centre[0] - element.offsetWidth / 2}px, ${centre[1] - element.offsetHeight / 2}px)`;
       }
+      placeCallout(project, size, shown.get(SELECTED_ID));
     },
   }));
 
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden select-none">
-      {all.map((label) => (
+    <>
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden select-none">
+        {all.map((label) => (
+          <div
+            key={label.id}
+            ref={(element) => {
+              if (element) elements.current.set(label.id, element);
+              else elements.current.delete(label.id);
+            }}
+            className="absolute top-0 left-0 whitespace-nowrap"
+            style={{ visibility: "hidden" }}
+          >
+            {label.pin ? (
+              <Pin text={label.text} color={label.pin} />
+            ) : label.id === SELECTED_ID ? (
+              <span className="rounded-md px-2 py-0.5 text-xs font-semibold text-white ring-2 ring-white" style={{ backgroundColor: COLORS.SELECTED }}>
+                {label.text}
+              </span>
+            ) : (
+              <LabelBody label={label} />
+            )}
+          </div>
+        ))}
+      </div>
+      {callout && (
+        // Its own layer, outside the hidden labels: it takes taps, which never reach the map below.
         <div
-          key={label.id}
-          ref={(element) => {
-            if (element) elements.current.set(label.id, element);
-            else elements.current.delete(label.id);
-          }}
-          className="absolute top-0 left-0 whitespace-nowrap"
+          ref={calloutElement}
+          className="absolute top-0 left-0 z-10"
           style={{ visibility: "hidden" }}
+          onPointerDown={(event) => event.stopPropagation()}
         >
-          {label.pin ? (
-            <Pin text={label.text} color={label.pin} />
-          ) : label.id === SELECTED_ID ? (
-            <span className="rounded-md px-2 py-0.5 text-xs font-semibold text-white ring-2 ring-white" style={{ backgroundColor: COLORS.SELECTED }}>
-              {label.text}
-            </span>
-          ) : (
-            <LabelBody label={label} />
-          )}
+          {callout}
         </div>
-      ))}
-    </div>
+      )}
+    </>
   );
 }
 

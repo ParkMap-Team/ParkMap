@@ -1,6 +1,7 @@
 // Development only: a stand-in for the LINE settings service (`app.line_bot`), so the LIFF app runs in
 // a desktop browser without LINE. It accepts only the token VehicleGate sends when
-// NEXT_PUBLIC_PARKMAP_DEV_LINE_LOGIN=1, listens on loopback only, and keeps the choice in memory.
+// NEXT_PUBLIC_PARKMAP_DEV_LINE_LOGIN=1, listens on loopback only, and keeps the choice and the marked
+// spot in memory. It checks only the shapes it needs; the real service validates fully.
 // Usage: node scripts/dev-line-settings.mjs, then run the app with PARKMAP_SETTINGS_URL=http://127.0.0.1:3091.
 import http from "node:http";
 
@@ -13,11 +14,19 @@ const MODELS = Object.entries({
   grand_filano: "Yamaha Grand Filano", hd_road_glide: "Harley-Davidson Road Glide",
   cbr650r: "Honda CBR650R", xmax: "Yamaha XMAX", other: "ไม่ระบุ",
 }).map(([id, label]) => ({ id, label }));
+const ROUTES = { "/api/line/preferences": ["GET", "PUT"], "/api/line/parked-spot": ["GET", "PUT", "DELETE"] };
 let selected = null;
+let spot = null;
+
+async function json(request) {
+  let body = "";
+  for await (const chunk of request) body += chunk;
+  try { return JSON.parse(body); } catch { return null; }
+}
 
 const server = http.createServer(async (request, response) => {
   response.setHeader("Content-Type", "application/json");
-  if (request.url !== "/api/line/preferences" || (request.method !== "GET" && request.method !== "PUT")) {
+  if (!ROUTES[request.url]?.includes(request.method)) {
     response.writeHead(404).end(JSON.stringify({ detail: "Not found." }));
     return;
   }
@@ -25,11 +34,21 @@ const server = http.createServer(async (request, response) => {
     response.writeHead(401).end(JSON.stringify({ detail: "Invalid LINE identity." }));
     return;
   }
+  if (request.url === "/api/line/parked-spot") {
+    if (request.method === "DELETE") spot = null;
+    if (request.method === "PUT") {
+      const body = await json(request);
+      if (typeof body?.site_id !== "string" || !Number.isFinite(body.x_m) || !Number.isFinite(body.y_m)) {
+        response.writeHead(422).end(JSON.stringify({ detail: "Invalid spot." }));
+        return;
+      }
+      spot = { site_id: body.site_id, x_m: body.x_m, y_m: body.y_m, saved_at: new Date().toISOString() };
+    }
+    response.end(JSON.stringify({ spot }));
+    return;
+  }
   if (request.method === "PUT") {
-    let body = "";
-    for await (const chunk of request) body += chunk;
-    let model;
-    try { model = JSON.parse(body).model_id; } catch { /* rejected below */ }
+    const model = (await json(request))?.model_id;
     if (!MODELS.some(({ id }) => id === model)) {
       response.writeHead(422).end(JSON.stringify({ detail: "Unknown model." }));
       return;

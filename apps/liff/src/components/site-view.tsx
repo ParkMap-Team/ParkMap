@@ -16,7 +16,7 @@ import { type LotMap, type MapStatus, type Selection, buildLotMap, focusPoint, f
 import { FALLBACK_NOTICES, INITIAL_RENDERER, THREE_D_TIMEOUT_MS, detectWebGL, mountsThreeD, rendererReducer } from "@/lib/map/renderer";
 import { labelPoint } from "@/lib/map/geometry";
 import { activeParkingHolds, activeRiders, applyParkingHolds, enqueueRider, entranceClipOutcome, guardBoothFitFamily, guardBoothFrame, guardBoothHeadline, guardBoothModelName, guardBoothPreviewDestination, isKnownFamily, overlapsParkingHold, PARKING_HOLD_MS, RIDER_COLORS, riderGuide, routeRiderSeq, sripatumPreviewRoute, type GuardBoothMode, type GuardBoothOverview, type ParkingHold, type QueuedRider, type RiderFit } from "@/lib/parking/guard-booth";
-import { type GuideStatus, guideStatus } from "@/lib/parking/guide";
+import { type GuideStatus, guideFrame, guideStatus } from "@/lib/parking/guide";
 import { STATUS_LABELS, agoLabel, areaPhotos, timeLines, visibleAreas } from "@/lib/parking/presentation";
 import { useParkingState } from "@/lib/parking/use-parking-state";
 import { useParkingRecommendation } from "@/lib/parking/use-parking-recommendation";
@@ -26,9 +26,10 @@ import { cn } from "@/lib/utils";
 import { type AreaRow, MapPanel, type PeekHeights, type SelectedDetails, type ShownPhoto, useWide } from "./map-panel";
 import { type MapMarker, type MapViewHandle, ViewErrorBoundary } from "./map-overlay";
 import { MapSkeleton } from "./map-skeleton";
+import { ParkedSpotPrompt } from "./parked-spot-prompt";
 import { BoothIdle, type ClipStatus, EntranceClip, RiderCard } from "./entrance-clip";
 
-// The site screen: the map with a chip saying how old the data is, and a sheet over it that says
+// The site screen: the map with a chip saying how old the data is, and a card over it that says
 // the same thing in text and shows the photos it was computed from. The API decides every status; this screen only
 // lays it out. The map shows at once: there is nothing to tap before it.
 
@@ -90,7 +91,7 @@ const CONTROL_BAND_PX = 60;
 const EDGE_GAP_PX = 12;
 /** The Guard Booth panel's offset from the map edges (`top-2`, `left-2`). */
 const BOOTH_PANEL_EDGE_PX = 8;
-/** Space between the sheet's peek and the controls that sit just above it. */
+/** Space between the floating card and the map edge it keeps clear. */
 const ABOVE_SHEET_PX = 8;
 
 /** One recorded-preview fit: a frame of the family's reference size, held for this request ID. */
@@ -247,6 +248,8 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
   const lotMap = useLotMap(lotModel, query.data, areas);
   const activeHolds = useMemo(() => activeParkingHolds(lotMap, holds, now), [lotMap, holds, now]);
   if (activeHolds.length !== holds.length) setHolds(activeHolds);
+  // The guide's arrow starts at the gate, outside the lot, so the map frames the whole route while it shows.
+  const guideRoute = lineFit?.route.length ? lineFit.route : null;
   const map = useMemo(() => {
     const visibleMap = classification === "unavailable"
       ? buildLotMap(lotModel, [])
@@ -254,8 +257,9 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
     const areas = classification === "no-fit"
       ? visibleMap.areas.map((area) => ({ ...area, regions: area.regions.filter(({ kind }) => kind === "UNKNOWN") }))
       : visibleMap.areas;
-    return guardBooth ? { ...visibleMap, areas, frame: guardBoothFrame(visibleMap, boothOverview) } : visibleMap;
-  }, [classification, guardBooth, boothOverview, lotMap, lotModel, activeHolds]);
+    if (guardBooth) return { ...visibleMap, areas, frame: guardBoothFrame(visibleMap, boothOverview) };
+    return guideRoute ? { ...visibleMap, frame: guideFrame(visibleMap.frame, guideRoute) } : visibleMap;
+  }, [classification, guardBooth, boothOverview, lotMap, lotModel, activeHolds, guideRoute]);
   const labels = useMemo(() => mapLabels(map), [map]);
   const summary = useMemo(() => summarize(map), [map]);
 
@@ -274,7 +278,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
   const wide = useWide();
   const [peek, setPeek] = useState<PeekHeights>({ base: 0, full: 0 });
   const onPeek = useCallback((next: PeekHeights) => setPeek((current) => (current.base === next.base && current.full === next.full ? current : next)), []);
-  // On a phone the sheet's resting peek covers the bottom of the map; a selected place's card is
+  // On a phone the floating card covers the bottom of the map; a selected place's card is
   // left out, so selecting does not refit the map, and `reveal` keeps the place clear of it instead.
   // The entrance clip's panel stays on screen, so the map keeps the placement clear of it: beside
   // it on a wide screen, below it on a phone. Its size is fixed by layout, never by what it says.
@@ -344,7 +348,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
     const point = focusPoint(map, status);
     if (!point) return;
     setSelection(selectAt(map, point));
-    // On a phone the sheet folds to its peek so the map has room for the place it now shows.
+    // On a phone the details modal closes so the map shows the place.
     setExpanded(false);
     view.current?.focus(point);
   }
@@ -431,7 +435,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
         : guardBoothHeadline(displayMode ?? classification, summary.currentAreas > 0, Boolean(destination ?? fit?.polygon) || (classification === "unknown" && summary.present.has("AVAILABLE")), Boolean(route)));
   const estimatedLandmarks = map.landmarks.some((landmark) => landmark.measurement_source === "ESTIMATED");
   const mapLoading = renderer.status3d === "checking" || (showsThreeD && renderer.status3d === "loading");
-  const overviewKey = guardBooth ? boothOverview : undefined;
+  const overviewKey = guardBooth ? boothOverview : guideRoute ? "guide" : undefined;
   const lineAnswer = lineRecommendation.data?.observed_at === recordedFrame ? lineRecommendation.data : undefined;
   const guideState = guiding ? guideStatus({
     enabled: recommendationsEnabled, loading: query.isPending, recordedFrame: !!recordedFrame, family: lineFamily,
@@ -440,6 +444,15 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
     expired: !!lineAnswer?.expires_at && now >= Date.parse(lineAnswer.expires_at),
   }) : null;
   const guideSecondsLeft = lineFit?.expires_at ? Math.max(0, Math.ceil((Date.parse(lineFit.expires_at) - now) / 1000)) : 0;
+  // The found place's pin offers to save it as where the rider parked (ADR 0021). The pin, and so the
+  // offer, shows once the route has drawn to it.
+  const foundRequest = guideState === "found" && lineFit?.request_id && destination ? lineFit.request_id : undefined;
+  const [closedPrompt, setClosedPrompt] = useState<string>();
+  const spotX = destination?.point.x_m;
+  const spotY = destination?.point.y_m;
+  const callout = useMemo(() => foundRequest && closedPrompt !== foundRequest && spotX !== undefined && spotY !== undefined
+    ? <ParkedSpotPrompt key={foundRequest} spot={{ site_id: siteId, x_m: spotX, y_m: spotY }} onClose={() => setClosedPrompt(foundRequest)} />
+    : undefined, [foundRequest, closedPrompt, siteId, spotX, spotY]);
 
   const viewSwitch = (
     <div role="group" aria-label="มุมมองแผนที่" className={cn("flex h-11 overflow-hidden rounded-lg border bg-background shadow-sm", !guardBooth && "w-full")}>
@@ -458,17 +471,17 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
     </div>
   );
 
-  // The map is kept apart from the clock: the header and sheet re-render every second, the map only
+  // The map is kept apart from the clock: the header and card re-render every second, the map only
   // when what it shows changes.
   const stage = useMemo(() => {
     const selection = destination ?? mapSelection;
-    const viewProps = { map, labels, selection, route, routeReplay, heldPolygons, markers, overviewKey, onSelect, insets, ref: view };
+    const viewProps = { map, labels, selection, route, routeReplay, heldPolygons, markers, overviewKey, onSelect, insets, callout, ref: view };
     return (
       <ViewErrorBoundary key={renderer.mode} onError={onFailed}>
         {renderer.status3d === "checking" ? null : showsThreeD ? <LotScene {...viewProps} onReady={onReady} onError={onFailed} /> : <LotPlan {...viewProps} />}
       </ViewErrorBoundary>
     );
-  }, [map, labels, mapSelection, destination, route, routeReplay, heldPolygons, markers, overviewKey, onSelect, insets, renderer.mode, renderer.status3d, showsThreeD, onReady, onFailed]);
+  }, [map, labels, mapSelection, destination, route, routeReplay, heldPolygons, markers, overviewKey, onSelect, insets, callout, renderer.mode, renderer.status3d, showsThreeD, onReady, onFailed]);
 
   return (
     <main className={cn("flex flex-col overflow-hidden bg-background text-foreground", guardBooth ? "h-dvh" : "min-h-0 flex-1")}>
@@ -704,7 +717,7 @@ const GUIDE_TEXT: Record<GuideStatus, (model: string, secondsLeft: number) => st
 };
 const GUIDE_ACTIONS: Partial<Record<GuideStatus, string>> = { failed: "ลองใหม่", "no-fit": "หาอีกครั้ง", released: "แนะนำใหม่" };
 
-/** What the parking guide found, at the top of the sheet. A retry after a released hold asks for a new place. */
+/** What the parking guide found, at the top of the card. A retry after a released hold asks for a new place. */
 function GuideNotice({ status, model, secondsLeft, onRetry, onClose }: { status: GuideStatus; model: string | null; secondsLeft: number; onRetry(): void; onClose(): void }) {
   const action = GUIDE_ACTIONS[status];
   return (

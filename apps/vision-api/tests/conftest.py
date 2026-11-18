@@ -10,7 +10,7 @@ from app.db.line_migrations import upgrade as upgrade_line_bot
 from app.db.session import get_engine, reset_engine
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
-TABLES = "parkmap.parking_holds, parkmap.area_frames, parkmap_line.line_webhook_receipts, parkmap_line.line_motorcycle_preferences, parkmap.parking_states, parkmap.calibrations, parkmap.lot_models, parkmap.lot_model_drafts, parkmap.parking_areas, parkmap.sites"
+TABLES = "parkmap.parking_holds, parkmap.area_frames, parkmap_line.line_webhook_receipts, parkmap_line.line_parked_spots, parkmap_line.line_motorcycle_preferences, parkmap.parking_states, parkmap.calibrations, parkmap.lot_models, parkmap.lot_model_drafts, parkmap.parking_areas, parkmap.sites"
 
 
 @pytest.fixture

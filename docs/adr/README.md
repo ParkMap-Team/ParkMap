@@ -21,3 +21,4 @@
 
 - [0019: Require motorcycle selection in LIFF](0019-liff-required-motorcycle.md)
 - [0020: Share recommendation holds across Guard Booth and LINE](0020-shared-recommendation-holds.md)
+- [0021: Rider-marked parked spot](0021-rider-marked-parked-spot.md)
