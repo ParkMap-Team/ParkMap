@@ -7576,6 +7576,7 @@
     },
     "/api/sites/{site_id}/parking-state": {
       "get": {
+        "description": "`family` asks for a rider's map: where the guide recommends, free ground only where that model fits (ADR 0024).",
         "operationId": "get_site_parking_state_api_sites__site_id__parking_state_get",
         "parameters": [
           {
@@ -7586,6 +7587,22 @@
               "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
               "title": "Site Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "family",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Family"
             }
           }
         ],

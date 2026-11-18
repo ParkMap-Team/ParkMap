@@ -23,3 +23,5 @@
 - [0020: Share recommendation holds across Guard Booth and LINE](0020-shared-recommendation-holds.md)
 - [0021: Rider-marked parked spot](0021-rider-marked-parked-spot.md)
 - [0022: Nearby parking map](0022-nearby-parking-map.md)
+- [0023: Restore account recommendations and expose the booth display](0023-account-recommendations-and-public-booth.md)
+- [0024: A rider's map paints only free ground, softly](0024-rider-map-shows-no-live-state.md)

@@ -6,7 +6,7 @@ import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef,
 import { Button } from "@/components/ui/button";
 import { STATUS_TEXT, legendRows, unknownReasonText } from "@/lib/map/legend";
 import type { MapHit, MapStatus } from "@/lib/map/lot-map";
-import { type AreaPhoto, COLORS, type TimeLine } from "@/lib/parking/presentation";
+import { type AreaPhoto, COLORS, FREE_SHADOW, type TimeLine } from "@/lib/parking/presentation";
 import { cn } from "@/lib/utils";
 
 // The text side of the map: a summary, the selected place, the photos the state was computed from,
@@ -14,11 +14,18 @@ import { cn } from "@/lib/utils";
 // or without sight. On a phone it is a card that always shows the source notice and the summary, with
 // the details in a modal; on a wide screen it is a column beside the map.
 
+const FREE_SWATCH: CSSProperties = {
+  backgroundColor: COLORS.PARKING_AREA,
+  backgroundImage: `radial-gradient(closest-side, ${FREE_SHADOW.color}99, ${FREE_SHADOW.color}00)`,
+};
+
 const SWATCH_STYLES: Record<MapStatus, CSSProperties> = {
-  WIDTH_SUFFICIENT: { backgroundColor: COLORS.WIDTH_SUFFICIENT, border: `2px solid ${COLORS.AVAILABLE_STROKE}` },
-  AVAILABLE: { backgroundColor: COLORS.AVAILABLE, border: `2px solid ${COLORS.AVAILABLE_STROKE}` },
+  // A rider's map shows free ground as a soft green shadow on the parking ground (ADR 0024).
+  WIDTH_SUFFICIENT: FREE_SWATCH,
+  AVAILABLE: FREE_SWATCH,
   ALMOST_AVAILABLE: { backgroundColor: COLORS.ALMOST_AVAILABLE, border: `2px dashed ${COLORS.ALMOST_AVAILABLE_STROKE}` },
-  OCCUPIED: { backgroundColor: COLORS.OCCUPIED, color: "#ffffff" },
+  // A rider's map draws a motorcycle with no red footprint under it (ADR 0024).
+  OCCUPIED: { backgroundColor: COLORS.PARKING_AREA, border: `1px solid ${COLORS.PARKING_AREA_STROKE}` },
   UNKNOWN: { backgroundImage: `repeating-linear-gradient(-45deg, ${COLORS.UNKNOWN_HATCH} 0 2px, ${COLORS.UNKNOWN} 2px 6px)` },
   MONITORED: { backgroundColor: COLORS.PARKING_AREA, border: `1px solid ${COLORS.PARKING_AREA_STROKE}` },
   UNMONITORED: { backgroundColor: COLORS.UNMONITORED, backgroundImage: `radial-gradient(${COLORS.UNMONITORED_DOT} 1.5px, transparent 1.6px)`, backgroundSize: "6px 6px" },
@@ -219,7 +226,6 @@ export function MapPanel({
   truth,
   viewNotice,
   headline,
-  headlineStatus,
   updated,
   present,
   areas,
@@ -237,7 +243,6 @@ export function MapPanel({
   /** About the map view itself, such as why it shows 2D; first in the details. */
   viewNotice: ReactNode;
   headline: string;
-  headlineStatus: MapStatus | null;
   /** How old the shown state is, as a quiet line under the headline; null hides it. */
   updated: string | null;
   present: Set<MapStatus>;
@@ -279,7 +284,6 @@ export function MapPanel({
   const open = wide || expanded;
   const summary = (
     <>
-      {headlineStatus && <Swatch status={headlineStatus} className="size-4" />}
       {/* Announced only when the sentence changes, not on every poll. */}
       <span aria-live="polite" className="min-w-0 flex-1 text-sm font-semibold">
         {headline}

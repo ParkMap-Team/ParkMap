@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import UUID4, AfterValidator, AwareDatetime, BaseModel
-from shapely import get_parts, prepare
+from shapely import get_parts
 from shapely.affinity import rotate
 from shapely.geometry import Polygon, box
 from shapely.ops import unary_union
@@ -27,8 +27,11 @@ PreviewFamily = Annotated[str, AfterValidator(_configured_family)]
 AISLES = {"row_2": 10.2, "row_3": 10.2, "row_4": 3.2, "row_5": 3.2}
 RIGHT_ACCESS_X = 28.9
 CLEARANCE_M = 0.05
-# Guards the band-depth cap against floating-point error in the rotated geometry (scaled units).
-DEPTH_TOLERANCE = 1e-6
+# A frame cut from a band is re-tested against geometry rebuilt from the same band; exact `covers`
+# can fail on floating-point residue of about 1e-16 m^2, so containment allows this much.
+COVER_TOLERANCE_M2 = 1e-8
+# A slot cut at a band's end is narrower than asked; this much shortfall is floating-point residue.
+WIDTH_TOLERANCE_M = 1e-9
 SEARCH_STEP_M = 0.10
 HOLD_DURATION = timedelta(minutes=2)
 
@@ -73,21 +76,26 @@ def _samples(low: float, high: float) -> list[float]:
     return sorted({low, high, *(low + (index + 0.5) * step for index in range(steps))})
 
 
-def fit_frames(free, width: float, length: float, angle: float) -> list[Polygon]:
-    """Sample frames across the row, then require containment of every frame."""
-    local = rotate(free, -angle, origin=(0, 0))
-    prepare(local)
-    frames = []
-    for part in get_parts(local):
+def fit_slots(free, band, width: float, angle: float) -> list[Polygon]:
+    """Slots `width` wide across the whole depth of `band` that lie in `free`, its unblocked part.
+
+    Only width decides a fit, so a slot is the band's own cross-section whatever the motorcycle's length:
+    a longer one may run past the row, and a mean-depth box would miss a band that narrows slightly."""
+    local_free = rotate(free, -angle, origin=(0, 0))
+    local_band = rotate(band, -angle, origin=(0, 0))
+    _, bottom, _, top = local_band.bounds
+    slots = []
+    for part in get_parts(local_free):
         if not isinstance(part, Polygon) or part.is_empty:
             continue
-        left, bottom, right, top = part.bounds
+        left, _, right, _ = part.bounds
         for x in _samples(left, right - width):
-            for y in _samples(bottom, top - length):
-                frame = box(x, y, x + width, y + length)
-                if local.covers(frame):
-                    frames.append(rotate(frame, angle, origin=(0, 0)))
-    return frames
+            slot = local_band.intersection(box(x, bottom, x + width, top))
+            if isinstance(slot, Polygon) and not slot.is_empty and covers(local_free, slot):
+                slot_left, _, slot_right, _ = slot.bounds
+                if slot_right - slot_left >= width - WIDTH_TOLERANCE_M:
+                    slots.append(rotate(slot, angle, origin=(0, 0)))
+    return slots
 
 
 def _row_direction(row: Polygon) -> float:
@@ -96,26 +104,26 @@ def _row_direction(row: Polygon) -> float:
     return math.degrees(math.atan2(dy, dx)) % 180
 
 
-def _band_depth(band, angle: float) -> float:
-    """The band's mean depth across its row, so a narrower end never shrinks the frame to a sliver."""
-    left, _, right, _ = rotate(band, -angle, origin=(0, 0)).bounds
-    return band.area / (right - left) - DEPTH_TOLERANCE
+def covers(region: Polygon, frame: Polygon) -> bool:
+    """`region` contains `frame` up to floating-point residue."""
+    return frame.difference(region).area <= COVER_TOLERANCE_M2
 
 
-def fit_recorded_preview(area: ParkingAreaLiveState, family: str, entrance: MetricGroundPoint, scale: float, blocked: list[MetricPolygon] | None = None, preferred: MetricPolygon | None = None) -> GuardBoothFit:
-    size = load_rules().classes[family]
-    result = GuardBoothFit(family=family, width_m=size.width_m, length_m=size.length_m, observed_at=area.observed_at)
-    if area.status != "DEMO" or area.source != "STILL_IMAGE_LOOP":
-        return result
-    rows = {r.row_id: polygon_shape(r.polygon) for r in area.regions if r.kind == "UNKNOWN" and r.row_id in AISLES}
+def _recorded_preview(area: ParkingAreaLiveState) -> bool:
+    return area.status == "DEMO" and area.source == "STILL_IMAGE_LOOP"
+
+
+def _preview_bands(area: ParkingAreaLiveState, blocked: list[MetricPolygon] | None):
+    """Each width band the guide may use, as (region, aisle, row direction, band in its row, free part).
+
+    Ground a neighbouring row's outline also covers is cut from the band: it is not this row's to offer,
+    and a neighbour's motorcycle reaching into it must not block a slot across this row."""
+    outlines = {r.row_id: polygon_shape(r.polygon) for r in area.regions if r.kind == "UNKNOWN" and r.row_id}
+    rows = {row_id: row for row_id, row in outlines.items() if row_id in AISLES}
     occupied = unary_union([
         *[polygon_shape(r.display_polygon or r.polygon) for r in area.regions if r.kind == "OCCUPIED"],
         *[polygon_shape(polygon) for polygon in blocked or []],
     ])
-    candidates = []
-    previous_frame = polygon_shape(preferred) if preferred is not None else None
-    width = (size.width_m + CLEARANCE_M) * scale
-    length = (size.length_m + CLEARANCE_M) * scale
     for region in area.regions:
         if region.kind != "WIDTH_SUFFICIENT" or region.row_id not in rows:
             continue
@@ -129,19 +137,50 @@ def fit_recorded_preview(area: ParkingAreaLiveState, family: str, entrance: Metr
         band = polygon_shape(region.display_polygon or region.polygon)
         if not band.is_valid:
             continue
-        available = band.intersection(row)
+        available = band.intersection(row).difference(unary_union(
+            [outline for row_id, outline in outlines.items() if row_id != region.row_id and outline.is_valid]
+        ))
         if available.is_empty:
             continue
-        free = available.difference(occupied)
-        aisle = AISLES[region.row_id]
-        if previous_frame is not None and free.covers(previous_frame) and previous_frame.centroid.x < RIGHT_ACCESS_X:
+        yield region, AISLES[region.row_id], _row_direction(row), available, available.difference(occupied)
+
+
+def _slot_width(family: str, scale: float) -> float:
+    return (load_rules().classes[family].width_m + CLEARANCE_M) * scale
+
+
+def free_ground_for(area: ParkingAreaLiveState, family: str, scale: float, blocked: list[MetricPolygon] | None = None) -> ParkingAreaLiveState:
+    """A rider's free ground on the recorded preview: only the free parts of width bands where `family`
+    fits a frame the guide can route to, so the map never shows room the guide would refuse (ADR 0024).
+    Any other state keeps its reported free ground."""
+    if not _recorded_preview(area):
+        return area
+    width = _slot_width(family, scale)
+    regions = [r for r in area.regions if r.kind not in ("AVAILABLE", "WIDTH_SUFFICIENT")]
+    for region, _, angle, available, free in _preview_bands(area, blocked):
+        for part in get_parts(free):
+            if isinstance(part, Polygon) and any(slot.centroid.x < RIGHT_ACCESS_X for slot in fit_slots(part, available, width, angle)):
+                rings = [part.exterior, *part.interiors]
+                polygon = [[MetricGroundPoint(x_m=x, y_m=y) for x, y in list(ring.coords)[:-1]] for ring in rings]
+                regions.append(region.model_copy(update={"polygon": polygon, "display_polygon": None}))
+    return area.model_copy(update={"regions": regions})
+
+
+def fit_recorded_preview(area: ParkingAreaLiveState, family: str, entrance: MetricGroundPoint, scale: float, blocked: list[MetricPolygon] | None = None, preferred: MetricPolygon | None = None) -> GuardBoothFit:
+    size = load_rules().classes[family]
+    result = GuardBoothFit(family=family, width_m=size.width_m, length_m=size.length_m, observed_at=area.observed_at)
+    if not _recorded_preview(area):
+        return result
+    candidates = []
+    previous_frame = polygon_shape(preferred) if preferred is not None else None
+    width = _slot_width(family, scale)
+    for _, aisle, angle, available, free in _preview_bands(area, blocked):
+        if previous_frame is not None and covers(free, previous_frame) and previous_frame.centroid.x < RIGHT_ACCESS_X:
             candidates = [(-1, previous_frame.centroid.x, previous_frame.centroid.y, aisle, previous_frame)]
             break
         if previous_frame is not None:
             free = free.difference(previous_frame)
-        # Only width decides a fit: a longer motorcycle may run past the row, so its frame is drawn at the band depth.
-        angle = _row_direction(row)
-        for frame in fit_frames(free, width, min(length, _band_depth(available, angle)), angle):
+        for frame in fit_slots(free, available, width, angle):
             x, y = frame.centroid.coords[0]
             if x < RIGHT_ACCESS_X:
                 distance = aisle + 8 + RIGHT_ACCESS_X - x + abs(y - aisle)

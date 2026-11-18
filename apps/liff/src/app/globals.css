@@ -92,6 +92,8 @@
     --animate-idle-ring: pin-ring 1600ms ease-out infinite;
     --animate-scene-blur: scene-blur 600ms ease-in-out both;
     --animate-toast-rise: toast-rise 400ms var(--ease-spring) both;
+    /* The destination's callout springs out of its tail just as the pin finishes dropping. */
+    --animate-callout-pop: callout-pop 360ms var(--ease-spring) 300ms both;
 
     /* A new rider's card arrives at the top of the queue. */
     @keyframes rider-enter {
@@ -165,6 +167,13 @@
         from {
             opacity: 0;
             transform: translateY(8px);
+        }
+    }
+
+    @keyframes callout-pop {
+        from {
+            opacity: 0;
+            transform: scale(0.6);
         }
     }
 }

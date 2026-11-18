@@ -77,6 +77,7 @@ from app.services.guard_booth_fitting import (
     GuardBoothFit,
     GuardBoothFitHold,
     GuardBoothFitRequest,
+    PreviewFamily,
 )
 from app.services.live_state_service import (
     MAX_FUTURE_SKEW_S,
@@ -98,6 +99,7 @@ from app.services.parking_holds import (
     HoldContext,
     mask_held_space,
     owner_recommendation,
+    rider_free_ground,
 )
 from app.services.parking_holds import reserve as reserve_parking_hold
 from app.services.parking_holds import snapshot as parking_holds_snapshot
@@ -192,9 +194,15 @@ def get_lot_model(site_id: str = SiteId, session: Session = SessionDependency) -
 
 
 @app.get("/api/sites/{site_id}/parking-state", response_model=SiteParkingStateResponse)
-def get_site_parking_state(site_id: str = SiteId, session: Session = SessionDependency) -> SiteParkingStateResponse:
+def get_site_parking_state(site_id: str = SiteId, family: PreviewFamily | None = None, session: Session = SessionDependency) -> SiteParkingStateResponse:
+    """`family` asks for a rider's map: where the guide recommends, free ground only where that model fits (ADR 0024)."""
     state = _site_parking_state(site_id, session)
-    return state.model_copy(update={"areas": [mask_held_space(session, site_id, area) for area in state.areas]})
+    areas = [mask_held_space(session, site_id, area) for area in state.areas]
+    if family is not None and _guard_booth_preview_enabled(site_id):
+        _, area_model, _, placement = _preview_geometry(site_id, session)
+        if area_model is not None and placement is not None:
+            areas = [rider_free_ground(area, family, placement.scale) if area.parking_area_id == area_model.parking_area_id else area for area in areas]
+    return state.model_copy(update={"areas": areas})
 
 
 def _site_parking_state(site_id: str, session: Session) -> SiteParkingStateResponse:
@@ -220,8 +228,12 @@ def _site_parking_state(site_id: str, session: Session) -> SiteParkingStateRespo
 _guard_booth_classifier = GuardBoothClipClassifier()
 
 
+def _guard_booth_preview_enabled(site_id: str) -> bool:
+    return site_id == "sripatum" and os.getenv("PARKMAP_GUARD_BOOTH_FIT_PREVIEW") == "1"
+
+
 def _require_guard_booth_preview(site_id: str) -> None:
-    if site_id != "sripatum" or os.getenv("PARKMAP_GUARD_BOOTH_FIT_PREVIEW") != "1":
+    if not _guard_booth_preview_enabled(site_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
 
@@ -307,15 +319,21 @@ def get_parking_holds(site_id: str = SiteId, session: Session = SessionDependenc
     return [h for h in result if h.channel == "GUARD_BOOTH"]
 
 
-def _hold_context(site_id: str, session: Session) -> HoldContext:
+def _preview_geometry(site_id: str, session: Session):
+    """The recommendation area's lot model, area, active calibration and placement; None where missing."""
     model = get_lot_model(site_id, session)
-    entrance = next((landmark.position for landmark in model.landmarks if landmark.landmark_id == "entrance-1" and landmark.kind == "ENTRANCE"), None)
     area_model = next((area for area in model.parking_areas if area.parking_area_id == "sripatum-near-lot"), None)
+    calibration = repository.active_calibrations(session, [area_model.parking_area_id]).get(area_model.parking_area_id) if area_model else None
+    placement = placement_for_calibration(calibration.payload, area_model.polygon) if area_model and calibration else None
+    return model, area_model, calibration, placement
+
+
+def _hold_context(site_id: str, session: Session) -> HoldContext:
+    model, area_model, calibration, placement = _preview_geometry(site_id, session)
+    entrance = next((landmark.position for landmark in model.landmarks if landmark.landmark_id == "entrance-1" and landmark.kind == "ENTRANCE"), None)
     if entrance is None or area_model is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     area_id = area_model.parking_area_id
-    calibration = repository.active_calibrations(session, [area_id]).get(area_id)
-    placement = placement_for_calibration(calibration.payload, area_model.polygon) if calibration else None
     if placement is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Parking geometry is unavailable.")
     state = _site_parking_state(site_id, session)

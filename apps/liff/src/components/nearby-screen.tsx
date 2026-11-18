@@ -1,20 +1,18 @@
 "use client";
 
 import { Drawer } from "@base-ui/react/drawer";
-import { Cctv, ChevronRight, LocateFixed, Motorbike, Navigation, X } from "lucide-react";
+import { Cctv, ChevronRight, Motorbike, Navigation, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { NearbyMap } from "@/components/nearby-map";
 import { Button } from "@/components/ui/button";
-import { type LatLng, directionsUrl, distanceM, distanceText } from "@/lib/nearby/distance";
+import { directionsUrl } from "@/lib/nearby/distance";
 import type { NearbyPlace } from "@/lib/nearby/places";
 import { cn } from "@/lib/utils";
 
-// Motorcycle parking within 2 km of the campus (ADR 0022). The map shows only pins; tapping one opens its details. The rider's
-// position is asked for only on tap, kept in this page's memory, and never sent anywhere.
-
-const LOCATE_TIMEOUT_MS = 10_000;
+// Motorcycle parking within 2 km of the campus (ADR 0022). The map shows only pins; tapping one opens its details. The page
+// never asks for the rider's position; Google Maps finds the start of the directions itself.
 
 const KIND_TEXT: Record<NearbyPlace["kind"], string> = {
   CAMERA: "ลานที่มีกล้อง ดูที่ว่างได้",
@@ -29,12 +27,6 @@ const ICON_COLOUR: Record<NearbyPlace["kind"], string> = {
   NEARBY: "text-[#0f766e]",
   OSM: "text-[#475569]",
 };
-
-function locateError(error: GeolocationPositionError): string {
-  if (error.code === error.PERMISSION_DENIED) return "ไม่ได้รับอนุญาตให้ใช้ตำแหน่ง เปิดสิทธิ์ตำแหน่งให้ LINE แล้วลองใหม่";
-  if (error.code === error.TIMEOUT) return "หาตำแหน่งไม่ได้ภายใน 10 วินาที ลองใหม่อีกครั้ง";
-  return "หาตำแหน่งไม่ได้ในตอนนี้ ลองใหม่อีกครั้ง";
-}
 
 function KindIcon({ place }: { place: NearbyPlace }) {
   const className = cn("size-5 shrink-0", ICON_COLOUR[place.kind]);
@@ -91,7 +83,7 @@ function Fact({ term, value }: { term: string; value: string | null }) {
  * another pin can be tapped straight away. It extends 3rem below the screen (the bleed) so an upward
  * drag never shows a gap under it.
  */
-function PlaceSheet({ place, distance, open, onClose }: { place: NearbyPlace | null; distance: number | null; open: boolean; onClose(): void }) {
+function PlaceSheet({ place, open, onClose }: { place: NearbyPlace | null; open: boolean; onClose(): void }) {
   return (
     <Drawer.Root open={open} onOpenChange={(next) => !next && onClose()} modal={false} disablePointerDismissal>
       <Drawer.Portal>
@@ -109,7 +101,6 @@ function PlaceSheet({ place, distance, open, onClose }: { place: NearbyPlace | n
                     <Drawer.Title className="font-semibold">{place.name}</Drawer.Title>
                     <Drawer.Description className="text-sm text-muted-foreground">
                       {KIND_TEXT[place.kind]}
-                      {distance !== null && ` · ${distanceText(distance)} (เส้นตรง)`}
                     </Drawer.Description>
                   </div>
                   <Drawer.Close aria-label="ปิด" className="-mt-1 grid size-9 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
@@ -167,13 +158,13 @@ function PlaceDetails({ place }: { place: NearbyPlace }) {
 }
 
 /** Only when the map cannot start: the places as a list, so every one stays reachable. */
-function PlaceList({ rows, onSelect }: { rows: readonly { place: NearbyPlace; distance: number | null }[]; onSelect(id: string): void }) {
-  if (rows.length === 0) return <p className="px-4 pt-4 text-sm text-muted-foreground">ยังไม่มีที่จอดในรายการ</p>;
+function PlaceList({ places, onSelect }: { places: readonly NearbyPlace[]; onSelect(id: string): void }) {
+  if (places.length === 0) return <p className="px-4 pt-4 text-sm text-muted-foreground">ยังไม่มีที่จอดในรายการ</p>;
   return (
     <div className="h-full overflow-y-auto overscroll-contain px-2 pt-2 pb-4">
       <p className="px-2 pb-2 text-sm text-muted-foreground">แสดงแผนที่ไม่ได้ในตอนนี้ เลือกจากรายการด้านล่างได้</p>
       <ul aria-label="ที่จอดรถ">
-        {rows.map(({ place, distance }) => (
+        {places.map((place) => (
           <li key={place.id}>
             <button type="button" className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50" onClick={() => onSelect(place.id)}>
               <KindIcon place={place} />
@@ -181,7 +172,6 @@ function PlaceList({ rows, onSelect }: { rows: readonly { place: NearbyPlace; di
                 <span className="block truncate font-semibold">{place.name}</span>
                 <span className="block text-sm text-muted-foreground">
                   {KIND_TEXT[place.kind]}
-                  {distance !== null && ` · ${distanceText(distance)}`}
                 </span>
               </span>
               <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
@@ -197,41 +187,12 @@ export function NearbyScreen({ places }: { places: readonly NearbyPlace[] }) {
   // The sheet keeps the last place while it slides away, so `open` closes it and `selectedId` stays.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState<LatLng | null>(null);
-  const [locating, setLocating] = useState(false);
-  const [message, setMessage] = useState("");
   const [mapFailed, setMapFailed] = useState(false);
-
-  // Nearest first once the rider shares where they are; otherwise in the order given.
-  const rows = useMemo(() => {
-    if (!user) return places.map((place) => ({ place, distance: null }));
-    return places.map((place) => ({ place, distance: distanceM(user, place) })).sort((a, b) => a.distance - b.distance);
-  }, [places, user]);
-  const selected = rows.find((row) => row.place.id === selectedId) ?? null;
+  const selected = places.find((place) => place.id === selectedId) ?? null;
 
   function select(id: string) {
     setSelectedId(id);
     setOpen(true);
-  }
-
-  function locate() {
-    if (!("geolocation" in navigator)) {
-      setMessage("อุปกรณ์นี้หาตำแหน่งไม่ได้");
-      return;
-    }
-    setLocating(true);
-    setMessage("");
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        setUser({ latitude: coords.latitude, longitude: coords.longitude });
-        setLocating(false);
-      },
-      (error) => {
-        setMessage(locateError(error));
-        setLocating(false);
-      },
-      { timeout: LOCATE_TIMEOUT_MS },
-    );
   }
 
   return (
@@ -239,19 +200,12 @@ export function NearbyScreen({ places }: { places: readonly NearbyPlace[] }) {
       <h1 className="sr-only">ที่จอดรถใกล้ฉัน</h1>
       <section aria-label="แผนที่ที่จอดรถในรัศมี 2 กม. จากมหาวิทยาลัย" className="relative min-h-0 flex-1 overflow-hidden">
         {mapFailed ? (
-          <PlaceList rows={rows} onSelect={select} />
+          <PlaceList places={places} onSelect={select} />
         ) : (
-          <NearbyMap places={places} selectedId={open ? selectedId : null} user={user} onSelect={select} onFail={() => setMapFailed(true)} />
+          <NearbyMap places={places} selectedId={open ? selectedId : null} onSelect={select} onFail={() => setMapFailed(true)} />
         )}
       </section>
-      <div className="pointer-events-none absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] flex flex-col items-end gap-2">
-        <Button variant="outline" className="pointer-events-auto h-11 gap-2 rounded-lg bg-background px-3 shadow-sm" disabled={locating} onClick={locate}>
-          <LocateFixed />
-          {locating ? "กำลังหาตำแหน่ง" : "ใช้ตำแหน่งของฉัน"}
-        </Button>
-        {message && <p role="status" className="pointer-events-auto rounded-lg bg-background px-3 py-2 text-sm shadow-sm">{message}</p>}
-      </div>
-      <PlaceSheet place={selected?.place ?? null} distance={selected?.distance ?? null} open={open} onClose={() => setOpen(false)} />
+      <PlaceSheet place={selected} open={open} onClose={() => setOpen(false)} />
     </main>
   );
 }

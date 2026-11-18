@@ -2,16 +2,14 @@
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Cctv, Motorbike } from "lucide-react";
-import type { Map as MapLibreMap, Marker } from "maplibre-gl";
+import type { Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { LatLng } from "@/lib/nearby/distance";
 import { CAMPUS_BOUNDS, type NearbyPlace } from "@/lib/nearby/places";
 import { cn } from "@/lib/utils";
 
 // A street map that always opens on the campus grounds, with a pin per place within RADIUS_M of it
-// (ADR 0022). The free OpenFreeMap tiles need no key and see only which tiles the map asks for,
-// never the rider's position.
+// (ADR 0022). The free OpenFreeMap tiles need no key and see only which tiles the map asks for.
 
 const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 const CAMPUS_PADDING = 24;
@@ -49,19 +47,16 @@ function Pin({ place, selected, onSelect }: { place: NearbyPlace; selected: bool
 export function NearbyMap({
   places,
   selectedId,
-  user,
   onSelect,
   onFail,
 }: {
   places: readonly NearbyPlace[];
   selectedId: string | null;
-  user: LatLng | null;
   onSelect(id: string): void;
   onFail(): void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const view = useRef<{ map: MapLibreMap; library: Library } | null>(null);
-  const userMarker = useRef<Marker | null>(null);
   // The marker elements the pins render into, by place id.
   const [pins, setPins] = useState<ReadonlyMap<string, HTMLElement>>(new Map());
   const fail = useEffectEvent(onFail);
@@ -111,7 +106,6 @@ export function NearbyMap({
       cancelled = true;
       map?.remove();
       view.current = null;
-      userMarker.current = null;
     };
   }, [places]);
 
@@ -121,21 +115,6 @@ export function NearbyMap({
     const place = places.find((item) => item.id === selectedId);
     if (place && view.current) view.current.map.easeTo({ center: [place.longitude, place.latitude] });
   }, [pins, places, selectedId]);
-
-  // The rider's position, once they share it: a dot. The camera stays where it is, on the campus.
-  useEffect(() => {
-    const current = view.current;
-    if (!current || !user) return;
-    if (!userMarker.current) {
-      const element = document.createElement("div");
-      element.setAttribute("role", "img");
-      element.setAttribute("aria-label", "ตำแหน่งของคุณ");
-      element.className = "size-4 rounded-full bg-[#2563eb] shadow ring-[3px] ring-white";
-      userMarker.current = new current.library.Marker({ element }).setLngLat([user.longitude, user.latitude]).addTo(current.map);
-    } else {
-      userMarker.current.setLngLat([user.longitude, user.latitude]);
-    }
-  }, [pins, user]);
 
   // The library's stylesheet sets `position: relative` on its container and outranks the layered
   // utilities, so the outer box places the map and the library styles only the inner one.

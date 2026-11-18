@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { revealRoute, routeArrow } from "./route-reveal.ts";
+import { revealRoute, ROUTE_FLOW_S, routeArrow, routeFlowOpacity } from "./route-reveal.ts";
 import { parkingRibbon } from "./parking-ribbon.ts";
 
 test("the 3D ribbon rounds corners, has a raised surface and keeps both route ends", () => {
@@ -35,4 +35,14 @@ test("the arrow points left after a left turn and follows the corner as it turns
   const leftArrow = routeArrow([start, corner, tip]);
   assert.ok(leftArrow);
   assert.ok(leftArrow[0].x_m > tip.x_m && leftArrow[2].x_m > tip.x_m);
+});
+
+test("the flowing chevrons fade out before the flow stops instead of freezing mid-stride", () => {
+  assert.equal(routeFlowOpacity(0), 1);
+  assert.equal(routeFlowOpacity(ROUTE_FLOW_S - 1.5), 1);
+  const fading = routeFlowOpacity(ROUTE_FLOW_S - 0.5);
+  assert.ok(fading > 0 && fading < 1);
+  assert.ok(routeFlowOpacity(ROUTE_FLOW_S - 0.25) < fading);
+  assert.equal(routeFlowOpacity(ROUTE_FLOW_S), 0);
+  assert.equal(routeFlowOpacity(ROUTE_FLOW_S + 1), 0);
 });

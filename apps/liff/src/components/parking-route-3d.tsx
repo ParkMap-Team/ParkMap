@@ -3,9 +3,9 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import { DoubleSide, type ShaderMaterial } from "three";
 import type { MetricPoint } from "@/lib/api/types";
 import { parkingRibbon } from "@/lib/map/parking-ribbon";
+import { ROUTE_FLOW_S, routeFlowOpacity } from "@/lib/map/route-reveal";
 import { HEIGHT } from "./scene-primitives";
 
-const FLOW_SECONDS = 7;
 const FLOW_SPEED = 3.6;
 
 const vertexShader = /* glsl */ `
@@ -20,6 +20,7 @@ const fragmentShader = /* glsl */ `
   varying vec2 vRoute;
   uniform float uDistance;
   uniform float uFlow;
+  uniform float uFlowOpacity;
   uniform float uRevealing;
 
   void main() {
@@ -35,7 +36,7 @@ const fragmentShader = /* glsl */ `
     // The stripe peaks at the centre and falls back on both sides to point forward.
     float phase = mod(vRoute.x - uFlow, 3.3);
     float chevron = 1.0 - smoothstep(0.10, 0.19, abs(phase - (1.8 - lateral * 2.6)));
-    chevron *= (1.0 - smoothstep(0.22, 0.28, lateral)) * (1.0 - uRevealing);
+    chevron *= (1.0 - smoothstep(0.22, 0.28, lateral)) * (1.0 - uRevealing) * uFlowOpacity;
     float head = 1.0 - smoothstep(0.09, 0.17, abs(behind - (0.14 + lateral * 3.0)));
     head *= (1.0 - smoothstep(0.26, 0.31, lateral)) * uRevealing;
     float leadingGlow = exp(-behind * 1.65) * uRevealing * face;
@@ -60,6 +61,7 @@ export function ParkingRoute3D({ route, progress, replay }: {
   const uniforms = useMemo(() => ({
     uDistance: { value: 0 },
     uFlow: { value: 0 },
+    uFlowOpacity: { value: 1 },
     uRevealing: { value: 0 },
   }), []);
   const length = geometry?.length ?? 0;
@@ -67,7 +69,10 @@ export function ParkingRoute3D({ route, progress, replay }: {
   useLayoutEffect(() => {
     elapsed.current = 0;
     animate.current = !!routeKey && (!!replay || !window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-    if (material.current) material.current.uniforms.uFlow.value = 0;
+    if (material.current) {
+      material.current.uniforms.uFlow.value = 0;
+      material.current.uniforms.uFlowOpacity.value = 1;
+    }
     invalidate();
   }, [routeKey, replay, invalidate]);
 
@@ -79,9 +84,10 @@ export function ParkingRoute3D({ route, progress, replay }: {
   }, [geometry, length, progress, invalidate]);
 
   useFrame((_, delta) => {
-    if (!material.current || !animate.current || material.current.uniforms.uRevealing.value || elapsed.current >= FLOW_SECONDS) return;
-    elapsed.current = Math.min(FLOW_SECONDS, elapsed.current + Math.min(delta, 0.05));
+    if (!material.current || !animate.current || material.current.uniforms.uRevealing.value || elapsed.current >= ROUTE_FLOW_S) return;
+    elapsed.current = Math.min(ROUTE_FLOW_S, elapsed.current + Math.min(delta, 0.05));
     material.current.uniforms.uFlow.value = elapsed.current * FLOW_SPEED;
+    material.current.uniforms.uFlowOpacity.value = routeFlowOpacity(elapsed.current);
     invalidate();
   });
 

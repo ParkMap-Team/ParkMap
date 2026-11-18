@@ -1,6 +1,6 @@
 import type { LotModel, MetricPoint, MetricPolygon } from "./api/types.ts";
 import type { Bounds } from "./map/geometry.ts";
-import { type LotMap, buildLotMap } from "./map/lot-map.ts";
+import { type LotMap, buildLotMap, plainLotMap } from "./map/lot-map.ts";
 
 /** Where the rider said they parked (ADR 0021): their own claim, never availability. */
 export type ParkedSpotInput = { site_id: string; x_m: number; y_m: number };
@@ -48,7 +48,7 @@ function frameAround(centre: MetricPoint, points: readonly MetricPoint[]): Bound
  * availability. The whole-lot frame stays centred on the spot too, so its pin never meets an edge.
  */
 export function parkedSpotMap(lotModel: LotModel, spot: ParkedSpotInput, view: SpotView): LotMap {
-  const plan = buildLotMap(lotModel, []);
+  const plan = plainLotMap(buildLotMap(lotModel, []));
   const point = spotPoint(spot);
   const context = [
     { x_m: point.x_m - SPOT_CONTEXT_M, y_m: point.y_m - SPOT_CONTEXT_M },
@@ -58,7 +58,6 @@ export function parkedSpotMap(lotModel: LotModel, spot: ParkedSpotInput, view: S
   const lot = [{ x_m: minX, y_m: minY }, { x_m: maxX, y_m: maxY }];
   return {
     ...plan,
-    areas: plan.areas.map((area) => ({ ...area, unknownReason: null })),
     frame: frameAround(point, view === "lot" ? [...context, ...lot] : context),
   };
 }
