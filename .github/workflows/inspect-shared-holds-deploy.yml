@@ -1,0 +1,37 @@
+name: Inspect shared holds rollout
+on:
+  push:
+    branches: [ops/inspect-shared-holds-deploy]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    env:
+      COOLIFY_URL: ${{ vars.COOLIFY_URL }}
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+      API_UUID: ${{ vars.COOLIFY_APP_API }}
+      LIFF_UUID: ${{ vars.COOLIFY_APP_LIFF }}
+      WORKER_UUID: ${{ vars.COOLIFY_APP_WORKER }}
+    steps:
+      - name: Read existing deployment status without changing applications
+        shell: bash
+        run: |
+          set -euo pipefail
+          api() {
+            curl -fsS --max-time 20 -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" "$COOLIFY_URL/api/v1/$1"
+          }
+          for uuid in "$API_UUID" "$LIFF_UUID" "$WORKER_UUID"; do
+            api "applications/$uuid" | jq '{name,status,build_pack,git_branch,git_commit_sha,docker_registry_image_tag}'
+            latest=$(api "deployments/applications/$uuid?take=1" | jq -c '.deployments[0] // {}')
+            jq '{deployment_uuid,status,commit,created_at,updated_at}' <<< "$latest"
+            deployment=$(jq -r '.deployment_uuid // empty' <<< "$latest")
+            if [ -n "$deployment" ]; then
+              api "deployments/$deployment" | jq -r '
+                (.logs // "[]") | if type == "string" then (fromjson? // []) else . end |
+                .[]? | .output // empty |
+                select(test("Running upgrade|Healthcheck status|New container started|Waiting for healthcheck|Rolling update started|Deployment.*finished"; "i")) |
+                select(test("CMD|TOKEN|PASSWORD|DATABASE_URL|Bearer"; "i") | not) | .[0:240]'
+            fi
+          done
