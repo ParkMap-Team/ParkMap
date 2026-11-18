@@ -1,0 +1,22 @@
+name: Account parking release
+on:
+  push:
+    branches: [ops/account-parking-release]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    env:
+      COOLIFY_URL: ${{ vars.COOLIFY_URL }}
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+    steps:
+      - name: Read release configuration only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 20 -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_URL/api/v1/applications" |
+            jq '[.[] | select(.name == "parkmap-api" or .name == "parkmap-liff" or .name == "parkmap-bot") | {name,uuid,status,build_pack,git_branch,git_commit_sha,dockerfile_location,docker_registry_image_name,docker_registry_image_tag}]'
+          curl -fsS --max-time 20 -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_URL/api/v1/deployments" |
+            jq '[.[] | {application_name,deployment_uuid,status,commit}]'
