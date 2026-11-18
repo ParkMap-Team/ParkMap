@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import func, select
 
 from app.db.session import open_session
@@ -181,5 +182,6 @@ def test_other_weights_and_calibration_do_not_match(seeded_setup, tmp_path, monk
 def test_an_older_schema_is_reported_before_anything_else(seeded_setup):
     migrate("downgrade", REVISION)
 
-    assert verify(seeded_setup).endswith("database schema is at 0004_sripatum_setup, expected 0005_area_frames; run alembic upgrade head")
+    head = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini"))).get_current_head()
+    assert verify(seeded_setup).endswith(f"database schema is at {REVISION}, expected {head}; run alembic upgrade head")
     migrate("upgrade", "head")
