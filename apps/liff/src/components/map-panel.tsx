@@ -1,31 +1,18 @@
 "use client";
 
-import { ChevronRight, ChevronUp, Motorbike, X } from "lucide-react";
-import { type AnimationPlaybackControls, animate, useMotionValue } from "motion/react";
-import {
-  type CSSProperties,
-  type MouseEvent,
-  type PointerEvent,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { Dialog } from "@base-ui/react/dialog";
+import { ChevronRight, Motorbike, X } from "lucide-react";
+import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
-import { prefersReducedMotion } from "@/lib/map/flight";
 import { STATUS_TEXT, legendRows, unknownReasonText } from "@/lib/map/legend";
 import type { MapHit, MapStatus } from "@/lib/map/lot-map";
 import { type AreaPhoto, COLORS, type TimeLine } from "@/lib/parking/presentation";
-import { dragOffset, restsOpen } from "@/lib/sheet";
 import { cn } from "@/lib/utils";
 
 // The text side of the map: a summary, the selected place, the photos the state was computed from,
 // and the legend, which also finds each shown status on the map. It never depends on the canvas, so the page reads the same without 3D
-// or without sight. On a phone it is a bottom sheet whose peek always shows the source notice and
-// the summary; on a wide screen it is a column beside the map.
+// or without sight. On a phone it is a card that always shows the source notice and the summary, with
+// the details in a modal; on a wide screen it is a column beside the map.
 
 const SWATCH_STYLES: Record<MapStatus, CSSProperties> = {
   WIDTH_SUFFICIENT: { backgroundColor: COLORS.WIDTH_SUFFICIENT, border: `2px solid ${COLORS.AVAILABLE_STROKE}` },
@@ -206,7 +193,7 @@ function Areas({ areas }: { areas: AreaRow[] }) {
   );
 }
 
-/** Tailwind's `lg` breakpoint, where the sheet becomes a column beside the map. */
+/** Tailwind's `lg` breakpoint, where the card becomes a column beside the map. */
 const WIDE_QUERY = "(min-width: 64rem)";
 
 function subscribeWide(onChange: () => void) {
@@ -223,18 +210,10 @@ export function useWide(): boolean {
   );
 }
 
-/** Movement before a press on the peek becomes a drag, so taps on its buttons still work. */
-const DRAG_SLOP_PX = 8;
-/** Only the last moments of a drag decide how fast it was released. */
-const VELOCITY_WINDOW_MS = 100;
-const SHEET_SPRING = { type: "spring", bounce: 0, visualDuration: 0.3 } as const;
-
-/** How much of the map the sheet covers at rest: with and without the selected place's card. */
+/** How much of the map the card covers at rest: with and without the selected place's card. */
 export type PeekHeights = { base: number; full: number };
 /** The floating card's gap to the map's bottom edge (`bottom-8`), clearing the guide circle that rises 20px above the tab bar. */
 const FLOAT_GAP_PX = 32;
-
-type Drag = { pointerId: number; startY: number; startOffset: number; dragging: boolean; samples: { t: number; y: number }[] };
 
 export function MapPanel({
   truth,
@@ -268,6 +247,7 @@ export function MapPanel({
   /** Some landmarks were estimated from photos or imagery rather than measured on site. */
   estimatedLandmarks: boolean;
   selected: SelectedDetails | null;
+  /** Whether the details are open: always shown beside the map on a wide screen, a modal on a phone. */
   expanded: boolean;
   onExpandedChange(expanded: boolean): void;
   onClearSelection(): void;
@@ -275,153 +255,26 @@ export function MapPanel({
   onPeek(heights: PeekHeights): void;
 }) {
   const wide = useWide();
-  const sheet = useRef<HTMLElement>(null);
-  const peek = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLElement>(null);
   const card = useRef<HTMLDivElement>(null);
-  // Pixels the sheet is pushed down: 0 is open, `collapsed` shows only the peek.
-  const y = useMotionValue(0);
-  const collapsed = useRef(0);
-  const sheetHeight = useRef(0);
-  const motion = useRef<AnimationPlaybackControls | null>(null);
-  const drag = useRef<Drag | null>(null);
-  const suppressClick = useRef(false);
-  // Until the sheet is measured on a phone its details stay out of layout, so the first paint
-  // already shows the sheet at its peek instead of open.
-  const [measured, setMeasured] = useState(false);
-  const latest = useRef({ expanded, wide, onPeek });
-  latest.current = { expanded, wide, onPeek };
+  const latestOnPeek = useRef(onPeek);
+  latestOnPeek.current = onPeek;
+  const hasSelection = selected !== null;
 
-  // The motion value drives the transform directly, in the same frame it changes.
-  useLayoutEffect(
-    () =>
-      y.on("change", (offset) => {
-        if (sheet.current) sheet.current.style.transform = latest.current.wide ? "" : `translateY(${offset}px)`;
-      }),
-    [y],
-  );
-
-  const settle = useCallback(
-    (open: boolean, velocity?: number) => {
-      const target = open ? 0 : collapsed.current;
-      motion.current?.stop();
-      if (prefersReducedMotion() || latest.current.wide) {
-        y.set(target);
-        return;
-      }
-      motion.current = animate(y, target, velocity === undefined ? SHEET_SPRING : { ...SHEET_SPRING, velocity });
-    },
-    [y],
-  );
-
-  const measure = useCallback(() => {
-    const element = sheet.current;
-    const peekElement = peek.current;
-    if (!element || !peekElement) return;
-    const padding = parseFloat(getComputedStyle(element).paddingBottom) || 0;
-    const visible = peekElement.offsetHeight + padding;
-    // Heights from the map's bottom edge, so they include the gap the floating card keeps below it.
-    latest.current.onPeek({ full: FLOAT_GAP_PX + visible, base: FLOAT_GAP_PX + visible - (card.current?.offsetHeight ?? 0) });
-    sheetHeight.current = element.offsetHeight;
-    const next = Math.max(0, element.offsetHeight - visible);
-    if (next === collapsed.current) return;
-    collapsed.current = next;
-    // The sheet grows and shrinks from its bottom edge, so a resting peek is kept in place at once;
-    // a sheet on its way down is sent to the new rest instead.
-    if (latest.current.wide || latest.current.expanded || drag.current?.dragging) return;
-    if (y.isAnimating()) settle(false);
-    else y.set(next);
-  }, [settle, y]);
-
+  // The map keeps its overview clear of the card, measured before the frame is painted.
   useLayoutEffect(() => {
-    setMeasured(true);
-  }, []);
-
-  // Measured again once the details join the layout, before that frame is painted.
-  useLayoutEffect(() => {
+    const element = panel.current;
+    if (!element) return;
+    const measure = () => {
+      const full = FLOAT_GAP_PX + element.offsetHeight;
+      latestOnPeek.current({ full, base: full - (card.current?.offsetHeight ?? 0) });
+    };
     measure();
     const observer = new ResizeObserver(measure);
-    if (sheet.current) observer.observe(sheet.current);
-    if (peek.current) observer.observe(peek.current);
+    observer.observe(element);
+    if (card.current) observer.observe(card.current);
     return () => observer.disconnect();
-  }, [measure, measured]);
-
-  // Between a column and a sheet the sheet rests where the state says, at once.
-  useLayoutEffect(() => {
-    const element = sheet.current;
-    if (!element) return;
-    motion.current?.stop();
-    if (wide) {
-      element.style.transform = "";
-      return;
-    }
-    y.jump(latest.current.expanded ? 0 : collapsed.current);
-    element.style.transform = `translateY(${y.get()}px)`;
-  }, [wide, y]);
-
-  // Opening or closing from a button or from the page glides. A released drag has already started
-  // its own glide with the finger's speed and recorded where it goes, so it is not restarted here.
-  const heading = useRef(expanded);
-  useLayoutEffect(() => {
-    if (heading.current === expanded) return;
-    heading.current = expanded;
-    if (!latest.current.wide) settle(expanded);
-  }, [expanded, settle]);
-
-  useEffect(() => () => motion.current?.stop(), []);
-
-  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
-    suppressClick.current = false;
-    if (wide || drag.current || !event.isPrimary || event.button !== 0) return;
-    drag.current = { pointerId: event.pointerId, startY: event.clientY, startOffset: 0, dragging: false, samples: [] };
-  }
-
-  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
-    const current = drag.current;
-    if (!current || current.pointerId !== event.pointerId) return;
-    if (!current.dragging) {
-      if (Math.abs(event.clientY - current.startY) < DRAG_SLOP_PX) return;
-      // The finger takes the sheet from wherever it is, even mid-glide.
-      motion.current?.stop();
-      current.dragging = true;
-      current.startY = event.clientY;
-      current.startOffset = y.get();
-      event.currentTarget.setPointerCapture(event.pointerId);
-    }
-    y.set(dragOffset(current.startOffset + event.clientY - current.startY, collapsed.current, sheetHeight.current));
-    current.samples.push({ t: event.timeStamp, y: event.clientY });
-    while (current.samples.length > 2 && event.timeStamp - current.samples[0].t > VELOCITY_WINDOW_MS) current.samples.shift();
-  }
-
-  function onPointerUp(event: PointerEvent<HTMLDivElement>) {
-    const current = drag.current;
-    if (!current || current.pointerId !== event.pointerId) return;
-    drag.current = null;
-    if (!current.dragging) return;
-    suppressClick.current = true;
-    const first = current.samples[0];
-    const last = current.samples[current.samples.length - 1];
-    const elapsed = last && first ? last.t - first.t : 0;
-    const velocity = elapsed > 0 ? ((last.y - first.y) / elapsed) * 1000 : 0;
-    const open = restsOpen(y.get(), velocity, collapsed.current);
-    heading.current = open;
-    settle(open, velocity);
-    if (open !== expanded) onExpandedChange(open);
-  }
-
-  function onPointerCancel(event: PointerEvent<HTMLDivElement>) {
-    const current = drag.current;
-    if (!current || current.pointerId !== event.pointerId) return;
-    drag.current = null;
-    if (current.dragging) settle(expanded);
-  }
-
-  // A drag that ends over a button must not also press it.
-  function onClickCapture(event: MouseEvent<HTMLDivElement>) {
-    if (!suppressClick.current) return;
-    suppressClick.current = false;
-    event.preventDefault();
-    event.stopPropagation();
-  }
+  }, [hasSelection]);
 
   const open = wide || expanded;
   const summary = (
@@ -435,74 +288,77 @@ export function MapPanel({
       {updated && <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{updated}</span>}
     </>
   );
+  const details = (
+    <>
+      {viewNotice}
+      <Legend present={present} onShow={onShow} />
+      <Areas areas={areas} />
+      <Photos photos={photos} open={open} />
+      <p className="border-t pt-4 text-xs text-pretty text-muted-foreground">
+        ตำแหน่งบนแผนที่คำนวณจากภาพกล้องหนึ่งตัว จึงเป็นค่าโดยประมาณ แนวรถแนวนอนประมาณจากกรอบในภาพ ไม่ใช่มุมหรือขนาดที่วัดจริง ระบบไม่มีการจองที่จอด และไม่ได้แบ่งช่องจอดตายตัว
+        {estimatedLandmarks && " อาคาร ต้นไม้ และสิ่งรอบลานวาดจากภาพถ่าย ตำแหน่งและขนาดเป็นค่าโดยประมาณ"}
+      </p>
+    </>
+  );
   return (
-    // On a phone the sheet is a card floating clear of the screen's edges and the tab bar. The frame
-    // clips the part a resting card keeps below its peek, and casts the shadow of what shows.
+    // On a phone the panel is a card floating clear of the screen's edges and the tab bar. It never
+    // follows a drag: inside LINE a downward swipe closes the whole app, so the details open in a
+    // modal from a tap instead. On a wide screen it is a column beside the map.
     <div
       className={cn(
-        "pointer-events-none absolute inset-x-3 top-3 bottom-8 z-10 flex flex-col justify-end overflow-hidden rounded-2xl drop-shadow-[0_4px_12px_rgb(15_23_42/0.12)]",
-        "lg:pointer-events-auto lg:static lg:min-h-0 lg:overflow-visible lg:rounded-none lg:drop-shadow-none",
+        "pointer-events-none absolute inset-x-3 top-3 bottom-8 z-10 flex flex-col justify-end",
+        "lg:pointer-events-auto lg:static lg:min-h-0",
       )}
     >
-    <aside
-      ref={sheet}
-      aria-label="สรุปสถานะลานจอด"
-      className={cn(
-        "pointer-events-auto flex max-h-[calc(100%-3rem)] flex-col rounded-2xl border bg-background pb-[var(--safe-bottom)] will-change-transform",
-        "lg:max-h-none lg:min-h-0 lg:flex-1 lg:rounded-none lg:border-0 lg:border-l lg:pb-0 lg:will-change-auto",
-      )}
-    >
-      <div
-        ref={peek}
-        className="shrink-0 touch-none select-none lg:touch-auto lg:select-auto"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
-        onClickCapture={onClickCapture}
-      >
-        <div aria-hidden className="mx-auto mt-1.5 h-1 w-8 rounded-full bg-border lg:hidden" />
-        <div className="space-y-2 px-4 pt-1.5 empty:hidden lg:pt-4">{truth}</div>
-        {wide ? (
-          <div className="flex items-center gap-2 px-4 py-2.5">{summary}</div>
-        ) : (
-          // The summary row is the sheet's one toggle, beside dragging its handle.
-          <button
-            type="button"
-            aria-expanded={expanded}
-            aria-controls="map-panel-details"
-            onClick={() => onExpandedChange(!expanded)}
-            className="flex min-h-11 w-full items-center gap-2 px-4 pt-1.5 pb-2.5 text-left outline-none focus-visible:bg-muted"
-          >
-            {summary}
-            <span className="sr-only">{expanded ? "ย่อรายละเอียด" : "ดูรายละเอียด"}</span>
-            <ChevronUp
-              aria-hidden
-              className={cn("size-4 shrink-0 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none", expanded && "rotate-180")}
-            />
-          </button>
+      <aside
+        ref={panel}
+        aria-label="สรุปสถานะลานจอด"
+        className={cn(
+          "pointer-events-auto flex max-h-full flex-col overflow-y-auto overscroll-contain rounded-2xl border bg-background pb-[var(--safe-bottom)] shadow-[0_4px_12px_rgb(15_23_42/0.12)]",
+          "lg:max-h-none lg:min-h-0 lg:flex-1 lg:overflow-visible lg:rounded-none lg:border-0 lg:border-l lg:pb-0 lg:shadow-none",
         )}
-        {selected && (
-          <div ref={card} className="px-4 pb-3">
-            <Selected details={selected} full={open} onClear={onClearSelection} />
-          </div>
-        )}
-      </div>
-      <div
-        id="map-panel-details"
-        inert={!open}
-        className={cn("min-h-0 space-y-5 overflow-y-auto overscroll-contain px-4 pt-1 pb-4", !measured && "max-lg:hidden")}
       >
-        {viewNotice}
-        <Legend present={present} onShow={onShow} />
-        <Areas areas={areas} />
-        <Photos photos={photos} open={open} />
-        <p className="border-t pt-4 text-xs text-pretty text-muted-foreground">
-          ตำแหน่งบนแผนที่คำนวณจากภาพกล้องหนึ่งตัว จึงเป็นค่าโดยประมาณ แนวรถแนวนอนประมาณจากกรอบในภาพ ไม่ใช่มุมหรือขนาดที่วัดจริง ระบบไม่มีการจองที่จอด และไม่ได้แบ่งช่องจอดตายตัว
-          {estimatedLandmarks && " อาคาร ต้นไม้ และสิ่งรอบลานวาดจากภาพถ่าย ตำแหน่งและขนาดเป็นค่าโดยประมาณ"}
-        </p>
-      </div>
-    </aside>
+        <div className="shrink-0">
+          <div className="space-y-2 px-4 pt-3 empty:hidden lg:pt-4">{truth}</div>
+          {wide ? (
+            <div className="flex items-center gap-2 px-4 py-2.5">{summary}</div>
+          ) : (
+            <Dialog.Root open={expanded} onOpenChange={onExpandedChange}>
+              <Dialog.Trigger className="flex min-h-11 w-full items-center gap-2 px-4 py-2.5 text-left outline-none focus-visible:bg-muted">
+                {summary}
+                <span className="sr-only">ดูรายละเอียด</span>
+                <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+              </Dialog.Trigger>
+              <Dialog.Portal>
+                <Dialog.Backdrop className="fixed inset-0 z-50 min-h-dvh bg-black/30 transition-opacity duration-200 ease-out data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none" />
+                <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3">
+                  <Dialog.Popup className="flex max-h-[min(85dvh,44rem)] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-background text-foreground shadow-lg outline-none transition-[transform,opacity] duration-200 ease-out-strong data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none">
+                    <div className="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-2">
+                      <Dialog.Title className="text-title font-semibold">รายละเอียดลานจอด</Dialog.Title>
+                      <Dialog.Close aria-label="ปิด" className="grid size-11 place-items-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+                        <span className="grid size-9 place-items-center rounded-full bg-secondary text-secondary-foreground">
+                          <X aria-hidden className="size-5" />
+                        </span>
+                      </Dialog.Close>
+                    </div>
+                    <div className="min-h-0 space-y-5 overflow-y-auto overscroll-contain px-4 pt-1 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                      <div className="flex items-center gap-2">{summary}</div>
+                      {selected && <Selected details={selected} full onClear={onClearSelection} />}
+                      {details}
+                    </div>
+                  </Dialog.Popup>
+                </Dialog.Viewport>
+              </Dialog.Portal>
+            </Dialog.Root>
+          )}
+          {selected && (
+            <div ref={card} className="px-4 pb-3">
+              <Selected details={selected} full={wide} onClear={onClearSelection} />
+            </div>
+          )}
+        </div>
+        {wide && <div className="min-h-0 space-y-5 overflow-y-auto overscroll-contain px-4 pt-1 pb-4">{details}</div>}
+      </aside>
     </div>
   );
 }

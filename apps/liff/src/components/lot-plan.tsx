@@ -89,7 +89,7 @@ function LandmarkShape({ landmark, view, size }: { landmark: LotLandmark; view: 
   return null;
 }
 
-export default function LotPlan({ map, labels, selection, route, routeReplay, heldPolygons, markers, overviewKey, onSelect, insets, ref }: MapViewProps) {
+export default function LotPlan({ map, labels, selection, route, routeReplay, heldPolygons, markers, overviewKey, onSelect, insets, callout, ref }: MapViewProps) {
   const { visibleRoute, revealing } = useRouteReveal(route, routeReplay);
   const visibleSelection = revealing && selection?.destination ? null : selection;
   const container = useRef<HTMLDivElement>(null);
@@ -355,7 +355,7 @@ export default function LotPlan({ map, labels, selection, route, routeReplay, he
           )}
         </svg>
       )}
-      <LabelLayer ref={labelLayer} labels={labels} selection={visibleSelection} markers={markers} insets={insets} />
+      <LabelLayer ref={labelLayer} labels={labels} selection={visibleSelection} markers={markers} insets={insets} callout={callout} />
     </div>
   );
 }

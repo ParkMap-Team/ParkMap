@@ -1,3 +1,5 @@
+import type { MetricPoint } from "../api/types.ts";
+import { type Bounds, boundsOf } from "../map/geometry.ts";
 import { isKnownFamily } from "./guard-booth.ts";
 
 /**
@@ -43,4 +45,13 @@ export function guideStatus({ enabled, loading, recordedFrame, family, preferenc
   if (!answer.polygon) return "no-fit";
   // A held place whose time is up waits for a new photo; any other place is on its way to this photo.
   return expired ? "confirming" : "searching";
+}
+
+/**
+ * What the map frames while the guide shows a route: the lot and the whole route, so the arrow is
+ * seen from the gate it starts at, which lies outside the lot's outline.
+ */
+export function guideFrame(frame: Bounds, route: readonly MetricPoint[]): Bounds {
+  const { minX, minY, maxX, maxY } = boundsOf([{ x_m: frame.minX, y_m: frame.minY }, { x_m: frame.maxX, y_m: frame.maxY }, ...route]);
+  return { minX, minY, maxX, maxY };
 }

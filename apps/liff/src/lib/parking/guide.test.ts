@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { guideStatus } from "./guide.ts";
+import { guideFrame, guideStatus } from "./guide.ts";
 
 const ready = { enabled: true, loading: false, recordedFrame: true, family: "click", preferenceError: false, failed: false, requested: true, answer: null, held: false, expired: false };
 
@@ -39,4 +39,11 @@ test("a hold ends by confirmation, by a parked rider, or by release", () => {
   assert.equal(guideStatus({ ...ready, answer: { stage: "AWAITING_CONFIRMATION", polygon: [] } }), "confirming");
   assert.equal(guideStatus({ ...ready, answer: { stage: "OCCUPIED_CONFIRMED", polygon: [] } }), "parked");
   assert.equal(guideStatus({ ...ready, answer: { stage: "RELEASED", polygon: [] } }), "released");
+});
+
+test("a guided route is framed from its gate, outside the lot, to its place", () => {
+  const lot = { minX: 0, minY: 0, maxX: 40, maxY: 20 };
+  const route = [{ x_m: 52, y_m: -6 }, { x_m: 38, y_m: 4 }, { x_m: 12, y_m: 9 }];
+  assert.deepEqual(guideFrame(lot, route), { minX: 0, minY: -6, maxX: 52, maxY: 20 });
+  assert.deepEqual(guideFrame(lot, []), lot);
 });

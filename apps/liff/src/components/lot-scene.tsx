@@ -11,6 +11,7 @@ import {
   type InstancedMesh,
   Matrix4,
   type Mesh,
+  type PerspectiveCamera,
   Object3D,
   OneFactor,
   PCFShadowMap,
@@ -29,6 +30,7 @@ import {
   MAX_ELEVATION_RAD,
   MAX_ZOOM,
   MIN_ELEVATION_RAD,
+  MIN_NEAR_M,
   MIN_ZOOM,
   NUDGE_MS,
   type View3D,
@@ -38,6 +40,7 @@ import {
   easeOut,
   introView3D,
   mix3D,
+  nearPlane,
   overview3D,
   pan3D,
   revealOffset,
@@ -674,6 +677,12 @@ function CameraRig({
 
   const projected = useMemo(() => new Vector3(), []);
   useFrame(() => {
+    // Every frame drawn, before it is drawn: the near plane keeps up with any move, gesture or flight.
+    const near = nearPlane(camera.position.distanceTo(controls.current?.target ?? projected.set(0, 0, 0)));
+    if ((camera as PerspectiveCamera).near !== near) {
+      (camera as PerspectiveCamera).near = near;
+      camera.updateProjectionMatrix();
+    }
     labels.current?.update(
       (point) => {
         projected.set(...toWorld(point)).project(camera);
@@ -702,7 +711,7 @@ function CameraRig({
   );
 }
 
-export default function LotScene({ map, labels, selection, route, routeReplay, heldPolygons, markers, overviewKey, onSelect, insets, onReady, onError, ref }: MapViewProps & { onReady(): void; onError(): void }) {
+export default function LotScene({ map, labels, selection, route, routeReplay, heldPolygons, markers, overviewKey, onSelect, insets, callout, onReady, onError, ref }: MapViewProps & { onReady(): void; onError(): void }) {
   const labelLayer = useRef<LabelLayerHandle>(null);
   const { progress, revealing } = useRouteReveal(route, routeReplay);
   const visibleSelection = revealing && selection?.destination ? null : selection;
@@ -722,7 +731,7 @@ export default function LotScene({ map, labels, selection, route, routeReplay, h
         dpr={[1, MAX_DPR]}
         frameloop="demand"
         shadows={SHADOWS}
-        camera={{ fov: FOV_DEG, near: 0.5, far: 2000 }}
+        camera={{ fov: FOV_DEG, near: MIN_NEAR_M, far: 2000 }}
         onCreated={({ gl }) => setCanvas(gl.domElement)}
       >
         <color attach="background" args={[COLORS.GROUND]} />
@@ -745,7 +754,7 @@ export default function LotScene({ map, labels, selection, route, routeReplay, h
         <ParkingRoute3D route={route} progress={progress} replay={routeReplay} />
         <CameraRig map={map} insets={insets} overviewKey={overviewKey} handle={ref ?? null} labels={labelLayer} />
       </Canvas>
-      <LabelLayer ref={labelLayer} labels={labels} selection={visibleSelection} markers={markers} insets={insets} />
+      <LabelLayer ref={labelLayer} labels={labels} selection={visibleSelection} markers={markers} insets={insets} callout={callout} />
     </div>
   );
 }
