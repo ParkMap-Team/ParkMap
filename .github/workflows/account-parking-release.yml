@@ -4,7 +4,7 @@ on:
     branches: [ops/account-parking-release]
 permissions:
   contents: read
-  actions: write
+  actions: read
 concurrency:
   group: account-parking-production-release
   cancel-in-progress: false
@@ -20,15 +20,14 @@ jobs:
       WORKER_UUID: ${{ vars.COOLIFY_APP_WORKER }}
       LIFF_UUID: ${{ vars.COOLIFY_APP_LIFF }}
       BOT_UUID: svalht0ztkvtlwifegi9n9ly
-      RELEASE: e8c97b427ab1a49f0fbc0988c077e160d8e15bf2
-      CI_RUN: '44330052131'
+      RELEASE: 59aa078bf60adcdbf5624c560c86fba1cf64c4ec
+      CI_RUN: '44574247092'
     steps:
       - name: Wait for the existing main CI without queuing another image build
         shell: bash
         run: |
           set -euo pipefail
           deadline=$((SECONDS + 5400))
-          retried=false
           while (( SECONDS < deadline )); do
             run=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN")
             test "$(jq -r '.head_sha' <<< "$run")" = "$RELEASE"
@@ -37,24 +36,14 @@ jobs:
                 echo "Existing main CI passed; reusing its published images."
                 exit 0
               fi
-              # The missing public OA build variable has now been set. Retry only
-              # that failed job/dependents once; do not rebuild successful images.
-              if [ "$retried" = false ]; then
-                jobs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN/jobs?per_page=100")
-                jq -e '[.jobs[] | select(.conclusion == "failure") | .name] == ["liff-image / build"]' <<< "$jobs" >/dev/null
-                gh run rerun "$CI_RUN" --failed --repo "$GITHUB_REPOSITORY"
-                retried=true
-                echo "Retried the failed LIFF image job after setting LINE_OA_ID."
-              else
-                echo "Main CI failed again; no release changes were made."
-                exit 1
-              fi
+              echo "Main CI failed; no release changes were made."
+              exit 1
             fi
             sleep 60
           done
           echo "Main CI is still pending; no release changes were made."
           exit 1
-      - name: Deploy the matching API, account settings, worker and display
+      - name: Deploy the matching LIFF display
         shell: bash
         run: |
           set -euo pipefail
@@ -62,7 +51,7 @@ jobs:
             curl -fsS --max-time 30 -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" -H "Content-Type: application/json" "$@"
           }
           base="$COOLIFY_URL/api/v1"
-          for spec in "parkmap-worker:$WORKER_UUID:parkmap-api" "parkmap-liff:$LIFF_UUID:parkmap-liff"; do
+          for spec in "parkmap-liff:$LIFF_UUID:parkmap-liff"; do
             IFS=: read -r name uuid package <<< "$spec"
             echo "Checking $name"
             test "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" = "$RELEASE"
