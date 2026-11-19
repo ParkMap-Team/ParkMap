@@ -1,22 +1,25 @@
 """Identify each motorcycle that rides into the Guard Booth entrance clip for the recorded preview.
 
 The clip is stand-in data configured by the operator. It runs through the operator video pipeline
-(sampled frames, ByteTrack, ConvNeXt averaged per track) in the background from API startup, and its
-track evidence is cached per clip file and model, because the clip loops on the booth screen. A rider
+(sampled frames, ByteTrack, ConvNeXt averaged per track) in the background from API startup. Its track
+evidence is kept in memory, because the clip loops on the booth screen, and stored in a file beside the
+clip, keyed by everything that decides it, so a restart or deploy does not track an unchanged clip again. A rider
 is a sustained track that moves through the clip and reaches the booth zone; a parked motorcycle in
 view is not a rider.
 """
 
+import hashlib
 import logging
 import math
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from threading import Lock, Thread
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from app.classifier import Prediction
 from app.parking_inference_settings import MIN_OBSERVATIONS, MODEL_ID, VIDEO_FORMATS
@@ -38,6 +41,8 @@ CLASSIFICATION_RETRY_S = 5
 # Riders in the stand-in clip move 0.4 or more; a parked motorcycle ends within 0.1 of where it started.
 MIN_RIDER_TRAVEL = 0.15
 CLIP_MEDIA_TYPES = {suffix: media_type for media_type, suffix in VIDEO_FORMATS.items()}
+# Bump when a pipeline change alters the evidence of an unchanged clip, so stored evidence is tracked again.
+EVIDENCE_FORMAT = 1
 
 RiderReason = Literal["CLASSIFIED", "UNCERTAIN"]
 
@@ -147,6 +152,102 @@ def summarize(clip: ClipEvidence, zone: BoothZone, rules: ReferenceSizeRules) ->
     return GuardBoothClassification(model_id=MODEL_ID, riders=sorted(riders, key=lambda rider: rider.arrival_s))
 
 
+class EvidenceKey(BaseModel):
+    """Everything that decides a clip's track evidence; stored evidence is reused only when all of it matches."""
+
+    model_config = ConfigDict(frozen=True)
+
+    format: int
+    clip_sha256: str
+    model_id: str
+    detector_sha256: str
+    detector_class_id: int
+    detector_imgsz: int
+    detector_confidence: float
+    detector_nms_iou: float
+    sample_fps: int
+
+
+class StoredEvidence(BaseModel):
+    key: EvidenceKey
+    evidence: ClipEvidence
+
+
+def evidence_path(clip_path: Path) -> Path:
+    return clip_path.with_name(f"{clip_path.name}.evidence.json")
+
+
+def _sha256(path: Path) -> str:
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def evidence_key(clip_path: Path) -> EvidenceKey | None:
+    """`None` without detector weights: nothing is stored, and tracking reports why it cannot run."""
+    detector = video_classifier.video_detector
+    if not detector.is_configured:
+        return None
+    return EvidenceKey(
+        format=EVIDENCE_FORMAT,
+        clip_sha256=_sha256(clip_path),
+        model_id=MODEL_ID,
+        detector_sha256=_sha256(detector.model_path),
+        detector_class_id=detector.class_id,
+        detector_imgsz=detector.imgsz,
+        detector_confidence=detector.confidence_threshold,
+        detector_nms_iou=detector.nms_iou,
+        sample_fps=CLIP_SAMPLE_FPS,
+    )
+
+
+def load_evidence(path: Path, key: EvidenceKey) -> ClipEvidence | None:
+    """Stored evidence for `key`; a missing, unreadable or stale file is `None`, so the clip is tracked again."""
+    try:
+        stored = StoredEvidence.model_validate_json(path.read_bytes())
+    except FileNotFoundError:
+        return None
+    except (OSError, ValidationError):
+        logger.warning("Ignoring unreadable Guard Booth clip evidence at %s", path, exc_info=True)
+        return None
+    if stored.key != key:
+        logger.info("Guard Booth clip evidence at %s is for another clip or pipeline", path)
+        return None
+    return stored.evidence
+
+
+def save_evidence(path: Path, key: EvidenceKey, evidence: ClipEvidence) -> None:
+    """Replaces the stored evidence atomically. A failed write keeps the evidence in memory only."""
+    payload = StoredEvidence(key=key, evidence=evidence).model_dump_json()
+    temporary: Path | None = None
+    try:
+        with NamedTemporaryFile(
+            "w", encoding="utf-8", dir=path.parent, prefix=f".{path.name}.", suffix=".tmp", delete=False
+        ) as stream:
+            temporary = Path(stream.name)
+            stream.write(payload)
+        os.replace(temporary, path)
+    except OSError:
+        logger.warning("Guard Booth clip evidence could not be stored at %s; it is kept in memory only", path, exc_info=True)
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def stored_or_tracked(clip_path: Path) -> ClipEvidence:
+    """The clip's stored evidence when its key still matches; otherwise tracks the clip and stores the result."""
+    key = evidence_key(clip_path)
+    stored_path = evidence_path(clip_path)
+    if key is not None and (stored := load_evidence(stored_path, key)) is not None:
+        logger.info("Guard Booth clip evidence loaded from %s", stored_path)
+        return stored
+    # Shares the detector and tracker with the operator video API.
+    with video_classifier.VIDEO_LOCK:
+        evidence = video_classifier.track_clip(clip_path, MODEL_ID, CLIP_SAMPLE_FPS, max_duration_s=MAX_CLIP_DURATION_S)
+    # A clip file replaced while it was tracked is not stored under the old file's key.
+    if key is not None and evidence_key(clip_path) == key:
+        save_evidence(stored_path, key, evidence)
+    return evidence
+
+
 def _start_thread(run: Callable[[], None]) -> None:
     Thread(target=run, name="guard-booth-clip", daemon=True).start()
 
@@ -155,8 +256,8 @@ class GuardBoothClipClassifier:
     """Tracks the clip in the background, because tracking it on a server CPU takes minutes.
 
     No request waits for tracking: `evidence` starts it and reports `None` until it is done. The latest
-    evidence is kept per clip file and model; a replaced clip file or model is tracked again. A failed
-    run is reported once, and the next request tracks the clip again.
+    evidence is kept per clip file and model; a replaced clip file or model is loaded from its stored
+    evidence or tracked again. A failed run is reported once, and the next request tries again.
     """
 
     def __init__(self, start: Callable[[Callable[[], None]], None] = _start_thread) -> None:
@@ -187,11 +288,7 @@ class GuardBoothClipClassifier:
         evidence: ClipEvidence | None = None
         error: Exception | None = None
         try:
-            # Shares the detector and tracker with the operator video API.
-            with video_classifier.VIDEO_LOCK:
-                evidence = video_classifier.track_clip(
-                    clip.path, MODEL_ID, CLIP_SAMPLE_FPS, max_duration_s=MAX_CLIP_DURATION_S
-                )
+            evidence = stored_or_tracked(clip.path)
         except Exception as failure:  # A background run has no caller to raise to; the next request reports it.
             logger.exception("Guard Booth clip tracking failed")
             error = failure

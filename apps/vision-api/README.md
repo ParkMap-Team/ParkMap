@@ -130,8 +130,24 @@ length plus the 4 s poll and the worker's analysis time, for example
 `--hold-s 25` for a 17.3 s clip; a shorter hold cuts the clip short. `guard-booth-clip` serves the file with Range support.
 The API runs the Classify Video detector, tracker and ConvNeXt on it at 5
 sampled fps in the background from startup, because that takes minutes on a
-server CPU, and caches the track evidence in memory until the file or classifier
-changes. Until then `guard-booth-classification` answers 503 with `Retry-After`,
+server CPU (over an hour for a 143 s clip on 2 vCPU). It keeps the track evidence in memory and
+stores it beside the clip as `<clip>.evidence.json`, keyed by the clip's SHA-256,
+`MODEL_ID`, the video detector weights' SHA-256 and settings (class id, image
+size, confidence, NMS IoU), the sample rate and a format version; a restart
+loads a matching file instead of tracking again, and anything else is tracked
+again and replaces it ([ADR 0025](../../docs/adr/0025-store-guard-booth-clip-evidence.md)).
+The API user must be able to write to the clip's directory; otherwise it logs a
+warning and keeps the evidence in memory only. To spare the server, track the
+clip on a workstation with the same detector weights and `PARKMAP_VIDEO_DETECTOR_*`
+and `PARKMAP_MODEL_IMGSZ`/`_CONF`/`_NMS_IOU` values, then copy the file beside
+the server's clip:
+
+```sh
+uv run python -m app.manage store-guard-booth-clip-evidence --clip <clip.mp4>
+```
+
+The command prints the key it stored; the API ignores a file whose key differs.
+Until then `guard-booth-classification` answers 503 with `Retry-After`,
 and the page keeps preparing the camera and asks again; a 503 without it is a
 setup failure. Once tracked, it returns the clip's riders in arrival order. A rider is a track
 with at least `MIN_OBSERVATIONS` observations whose ground point (bottom centre

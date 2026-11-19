@@ -7,15 +7,17 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from app import main
+from app import main, manage
 from app.main import app
 from app.services import guard_booth_clip
 from app.services.guard_booth_clip import (
     WHOLE_FRAME,
     BoothZone,
     GuardBoothClipClassifier,
+    StoredEvidence,
     arrival,
     configured_clip,
+    evidence_path,
     parse_zone,
     summarize,
 )
@@ -24,6 +26,15 @@ from app.services.motorcycle_reference_sizes import load_rules
 from app.services.video_classifier import ClipEvidence, TrackEvidence, TrackPoint
 
 CLASSES = ["click", "unsized_model", "pcx"]
+
+
+@pytest.fixture(autouse=True)
+def detector_weights(monkeypatch, tmp_path):
+    """Video detector weights whose identity keys the stored clip evidence."""
+    weights = tmp_path / "detector.pt"
+    weights.write_bytes(b"detector")
+    monkeypatch.setattr(guard_booth_clip.video_classifier.video_detector, "model_path", weights)
+    return weights
 
 
 def track(points: list[tuple[float, float, float]], family: str | None = "click", preview: str = "data:image/jpeg;base64,1") -> TrackEvidence:
@@ -162,6 +173,119 @@ def run_now(run):
 
 
 @pytest.fixture
+def stored_clip(monkeypatch, tmp_path):
+    """A configured clip whose tracking runs are counted."""
+    path = tmp_path / "clip.mp4"
+    path.write_bytes(b"clip")
+    monkeypatch.setenv(guard_booth_clip.CLIP_PATH_ENV, str(path))
+    calls = []
+
+    def track_clip(*_, **__):
+        calls.append(1)
+        return evidence(ride(len(calls)))
+
+    monkeypatch.setattr(guard_booth_clip.video_classifier, "track_clip", track_clip)
+    return path, calls
+
+
+def restarted_evidence():
+    """Evidence as a freshly started API sees it."""
+    return GuardBoothClipClassifier(start=run_now).evidence(configured_clip())
+
+
+def test_stored_evidence_is_reused_after_a_restart(stored_clip):
+    path, calls = stored_clip
+    tracked = restarted_evidence()
+    assert restarted_evidence() == tracked
+    assert len(calls) == 1
+    assert StoredEvidence.model_validate_json(evidence_path(path).read_bytes()).evidence == tracked
+
+
+def change_clip(path, monkeypatch, weights):
+    path.write_bytes(b"replaced clip")
+
+
+def change_model(path, monkeypatch, weights):
+    monkeypatch.setattr(guard_booth_clip, "MODEL_ID", "another-classifier")
+
+
+def change_detector_weights(path, monkeypatch, weights):
+    weights.write_bytes(b"retrained detector")
+
+
+def change_detector_class(path, monkeypatch, weights):
+    monkeypatch.setattr(guard_booth_clip.video_classifier.video_detector, "class_id", 7)
+
+
+def change_detector_confidence(path, monkeypatch, weights):
+    monkeypatch.setattr(guard_booth_clip.video_classifier.video_detector, "confidence_threshold", 0.6)
+
+
+def change_sample_rate(path, monkeypatch, weights):
+    monkeypatch.setattr(guard_booth_clip, "CLIP_SAMPLE_FPS", 10)
+
+
+def change_pipeline(path, monkeypatch, weights):
+    monkeypatch.setattr(guard_booth_clip, "EVIDENCE_FORMAT", guard_booth_clip.EVIDENCE_FORMAT + 1)
+
+
+@pytest.mark.parametrize("change", [
+    change_clip, change_model, change_detector_weights, change_detector_class,
+    change_detector_confidence, change_sample_rate, change_pipeline,
+])
+def test_stored_evidence_is_tracked_again_when_anything_that_decides_it_changes(stored_clip, monkeypatch, detector_weights, change):
+    path, calls = stored_clip
+    restarted_evidence()
+    change(path, monkeypatch, detector_weights)
+    replaced = restarted_evidence()
+    assert len(calls) == 2
+    assert StoredEvidence.model_validate_json(evidence_path(path).read_bytes()).evidence == replaced
+    assert restarted_evidence() == replaced
+    assert len(calls) == 2
+
+
+def test_unreadable_stored_evidence_is_tracked_again(stored_clip):
+    path, calls = stored_clip
+    evidence_path(path).write_text("{not json")
+    tracked = restarted_evidence()
+    assert len(calls) == 1
+    assert StoredEvidence.model_validate_json(evidence_path(path).read_bytes()).evidence == tracked
+
+
+def test_evidence_that_cannot_be_stored_is_kept_in_memory(stored_clip, monkeypatch):
+    path, calls = stored_clip
+
+    def read_only(*_):
+        raise PermissionError("read-only mount")
+
+    monkeypatch.setattr(guard_booth_clip.os, "replace", read_only)
+    classifier = GuardBoothClipClassifier(start=run_now)
+    tracked = classifier.evidence(configured_clip())
+    assert classifier.evidence(configured_clip()) is tracked
+    assert len(calls) == 1
+    assert sorted(item.name for item in path.parent.iterdir()) == ["clip.mp4", "detector.pt"]
+
+
+def test_nothing_is_stored_without_detector_weights(stored_clip, detector_weights):
+    path, calls = stored_clip
+    detector_weights.unlink()
+    assert len(restarted_evidence().tracks) == 1
+    assert not evidence_path(path).exists()
+
+
+def test_a_clip_replaced_while_it_is_tracked_is_not_stored(stored_clip, monkeypatch):
+    path, _ = stored_clip
+
+    def replaced_meanwhile(*_, **__):
+        path.write_bytes(b"replaced clip")
+        return evidence(ride(0))
+
+    monkeypatch.setattr(guard_booth_clip.video_classifier, "track_clip", replaced_meanwhile)
+    restarted_evidence()
+    assert not evidence_path(path).exists()
+
+
+@pytest.fixture
 def booth_clip(monkeypatch, tmp_path):
     path = tmp_path / "entrance.mp4"
     path.write_bytes(bytes(range(256)) * 4)
@@ -231,3 +355,13 @@ def test_fit_requests_accept_every_family_with_a_reference_size():
         assert GuardBoothFitRequest(family=family, **fields).family == family
     with pytest.raises(ValidationError):
         GuardBoothFitRequest(family="unsized_model", **fields)
+
+
+def test_evidence_can_be_stored_on_another_machine_for_the_api(stored_clip, detector_weights):
+    path, calls = stored_clip
+    assert manage.main(["store-guard-booth-clip-evidence", "--clip", str(path)]) == 0
+    assert len(restarted_evidence().tracks) == 1
+    assert len(calls) == 1
+    detector_weights.unlink()
+    assert manage.main(["store-guard-booth-clip-evidence", "--clip", str(path)]) == 1
+    assert manage.main(["store-guard-booth-clip-evidence", "--clip", str(path.with_suffix(".mov"))]) == 1
