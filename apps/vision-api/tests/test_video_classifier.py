@@ -6,12 +6,13 @@ import cv2
 import numpy as np
 import pytest
 import torch
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from PIL import Image
 from ultralytics.engine.results import Boxes
 
 from app.main import app
-from app.services import video_classifier
+from app.services import guard_booth_clip, video_classifier
 from app.services.video_classifier import TrackEvidence, crop_bounds, sample_indices
 
 
@@ -295,3 +296,35 @@ def test_operator_upload_tracks_two_motorcycles_across_sampled_frames(
         ("Red", 3, 1.0),
         ("Blue", 3, 1.0),
     ]
+
+
+def test_clip_length_is_capped_by_the_caller(monkeypatch, tmp_path):
+    """An operator upload stops at 30 s; the Guard Booth clip may run up to its own cap."""
+    path = tmp_path / "long.mp4"
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), 1.0, (160, 80))
+    assert writer.isOpened()
+    try:
+        for _ in range(35):
+            writer.write(np.zeros((80, 160, 3), dtype=np.uint8))
+    finally:
+        writer.release()
+
+    def detect(frame, *, max_detections, detection_only):
+        return [SimpleNamespace(boxes=Boxes(torch.zeros((0, 6)), (80, 160)))]
+
+    monkeypatch.setattr(video_classifier.video_detector, "predict_frame", detect)
+    monkeypatch.setattr(
+        video_classifier, "load_model", lambda *_, **__: (None, ["Red"], 224, (0, 0, 0), None)
+    )
+    with pytest.raises(HTTPException) as rejected:
+        video_classifier.track_clip(
+            path, "model", 1, max_duration_s=video_classifier.MAX_VIDEO_DURATION_SECONDS
+        )
+    assert rejected.value.status_code == 422
+    assert "up to 30 seconds" in rejected.value.detail
+
+    clip = video_classifier.track_clip(
+        path, "model", 1, max_duration_s=guard_booth_clip.MAX_CLIP_DURATION_S
+    )
+    assert clip.sampled_frames == 35
+    assert clip.tracks == {}

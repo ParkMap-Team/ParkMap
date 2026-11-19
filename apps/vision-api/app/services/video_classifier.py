@@ -301,7 +301,7 @@ class ClipEvidence:
 
 
 def classify_clip(path: Path, model_id: str, fps: int) -> VideoClassification:
-    clip = track_clip(path, model_id, fps)
+    clip = track_clip(path, model_id, fps, max_duration_s=MAX_VIDEO_DURATION_SECONDS)
     return VideoClassification(
         model_id=model_id,
         sampled_frames=clip.sampled_frames,
@@ -311,7 +311,7 @@ def classify_clip(path: Path, model_id: str, fps: int) -> VideoClassification:
     )
 
 
-def track_clip(path: Path, model_id: str, fps: int) -> ClipEvidence:
+def track_clip(path: Path, model_id: str, fps: int, *, max_duration_s: float) -> ClipEvidence:
     capture = cv2.VideoCapture(str(path))
     try:
         source_fps = capture.get(cv2.CAP_PROP_FPS)
@@ -336,12 +336,12 @@ def track_clip(path: Path, model_id: str, fps: int) -> ClipEvidence:
                 "Unable to read the video. Export it as MP4 or WebM with a fixed frame rate.",
             )
         if (
-            frame_count / source_fps > MAX_VIDEO_DURATION_SECONDS
+            frame_count / source_fps > max_duration_s
             or width * height > MAX_VIDEO_FRAME_PIXELS
         ):
             raise HTTPException(
                 422,
-                f"Choose a video up to {MAX_VIDEO_DURATION_SECONDS} seconds and {MAX_VIDEO_FRAME_PIXELS / 1_000_000:g} megapixels per frame.",
+                f"Choose a video up to {max_duration_s:g} seconds and {MAX_VIDEO_FRAME_PIXELS / 1_000_000:g} megapixels per frame.",
             )
 
         try:
