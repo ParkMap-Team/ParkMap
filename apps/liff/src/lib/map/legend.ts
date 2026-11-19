@@ -117,7 +117,7 @@ export function headlineStatus(summary: MapSummary): "AVAILABLE" | "WIDTH_SUFFIC
   return null;
 }
 
-export type MapLabel = { id: string; text: string; anchor: MetricPoint; kind: LandmarkKind | "AREA"; landmark: LotLandmark | null };
+export type MapLabel = { id: string; text: string; anchor: MetricPoint; kind: LandmarkKind | "AREA" | "PARKING_ROW"; landmark: LotLandmark | null };
 
 /**
  * Every static label: named landmarks, ways in and out, and the monitored areas. An unnamed tree or

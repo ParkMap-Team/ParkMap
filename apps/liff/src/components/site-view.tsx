@@ -14,7 +14,7 @@ import { type Insets, ROTATE_STEP_RAD, ZOOM_STEP } from "@/lib/map/camera";
 import { STATUS_TEXT, areaLabel, headline, mapLabels } from "@/lib/map/legend";
 import { type LotMap, type MapStatus, type Selection, buildLotMap, focusPoint, followSelection, plainLotMap, selectAt, summarize } from "@/lib/map/lot-map";
 import { FALLBACK_NOTICES, INITIAL_RENDERER, THREE_D_TIMEOUT_MS, detectWebGL, mountsThreeD, rendererReducer } from "@/lib/map/renderer";
-import { labelPoint } from "@/lib/map/geometry";
+import { boundsOf, labelPoint, pointInPolygon } from "@/lib/map/geometry";
 import { activeParkingHolds, activeRiders, applyParkingHolds, enqueueRider, entranceClipOutcome, guardBoothFitFamily, guardBoothFrame, guardBoothHeadline, guardBoothModelName, guardBoothPreviewDestination, isKnownFamily, overlapsParkingHold, PARKING_HOLD_MS, RIDER_COLORS, riderGuide, type GuardBoothMode, type GuardBoothOverview, type ParkingHold, type QueuedRider, type RiderFit } from "@/lib/parking/guard-booth";
 import { type GuideStatus, displayedGuideRoute, guideFrame, guideStatus } from "@/lib/parking/guide";
 import { STATUS_LABELS, agoLabel, areaPhotos, timeLines, visibleAreas } from "@/lib/parking/presentation";
@@ -115,7 +115,48 @@ function MenuButton({ className, ...props }: ComponentProps<typeof Button>) {
   return <Button variant="outline" className={cn("h-11 justify-start gap-2 rounded-lg px-3 [&_svg:not([class*='size-'])]:size-5", className)} {...props} />;
 }
 
-export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEnabled = false, entranceClip = false, recommendationsEnabled = false }: { siteId: string; siteName: string; lotModel: LotModel; guardBooth?: GuardBoothMode; fitPreviewEnabled?: boolean; entranceClip?: boolean; recommendationsEnabled?: boolean }) {
+const MOCK_BOOTH_RIDERS = ([["pcx", "placed"], ["click", "pending"], ["wave", "no-space"]] as const).map(([family, fit], slot) => ({
+  slot, fit, rider: { family, arrival_s: slot, preview_url: null, reason: "CLASSIFIED", reference_size: { width_m: 0.74, length_m: 1.94 }, top3: [] } satisfies GuardBoothRider,
+}));
+
+// Each sample row stores its bounds and the centres of the parked motorcycles.
+const MOCK_BOOTH_ROWS = [
+  { id: "row_1", minX: 10.5, maxX: 25, y: 13, parked: [22, 23], reserved: [] },
+  { id: "row_2", minX: 10.5, maxX: 25, y: 11, parked: [], reserved: [] },
+  { id: "row_3", minX: 10.5, maxX: 25, y: 7.1, parked: [12, 14, 15, 20], reserved: [] },
+  { id: "row_4", minX: 10.5, maxX: 27.4, y: 4.9, parked: [], reserved: [] },
+  { id: "row_5", minX: 10.5, maxX: 27.4, y: 1.3, parked: [12, 13, 16.5, 18, 24, 26], reserved: [22] },
+];
+
+function mockRowPolygon(left: number, right: number, y: number) {
+  return [[{ x_m: left, y_m: y - 1 }, { x_m: right, y_m: y - 1 }, { x_m: right, y_m: y + 1 }, { x_m: left, y_m: y + 1 }]];
+}
+
+const MOCK_BOOTH_AREAS: ParkingAreaLiveState[] = [{
+  parking_area_id: "sripatum-near-lot",
+  status: "DEMO",
+  source: "SYNTHETIC_FIXTURE",
+  regions: MOCK_BOOTH_ROWS.flatMap(({ minX, maxX, y, parked, reserved }) => {
+    const blocked = [...parked.map((x) => ({ left: x - 0.4, right: x + 0.4 })), ...reserved.map((x) => ({ left: x - 0.4, right: x + 0.4 }))].sort((a, b) => a.left - b.left);
+    const gaps = blocked.map(({ left }, index) => ({ left: blocked[index - 1]?.right ?? minX, right: left }));
+    gaps.push({ left: blocked.at(-1)?.right ?? minX, right: maxX });
+    return [
+      ...gaps.filter(({ left, right }) => right - left >= 0.75).map(({ left, right }) => ({ kind: "AVAILABLE" as const, polygon: mockRowPolygon(left, right, y) })),
+      ...parked.map((x) => ({ kind: "OCCUPIED" as const, polygon: mockRowPolygon(x - 0.4, x + 0.4, y) })),
+    ];
+  }),
+  motorcycles: MOCK_BOOTH_ROWS.flatMap(({ parked, y }) => parked.map((x) => ({ x_m: x, y_m: y }))).map(({ x_m, y_m }, index) => ({
+    detection_id: `mock-parked-${index}`,
+    center: { x_m, y_m },
+    heading_rad: Math.PI / 2,
+    length_m: 1.9,
+    width_m: 0.7,
+    confidence: 1,
+    display_scale: 1,
+  })),
+}];
+
+export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEnabled = false, entranceClip = false, recommendationsEnabled = false, mockBooth = false }: { siteId: string; siteName: string; lotModel: LotModel; guardBooth?: GuardBoothMode; fitPreviewEnabled?: boolean; entranceClip?: boolean; recommendationsEnabled?: boolean; mockBooth?: boolean }) {
   const testingClassification = guardBooth === "preview" || guardBooth === "unknown";
   // The tab bar's parking guide asks the server for a place sized for the model saved with the
   // student's LINE account, held and shared with the Guard Booth.
@@ -130,7 +171,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
   const [fitFamily, setFitFamily] = useState<GuardBoothFit["family"] | null>(null);
   const [fitRequestId, setFitRequestId] = useState(() => testingClassification ? globalThis.crypto?.randomUUID?.() : undefined);
   const [lastFitResponse, setLastFitResponse] = useState<GuardBoothFit | null>(null);
-  const [boothOverview, setBoothOverview] = useState<GuardBoothOverview>("entrance");
+  const [boothOverview, setBoothOverview] = useState<GuardBoothOverview>(mockBooth ? "parking" : "entrance");
   const [holds, setHolds] = useState<readonly ParkingHold[]>([]);
   const [currentHold, setCurrentHold] = useState<ParkingHold | null>(null);
   useEffect(() => {
@@ -153,7 +194,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
   // `now` ticks once a second, so an answer that just arrived can look slightly newer than it; that is
   // not clock skew and must not downgrade it.
   const receivedAgoS = query.data ? Math.max(0, now - query.dataUpdatedAt) / 1000 : 0;
-  const areas = query.data ? visibleAreas(query.data, receivedAgoS, connectionLost) : null;
+  const areas = mockBooth ? MOCK_BOOTH_AREAS : query.data ? visibleAreas(query.data, receivedAgoS, connectionLost) : null;
   const recordedFrame = areas?.find(({ status, source }) => status === "DEMO" && source === "STILL_IMAGE_LOOP")?.observed_at;
   const lineRecommendation = useParkingRecommendation(siteId, recommendationsEnabled && !guardBooth);
   const sharedHolds = useQuery<NonNullable<GuardBoothFit["holds"]>>({
@@ -258,7 +299,22 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
   // A rider's map paints no cells (ADR 0024): the lot has no fixed spaces, so free ground is a soft
   // shadow and only the recommended place is solid green. The card still words the state from the full map; the Guard Booth draws it all.
   const shown = useMemo(() => (guardBooth ? map : plainLotMap(map)), [guardBooth, map]);
-  const labels = useMemo(() => mapLabels(map), [map]);
+  const boothRows = useMemo(() => {
+    if (!guardBooth || siteId !== "sripatum") return [];
+    const regions = areas?.find((area) => area.parking_area_id === "sripatum-near-lot")?.regions ?? [];
+    return ["A", "B", "C", "D", "E"].flatMap((letter, index) => {
+      const id = `row_${5 - index}`;
+      const mock = mockBooth ? MOCK_BOOTH_ROWS.find((row) => row.id === id) : undefined;
+      const polygon = mock ? mockRowPolygon(mock.minX, mock.maxX, mock.y) : regions.find((region) => region.row_id === id && region.kind === "UNKNOWN")?.polygon;
+      if (!polygon?.[0]?.length) return [];
+      const { minX, minY, maxY } = boundsOf(polygon[0]);
+      return [{ letter, polygon, anchor: { x_m: minX - 0.65, y_m: (minY + maxY) / 2 } }];
+    });
+  }, [areas, guardBooth, mockBooth, siteId]);
+  const labels = useMemo(() => [
+    ...mapLabels(map),
+    ...boothRows.map(({ letter, anchor }) => ({ id: `parking-row:${letter}`, text: letter, anchor, kind: "PARKING_ROW" as const, landmark: null })),
+  ], [boothRows, map]);
   const summary = useMemo(() => summarize(map), [map]);
   const shownPresent = useMemo(() => summarize(shown).present, [shown]);
 
@@ -409,7 +465,10 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
     ? { polygon: currentHold.polygon, point: labelPoint(currentHold.polygon), text: "จอดตรงนี้", destination: true }
     : nextDestination;
   const route = displayedGuideRoute(!!guardBooth, lineFit?.route);
-  const markers: MapMarker[] = riders.flatMap(({ seq, slot }, index) => {
+  const markers: MapMarker[] = mockBooth ? [{
+    id: "mock-rider-1", text: "1", color: RIDER_COLORS[0], point: { x_m: 22, y_m: 1.3 },
+    polygon: mockRowPolygon(21.6, 22.4, 1.3),
+  }] : riders.flatMap(({ seq, slot }, index) => {
     const { matching, expired } = currentFit(index);
     if (!matching?.polygon || expired) return [];
     return [{ id: String(seq), text: String(slot + 1), color: RIDER_COLORS[slot], point: labelPoint(matching.polygon), polygon: matching.polygon }];
@@ -506,27 +565,39 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
         {classification && (
           // A fixed size: what the panel says never resizes it, so the map never refits under it.
           // On a phone it spans the top; on a wide screen it is a column down the left.
-          <div ref={boothPanel} className={cn("pointer-events-none absolute flex flex-col gap-3", entranceClip ? "inset-x-2 top-2 lg:right-auto lg:bottom-2 lg:w-96" : "top-2 bottom-2 left-2 w-[min(24rem,calc(100%-4.5rem))]")}>
+          <div ref={boothPanel} className={cn("pointer-events-none absolute gap-3", entranceClip ? "inset-x-2 top-2 grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:right-auto lg:bottom-2 lg:flex lg:w-96 lg:flex-col" : "top-2 bottom-2 left-2 flex w-[min(24rem,calc(100%-4.5rem))] flex-col")}>
           {entranceClip ? (
             <>
+              <header className="col-span-2 flex shrink-0 items-center gap-2 self-start justify-self-start rounded-lg border border-white/15 bg-[#16151b] px-3 py-2 text-white shadow-sm">
+                <SquareParking aria-hidden className="size-5" />
+                <h1 className="text-sm font-bold">จอแนะนำที่จอด</h1>
+              </header>
               <div className="relative shrink-0">
-                <EntranceClip siteId={siteId} scene={scene} onStatus={setClipStatus} onArrival={onArrival} />
-                {boothAlert && (
+                {mockBooth ? <div className="grid aspect-video w-full place-items-center rounded-xl border border-white/15 bg-[#16151b] px-2 text-center text-xs font-semibold text-white sm:text-sm">ตัวอย่างกล้องทางเข้า · ข้อมูลจำลอง</div> : <EntranceClip siteId={siteId} scene={scene} onStatus={setClipStatus} onArrival={onArrival} />}
+                {!mockBooth && boothAlert && (
                   <p role="alert" className="absolute inset-x-2 bottom-2 flex items-center gap-2 rounded-lg bg-alert px-3 py-1.5 text-sm font-semibold text-alert-foreground motion-safe:animate-toast-rise">
                     <WifiOff aria-hidden className="size-4 shrink-0" />
                     {boothAlert}
                   </p>
                 )}
               </div>
-              {/* A phone keeps room for the large card and one row; later rows scroll. */}
-              <div className="flex h-48 shrink-0 flex-col lg:h-auto lg:min-h-0 lg:shrink">
-                {riders.length === 0 && <BoothIdle status={clipStatus} />}
-                {riders.length > 0 && (
+              {/* The list scrolls on narrow screens so the map still has room below it. */}
+              <div className="flex h-36 shrink-0 flex-col lg:h-auto lg:min-h-0 lg:shrink">
+                {mockBooth ? (
+                  <ol aria-label="ตัวอย่างรถเข้าลาน" className="pointer-events-auto -m-2 flex min-h-0 flex-col gap-2 overflow-y-auto p-2">
+                    {MOCK_BOOTH_RIDERS.map(({ slot, rider, fit }) => (
+                      <RiderCard key={slot} rider={rider} number={slot + 1} color={RIDER_COLORS[slot]} guide={riderGuide(rider, fit, slot + 1, "A")} compact={slot > 0} />
+                    ))}
+                  </ol>
+                ) : riders.length === 0 ? <BoothIdle status={clipStatus} /> : (
                   // Newest first; only the list scrolls, so the panel never runs off the screen.
                   <ol aria-label="รถที่เพิ่งเข้าลาน" aria-live="polite" className="pointer-events-auto -m-2 flex min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain p-2">
-                    {riders.map(({ seq, slot, rider }, index) => (
-                      <RiderCard key={seq} rider={rider} number={slot + 1} color={RIDER_COLORS[slot]} guide={riderGuide(rider, riderFit(index), slot + 1)} compact={index > 0} />
-                    ))}
+                    {riders.map(({ seq, slot, rider }, index) => {
+                      const point = markers.find((marker) => marker.id === String(seq))?.point;
+                      const rows = point ? boothRows.filter(({ polygon }) => pointInPolygon(point, polygon)) : [];
+                      const row = rows.length === 1 ? rows[0].letter : undefined;
+                      return <RiderCard key={seq} rider={rider} number={slot + 1} color={RIDER_COLORS[slot]} guide={riderGuide(rider, riderFit(index), slot + 1, row)} compact={index > 0} />;
+                    })}
                   </ol>
                 )}
               </div>
