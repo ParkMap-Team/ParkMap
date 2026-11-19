@@ -124,10 +124,10 @@ the site's existing still-image worker and calibration. Open
 With `PARKMAP_GUARD_BOOTH_CLIP_PATH` also set to a local `.mp4` or `.webm` of
 at most 180 s (operator uploads stay capped at 30 s), the
 Guard Booth page without `?preview=` plays that entrance clip in a panel beside
-the parking map, once per still-image photo: the next photo restarts it (see
-Entrance clip in `CONTEXT.md`). Run the worker with `--hold-s` at least the clip
-length plus the 4 s poll and the worker's analysis time, for example
-`--hold-s 25` for a 17.3 s clip; a shorter hold cuts the clip short. `guard-booth-clip` serves the file with Range support.
+the parking map, looping without pause: each still-image photo restarts it (see
+Entrance clip in `CONTEXT.md`). Run the worker with `--hold-s` about the clip
+length, for example `--hold-s 30` for a 29.9 s clip; a shorter hold cuts the
+clip's end, and a longer one replays its first riders before the next photo. `guard-booth-clip` serves the file with Range support.
 The API runs the Classify Video detector, tracker and ConvNeXt on it at 5
 sampled fps in the background from startup, because that takes minutes on a
 server CPU (over an hour for a 143 s clip on 2 vCPU). It keeps the track evidence in memory and
