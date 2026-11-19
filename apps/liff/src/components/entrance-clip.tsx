@@ -11,9 +11,9 @@ import { cn } from "@/lib/utils";
 // The Guard Booth entrance camera beside the parking map. It reports each rider as the clip reaches
 // the moment that rider enters the booth zone. The page queues those riders; each gets a card under
 // the camera and a numbered pin on the map. Every card has a fixed height, so a change in what it
-// says never moves the camera or the map. With a recorded lot photo the clip plays once per photo
-// (its scene) and waits on its last frame; the next photo restarts it, so the camera and the lot
-// change together.
+// says never moves the camera or the map. The clip loops without pause; each recorded lot photo
+// (its scene) restarts it, so the camera and the lot change together. A loop within one scene
+// replays the same riders with the same requests.
 
 /** What the booth shows while no rider is queued. */
 export type ClipStatus = "classifying" | "waiting" | "unknown";
@@ -27,7 +27,7 @@ class ClassificationPending extends Error {
 
 export function EntranceClip({ siteId, scene, onStatus, onArrival }: {
   siteId: string;
-  /** The lot photo the clip is replayed with; the clip loops on its own until there is one. */
+  /** The lot photo the clip is replayed with; a new photo restarts the clip. */
   scene: string | null | undefined;
   onStatus: (status: ClipStatus) => void;
   onArrival: (rider: GuardBoothRider) => void;
@@ -89,14 +89,14 @@ export function EntranceClip({ siteId, scene, onStatus, onArrival }: {
     : { Icon: Video, text: "ทางเข้า" };
 
   return (
-    <figure className="relative aspect-video shrink-0 overflow-hidden rounded-xl bg-black shadow-sm">
+    <figure className="relative aspect-video max-h-[22dvh] shrink-0 overflow-hidden rounded-xl border border-white/15 bg-[#16151b] shadow-lg lg:max-h-none">
       {!failed && (
         <video
           ref={video}
           src={`/api/sites/${encodeURIComponent(siteId)}/guard-booth-clip`}
           className="size-full object-cover"
           autoPlay
-          loop={!scene}
+          loop
           muted
           playsInline
           preload="auto"
@@ -105,7 +105,7 @@ export function EntranceClip({ siteId, scene, onStatus, onArrival }: {
         />
       )}
       {scene && <div key={scene} aria-hidden className="pointer-events-none absolute inset-0 bg-black/30 opacity-0 backdrop-blur-md motion-safe:animate-scene-blur" />}
-      <figcaption aria-live="polite" className="absolute top-2 left-2 flex items-center gap-1.5 rounded-full bg-black/60 py-1 pr-3 pl-2 text-sm font-semibold text-white backdrop-blur-sm">
+      <figcaption aria-live="polite" className="absolute top-2 left-2 flex items-center gap-1.5 rounded-md bg-[#16151b]/90 px-2.5 py-1 text-xs font-semibold text-white">
         <span key={chip.text} className="flex items-center gap-1.5 motion-safe:animate-content-swap">
           {chip.Icon ? <chip.Icon aria-hidden className="size-4" /> : <Spinner />}
           {chip.text}
@@ -116,20 +116,16 @@ export function EntranceClip({ siteId, scene, onStatus, onArrival }: {
 }
 
 const GUIDE_ICONS: Record<Exclude<RiderGuide["tone"], "wait">, LucideIcon> = { go: MapPin, free: SquareParking, stop: CircleOff };
-const GUIDE_TEXT: Record<RiderGuide["tone"], string> = { go: "", wait: "text-muted-foreground", free: "text-green-700", stop: "text-red-700" };
-/** The large card's instruction is a sign: white on the rider's colour for `go`, on a status colour otherwise. */
-const GUIDE_SIGN: Record<RiderGuide["tone"], string> = { go: "text-white", wait: "bg-muted text-muted-foreground", free: "bg-green-700 text-white", stop: "bg-red-700 text-white" };
+const GUIDE_SIGN: Record<RiderGuide["tone"], string> = { go: "", wait: "text-muted-foreground", free: "text-green-800 dark:text-green-300", stop: "text-red-800 dark:text-red-300" };
 
-/** The instruction's icon: the rider's colour for `go` and a status colour otherwise, or the text colour without `color`. */
-function GuideIcon({ guide, color, className }: { guide: RiderGuide; color?: string; className: string }) {
-  if (guide.tone === "wait") return <Spinner className={cn("border-[3px]", color !== undefined && GUIDE_TEXT.wait, className)} />;
+function GuideIcon({ guide, className }: { guide: RiderGuide; className: string }) {
+  if (guide.tone === "wait") return <Spinner className={cn("border-2", className)} />;
   const Icon = GUIDE_ICONS[guide.tone];
   return (
     <Icon
       aria-hidden
       strokeWidth={2.5}
-      className={cn("shrink-0", color !== undefined && GUIDE_TEXT[guide.tone], guide.tone === "go" && "motion-safe:animate-icon-pop", className)}
-      style={guide.tone === "go" && color !== undefined ? { color } : undefined}
+      className={cn(guide.tone === "go" && "motion-safe:animate-icon-pop", className)}
     />
   );
 }
@@ -142,34 +138,39 @@ function RiderPhoto({ rider, className }: { rider: GuardBoothRider; className: s
 }
 
 /**
- * One queued rider, outlined in its pin colour with its number as large as a sign. The newest rider
+ * One queued rider, identified by the number and colour of its pin. The newest rider
  * gets the large card; earlier riders a compact row. Both keep one height whatever they say.
  */
 export function RiderCard({ rider, number, color, guide, compact = false }: { rider: GuardBoothRider; number: number; color: string; guide: RiderGuide; compact?: boolean }) {
   const title = riderTitle(rider);
-  const outline = { "--tw-ring-color": color } as CSSProperties;
+  const sign = { "--rider-color": color } as CSSProperties;
+  const status = (
+    <p key={guide.tone} className={cn("flex min-w-0 items-center gap-1.5 font-semibold motion-safe:animate-content-swap", compact ? "text-xs leading-tight" : "text-base leading-tight", GUIDE_SIGN[guide.tone])}>
+      <GuideIcon guide={guide} className={cn("shrink-0", compact ? "size-3.5" : "size-5", guide.tone === "go" && "text-[var(--rider-color)] dark:text-foreground")} />
+      <span>{guide.text}</span>
+    </p>
+  );
   if (compact) {
     return (
-      <li aria-label={`รถคันที่ ${number} ${title} ${guide.text}`} className="flex h-14 shrink-0 items-center gap-3 overflow-hidden rounded-xl bg-background pr-3 shadow-sm ring-2 ring-inset motion-safe:animate-rider-settle" style={outline}>
-        <span aria-hidden className="grid h-full w-11 shrink-0 place-items-center text-2xl font-bold text-white" style={{ backgroundColor: color }}>{number}</span>
-        <RiderPhoto rider={rider} className="size-10 rounded-lg" />
-        <p className="min-w-0 flex-1 truncate text-base font-semibold">{title}</p>
-        <GuideIcon key={guide.tone} guide={guide} color={color} className="size-6" />
+      <li aria-label={`รถคันที่ ${number}`} className="flex h-14 shrink-0 items-center gap-2.5 rounded-xl border border-border bg-background px-2.5 shadow-sm motion-safe:animate-rider-settle" style={sign}>
+        <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-md bg-[var(--rider-color)] text-lg font-bold tabular-nums text-white">{number}</span>
+        <RiderPhoto rider={rider} className="size-10 rounded-md" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm leading-tight font-semibold">{title}</p>
+          {status}
+        </div>
       </li>
     );
   }
   return (
-    <li aria-label={`รถคันที่ ${number}`} className="flex h-32 shrink-0 items-center gap-3 rounded-2xl bg-background p-3 shadow-md ring-[3px] ring-inset motion-safe:animate-rider-enter" style={outline}>
-      <div className="relative shrink-0">
-        <RiderPhoto rider={rider} className="size-[6.5rem] rounded-xl" />
-        <span aria-hidden className="absolute -top-1 -left-1 grid size-12 place-items-center rounded-xl text-3xl font-bold text-white ring-[3px] ring-background" style={{ backgroundColor: color }}>{number}</span>
-      </div>
+    <li aria-label={`รถคันที่ ${number}`} className="flex h-32 shrink-0 items-center gap-3 rounded-xl border border-border bg-background p-3 shadow-md motion-safe:animate-rider-enter" style={sign}>
+      <RiderPhoto rider={rider} className="h-full w-16 rounded-lg sm:w-24" />
       <div className="min-w-0 flex-1 space-y-2">
-        <p key={title} className="truncate text-xl font-bold motion-safe:animate-content-swap">{title}</p>
-        <p key={guide.tone} className={cn("flex h-11 items-center gap-2 rounded-xl px-3 text-lg font-bold motion-safe:animate-content-swap", GUIDE_SIGN[guide.tone])} style={guide.tone === "go" ? { backgroundColor: color } : undefined}>
-          <GuideIcon guide={guide} className="size-6" />
-          <span className="truncate">{guide.text}</span>
-        </p>
+        <div className="flex min-w-0 items-center gap-2">
+          <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-lg bg-[var(--rider-color)] text-2xl font-bold tabular-nums text-white">{number}</span>
+          <p key={title} className="text-lg leading-tight font-bold break-words motion-safe:animate-content-swap sm:text-xl">{title}</p>
+        </div>
+        <div className="border-t border-border pt-2">{status}</div>
       </div>
     </li>
   );
@@ -179,7 +180,7 @@ export function RiderCard({ rider, number, color, guide, compact = false }: { ri
 export function BoothIdle({ status }: { status: ClipStatus }) {
   const guide = status === "unknown" ? riderGuide(null, "pending", 0) : null;
   return (
-    <div className="flex h-32 shrink-0 items-center gap-4 rounded-2xl bg-background p-4 shadow-md">
+    <div className="flex h-32 shrink-0 items-center gap-4 rounded-xl border border-border bg-background p-4 shadow-md">
       {guide ? (
         <>
           <SquareParking aria-hidden strokeWidth={2.5} className="size-12 shrink-0 text-green-700" />

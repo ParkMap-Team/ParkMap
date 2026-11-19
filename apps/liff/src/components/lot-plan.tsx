@@ -314,17 +314,21 @@ export default function LotPlan({ map, labels, selection, route, routeReplay, he
                       strokeDasharray={region.kind === "ALMOST_AVAILABLE" ? "6 4" : undefined}
                     />
                   ))}
-                  {area.regions.map((region, index) => (
-                    <path
-                      key={`fill-${index}`}
-                      d={pathOf(view, size, region.polygon)}
-                      fill={region.kind === "UNKNOWN" ? "url(#plan-hatch)" : COLORS[region.kind]}
-                      // A hairline of the fill closes the anti-aliased seam between two cells.
-                      stroke={region.kind === "UNKNOWN" ? "url(#plan-hatch)" : COLORS[region.kind]}
-                      strokeWidth={1}
-                      fillRule="evenodd"
-                    />
-                  ))}
+                  {area.regions.map((region, index) => {
+                    const kind = region.kind;
+                    const fill = kind === "UNKNOWN" ? "url(#plan-hatch)" : COLORS[kind];
+                    return (
+                      <path
+                        key={`fill-${index}`}
+                        d={pathOf(view, size, region.polygon)}
+                        fill={fill}
+                        // A hairline of the fill closes the anti-aliased seam between two cells.
+                        stroke={fill}
+                        strokeWidth={1}
+                        fillRule="evenodd"
+                      />
+                    );
+                  })}
                 </>
               )}
               {area.motorcycles.map(({ proxy, displayProxy, footprint }) => (

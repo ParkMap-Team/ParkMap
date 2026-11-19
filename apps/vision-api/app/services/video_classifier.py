@@ -138,6 +138,7 @@ class TrackEvidence:
     observations: int = 0
     first_time: float = 0
     last_time: float = 0
+    # The crop its leading family scored highest on, so it shows the motorcycle the answer is about.
     preview_url: str | None = None
     path: list[TrackPoint] = field(default_factory=list)
 
@@ -176,6 +177,30 @@ class TrackEvidence:
             top3=top3,
             preview_url=self.preview_url,
         )
+
+
+@dataclass
+class BestCrops:
+    """Per class, the highest score one observation of a track gave it and that observation's crop."""
+
+    scores: list[float] = field(default_factory=list)
+    previews: list[str] = field(default_factory=list)
+
+    def offer(self, scores: list[float], crop: Image.Image) -> None:
+        if not self.scores:
+            self.scores, self.previews = [-math.inf] * len(scores), [""] * len(scores)
+        improved = [index for index, score in enumerate(scores) if score > self.scores[index]]
+        if not improved:
+            return
+        preview = crop.copy()
+        preview.thumbnail(TRACK_CROP_PREVIEW_SIZE)
+        url = encode_preview(preview)
+        for index in improved:
+            self.scores[index], self.previews[index] = scores[index], url
+
+    def preview_for(self, track: TrackEvidence) -> str:
+        """The crop of the track's leading class, the class its summary ranks first."""
+        return self.previews[max(range(len(track.scores)), key=track.scores.__getitem__)]
 
 
 def sample_indices(source_fps: float, frame_count: int, fps: int):
@@ -301,7 +326,7 @@ class ClipEvidence:
 
 
 def classify_clip(path: Path, model_id: str, fps: int) -> VideoClassification:
-    clip = track_clip(path, model_id, fps)
+    clip = track_clip(path, model_id, fps, max_duration_s=MAX_VIDEO_DURATION_SECONDS)
     return VideoClassification(
         model_id=model_id,
         sampled_frames=clip.sampled_frames,
@@ -311,7 +336,7 @@ def classify_clip(path: Path, model_id: str, fps: int) -> VideoClassification:
     )
 
 
-def track_clip(path: Path, model_id: str, fps: int) -> ClipEvidence:
+def track_clip(path: Path, model_id: str, fps: int, *, max_duration_s: float) -> ClipEvidence:
     capture = cv2.VideoCapture(str(path))
     try:
         source_fps = capture.get(cv2.CAP_PROP_FPS)
@@ -336,12 +361,12 @@ def track_clip(path: Path, model_id: str, fps: int) -> ClipEvidence:
                 "Unable to read the video. Export it as MP4 or WebM with a fixed frame rate.",
             )
         if (
-            frame_count / source_fps > MAX_VIDEO_DURATION_SECONDS
+            frame_count / source_fps > max_duration_s
             or width * height > MAX_VIDEO_FRAME_PIXELS
         ):
             raise HTTPException(
                 422,
-                f"Choose a video up to {MAX_VIDEO_DURATION_SECONDS} seconds and {MAX_VIDEO_FRAME_PIXELS / 1_000_000:g} megapixels per frame.",
+                f"Choose a video up to {max_duration_s:g} seconds and {MAX_VIDEO_FRAME_PIXELS / 1_000_000:g} megapixels per frame.",
             )
 
         try:
@@ -358,6 +383,7 @@ def track_clip(path: Path, model_id: str, fps: int) -> ClipEvidence:
             ) from error
         tracker = video_tracker(fps)
         evidence: dict[int, TrackEvidence] = {}
+        best_crops: dict[int, BestCrops] = {}
         sampled = 0
         next_frame = 0
         for index in sample_indices(source_fps, int(frame_count), fps):
@@ -393,9 +419,7 @@ def track_clip(path: Path, model_id: str, fps: int) -> ClipEvidence:
                         scores = crop_probabilities(
                             crop, model, size, padding, transform
                         ).tolist()
-                    if track.preview_url is None:
-                        crop.thumbnail(TRACK_CROP_PREVIEW_SIZE)
-                        track.preview_url = encode_preview(crop)
+                    best_crops.setdefault(track_id, BestCrops()).offer(scores, crop)
                 time = index / source_fps
                 track.add(time, scores)
                 track.path.append(
@@ -405,6 +429,9 @@ def track_clip(path: Path, model_id: str, fps: int) -> ClipEvidence:
                         y=float(box[3]) / frame.shape[0],
                     )
                 )
+        # A track's first crop is often a motorcycle half inside the frame; the leading class's best crop shows it whole.
+        for track_id, track in evidence.items():
+            track.preview_url = best_crops[track_id].preview_for(track)
         return ClipEvidence(sampled_frames=sampled, classes=classes, tracks=evidence)
     finally:
         capture.release()
