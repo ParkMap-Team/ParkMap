@@ -121,7 +121,8 @@ The same recorded preview may be enabled in a deployed environment by setting
 the site's existing still-image worker and calibration. Open
 `/sites/sripatum/guard-booth?preview=known` to run it.
 
-With `PARKMAP_GUARD_BOOTH_CLIP_PATH` also set to a local `.mp4` or `.webm`, the
+With `PARKMAP_GUARD_BOOTH_CLIP_PATH` also set to a local `.mp4` or `.webm` of
+at most 180 s (operator uploads stay capped at 30 s), the
 Guard Booth page without `?preview=` plays that entrance clip in a panel beside
 the parking map, once per still-image photo: the next photo restarts it (see
 Entrance clip in `CONTEXT.md`). Run the worker with `--hold-s` at least the clip

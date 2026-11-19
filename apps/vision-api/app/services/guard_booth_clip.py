@@ -29,6 +29,9 @@ logger = logging.getLogger(__name__)
 CLIP_PATH_ENV = "PARKMAP_GUARD_BOOTH_CLIP_PATH"
 CLIP_ZONE_ENV = "PARKMAP_GUARD_BOOTH_CLIP_ZONE"
 CLIP_SAMPLE_FPS = 5
+# The clip is configured by the operator, not uploaded, so it may run longer than an operator upload.
+# The cap bounds the background tracking time, which grows with the clip length.
+MAX_CLIP_DURATION_S = 180
 # How long a client waits before asking again while the clip is still being tracked.
 CLASSIFICATION_RETRY_S = 5
 # Net ground movement, as a fraction of the frame, between a track's first and last sighting.
@@ -186,7 +189,9 @@ class GuardBoothClipClassifier:
         try:
             # Shares the detector and tracker with the operator video API.
             with video_classifier.VIDEO_LOCK:
-                evidence = video_classifier.track_clip(clip.path, MODEL_ID, CLIP_SAMPLE_FPS)
+                evidence = video_classifier.track_clip(
+                    clip.path, MODEL_ID, CLIP_SAMPLE_FPS, max_duration_s=MAX_CLIP_DURATION_S
+                )
         except Exception as failure:  # A background run has no caller to raise to; the next request reports it.
             logger.exception("Guard Booth clip tracking failed")
             error = failure
