@@ -25,3 +25,4 @@
 - [0022: Nearby parking map](0022-nearby-parking-map.md)
 - [0023: Restore account recommendations and expose the booth display](0023-account-recommendations-and-public-booth.md)
 - [0024: A rider's map paints only free ground, softly](0024-rider-map-shows-no-live-state.md)
+- [0025: Store the Guard Booth clip's track evidence beside it](0025-store-guard-booth-clip-evidence.md)

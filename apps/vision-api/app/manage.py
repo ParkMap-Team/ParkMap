@@ -1,4 +1,4 @@
-"""Operator commands for sites, parking areas, calibrations, lot models, and retention.
+"""Operator commands for sites, parking areas, calibrations, lot models, retention, and the booth clip.
 
     python -m app.manage <command> --help
 
@@ -311,6 +311,33 @@ def publish_dev_state(args: argparse.Namespace) -> str:
     return f"Published {published} synthetic states."
 
 
+def store_guard_booth_clip_evidence(args: argparse.Namespace) -> str:
+    """Track a Guard Booth entrance clip on this machine and store its evidence beside it.
+
+    The API loads the stored file instead of tracking the clip, provided the clip, classifier, detector
+    weights and detector settings here match the API's; otherwise it ignores the file and tracks the clip.
+    """
+    # Imported here so the other commands do not load the video pipeline.
+    from fastapi import HTTPException
+
+    from app.services import guard_booth_clip
+
+    clip = Path(args.clip)
+    if clip.suffix.lower() not in guard_booth_clip.CLIP_MEDIA_TYPES or not clip.is_file():
+        raise CommandError(f"{clip} is not an .mp4 or .webm file.")
+    key = guard_booth_clip.evidence_key(clip)
+    if key is None:
+        raise CommandError(f"Video detector weights are missing: {guard_booth_clip.video_classifier.video_detector.model_path}")
+    try:
+        evidence = guard_booth_clip.stored_or_tracked(clip)
+    except HTTPException as error:
+        raise CommandError(str(error.detail)) from error
+    stored = guard_booth_clip.evidence_path(clip)
+    if guard_booth_clip.load_evidence(stored, key) is None:
+        raise CommandError(f"Evidence could not be stored at {stored}.")
+    return f"Stored evidence of {len(evidence.tracks)} tracks at {stored} for {key.model_dump_json()}"
+
+
 DatabaseCommand = Callable[[Session, argparse.Namespace], str]
 
 
@@ -377,7 +404,11 @@ def build_parser() -> argparse.ArgumentParser:
     command = commands.add_parser("publish-dev-state", help="publish the fake SYNTHETIC_FIXTURE state through the ingest API")
     command.add_argument("--interval-s", type=float, default=3.0)
     command.add_argument("--once", action="store_true")
-    command.set_defaults(handler=None)
+    command.set_defaults(handler=None, run=publish_dev_state)
+
+    command = commands.add_parser("store-guard-booth-clip-evidence", help="track a Guard Booth entrance clip here and store its evidence beside it for the API")
+    command.add_argument("--clip", required=True)
+    command.set_defaults(handler=None, run=store_guard_booth_clip_evidence)
     return parser
 
 
@@ -386,7 +417,7 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     args = build_parser().parse_args(argv)
     try:
-        message = publish_dev_state(args) if args.handler is None else run_database_command(args.handler, args)
+        message = args.run(args) if args.handler is None else run_database_command(args.handler, args)
     except (CommandError, CalibrationFilesUnavailableError, DatabaseNotConfiguredError, ValidationError) as error:
         logger.error("%s", error)
         return 1
