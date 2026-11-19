@@ -10,13 +10,15 @@ The worker and the API read one directory on the VPS:
 /srv/parkmap-demo/
   config/   ground_plane_calibration.json, ground_plane_homography.json, parking_calibration.json
   models/   best.pt, yolo11m-seg.pt
-  photos/   20261021_120138.jpg, the one Sripatum photo the worker shows
+  photos/   20261021_114901.jpg, the one Sripatum photo the worker shows
   photos-archive-20260925/   the seven 2026-09-25 photos, not mounted
 ```
 
 The worker loops over every photo in `photos/`; with one photo it shows that photo continuously. To return to the seven-photo loop, move the archived photos back into `photos/` and restart `parkmap-worker`.
 
-Photo names start with the local capture time (`YYYYMMDD_HHMM[SS]`, UTC+07:00). The worker cannot decode HEIC, so convert iPhone photos to JPEG first, named from the capture time, for example `sips -s format jpeg -s formatOptions 95 IMG.HEIC --out 20261021_120138.jpg`.
+Photo names start with the local capture time (`YYYYMMDD_HHMM[SS]`, UTC+07:00). The worker cannot decode HEIC, so convert iPhone photos to JPEG first, named from the capture time, for example `sips -s format jpeg -s formatOptions 95 IMG.HEIC --out 20261021_114901.jpg`.
+
+A new photo shares the calibration only when its viewpoint drift stays within the original seven photos' drift. Measure it by mapping the control points from the reference photo `20260925_0931` into the new photo through a SIFT/RANSAC image homography, then projecting both through the ground homography: the original seven drift up to 0.69 m RMSE and 0.90 m max (`20260925_1100`).
 
 Root owns it, and containers run as uid 10001, so both containers can read it and neither can write to it. That keeps the files `register-calibration` fingerprints identical to the files the worker uses.
 
@@ -119,4 +121,4 @@ Production lists only real sites. Once the Sripatum area shows `DEMO` in the LIF
 | 2026-10-15 | Copied the calibration files, `best.pt`, and the seven photos to `/srv/parkmap-demo`; created `parkmap-worker` with its mounts and variables; added the config mount to `parkmap-api` | Sayhigh, Claude Code |
 | 2026-10-15 | Registered `sripatum` and `sripatum-near-lot` (lot model version 1, calibration `files-sha256:5cd7805c…`); the area reports `DEMO` | Sayhigh, Claude Code |
 | 2026-10-15 | Deleted `parkmap-dev-publisher`, the `seed-dev (run once)` task, and `COOLIFY_APP_DEV_PUBLISHER`; removed `dev-site`. `GET /api/sites` lists only `sripatum` | Sayhigh, Claude Code |
-| 2026-11-20 | Replaced the seven-photo loop with one photo, `20261021_120138.jpg` (4032 x 3024, converted from HEIC); moved the seven photos to `photos-archive-20260925`; restarted `parkmap-worker`. The new view is offset 20-30 px from 2026-09-25 1131, within the 25 px spread of the original seven, so the calibration is unchanged | Sayhigh, Claude Code |
+| 2026-11-20 | Replaced the seven-photo loop with one photo (4032 x 3024, converted from HEIC); moved the seven photos to `photos-archive-20260925`; restarted `parkmap-worker`. `20261021_120138.jpg` (drift 0.28 m RMSE, 0.41 m max) was replaced the same day by `20261021_114901.jpg` (0.58 m RMSE, 0.82 m max) because the crowded 12:01 view produced wrong detections. Both stay within the original seven's drift, so the calibration is unchanged | Sayhigh, Claude Code |
