@@ -42,7 +42,8 @@ CLASSIFICATION_RETRY_S = 5
 MIN_RIDER_TRAVEL = 0.15
 CLIP_MEDIA_TYPES = {suffix: media_type for media_type, suffix in VIDEO_FORMATS.items()}
 # Bump when a pipeline change alters the evidence of an unchanged clip, so stored evidence is tracked again.
-EVIDENCE_FORMAT = 1
+# 2: a track's preview is its leading family's best crop, not its first.
+EVIDENCE_FORMAT = 2
 
 RiderReason = Literal["CLASSIFIED", "UNCERTAIN"]
 

@@ -1,3 +1,4 @@
+import base64
 import json
 from io import BytesIO
 from types import SimpleNamespace
@@ -296,6 +297,40 @@ def test_operator_upload_tracks_two_motorcycles_across_sampled_frames(
         ("Red", 3, 1.0),
         ("Blue", 3, 1.0),
     ]
+
+
+def test_track_preview_is_the_crop_its_leading_family_scored_highest(monkeypatch, tmp_path):
+    """Not the first crop, often half outside the frame, nor a confident crop of another family."""
+    path = tmp_path / "one.mp4"
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), 10.0, (160, 80))
+    assert writer.isOpened()
+    try:
+        for color in [(0, 0, 255)] * 5 + [(0, 255, 0)] * 5 + [(255, 0, 0)] * 5:
+            frame = np.zeros((80, 160, 3), dtype=np.uint8)
+            frame[20:60, 60:100] = color
+            writer.write(frame)
+    finally:
+        writer.release()
+
+    def detect(frame, *, max_detections, detection_only):
+        return [SimpleNamespace(boxes=Boxes(torch.tensor([[60, 20, 100, 60, 0.9, 0]]), (80, 160)))]
+
+    def dominant(image):
+        return int(np.argmax(image.getpixel((image.width // 2, image.height // 2))))
+
+    # Sampled frames: red, a confident Red; green, its most confident Red; blue, a more confident Blue.
+    scores = {0: [0.60, 0.40], 1: [0.95, 0.05], 2: [0.02, 0.98]}
+    monkeypatch.setattr(video_classifier.video_detector, "predict_frame", detect)
+    monkeypatch.setattr(
+        video_classifier, "load_model", lambda *_, **__: (None, ["Red", "Blue"], 224, (0, 0, 0), None)
+    )
+    monkeypatch.setattr(video_classifier, "crop_probabilities", lambda crop, *_: torch.tensor(scores[dominant(crop)]))
+    clip = video_classifier.track_clip(path, "model", 2, max_duration_s=30)
+
+    [(track_id, track)] = clip.tracks.items()
+    assert track.summary(track_id, clip.classes).top3[0].family == "Red"
+    preview = Image.open(BytesIO(base64.b64decode(track.preview_url.removeprefix("data:image/jpeg;base64,"))))
+    assert dominant(preview.convert("RGB")) == 1
 
 
 def test_clip_length_is_capped_by_the_caller(monkeypatch, tmp_path):
