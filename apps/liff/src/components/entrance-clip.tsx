@@ -11,9 +11,9 @@ import { cn } from "@/lib/utils";
 // The Guard Booth entrance camera beside the parking map. It reports each rider as the clip reaches
 // the moment that rider enters the booth zone. The page queues those riders; each gets a card under
 // the camera and a numbered pin on the map. Every card has a fixed height, so a change in what it
-// says never moves the camera or the map. With a recorded lot photo the clip plays once per photo
-// (its scene) and waits on its last frame; the next photo restarts it, so the camera and the lot
-// change together.
+// says never moves the camera or the map. The clip loops without pause; each recorded lot photo
+// (its scene) restarts it, so the camera and the lot change together. A loop within one scene
+// replays the same riders with the same requests.
 
 /** What the booth shows while no rider is queued. */
 export type ClipStatus = "classifying" | "waiting" | "unknown";
@@ -27,7 +27,7 @@ class ClassificationPending extends Error {
 
 export function EntranceClip({ siteId, scene, onStatus, onArrival }: {
   siteId: string;
-  /** The lot photo the clip is replayed with; the clip loops on its own until there is one. */
+  /** The lot photo the clip is replayed with; a new photo restarts the clip. */
   scene: string | null | undefined;
   onStatus: (status: ClipStatus) => void;
   onArrival: (rider: GuardBoothRider) => void;
@@ -96,7 +96,7 @@ export function EntranceClip({ siteId, scene, onStatus, onArrival }: {
           src={`/api/sites/${encodeURIComponent(siteId)}/guard-booth-clip`}
           className="size-full object-cover"
           autoPlay
-          loop={!scene}
+          loop
           muted
           playsInline
           preload="auto"
