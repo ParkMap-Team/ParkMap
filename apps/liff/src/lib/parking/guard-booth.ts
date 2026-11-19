@@ -104,14 +104,14 @@ export type RiderFit = "no-frame" | "pending" | "failed" | "no-space" | "placed"
 export type RiderGuide = { tone: "go" | "wait" | "free" | "stop"; text: string };
 
 /** One short instruction per rider; a rider without a placement of its own is sent to the free space. */
-export function riderGuide(rider: GuardBoothRider | null, fit: RiderFit, number: number): RiderGuide {
+export function riderGuide(rider: GuardBoothRider | null, fit: RiderFit, number: number, row?: string): RiderGuide {
   if (!rider || !entranceClipOutcome(rider).fitFamily) return { tone: "free", text: "จอดในพื้นที่สีเขียว" };
   switch (fit) {
     case "pending": return { tone: "wait", text: "กำลังหาที่จอด" };
     case "no-frame":
     case "failed": return { tone: "stop", text: "หาที่จอดไม่ได้" };
     case "no-space": return { tone: "stop", text: "ไม่มีที่ว่างพอสำหรับรุ่นนี้" };
-    case "placed": return { tone: "go", text: `ไปที่หมุด ${number}` };
+    case "placed": return { tone: "go", text: row ? `ไปแถว ${row} · หมุด ${number}` : `ไปที่หมุด ${number}` };
   }
 }
 

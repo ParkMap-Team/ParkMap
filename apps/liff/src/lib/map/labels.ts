@@ -32,6 +32,7 @@ export const LABEL_PRIORITY = {
   GUARD_BOOTH: 80,
   BUILDING: 60,
   AREA: 50,
+  PARKING_ROW: 55,
   BARRIER: 40,
   PLANTING: 40,
   AISLE: 30,
@@ -39,7 +40,7 @@ export const LABEL_PRIORITY = {
   ROAD: 20,
   WALKWAY: 20,
   TREE: 10,
-} as const satisfies Record<LandmarkKind | "DESTINATION" | "SELECTED" | "AREA", number>;
+} as const satisfies Record<LandmarkKind | "DESTINATION" | "SELECTED" | "AREA" | "PARKING_ROW", number>;
 
 /** Small features wait for a closer zoom so the overview stays readable. */
 export const LABEL_MIN_ZOOM = {
@@ -51,6 +52,7 @@ export const LABEL_MIN_ZOOM = {
   GUARD_BOOTH: 0,
   BUILDING: 0,
   AREA: 0,
+  PARKING_ROW: 0,
   BARRIER: 1.4,
   PLANTING: 1.4,
   AISLE: 1.4,

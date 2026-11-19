@@ -145,7 +145,9 @@ function usePatterns() {
     // The asphalt's grain on white: a status colour tinted by it reads as paint on the same paving.
     const paint = asphalt("#ffffff");
     paint.anisotropy = paving.anisotropy;
-    return { hatch: hatch(), dots: dots(), asphalt: paving, paint };
+    const freePaint = asphalt("#ffffff", 0.55);
+    freePaint.anisotropy = paving.anisotropy;
+    return { hatch: hatch(), dots: dots(), asphalt: paving, paint, freePaint };
   }, [gl]);
   useEffect(() => () => Object.values(patterns).forEach((texture) => texture.dispose()), [patterns]);
   return patterns;
@@ -388,7 +390,7 @@ function Ground({
   onSelect(point: MetricPoint | null): void;
   onReady(): void;
 }) {
-  const { hatch, dots, asphalt, paint } = usePatterns();
+  const { hatch, dots, asphalt, paint, freePaint } = usePatterns();
   const { minX, minY, maxX, maxY } = map.site;
   const site = useMemo(
     (): MetricPolygon => [
@@ -434,27 +436,32 @@ function Ground({
           {plain ? (
             <FreeShadow regions={area.regions} />
           ) : (
-            area.regions.map((region, index) => (
-              <group key={index}>
-                <Surface
-                  polygon={region.polygon}
-                  height={HEIGHT.region}
-                  color={region.kind === "UNKNOWN" ? undefined : statusPaint(COLORS[region.kind])}
-                  map={region.kind === "UNKNOWN" ? hatch : paint}
-                  statusOrder={STATUS_ORDER.region}
-                />
-                {region.kind !== "UNKNOWN" && (
-                  <Outline
+            area.regions.map((region, index) => {
+              const kind = region.kind;
+              const free = kind === "AVAILABLE" || kind === "WIDTH_SUFFICIENT";
+              return (
+                <group key={index}>
+                  <Surface
                     polygon={region.polygon}
                     height={HEIGHT.region}
-                    color={region.kind === "OCCUPIED" ? COLORS.OCCUPIED : (region.kind === "AVAILABLE" || region.kind === "WIDTH_SUFFICIENT") ? COLORS.AVAILABLE_STROKE : COLORS.ALMOST_AVAILABLE_STROKE}
-                    width={3}
-                    dashed={region.kind === "ALMOST_AVAILABLE"}
-                    statusOrder={STATUS_ORDER.regionStroke}
+                    color={kind === "UNKNOWN" ? undefined : statusPaint(COLORS[kind])}
+                    map={kind === "UNKNOWN" ? hatch : free ? freePaint : paint}
+                    statusOrder={STATUS_ORDER.region}
                   />
-                )}
-              </group>
-            ))
+                  {region.kind !== "UNKNOWN" && (
+                    <Outline
+                      polygon={region.polygon}
+                      height={HEIGHT.region}
+                      color={free ? COLORS.AVAILABLE_STROKE : kind === "OCCUPIED" ? COLORS.OCCUPIED : COLORS.ALMOST_AVAILABLE_STROKE}
+                      highlight={free ? "#3cae70" : undefined}
+                      width={free ? 2.5 : 3}
+                      dashed={region.kind === "ALMOST_AVAILABLE"}
+                      statusOrder={STATUS_ORDER.regionStroke}
+                    />
+                  )}
+                </group>
+              );
+            })
           )}
         </group>
       ))}

@@ -1,8 +1,9 @@
 "use client";
 
 import { Line } from "@react-three/drei";
-import { useMemo } from "react";
-import { CanvasTexture, Path, RepeatWrapping, SRGBColorSpace, Shape, Vector2 } from "three";
+import { useFrame, useThree } from "@react-three/fiber";
+import { type ComponentRef, useEffect, useMemo, useRef } from "react";
+import { CanvasTexture, Color, Path, RepeatWrapping, SRGBColorSpace, Shape, Vector2 } from "three";
 import type { MetricPolygon } from "@/lib/api/types";
 import { toWorld } from "@/lib/map/geometry";
 
@@ -56,12 +57,13 @@ const ASPHALT = { tileM: 8, px: 256, patches: 28, aggregate: 9000 };
  * Asphalt over an 8 m tile: broad, faint patches of wear under fine light and dark aggregate. A
  * patch is drawn again across every edge it crosses, so the tile repeats without a seam.
  */
-export function asphalt(background: string): CanvasTexture {
+export function asphalt(background: string, grainStrength = 1): CanvasTexture {
   const { px } = ASPHALT;
   const random = grain(ASPHALT.px + ASPHALT.patches);
   return pattern(
     background,
     (context) => {
+      context.globalAlpha = grainStrength;
       for (let index = 0; index < ASPHALT.patches; index += 1) {
         const [x, y] = [random() * px, random() * px];
         const radius = (0.08 + random() * 0.17) * px;
@@ -116,6 +118,7 @@ export function Outline({
   color,
   width,
   dashed = false,
+  highlight,
   statusOrder,
 }: {
   polygon: MetricPolygon;
@@ -123,10 +126,40 @@ export function Outline({
   color: string;
   width: number;
   dashed?: boolean;
+  highlight?: string;
   statusOrder?: number;
 }) {
   const points = useMemo(() => polygon[0].concat(polygon[0][0]).map((point) => toWorld(point, height)), [polygon, height]);
+  if (highlight) return <RevealingOutline points={points} color={color} highlight={highlight} width={width} statusOrder={statusOrder} />;
   return (
     <Line points={points} color={color} lineWidth={width} dashed={dashed} dashSize={0.3} gapSize={0.2} renderOrder={statusOrder ?? 0} depthTest={statusOrder === undefined} />
   );
+}
+
+/** One short reveal, then the demand-rendered map can go idle again. */
+function RevealingOutline({ points, color, highlight, width, statusOrder }: {
+  points: ReturnType<typeof toWorld>[];
+  color: string;
+  highlight: string;
+  width: number;
+  statusOrder?: number;
+}) {
+  const line = useRef<ComponentRef<typeof Line>>(null);
+  const startedAt = useRef<number | null>(null);
+  const invalidate = useThree((state) => state.invalidate);
+  const base = useMemo(() => new Color(color), [color]);
+  const accent = useMemo(() => new Color(highlight), [highlight]);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    startedAt.current = performance.now();
+    invalidate();
+  }, [invalidate]);
+  useFrame(() => {
+    if (startedAt.current === null || !line.current) return;
+    const progress = Math.min(1, (performance.now() - startedAt.current) / 1200);
+    line.current.material.color.copy(base).lerp(accent, Math.sin(progress * Math.PI));
+    if (progress < 1) invalidate();
+    else startedAt.current = null;
+  });
+  return <Line ref={line} points={points} color={color} lineWidth={width} renderOrder={statusOrder ?? 0} depthTest={statusOrder === undefined} />;
 }

@@ -3,8 +3,9 @@ import { guardBoothFitEnabled } from "@/lib/parking/guard-booth-server";
 
 export default async function GuardBoothPage({ params, searchParams }: PageProps<"/sites/[siteId]/guard-booth">) {
   const [{ siteId }, { preview }] = await Promise.all([params, searchParams]);
+  const mockBooth = process.env.NODE_ENV === "development" && preview === "mock";
   const guardBooth = preview === "known" ? "preview" : preview === "unknown" ? "unknown" : "waiting";
   const fitPreviewEnabled = siteId === "sripatum" && guardBoothFitEnabled();
   // Without a test preview, the recorded preview plays the entrance clip and names the model.
-  return <SitePage siteId={siteId} guardBooth={guardBooth} fitPreviewEnabled={fitPreviewEnabled} entranceClip={fitPreviewEnabled && guardBooth === "waiting"} />;
+  return <SitePage siteId={siteId} guardBooth={guardBooth} fitPreviewEnabled={fitPreviewEnabled && !mockBooth} entranceClip={mockBooth || (fitPreviewEnabled && guardBooth === "waiting")} mockBooth={mockBooth} />;
 }

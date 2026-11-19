@@ -139,6 +139,8 @@ function LabelBody({ label }: { label: PlacedLabel }) {
       );
     case "AREA":
       return <span className="text-xs font-semibold text-[#1e293b] [text-shadow:0_0_3px_#fff,0_0_3px_#fff,0_0_3px_#fff]">{label.text}</span>;
+    case "PARKING_ROW":
+      return <span className="grid size-6 place-items-center rounded-md border border-white/60 bg-[#16151b] text-sm font-bold text-white shadow-sm">{label.text}</span>;
     default:
       return <span className="text-xs text-[#1e293b] [text-shadow:0_0_3px_#fff,0_0_3px_#fff,0_0_3px_#fff]">{label.text}</span>;
   }
