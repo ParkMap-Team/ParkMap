@@ -113,13 +113,13 @@ def _recorded_preview(area: ParkingAreaLiveState) -> bool:
     return area.status == "DEMO" and area.source == "STILL_IMAGE_LOOP"
 
 
-def _preview_bands(area: ParkingAreaLiveState, blocked: list[MetricPolygon] | None):
+def _preview_bands(area: ParkingAreaLiveState, blocked: list[MetricPolygon] | None, *, routed_only: bool = True):
     """Each width band the guide may use, as (region, aisle, row direction, band in its row, free part).
 
     Ground a neighbouring row's outline also covers is cut from the band: it is not this row's to offer,
     and a neighbour's motorcycle reaching into it must not block a slot across this row."""
     outlines = {r.row_id: polygon_shape(r.polygon) for r in area.regions if r.kind == "UNKNOWN" and r.row_id}
-    rows = {row_id: row for row_id, row in outlines.items() if row_id in AISLES}
+    rows = {row_id: row for row_id, row in outlines.items() if not routed_only or row_id in AISLES}
     occupied = unary_union([
         *[polygon_shape(r.display_polygon or r.polygon) for r in area.regions if r.kind == "OCCUPIED"],
         *[polygon_shape(polygon) for polygon in blocked or []],
@@ -128,8 +128,9 @@ def _preview_bands(area: ParkingAreaLiveState, blocked: list[MetricPolygon] | No
         if region.kind != "WIDTH_SUFFICIENT" or region.row_id not in rows:
             continue
         # These bands illustrate dimension fitting in recorded preview only.
-        # A region flagged as potentially occluded stays out even in preview.
-        if set(region.reasons) - {"FOOTPRINT_NOT_PROVEN", "LOCAL_ROW_UNCERTAINTY"}:
+        # Width-only preview ignores the occlusion advisory; keep it in the
+        # returned reasons and still subtract detected occupancy and holds below.
+        if set(region.reasons) - {"FOOTPRINT_NOT_PROVEN", "LOCAL_ROW_UNCERTAINTY", "GROUND_MAY_BE_OCCLUDED"}:
             continue
         row = rows[region.row_id]
         if not row.is_valid or row.area == 0:
@@ -142,7 +143,7 @@ def _preview_bands(area: ParkingAreaLiveState, blocked: list[MetricPolygon] | No
         ))
         if available.is_empty:
             continue
-        yield region, AISLES[region.row_id], _row_direction(row), available, available.difference(occupied)
+        yield region, AISLES.get(region.row_id), _row_direction(row), available, available.difference(occupied)
 
 
 def _slot_width(family: str, scale: float) -> float:
@@ -151,15 +152,15 @@ def _slot_width(family: str, scale: float) -> float:
 
 def free_ground_for(area: ParkingAreaLiveState, family: str, scale: float, blocked: list[MetricPolygon] | None = None) -> ParkingAreaLiveState:
     """A rider's free ground on the recorded preview: only the free parts of width bands where `family`
-    fits a frame the guide can route to, so the map never shows room the guide would refuse (ADR 0024).
+    fits by width, independently of the guide's supported rows and access (ADR 0024).
     Any other state keeps its reported free ground."""
     if not _recorded_preview(area):
         return area
     width = _slot_width(family, scale)
     regions = [r for r in area.regions if r.kind not in ("AVAILABLE", "WIDTH_SUFFICIENT")]
-    for region, _, angle, available, free in _preview_bands(area, blocked):
+    for region, _, angle, available, free in _preview_bands(area, blocked, routed_only=False):
         for part in get_parts(free):
-            if isinstance(part, Polygon) and any(slot.centroid.x < RIGHT_ACCESS_X for slot in fit_slots(part, available, width, angle)):
+            if isinstance(part, Polygon) and fit_slots(part, available, width, angle):
                 rings = [part.exterior, *part.interiors]
                 polygon = [[MetricGroundPoint(x_m=x, y_m=y) for x, y in list(ring.coords)[:-1]] for ring in rings]
                 regions.append(region.model_copy(update={"polygon": polygon, "display_polygon": None}))

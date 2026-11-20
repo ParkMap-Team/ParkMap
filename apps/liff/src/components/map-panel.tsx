@@ -127,6 +127,7 @@ function Legend({ present, onShow }: { present: Set<MapStatus>; onShow(status: M
           </li>
         ))}
       </ul>
+      {present.has("WIDTH_SUFFICIENT") && <p className="mt-2 text-xs text-muted-foreground">{STATUS_TEXT.WIDTH_SUFFICIENT.detail}</p>}
     </section>
   );
 }

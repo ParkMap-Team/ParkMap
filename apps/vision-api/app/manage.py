@@ -218,11 +218,11 @@ def _setup_differences(session: Session, config_dir: Path) -> list[str]:
     )
     weights = segmentation_model_path()
     if not weights.is_file():
-        differences.append(f"segmentation weights {weights} are missing; run scripts/download_segmentation_weights.py")
+        differences.append(f"segmentation weights {weights} are missing; restore the local YOLO26n Seg Round 8 checkpoint")
     else:
         with weights.open("rb") as stream:
             if hashlib.file_digest(stream, "sha256").hexdigest() != SEGMENTATION_WEIGHTS_SHA256:
-                differences.append(f"segmentation weights {weights} are not the pinned yolo11m-seg.pt")
+                differences.append(f"segmentation weights {weights} are not the pinned YOLO26n Seg Round 8 checkpoint")
     return differences
 
 

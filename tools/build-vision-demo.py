@@ -23,6 +23,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tag", default="parkmap-vision-demo:demo-v1")
     parser.add_argument("--platform", choices=("linux/amd64", "linux/arm64"))
+    parser.add_argument("--segmentation-only", action="store_true", help="Package shared YOLO26n Seg weights without detector/classifier checkpoints")
     args = parser.parse_args()
 
     classifier = CLASSIFIER_RUNS.with_name("runs-class-project") / MODEL_ID / "best.pt"
@@ -33,6 +34,10 @@ def main() -> int:
         "seg_weight": SEGMENTATION_WEIGHTS,
         "convnext_weight": classifier,
     }
+    if args.segmentation_only:
+        checkpoints = {
+            "seg_weight": SEGMENTATION_WEIGHTS,
+        }
     missing = [
         str(checkpoint)
         for checkpoint in checkpoints.values()
@@ -47,7 +52,7 @@ def main() -> int:
         "build",
         "--load",
         "--target",
-        "demo",
+        "segmentation" if args.segmentation_only else "demo",
         "--tag",
         args.tag,
     ]

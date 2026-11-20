@@ -33,7 +33,7 @@ def test_a_hole_anywhere_across_the_depth_blocks_the_slot():
     assert all(covers(free, slot) and slot.intersection(blocked).area == 0 for slot in slots)
 
 
-def test_recorded_preview_routes_a_small_frame_and_excludes_occluded_bands():
+def test_recorded_preview_uses_width_despite_occlusion_flag_but_keeps_stale_and_hold_gates():
     polygon = [[MetricGroundPoint(x_m=x, y_m=y) for x, y in [(5, 0), (9, 0), (9, 2), (5, 2)]]]
     band = LiveRegion(kind="WIDTH_SUFFICIENT", row_id="row_5", polygon=polygon, width_m=4)
     state = ParkingAreaLiveState(parking_area_id="area", status="DEMO", source="STILL_IMAGE_LOOP", regions=[
@@ -48,6 +48,11 @@ def test_recorded_preview_routes_a_small_frame_and_excludes_occluded_bands():
     assert small.route[-3].y_m == small.route[-2].y_m == 3.2
     assert fit_recorded_preview(state.model_copy(update={"status": "STALE"}), "grand_filano", entrance, scale=1).polygon is None
     band.reasons = ["GROUND_MAY_BE_OCCLUDED"]
+    assert fit_recorded_preview(state, "grand_filano", entrance, scale=1).polygon is not None
+    free = [r for r in free_ground_for(state, "grand_filano", scale=1).regions if r.kind == "WIDTH_SUFFICIENT"]
+    assert free and "GROUND_MAY_BE_OCCLUDED" in free[0].reasons
+    assert not any(r.kind == "WIDTH_SUFFICIENT" for r in free_ground_for(state, "grand_filano", scale=1, blocked=[polygon]).regions)
+    band.reasons = ["CALIBRATION_UNAVAILABLE"]
     assert fit_recorded_preview(state, "grand_filano", entrance, scale=1).polygon is None
 
 
@@ -76,7 +81,7 @@ def test_only_width_decides_a_fit_and_a_longer_frame_is_drawn_at_the_band_depth(
     assert fit_recorded_preview(gap, "forza", entrance, scale=1).polygon is None
 
 
-def test_a_riders_free_ground_is_only_where_the_guide_could_place_that_model():
+def test_a_riders_free_ground_includes_unrouted_rows_but_still_requires_model_width():
     def rect(x0, x1, y0=0.0, y1=1.9):
         return [[MetricGroundPoint(x_m=x, y_m=y) for x, y in [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]]]
 
@@ -98,9 +103,15 @@ def test_a_riders_free_ground_is_only_where_the_guide_could_place_that_model():
         return [r for r in area.regions if r.kind in ("AVAILABLE", "WIDTH_SUFFICIENT")]
 
     small = free_ground_for(state, "grand_filano", scale=1)
-    assert [(r.kind, r.row_id) for r in free(small)] == [("WIDTH_SUFFICIENT", "row_5")]
-    assert polygon_shape(small.regions[-1].polygon).equals(polygon_shape(state.regions[3].polygon))
-    assert free_ground_for(state, "forza", scale=1).regions == [r for r in state.regions if r not in free(state)]
+    from app.services.parking_holds import rider_free_ground
+    assert [r.row_id for r in free(rider_free_ground(state, "grand_filano", scale=1))] == ["row_5", "row_5", "row_1"]
+    assert [r.row_id for r in free(small)] == ["row_5", "row_5", "row_1"]
+    assert polygon_shape(free(small)[0].polygon).equals(polygon_shape(state.regions[3].polygon))
+    large = free_ground_for(state, "forza", scale=1)
+    assert [r.row_id for r in free(large)] == ["row_5", "row_1"]
+    # Displaying unrouted ground must not invent a navigation route to it.
+    unrouted = state.model_copy(update={"regions": [r for r in state.regions if r.row_id == "row_1"]})
+    assert fit_recorded_preview(unrouted, "grand_filano", MetricGroundPoint(x_m=21.5, y_m=-21), scale=1).polygon is None
     # The occupied rows and row outlines are never touched.
     assert [r for r in small.regions if r not in free(small)] == [r for r in state.regions if r not in free(state)]
     # Live or stale states keep exactly what the backend reported.
