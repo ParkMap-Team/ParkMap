@@ -28,7 +28,7 @@ Amended 2026-11-20 at the owner's request: rider-map filtering now belongs to
 `rider_map_fitting.py`, with its own `RIDER_CLEARANCE_M = 0.0` policy at the
 owner's request: main-map width previews add no lateral clearance. Guard
 Booth placement and routing stay in `guard_booth_fitting.py`, with independent
-`GUARD_BOOTH_CLEARANCE_M = 0.05` and its existing row/access restrictions.
+`GUARD_BOOTH_CLEARANCE_M = 0.0` and its existing row/access restrictions.
 LINE recommendations independently use `rider_recommendation.py`, including
 their own `AISLES`, `RIGHT_ACCESS_X`, `ENTRANCE_LANE_Y` and hold duration; they
 use the rider's zero-clearance policy. Shared geometry and API transport types

@@ -10,7 +10,7 @@ AISLES = {"row_2": 10.2, "row_3": 10.2, "row_4": 3.2, "row_5": 3.2}
 RIGHT_ACCESS_X = 28.9
 ENTRANCE_LANE_Y = -8.0
 HOLD_DURATION = timedelta(minutes=2)
-GUARD_BOOTH_CLEARANCE_M = 0.05
+GUARD_BOOTH_CLEARANCE_M = 0.0
 
 
 def fit_recorded_preview(area: ParkingAreaLiveState, family: str, entrance: MetricGroundPoint, scale: float, blocked: list[MetricPolygon] | None = None, preferred: MetricPolygon | None = None) -> GuardBoothFit:

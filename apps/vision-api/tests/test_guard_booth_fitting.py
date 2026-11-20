@@ -30,6 +30,16 @@ def test_recorded_preview_uses_width_despite_occlusion_flag_but_keeps_stale_and_
     assert fit_recorded_preview(state, "grand_filano", entrance, scale=1).polygon is None
 
 
+def test_default_guard_booth_width_adds_no_clearance():
+    polygon = [[MetricGroundPoint(x_m=x, y_m=y) for x, y in [(5, 0), (5.71, 0), (5.71, 1.9), (5, 1.9)]]]
+    state = ParkingAreaLiveState(parking_area_id="area", status="DEMO", source="STILL_IMAGE_LOOP", regions=[
+        LiveRegion(kind="UNKNOWN", row_id="row_5", polygon=polygon),
+        LiveRegion(kind="WIDTH_SUFFICIENT", row_id="row_5", polygon=polygon, width_m=.71),
+    ])
+    # Scoopy's .693 m reference fits .71 m only when no .05 m margin is added.
+    assert fit_recorded_preview(state, "scoopy", MetricGroundPoint(x_m=21.5, y_m=-21), scale=1).polygon is not None
+
+
 def test_only_width_decides_a_fit_and_a_longer_frame_is_drawn_at_the_band_depth():
     polygon = [[MetricGroundPoint(x_m=x, y_m=y) for x, y in [(5, 0), (9, 0), (9, 1.9), (5, 1.9)]]]
     entrance = MetricGroundPoint(x_m=21.5, y_m=-21)
@@ -47,12 +57,13 @@ def test_only_width_decides_a_fit_and_a_longer_frame_is_drawn_at_the_band_depth(
     assert long.polygon is not None and long.length_m == 2.171
     assert polygon_shape(polygon).covers(polygon_shape(long.polygon))
 
-    # A 0.8 m gap takes Grand Filano (0.685 + 0.05 m) but not Forza (0.772 + 0.05 m).
+    # With zero clearance, a 0.8 m gap takes Grand Filano (.685 m) and Forza (.772 m).
     gap = state((5, 6), (6.8, 9))
     narrow = fit_recorded_preview(gap, "grand_filano", entrance, scale=1)
     assert narrow.polygon is not None
-    assert all(6 <= point.x_m <= 6.8 for point in narrow.polygon[0])
-    assert fit_recorded_preview(gap, "forza", entrance, scale=1).polygon is None
+    assert all(6 - 1e-9 <= point.x_m <= 6.8 + 1e-9 for point in narrow.polygon[0])
+    assert fit_recorded_preview(gap, "forza", entrance, scale=1).polygon is not None
+    assert fit_recorded_preview(gap, "hd_road_glide", entrance, scale=1).polygon is None
 
 
 def test_a_riders_free_ground_includes_unrouted_rows_but_still_requires_model_width():
@@ -108,13 +119,14 @@ def test_length_never_decides_a_fit_in_a_row_that_narrows():
     entrance = MetricGroundPoint(x_m=21.5, y_m=-21)
 
     # The 0.8 m gap is shallower than the row's mean depth. Click (0.679 m wide, 1.92 m long) and
-    # Grand Filano (0.685 m, 1.82 m) fit by width alike; Forza (0.772 + 0.05 m) is too wide.
+    # Grand Filano (0.685 m, 1.82 m) and Forza (.772 m wide) fit without extra clearance.
     for family in ("click", "grand_filano"):
         fit = fit_recorded_preview(state, family, entrance, scale=1)
         assert fit.polygon is not None and all(10 <= point.x_m <= 10.8 for point in fit.polygon[0])
         assert any(r.kind == "WIDTH_SUFFICIENT" for r in free_ground_for(state, family, scale=1).regions)
-    assert fit_recorded_preview(state, "forza", entrance, scale=1).polygon is None
-    # The rider map adds no clearance, while the guide above still adds .05 m.
+    assert fit_recorded_preview(state, "forza", entrance, scale=1).polygon is not None
+    assert fit_recorded_preview(state, "hd_road_glide", entrance, scale=1).polygon is None
+    # Both the rider map and Guard Booth use zero clearance by default.
     assert any(r.kind == "WIDTH_SUFFICIENT" for r in free_ground_for(state, "forza", scale=1).regions)
     assert not any(r.kind == "WIDTH_SUFFICIENT" for r in free_ground_for(state, "hd_road_glide", scale=1).regions)
 

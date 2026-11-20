@@ -7,7 +7,7 @@ Accepted 2026-11-18 at the owner's request.
 Amended 2026-11-20 at the owner's request: allocation and hold revalidation
 dispatch by channel. `rider_recommendation.py` owns LINE routing rows, right
 access, entrance lane and hold duration, using the rider's zero-clearance policy.
-`guard_booth_fitting.py` owns independent values and keeps 0.05 m clearance.
+`guard_booth_fitting.py` owns independent values and defaults to 0.0 m clearance.
 Both call the neutral `recommendation_fitting.py` geometry search with explicit
 parameters. `recommendation_models.py` owns shared transport models; their legacy
 schema names remain unchanged for API compatibility. `parking_holds.py` retains
@@ -49,6 +49,18 @@ LINE credentials and rider images are never stored with holds.
   Live observations must be captured at or after the deadline. For the existing
   still-image demo only, processing time is used instead of historical capture
   time; width-preview bands remain experimental, not measured live availability.
+
+Amended 2026-11-20 at the owner's request: recorded-preview expiry reuses the
+same channel-specific fitter as allocation and recommendation polling. The
+original held polygon must still fit; a different place returned by the search
+cannot release it. This preserves the channel's width, clearance, row/access
+rules, detected occupancy, actual unknown patches and other blocking holds.
+The recorded width-only `GROUND_MAY_BE_OCCLUDED` advisory is treated exactly as
+at allocation, rather than introducing a stricter release-only veto. No band
+is promoted to `AVAILABLE`, and this does not establish that hidden ground is
+empty. The two-minute deadline, newer-evidence and matching-geometry gates stay
+in place. Live-camera release still requires full `AVAILABLE` evidence without
+uncertainty; stale or missing evidence cannot release either channel's holds.
 
 Segment ingestion reconciles the ledger. Hold reads and recommendation retries
 also reconcile, so no background timer is required. UI polling may lag by one
