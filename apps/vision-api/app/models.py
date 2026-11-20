@@ -335,6 +335,8 @@ class MotorcycleProxy(BaseModel):
     heading_rad: float = Field(allow_inf_nan=False)
     length_m: float = Field(gt=0.0, allow_inf_nan=False)
     width_m: float = Field(gt=0.0, allow_inf_nan=False)
+    estimated_width_m: float | None = Field(default=None, gt=0, le=3, allow_inf_nan=False,
+        description="Approximate bbox width using local ground homography scale, in physical metres. Display only; never used for occupancy or fitting. Null uses the standard proxy width.")
     confidence: float = Field(ge=0.0, le=1.0)
     display_scale: float = Field(default=1.0, gt=0, allow_inf_nan=False, description="Map display scale only; length_m and width_m remain physical references")
 

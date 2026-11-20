@@ -27,7 +27,7 @@ export const STATUS_TEXT: Record<MapStatus, { label: string; detail: string; mar
   },
   OCCUPIED: {
     label: "มีรถจอดอยู่",
-    detail: "ตำแหน่งรถที่ระบบตรวจพบ แสดงด้วยขนาดรถมาตรฐาน ไม่ใช่ขนาดหรือรุ่นจริงของรถ",
+    detail: "ตำแหน่งรถที่ระบบตรวจพบ ความกว้างประมาณจากภาพและใช้ขนาดมาตรฐานเมื่อประมาณไม่ได้ ไม่ใช่ขนาดที่วัดจริง",
     mark: "motorcycle",
   },
   UNKNOWN: {

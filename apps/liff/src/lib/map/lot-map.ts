@@ -68,7 +68,10 @@ export function buildLotMap(lotModel: LotModel, states: ParkingAreaLiveState[] |
       motorcycles: (live.motorcycles ?? []).map((proxy) => {
         const scale = proxy.display_scale ?? 1;
         const symbol = { ...proxy, length_m: proxy.length_m*scale, width_m: proxy.width_m*scale };
-        return { proxy, displayProxy: fitProxyDisplay(symbol, regions), footprint: proxyFootprint(symbol) };
+        const fitted = fitProxyDisplay(symbol, regions);
+        // Estimated bbox width changes only the drawing. Occupancy and hit testing keep the standard footprint.
+        const displayProxy = proxy.estimated_width_m == null ? fitted : { ...fitted, width_m: proxy.estimated_width_m * scale };
+        return { proxy, displayProxy, footprint: proxyFootprint(symbol) };
       }),
     };
   });

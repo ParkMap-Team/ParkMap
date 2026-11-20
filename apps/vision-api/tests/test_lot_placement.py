@@ -63,7 +63,7 @@ def test_uniform_display_scale_preserves_physical_width_and_proxy_dimensions():
     state = ParkingAreaLiveState(parking_area_id="area", status="DEMO", regions=[
         {"kind": "WIDTH_SUFFICIENT", "width_m": 4, "polygon": SOURCE},
     ], motorcycles=[{"detection_id": "d1", "center": {"x_m": 1, "y_m": 1}, "heading_rad": 0,
-                     "length_m": 2, "width_m": .66, "confidence": .9}])
+                     "length_m": 2, "width_m": .66, "estimated_width_m": .5, "confidence": .9}])
     target = polygon([(10, 5), (10, 13), (6, 13), (6, 5)])
     result = place_area_state(state, PAYLOAD, target)
     assert result.status == "DEMO"
@@ -72,6 +72,7 @@ def test_uniform_display_scale_preserves_physical_width_and_proxy_dimensions():
     assert result.motorcycles[0].center.y_m == pytest.approx(7)
     assert result.motorcycles[0].length_m == 2
     assert result.motorcycles[0].width_m == .66
+    assert result.motorcycles[0].estimated_width_m == .5
     assert result.motorcycles[0].display_scale == pytest.approx(2)
     assert state.motorcycles[0].center.x_m == 1
 

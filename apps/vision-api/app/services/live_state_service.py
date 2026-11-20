@@ -169,23 +169,13 @@ def build_state_publish(
     )
 
 
-def build_segmentation_state_publish(
+def build_segmentation_display(
     segmentation: SegmentationExperimentResult,
     gaps: SegmentationGapResult,
     *,
-    camera_id: str,
-    parking_area_id: str,
-    source: StateSourceKind,
-    observed_at: datetime,
-    processed_at: datetime,
-    calibration_version: str,
-    calibration_provenance: GroundMeasurementSource,
-) -> ParkingStatePublish:
-    """Publish Seg proxies without promoting width-only evidence to availability."""
-    if gaps.status == "CALIBRATION_REQUIRED" or gaps.calibration_version != calibration_version:
-        raise ValueError("Segmentation requires current matching calibration")
-    if gaps.occupancy_source != "SEGMENTATION_ONLY":
-        raise ValueError("Worker publication requires segmentation-only evidence")
+    estimated_widths: dict[int, float] | None = None,
+) -> tuple[list[MotorcycleProxy], list[LiveRegion]]:
+    """Shared operator/LIFF display proxies; never evaluates free space."""
     rows = {row.row_id for row in gaps.rows}
     motorcycles = []
     occupied_regions = []
@@ -199,7 +189,7 @@ def build_segmentation_state_publish(
             "confidence": segmentation.detections[index].confidence,
             "canonical_footprint": layer.geometry.model_dump()})
         if proxy is not None:
-            motorcycles.append(proxy)
+            motorcycles.append(proxy.model_copy(update={"estimated_width_m": (estimated_widths or {}).get(index)}))
         geometry = layer.row_depth_geometry or layer.roi_geometry
         occupied_regions.extend(LiveRegion(kind="OCCUPIED", row_id=layer.assigned_row_id, detection_id=layer.detection_id, polygon=polygon)
             for polygon in geometry.polygons)
@@ -215,7 +205,30 @@ def build_segmentation_state_publish(
             "confidence": segmentation.detections[index].confidence,
             "canonical_footprint": {"polygons": [[[point.model_dump() for point in horizontal.polygon_metric]]]}})
         if proxy is not None:
-            proxies[proxy.detection_id] = proxy
+            proxies[proxy.detection_id] = proxy.model_copy(update={"estimated_width_m": (estimated_widths or {}).get(index)})
+    return list(proxies.values()), occupied_regions
+
+
+def build_segmentation_state_publish(
+    segmentation: SegmentationExperimentResult,
+    gaps: SegmentationGapResult,
+    *,
+    camera_id: str,
+    parking_area_id: str,
+    source: StateSourceKind,
+    observed_at: datetime,
+    processed_at: datetime,
+    calibration_version: str,
+    calibration_provenance: GroundMeasurementSource,
+    estimated_widths: dict[int, float] | None = None,
+) -> ParkingStatePublish:
+    """Publish Seg proxies without promoting width-only evidence to availability."""
+    if gaps.status == "CALIBRATION_REQUIRED" or gaps.calibration_version != calibration_version:
+        raise ValueError("Segmentation requires current matching calibration")
+    if gaps.occupancy_source != "SEGMENTATION_ONLY":
+        raise ValueError("Worker publication requires segmentation-only evidence")
+    rows = {row.row_id for row in gaps.rows}
+    motorcycles, occupied_regions = build_segmentation_display(segmentation, gaps, estimated_widths=estimated_widths)
     regions = [LiveRegion(kind="UNKNOWN", row_id=row.row_id, polygon=[row.polygon_metric]) for row in gaps.rows]
     if not (source == "LIVE_CAMERA" and calibration_provenance == "ESTIMATED") and not gaps.truncated:
         for gap in gaps.candidates:
@@ -235,7 +248,7 @@ def build_segmentation_state_publish(
         calibration_version=calibration_version, calibration_provenance=calibration_provenance,
         analysis_version="segmentation-width-preview-v1",
         regions=regions,
-        motorcycles=list(proxies.values()),
+        motorcycles=motorcycles,
     )
 
 

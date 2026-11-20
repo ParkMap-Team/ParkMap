@@ -968,6 +968,43 @@ def test_saved_calibration_uses_only_segmentation_with_mask_fallback(tmp_path, m
         detections=[{"confidence": .9, "bbox": {"x": .7, "y": .1, "width": .05, "height": .05}}])
     reference = [ReferenceDimensions(width_m=.9, length_m=2.3, basis="known reference")]
     result = analyze_segmentation_gaps(primary, segmentation, service, reference_sizes=reference)
+    sized = analyze_segmentation_gaps(primary, segmentation, service, image_row_assignment=True, use_segmentation_widths=True)
+    from app.services.parking_analysis_service import _geometry_to_shapely
+
+    red = _geometry_to_shapely(sized.occupied_layers[0].row_depth_geometry.model_dump())
+    assert red.bounds[2] - red.bounds[0] == pytest.approx(.5)
+    assert red.area == pytest.approx(1.)  # .5 m estimated width × 2 m row depth
+    assert sized.estimated_widths_m == pytest.approx({"detection_1": .5})
+    outside = segmentation.detections[0].model_copy(deep=True)
+    outside.bbox.x, outside.bbox.y = .4, .95
+    mixed_widths = analyze_segmentation_gaps(primary, segmentation.model_copy(update={"detections": [outside, *segmentation.detections]}),
+        service, image_row_assignment=True, use_segmentation_widths=True)
+    assert "detection_1" in mixed_widths.excluded_detection_ids
+    assert mixed_widths.occupied_layers[0].detection_id == "detection_2"
+    assert mixed_widths.estimated_widths_m == pytest.approx({"detection_1": .5, "detection_2": .5})
+    assert sized.target_width_m == pytest.approx(.66)  # incoming vehicle stays standard
+    assert all(item.state != "AVAILABLE" for item in sized.candidates)
+    narrow_seg = segmentation.model_copy(deep=True)
+    narrow_seg.detections[0].bbox.width = .025
+    narrow = analyze_segmentation_gaps(primary, narrow_seg, service, image_row_assignment=True, use_segmentation_widths=True)
+    narrow_red = _geometry_to_shapely(narrow.occupied_layers[0].row_depth_geometry.model_dump())
+    assert narrow_red.area == pytest.approx(.5)
+    assert sum(item.gap_width_m for item in narrow.candidates) > sum(item.gap_width_m for item in sized.candidates)
+    edge_seg = segmentation.model_copy(deep=True)
+    edge_seg.detections[0].bbox.x = .11  # local sampling falls outside the image
+    fallback = analyze_segmentation_gaps(primary, edge_seg, service, image_row_assignment=True, use_segmentation_widths=True)
+    fallback_red = _geometry_to_shapely(fallback.occupied_layers[0].row_depth_geometry.model_dump())
+    assert fallback_red.bounds[2] - fallback_red.bounds[0] == pytest.approx(.66)
+    assert fallback.estimated_widths_m == {}
+    with monkeypatch.context() as changed:
+        from app.services import segmentation_gap_service
+
+        versions = iter(["before-edit", "after-edit"])
+        changed.setattr(segmentation_gap_service, "calibration_version", lambda directory: next(versions))
+        rejected = analyze_segmentation_gaps(primary, segmentation, service, image_row_assignment=True, use_segmentation_widths=True)
+        assert rejected.status == "CALIBRATION_REQUIRED"
+        assert rejected.estimated_widths_m == {}
+        assert rejected.occupied_layers == []
     assert result.status == "EXPERIMENTAL"
     assert result.row_owned_references is True
     assert result.evaluation_mode == "CONTINUOUS_GAPS"

@@ -18,6 +18,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   const clearanceMarginValid = clearanceMargin !== '' && Number.isFinite(clearanceMarginValue) && clearanceMarginValue >= 0 && clearanceMarginValue <= MAX_CLEARANCE_MARGIN_M;
   const [segmentationGaps, setSegmentationGaps] = useState<components['schemas']['SegmentationGapResult'] | null>(null);
   const [segmentation, setSegmentation] = useState<components['schemas']['SegmentationExperimentResult'] | null>(null);
+  const [motorcycles, setMotorcycles] = useState<components['schemas']['MotorcycleProxy'][]>([]);
   const [segmentationError, setSegmentationError] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -48,7 +49,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
   function resetAnalysis() {
     controllerRef.current?.abort();
     setAnalysis(null);
-    setSegmentation(null); setSegmentationGaps(null); setSegmentationError('');
+    setSegmentation(null); setSegmentationGaps(null); setMotorcycles([]); setSegmentationError('');
 
     setState('idle');
     setError(null);
@@ -79,7 +80,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
     const controller = new AbortController();
     controllerRef.current = controller;
     setState('processing');
-    setSegmentation(null); setSegmentationGaps(null); setSegmentationError('');
+    setSegmentation(null); setSegmentationGaps(null); setMotorcycles([]); setSegmentationError('');
 
     setAnalysis(null);
     setError(null);
@@ -88,6 +89,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
         const result = await analyzeParkingSegmentation(file, controller.signal, !setupRequired, undefined, clearanceMarginValue, detector);
         if (controller.signal.aborted) return;
         setAnalysis(result.detection as DetectionResponse);
+        setMotorcycles(result.motorcycles ?? []);
         setSegmentation(result.segmentation ?? null); setSegmentationGaps(result.segmentation_gaps ?? null); setSegmentationError(result.segmentation_error ?? '');
         setError(result.parking_error ?? null);
       } else {
@@ -138,7 +140,7 @@ export function ImageAnalyzer({ onOpenSetup }: { onOpenSetup: () => void }) {
 
       <div className="space-y-4">
         <CameraMonitor imageUrl={previewUrl} videoUrl={videoUrl} analysis={analysis} segmentation={segmentation} detector={detector} />
-        {!videoUrl && usesSegmentation && <SegmentationExperiment primary result={segmentation} error={segmentationError} gaps={segmentationGaps} />}
+        {!videoUrl && usesSegmentation && <SegmentationExperiment motorcycles={motorcycles} primary result={segmentation} error={segmentationError} gaps={segmentationGaps} />}
       </div>
     </div>
   );

@@ -13,6 +13,34 @@ from app import classifier
 from app.main import app
 
 
+@pytest.mark.parametrize("calibrated", [True, False])
+def test_operator_returns_display_widths_from_current_calibration(monkeypatch, tmp_path, calibrated):
+    from test_motorcycle_width_estimation import write_calibration
+    from test_segmentation_publication import inputs
+
+    segmented, gaps = inputs()
+    segmented.detections[0].bbox.x = .3
+    # Saved calibration now yields 1 m, but the completed gap analysis used .5 m.
+    # The response must preserve that analysis snapshot, never reread these files.
+    write_calibration(tmp_path / "config")
+    gaps = gaps.model_copy(update={"estimated_widths_m": {"detection_1": .5} if calibrated else {}})
+    monkeypatch.setenv("PARKMAP_EDITOR_TOKEN", "test-key")
+    monkeypatch.setattr(classifier, "API_ROOT", tmp_path)
+    monkeypatch.setattr(classifier.segmentation_experiment_service, "analyze_image", lambda raw: segmented)
+    monkeypatch.setattr(classifier, "analyze_segmentation_gaps", lambda *args, **kwargs: gaps)
+    stream = io.BytesIO()
+    Image.new("RGB", (100, 100)).save(stream, "PNG")
+    response = TestClient(app, headers={"Authorization": "Bearer test-key"}).post(
+        "/api/operator/classifier/analyze", data={"primary_detector": "segmentation", "include_parking": "false"},
+        files={"image": ("frame.png", stream.getvalue(), "image/png")})
+    assert response.status_code == 200
+    payload = response.json()
+    proxy = payload["motorcycles"][0]
+    assert proxy["width_m"] == pytest.approx(.66)
+    assert proxy["estimated_width_m"] == (pytest.approx(.5) if calibrated else None)
+    assert payload["segmentation_gaps"] == gaps.model_dump(mode="json")
+
+
 def test_segmentation_primary_skips_standard_detector_and_classifier(monkeypatch):
     from app.services.segmentation_experiment_service import (
         SegmentationExperimentResult,
@@ -38,6 +66,7 @@ def test_segmentation_primary_skips_standard_detector_and_classifier(monkeypatch
         assert kwargs["visible_free_shapes"] is False
         assert kwargs["bottom_edge_assignment"] is True
         assert kwargs["image_row_assignment"] is True
+        assert kwargs["use_segmentation_widths"] is True
         return SegmentationGapResult(evaluation_mode="CONTINUOUS_GAPS")
     monkeypatch.setattr(classifier, "analyze_segmentation_gaps", gaps)
     stream = io.BytesIO()

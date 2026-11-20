@@ -80,6 +80,25 @@ test("display scale sizes the symbol while retaining physical proxy dimensions",
   assert.equal(hitTest(map, { x_m: 5.4, y_m: 4 })?.status, "OCCUPIED");
 });
 
+test("estimated width sizes only the symbol and is not squeezed back into the standard band", () => {
+  const regions = [{ kind: "OCCUPIED" as const, detection_id: "d1", polygon: rect(3.8, 3, 4.2, 5) }];
+  const standard = { detection_id: "d1", center: { x_m: 4, y_m: 4 }, heading_rad: Math.PI / 2,
+    length_m: 2, width_m: .66, confidence: .9, display_scale: 1.5 };
+  const baseline = buildLotMap(lotModel, [live({ regions, motorcycles: [standard] })]);
+  for (const estimated_width_m of [.4, .9]) {
+    const proxy = { ...standard, estimated_width_m };
+    const map = buildLotMap(lotModel, [live({ regions, motorcycles: [proxy] })]);
+    const car = map.areas[0].motorcycles[0];
+    assert.equal(car.displayProxy.width_m, estimated_width_m * 1.5);
+    assert.equal(car.displayProxy.length_m, 3);
+    assert.equal(car.proxy.width_m, .66);
+    assert.deepEqual(car.footprint, baseline.areas[0].motorcycles[0].footprint);
+    assert.deepEqual(map.areas[0].regions, baseline.areas[0].regions);
+    assert.deepEqual(car.displayProxy.center, baseline.areas[0].motorcycles[0].displayProxy.center);
+    assert.equal(hitTest(map, { x_m: 4.6, y_m: 4 })?.status, hitTest(baseline, { x_m: 4.6, y_m: 4 })?.status);
+  }
+});
+
 const lotModel: LotModel = {
   site_id: "site",
   schema_version: 1,

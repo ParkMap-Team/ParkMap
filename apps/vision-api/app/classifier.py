@@ -13,10 +13,10 @@ from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from PIL import Image, ImageOps, UnidentifiedImageError
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from app.models import DetectionResponse
+from app.models import DetectionResponse, MotorcycleProxy
 from app.operator_auth import require_editor_token
 from app.parking_inference_settings import (
     DEFAULT_CLEARANCE_MARGIN_M,
@@ -27,6 +27,7 @@ from app.parking_inference_settings import (
     classifier_runs,
 )
 from app.services.cv_service import ModelUnavailableError, cv_service
+from app.services.live_state_service import build_segmentation_display
 from app.services.motorcycle_reference_sizes import (
     ResolvedReferenceSize,
     load_rules,
@@ -103,6 +104,7 @@ class ParkingClassifierResult(BaseModel):
     segmentation: SegmentationExperimentResult | None = None
     segmentation_error: str | None = None
     segmentation_gaps: SegmentationGapResult | None = None
+    motorcycles: list[MotorcycleProxy] = Field(default_factory=list)
 
 
 def available_models():
@@ -361,5 +363,9 @@ async def analyze_segmentation_primary(decoded, raw, include_parking, incoming_w
         except ParkingCalibrationUnavailableError:
             result.parking_error = "Parking calibration is unavailable; segmentation remains usable."
     result.segmentation_gaps = await run_in_threadpool(analyze_segmentation_gaps, detection, segmented,
-        incoming_width_m=incoming_width_m, clearance_margin_m=clearance_margin_m, visible_free_shapes=False, bottom_edge_assignment=True, image_row_assignment=True)
+        incoming_width_m=incoming_width_m, clearance_margin_m=clearance_margin_m, visible_free_shapes=False, bottom_edge_assignment=True, image_row_assignment=True, use_segmentation_widths=True)
+    if result.segmentation_gaps.status != "CALIBRATION_REQUIRED":
+        widths = {index: result.segmentation_gaps.estimated_widths_m[f"detection_{index+1}"]
+            for index in range(len(segmented.detections)) if f"detection_{index+1}" in result.segmentation_gaps.estimated_widths_m}
+        result.motorcycles, _ = build_segmentation_display(segmented, result.segmentation_gaps, estimated_widths=widths)
     return result

@@ -16,7 +16,8 @@ type Result = components['schemas']['SegmentationExperimentResult'];
 type Gaps = components['schemas']['SegmentationGapResult'];
 type Background = components['schemas']['GapBackgroundRegion'];
 
-export function SegmentationExperiment({ result, error, gaps, standardCount = 0, standardMs, primary = false }: {
+export function SegmentationExperiment({ result, error, gaps, motorcycles = [], standardCount = 0, standardMs, primary = false }: {
+  motorcycles?: components['schemas']['MotorcycleProxy'][];
   result: Result | null; error: string; gaps?: components['schemas']['SegmentationGapResult'] | null; standardCount?: number; standardMs?: number; primary?: boolean;
 }) {
   const [chosenGap, setChosenGap] = useState('');
@@ -129,7 +130,7 @@ export function SegmentationExperiment({ result, error, gaps, standardCount = 0,
         <RowDistanceImageOverlay assignment={distanceAssignment} />
       </svg>}
     </div>}
-    {result && <SegDetectionInspector result={result} gaps={gaps} selectedIndex={selectedDetectionIndex} onSelect={selectDetection} onClose={() => setChosenDetection(null)} />}
+    {result && <SegDetectionInspector motorcycles={motorcycles} result={result} gaps={gaps} selectedIndex={selectedDetectionIndex} onSelect={selectDetection} onClose={() => setChosenDetection(null)} />}
     {gaps && <SegmentationTopDown gaps={gaps} selectedId={currentGap?.id} onSelect={selectGap} incomingSelectedId={incomingSelected?.id} onSelectIncoming={selectIncoming} previewWidthOnly={previewWidthOnly} onPreviewWidthOnly={setPreviewWidthOnly}
       modelName={modelName}
       horizontalPreview={horizontalControl}

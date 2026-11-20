@@ -2,6 +2,7 @@
 
 import type { components } from '@/types/api.gen';
 import { segDetectionInspection } from '@/lib/segDetectionInspection';
+import { motorcycleDisplayWidth } from '@/lib/segmentationMotorcycleDisplay';
 
 type Result = components['schemas']['SegmentationExperimentResult'];
 type Gaps = components['schemas']['SegmentationGapResult'];
@@ -28,12 +29,16 @@ export function SegDetectionHitTargets({ result, selectedIndex, onSelect }: {
   </svg>;
 }
 
-export function SegDetectionInspector({ result, gaps, selectedIndex, onSelect, onClose }: {
+export function SegDetectionInspector({ result, gaps, motorcycles = [], selectedIndex, onSelect, onClose }: {
+  motorcycles?: components['schemas']['MotorcycleProxy'][];
   result: Result; gaps?: Gaps | null; selectedIndex?: number; onSelect: (index: number) => void; onClose: () => void;
 }) {
   const detection = selectedIndex == null ? undefined : result.detections[selectedIndex];
   const info = detection && selectedIndex != null ? segDetectionInspection(selectedIndex, gaps) : undefined;
   const layer = info?.layer;
+  const vehicle = motorcycles.find(item => item.detection_id === info?.id);
+  const estimatedWidth = info ? gaps?.estimated_widths_m?.[info.id] : undefined;
+  const displayedWidth = estimatedWidth ?? (vehicle ? motorcycleDisplayWidth(vehicle) : undefined);
   const assignment = info?.assignment;
   const assignmentReasonLabels: Record<string, string> = {
     ASSIGNED_BY_NEAREST_IMAGE_EDGE: 'เส้นล่างของแถวนี้ใกล้จุดกึ่งกลางล่างที่สุดบนภาพ จึงกันพื้นที่ในแถวนี้เพียงแถวเดียว',
@@ -63,6 +68,7 @@ export function SegDetectionInspector({ result, gaps, selectedIndex, onSelect, o
     </label>
     {info && detection && <div role="status" data-detection-inspection={info.id} data-assignment-reason={assignment?.reason ?? layer?.row_assignment_reason} className="space-y-2 rounded-xl border border-orange-200 bg-white p-3">
       <h3 className="font-semibold">{info.id} · {layer?.assigned_row_id ?? 'ยังไม่มีแถวที่ระบบยืนยันให้'}</h3>
+      {displayedWidth != null && <p>ความกว้างที่แสดง {displayedWidth.toFixed(2)} ม. · {estimatedWidth != null || vehicle?.estimated_width_m != null ? 'ประมาณจากพิกเซลกรอบรถ × เมตรต่อพิกเซล ไม่ใช่ขนาดวัดจริง' : 'ใช้ขนาดมาตรฐาน เนื่องจากไม่มีค่าประมาณที่ใช้ได้'}</p>}
       <p>Seg ตรวจพบ · ความมั่นใจ {(detection.confidence*100).toFixed(1)}% · {detection.polygon?.length ? 'Seg ส่ง mask มา (ยังไม่ยืนยันว่า mask ผ่านการตรวจรูปทรง)' : 'ไม่มี mask ใช้กรอบตรวจจับสำรอง'}</p>
       <p>จุดกึ่งกลางล่างในภาพ: x {((detection.bbox.x+detection.bbox.width/2)*result.image_width).toFixed(0)}, y {((detection.bbox.y+detection.bbox.height)*result.image_height).toFixed(0)} พิกเซล (จุดสีเหลือง)</p>
       {info.status === 'ASSIGNED' && <p>ระบบจัดเข้า <strong>{layer?.assigned_row_id}</strong> · {layer?.row_assignment_source === 'IMAGE_NEAREST_EDGE' || layer?.row_assignment_source === 'IMAGE_POINT' || layer?.row_assignment_source === 'IMAGE_MASK' ? assignmentReasonLabels[layer.row_assignment_reason] : layer?.row_assignment_source === 'BOTTOM_EDGE_APPROXIMATE' ? 'เทียบจุดกึ่งกลางล่างกับเส้นล่างของแถว (ค่าประมาณ)' : layer?.row_assignment_source === 'NEAREST_APPROXIMATE' ? 'จัดเข้าแถวใกล้ที่สุดแบบประมาณ' : 'ตามจุดอ้างอิงของรถ'}</p>}

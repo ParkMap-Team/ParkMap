@@ -2,6 +2,43 @@
 
 How production runs the Sripatum still-image loop demo ([ADR 0011](adr/0011-still-image-loop-demo-on-estimated-calibration.md)). The photos, detector weights, and calibration files are private: they move from the team Drive to the server by hand and never enter Git, an image, a ticket, or a log.
 
+## Production alignment on 2026-11-20
+
+The owner authorized aligning production with `feat/liff-motorcycle-settings`,
+whose code is also on `main` at
+`d42d251f9e3b6318fb8d8a9cc39e01c1e4a4a888`. These settings supersede the older
+model and photo settings below:
+
+- The API builds `apps/vision-api/Dockerfile`, target `default`, from that pinned
+  commit. The worker uses `Dockerfile.ghcr` with the server-local API image
+  `PARKMAP_IMAGE=qcd6g1zexf0ltlsqpb5mcudy:d42d251f9e3b6318fb8d8a9cc39e01c1e4a4a888`.
+  Both processes therefore run the same code. For another release, build the API
+  first, then update the worker's `PARKMAP_IMAGE` to that new API image before
+  deploying the worker. Changing `docker_registry_image_tag` alone does not
+  change the base image used by `Dockerfile.ghcr`.
+- API and worker use `PARKMAP_SEGMENTATION_MODEL_PATH=/app/models/yolo26n-seg_round-08_best.pt`,
+  `PARKMAP_SEGMENTATION_CLASS_ID=0`, `PARKMAP_SEGMENTATION_IMGSZ=960`, and
+  `PARKMAP_MODEL_CONF=0.1`. The checkpoint SHA256 is
+  `9f835c67849593cafc423414161d44b8377deaf221348b4929213544715ca1af`.
+  The branch's confidence is lower than the service default of `0.25`; it must
+  be set explicitly to compare the same photo's detections.
+- The worker selects only
+  `PARKMAP_WORKER_SOURCE=/data/photos/branch-match-d42d251f9`, containing
+  `20261021_1201.jpg`. Other production photos were preserved. This image's
+  capture time remains `2026-10-21T12:01:00+07:00`.
+- The active camera is `SPU_CAM_01`. Production lot version 7 uses the shared
+  snapshot's geometry, equal to local lot version 9; version numbers belong to
+  each database. Calibration is
+  `files-sha256:ee05bf50e987aa47454b017b02a350c9bc5ded303dbecf9847a345da7c58c6a6`.
+- Previous configuration files were backed up under
+  `/srv/parkmap-demo/config/.branch-backup-20261120-d42d251f9`. Previous lot and
+  calibration versions remain in Postgres. The temporary sync application and
+  one-time API import command were removed after use.
+
+The image, calibration, lot geometry, model, resolution, and confidence must all
+match before comparing production with a local map. Green remains a
+`WIDTH_SUFFICIENT` preview, not proof of an unobstructed parking footprint.
+
 ## Server directory
 
 The worker and the API read one directory on the VPS:
