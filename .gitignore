@@ -46,6 +46,8 @@ apps/vision-api/hybrid-parking-experimental/current_state.json
 *.avi
 
 # Local training artifacts and private datasets (notebook source remains tracked)
+/Claude outputs/
+/apps/vision-api/runs/
 tools/yolo-training/data/
 tools/yolo-training/dataset/
 tools/yolo-training/datasets/
@@ -62,6 +64,7 @@ tools/yolo-training/classification/prepared/*
 tools/yolo-training/classification/reviews/
 tools/yolo-training/classification/runs/*
 !tools/yolo-training/classification/runs/README.md
+tools/yolo-training/classification/runs-*/
 tools/yolo-training/classification/weights/*
 !tools/yolo-training/classification/weights/README.md
 tools/yolo-training/detection/runs/*
