@@ -16,7 +16,6 @@ from app.services.live_state_service import (
     build_segmentation_state_publish,
     calibration_identity,
 )
-from app.services.motorcycle_width_estimation import estimate_widths
 from app.services.segmentation_experiment_service import segmentation_experiment_service
 from app.services.segmentation_gap_service import analyze_segmentation_gaps
 
@@ -36,13 +35,13 @@ def analyze_segmentation_frame(image, captured_at: datetime, *, parking_area_id:
         detections=[Detection(class_id=segmentation_experiment_service.class_id, class_name="motorcycle",
             confidence=item.confidence, bbox=item.bbox) for item in segmented.detections])
     gaps = analyze_segmentation_gaps(detection, segmented, visible_free_shapes=False,
-        bottom_edge_assignment=True, image_row_assignment=True)
+        bottom_edge_assignment=True, image_row_assignment=True, use_segmentation_widths=True)
     try:
         camera = ParkingCalibration.model_validate_json((CONFIG_DIRECTORY / "parking_calibration.json").read_bytes()).camera_id
     except (OSError, ValidationError) as error:
         raise CalibrationFilesUnavailableError("Parking calibration is unavailable or invalid") from error
-    estimated_widths = estimate_widths([item.bbox for item in segmented.detections],
-        segmented.image_width, segmented.image_height, CONFIG_DIRECTORY)
+    estimated_widths = {index: gaps.estimated_widths_m[f"detection_{index+1}"]
+        for index in range(len(segmented.detections)) if f"detection_{index+1}" in gaps.estimated_widths_m}
     if calibration_identity(CONFIG_DIRECTORY) != (version, provenance):
         raise CalibrationFilesUnavailableError("Calibration changed during worker analysis")
     return build_segmentation_state_publish(

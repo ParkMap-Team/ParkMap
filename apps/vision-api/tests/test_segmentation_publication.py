@@ -147,6 +147,7 @@ def test_worker_analyzes_seg_once_and_publishes_the_matching_gap_result(tmp_path
 
     segmentation, gaps = inputs()
     write_calibration(tmp_path)
+    gaps.estimated_widths_m = {"detection_1": .5}
     segmentation.detections[0].bbox.x = .3
     monkeypatch.setattr(analyzer, "CONFIG_DIRECTORY", tmp_path)
     versions = iter([("v1", "MEASURED"), ("v2" if calibration_changed else "v1", "MEASURED")])
@@ -163,6 +164,7 @@ def test_worker_analyzes_seg_once_and_publishes_the_matching_gap_result(tmp_path
         assert detection.model.name == "local-seg.pt"
         assert options["image_row_assignment"] is True
         assert options["visible_free_shapes"] is False
+        assert options["use_segmentation_widths"] is True
         return gaps
 
     def forbidden(*_):
@@ -182,6 +184,6 @@ def test_worker_analyzes_seg_once_and_publishes_the_matching_gap_result(tmp_path
         parking_area_id="area-1", source="STILL_IMAGE_LOOP")
     assert calls == ["seg"]
     assert len(state.motorcycles) == 1
-    assert state.motorcycles[0].estimated_width_m == pytest.approx(1.)
+    assert state.motorcycles[0].estimated_width_m == pytest.approx(.5)
     assert state.observed_at == NOW
     assert state.regions[0].kind == "UNKNOWN"

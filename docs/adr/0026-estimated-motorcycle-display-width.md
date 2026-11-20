@@ -1,7 +1,8 @@
 # Estimated bbox width for LIFF motorcycle display
 
 Accepted 2026-11-20 at the owner's request. Amends ADR 0011's uniform proxy
-display dimensions; standard occupancy and fitting dimensions stay unchanged.
+display dimensions. The later worker amendment below also changes occupied
+reference widths; incoming vehicle fitting requirements stay unchanged.
 
 Python ports the old `motorcycleSizeExperiment.ts` calculation: at the bbox's
 bottom centre, project points 16 pixels to the left and right through the current
@@ -19,12 +20,12 @@ still rejects a calibration change during frame analysis.
 
 LIFF's shared 2D/3D map model applies `display_scale` once to this field for the
 motorcycle drawing. It keeps the existing displayed centre, heading and length,
-and does not squeeze the estimated width back into the standard occupied band.
+and does not squeeze the estimated width back into the occupied band.
 Older states and null estimates keep the existing standard symbol fitting.
 
-For worker publication and LIFF, `width_m`, `length_m`, occupied regions,
-hit-test footprints, uncertainty, holds, recommendations and free-ground
-calculations do not consume this field. It must
+`estimated_width_m` itself is display metadata. Occupied reference widths
+now reuse the same analysis estimates through `estimated_widths_m`, while
+reference length and incoming-vehicle requirements remain standard. It must
 not promote a width preview to `AVAILABLE` or establish that occluded ground is
 empty. Replacing fitting dimensions still requires locked-reference validation.
 
@@ -38,7 +39,11 @@ are recomputed together from those references; the separate dark overlay is
 removed. Bands still extend through row depth, not the visible vehicle height.
 Incoming vehicle requirements, occlusion and uncertainty gates remain unchanged.
 This is an operator experiment, not measured geometry or proof of availability.
-Worker publication keeps standard occupancy widths unless separately opted in.
+Worker publication also opts into the same estimated reference widths at the
+owner's request, so LIFF free-ground previews and Calibration use the same
+analysis settings. It reuses `estimated_widths_m` for the display proxies rather
+than loading calibration a second time. Incoming vehicle width requirements and
+all calibration, freshness, truncation and uncertainty gates remain unchanged.
 Reference points and the stored homography remain unchanged.
 Changing the image clears the display metadata; each analysis replaces it.
 `SegmentationGapResult.estimated_widths_m` carries estimates keyed by original
@@ -47,6 +52,6 @@ bands. The operator response and inspector reuse these values, including for
 unassigned detections, instead of rereading calibration files. A calibration
 change during gap analysis rejects both geometry and width estimates together.
 Checks cover local perspective scale, malformed/stale/mismatched calibration,
-publication identity and unchanged occupancy, transport bounds, fallback and
+publication identity, estimated occupancy widths, transport bounds, fallback and
 single display scaling. Physical accuracy against annotated vehicles remains
 unverified.
