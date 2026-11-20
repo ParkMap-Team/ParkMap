@@ -12,7 +12,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import torch
-from architectures import has_pretrained, is_supported, is_yolo
+from architectures import TIMM, has_pretrained, is_supported, is_timm, is_yolo
 from classifier_data import (
     PREPROCESSING,
     PadResize,
@@ -21,11 +21,11 @@ from classifier_data import (
     sha256,
     write_evaluation,
 )
-from PIL import Image
+from PIL import Image, ImageOps
 from torch import nn
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from torchvision import models, transforms
-from training_control import EarlyStopping
+from training_control import EarlyStopping, lr_factor
 
 
 def seed_everything(seed, threads):
@@ -55,6 +55,7 @@ def select_device(name):
 def model_spec(architecture):
     specs = {
         "resnet18": (models.resnet18, models.ResNet18_Weights.IMAGENET1K_V1),
+        "resnet50": (models.resnet50, models.ResNet50_Weights.IMAGENET1K_V2),
         "efficientnet_b0": (models.efficientnet_b0, models.EfficientNet_B0_Weights.IMAGENET1K_V1),
         "mobilenet_v3_large": (models.mobilenet_v3_large, models.MobileNet_V3_Large_Weights.IMAGENET1K_V2),
         "convnext_tiny": (models.convnext_tiny, models.ConvNeXt_Tiny_Weights.IMAGENET1K_V1),
@@ -65,7 +66,35 @@ def model_spec(architecture):
 
 
 def classifier_head(model):
-    return model.fc if hasattr(model, "fc") else model.classifier
+    if hasattr(model, "fc"):
+        return model.fc
+    return model.classifier if hasattr(model, "classifier") else model.head  # timm ViT: head
+
+
+def import_timm():
+    try:
+        import timm
+    except ImportError as error:
+        raise ValueError("vit_small needs the timm package; install it into the training environment: "
+                         "uv pip install --python tools/yolo-training/.venv-gpu/Scripts/python.exe timm==1.0.31") from error
+    return timm
+
+
+def build_timm(classes, weights_dir, fine_tune, initial_weights, pretrained, architecture):
+    """timm model with a new head; dynamic_img_size lets image_size differ from the pretrained 224."""
+    if pretrained and not initial_weights and weights_dir:
+        # Keep the Hugging Face download next to the other pretrained weights; read when huggingface_hub is first imported.
+        os.environ.setdefault("HF_HUB_CACHE", str(Path(weights_dir).resolve() / "hf"))
+    timm = import_timm()
+    model = timm.create_model(TIMM[architecture], pretrained=pretrained and not initial_weights, dynamic_img_size=True)
+    if initial_weights:
+        model.load_state_dict(torch.load(initial_weights, map_location="cpu", weights_only=True))
+    model.reset_classifier(len(classes))
+    for parameter in model.parameters():
+        parameter.requires_grad = fine_tune
+    for parameter in model.head.parameters():
+        parameter.requires_grad = True
+    return model
 
 
 def build_model(classes, weights_dir, fine_tune=False, initial_weights=None, pretrained=True, architecture="resnet18"):
@@ -75,6 +104,8 @@ def build_model(classes, weights_dir, fine_tune=False, initial_weights=None, pre
         # A YOLO family without official classification weights (YOLO12) starts from random initialization.
         weights = initial_weights or (prepare_pretrained(weights_dir, architecture) if pretrained and has_pretrained(architecture) else None)
         return YoloClassifier(architecture, classes, fine_tune, weights)
+    if is_timm(architecture):
+        return build_timm(classes, weights_dir, fine_tune, initial_weights, pretrained, architecture)
     builder, weights = model_spec(architecture)
     if initial_weights:
         model = builder(weights=None)
@@ -86,7 +117,7 @@ def build_model(classes, weights_dir, fine_tune=False, initial_weights=None, pre
         model = builder(weights=weights if pretrained else None)
     for parameter in model.parameters():
         parameter.requires_grad = fine_tune
-    if architecture == "resnet18":
+    if architecture.startswith("resnet"):
         model.fc = nn.Linear(model.fc.in_features, len(classes))
     else:
         model.classifier[-1] = nn.Linear(model.classifier[-1].in_features, len(classes))
@@ -103,6 +134,17 @@ def initial_weights_metadata(weights_dir, initial_weights=None, architecture="re
         path = Path(initial_weights) if initial_weights else initial_weights_path(weights_dir, architecture)
         return {"initial_weights": str(path.resolve()), "initial_weights_source": "local state_dict" if initial_weights else official_url(architecture),
                 "initial_weights_sha256": sha256(path), "ultralytics": importlib.metadata.version("ultralytics")}
+    if is_timm(architecture):
+        source = f"timm {TIMM[architecture]} (Hugging Face hub)"
+        if initial_weights:
+            return {"initial_weights": str(Path(initial_weights).resolve()), "initial_weights_source": "local state_dict",
+                    "initial_weights_sha256": sha256(initial_weights), "timm": importlib.metadata.version("timm")}
+        from huggingface_hub import try_to_load_from_cache
+
+        cached = try_to_load_from_cache(f"timm/{TIMM[architecture]}", "model.safetensors")
+        path = Path(cached) if isinstance(cached, str) else None
+        return {"initial_weights": str(path) if path else None, "initial_weights_source": source,
+                "initial_weights_sha256": sha256(path) if path else None, "timm": importlib.metadata.version("timm")}
     url = model_spec(architecture)[1].url
     path = Path(initial_weights).resolve() if initial_weights else Path(weights_dir) / "checkpoints" / Path(urlparse(url).path).name
     return {"initial_weights": str(path), "initial_weights_source": "local state_dict" if initial_weights else url,
@@ -112,6 +154,8 @@ def initial_weights_metadata(weights_dir, initial_weights=None, architecture="re
 def preprocessing_for(architecture):
     if is_yolo(architecture):
         return {**PREPROCESSING, "mean": [0., 0., 0.], "std": [1., 1., 1.]}
+    if is_timm(architecture):  # augreg ViT weights were trained with mean/std 0.5
+        return {**PREPROCESSING, "mean": [0.5, 0.5, 0.5], "std": [0.5, 0.5, 0.5]}
     return PREPROCESSING
 
 
@@ -140,7 +184,8 @@ class CropDataset(Dataset):
     def __getitem__(self, index):
         row = self.rows[index]
         with Image.open(self.root / row["classification_path"]) as decoded:
-            tensor = self.transform(decoded)
+            # Phone photos carry EXIF rotation; prepared crops are already upright, so this changes nothing for them.
+            tensor = self.transform(ImageOps.exif_transpose(decoded))
         return tensor, self.indices[row["canonical_class"]]
 
 
@@ -270,14 +315,18 @@ def fit(model, samples, summary, options, output):
                               "dataset_fingerprint": summary["fingerprint"], "loss": initial["loss"]})
             print(f"Starting checkpoint baseline | val top1 {initial['top1']:.3f} | val macro F1 {initial['macro_f1']:.3f}", flush=True)
         with (output / "history.csv").open("w", encoding="utf-8", newline="") as stream:
-            fields = ["epoch", "train_loss", "train_top1", "val_loss", "val_top1", "val_macro_f1", "elapsed_seconds"]
+            fields = ["epoch", "learning_rate", "train_loss", "train_top1", "val_loss", "val_top1", "val_macro_f1", "elapsed_seconds"]
             writer = csv.DictWriter(stream, fieldnames=fields)
             writer.writeheader()
             for epoch in range(1, options["epochs"] + 1):
+                rate = options["learning_rate"] * lr_factor(epoch, options["epochs"], options.get("scheduler", "constant"),
+                                                            options.get("warmup_epochs", 0))
+                for param_group in optimizer.param_groups:
+                    param_group["lr"] = rate
                 trained = train_epoch(model, train_loader, optimizer, device, options["fine_tune"], epoch, options["epochs"],
                                       options.get("label_smoothing", 0.0))
                 metrics, _, _ = evaluate(model, val_loader, device, summary["classes"])
-                writer.writerow({"epoch": epoch, "train_loss": trained["loss"], "train_top1": trained["top1"],
+                writer.writerow({"epoch": epoch, "learning_rate": rate, "train_loss": trained["loss"], "train_top1": trained["top1"],
                                  "val_loss": metrics["loss"], "val_top1": metrics["top1"], "val_macro_f1": metrics["macro_f1"],
                                  "elapsed_seconds": round(time.monotonic() - started, 2)})
                 stream.flush()
@@ -323,3 +372,62 @@ def evaluate_test(checkpoint_path, summary, samples, options, output):
     return write_evaluation(output, summary["snapshot"], "test", samples["test"], predictions, scores, summary["classes"],
                             {"status": summary["status"], "checkpoint_sha256": sha256(checkpoint_path),
                              "dataset_fingerprint": summary["fingerprint"], "loss": metrics["loss"], "test_evaluated": True})
+
+
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+
+
+def folder_rows(folder, classes):
+    """Images in <folder>/<class>/ (or <folder>/test/<class>/). A folder starting with _ holds models the classifier does not know."""
+    folder = Path(folder).resolve()
+    if (folder / "test").is_dir():
+        folder = folder / "test"
+    if not folder.is_dir():
+        raise ValueError(f"Not a folder: {folder}")
+    known, other, strangers = [], [], []
+    for directory in sorted(p for p in folder.iterdir() if p.is_dir()):
+        if not (directory.name in classes or directory.name.startswith("_")):
+            strangers.append(directory.name)
+            continue
+        for image in sorted(p for p in directory.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES):
+            relative = image.relative_to(folder).as_posix()
+            row = {"classification_path": relative, "annotation_id": relative, "folder": directory.name,
+                   "canonical_class": directory.name if directory.name in classes else classes[0]}
+            (known if directory.name in classes else other).append(row)
+    if strangers:
+        raise ValueError(f"Folders that are not classes of this model: {strangers}. Rename each to one of: {', '.join(classes)}; "
+                         "or start its name with _ (e.g. _other) for motorcycles of models the classifier does not know")
+    if not known and not other:
+        raise ValueError(f"No images ({', '.join(sorted(IMAGE_SUFFIXES))}) in class folders under {folder}")
+    return folder, known, other
+
+
+def evaluate_folder(checkpoint_path, folder, options, output):
+    """Score a trained checkpoint on an independent labelled image folder; never trains or writes into the folder."""
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+    if checkpoint.get("format_version") != 1 or not is_supported(checkpoint.get("architecture")):
+        raise ValueError("Expected a supported ParkMap classifier checkpoint, not detector weights")
+    classes = checkpoint["classes"]
+    folder, known, other = folder_rows(folder, classes)
+    device = select_device(options["device"])
+    model = build_model(classes, weights_dir=None, pretrained=False, architecture=checkpoint["architecture"]).to(device)
+    model.load_state_dict(checkpoint["state_dict"])
+    options = {**options, "image_size": checkpoint["image_size"], "architecture": checkpoint["architecture"]}
+    result = {"folder": str(folder), "checkpoint": str(checkpoint_path), "classes": classes}
+    if known:
+        metrics, predictions, scores = evaluate(model, loader(folder, known, classes, options), device, classes)
+        result["known"] = write_evaluation(output, folder, "own-images", known, predictions, scores, classes,
+                                           {"status": "independent images, not part of the training dataset",
+                                            "checkpoint_sha256": sha256(checkpoint_path), "loss": metrics["loss"],
+                                            "image_folder": str(folder)})
+        result["known_rows"] = [{"image": r["classification_path"], "true": r["canonical_class"], "predicted": classes[p], "score": s}
+                                for r, p, s in zip(known, predictions, scores, strict=True)]
+    else:
+        Path(output).mkdir(parents=True, exist_ok=False)
+    if other:
+        _, predictions, scores = evaluate(model, loader(folder, other, classes, options), device, classes)
+        rows = [{"image": r["classification_path"], "folder": r["folder"], "predicted": classes[p], "score": s}
+                for r, p, s in zip(other, predictions, scores, strict=True)]
+        (Path(output) / "other_predictions.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+        result["other_rows"] = rows
+    return result

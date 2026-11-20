@@ -17,10 +17,11 @@ from classifier_data import sha256, validate_run
 
 REQUIRED = {"dataset", "output", "architecture", "image_size", "epochs", "batch_size", "learning_rate", "seed",
             "device", "threads", "workers", "fine_tune", "augment", "allow_provisional"}
-OPTIONAL = {"patience", "experiment", "augmentation", "weight_decay", "label_smoothing", "sampling"}
+OPTIONAL = {"patience", "experiment", "augmentation", "weight_decay", "label_smoothing", "sampling", "classes",
+            "scheduler", "warmup_epochs"}
 SUMMARY_FIELDS = ["finished", "run", "model", "architecture", "best_epoch", "epochs_planned", "patience", "batch_size",
                   "learning_rate", "fine_tune", "augmentation", "weight_decay", "label_smoothing", "sampling",
-                  "val_top1", "val_macro_f1", "val_loss"]
+                  "classes", "scheduler", "warmup_epochs", "val_top1", "val_macro_f1", "val_loss"]
 
 
 def run_name(kind, architecture, now, token):
@@ -36,6 +37,21 @@ def load_config(config_path):
     if not isinstance(config, dict):
         raise TypeError(f"{Path(config_path).name} must contain key: value settings at the top level")
     return config
+
+
+def latest_checkpoint(output, model):
+    """best.pt of the newest finished training run of exactly this model under the config's output folder."""
+    pattern = re.compile(rf"train-\d{{8}}-\d{{6}}-{re.escape(model.replace('_', '-'))}-[0-9a-f]{{6}}")
+    runs = sorted((d for d in Path(output).glob("train-*") if pattern.fullmatch(d.name) and (d / "best.pt").is_file()),
+                  key=lambda d: d.name, reverse=True)
+    for run in runs:
+        try:
+            metadata = json.loads((run / "run.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(metadata, dict) and metadata.get("run_state") == "complete":
+            return run / "best.pt"
+    raise ValueError(f"No finished training run of '{model}' in {output}; run: train-classifier run {model}")
 
 
 def model_names(config_path):
@@ -78,6 +94,14 @@ def read_options(config_path, args, model=None):
     options.setdefault("sampling", "shuffle")  # plain shuffled epochs, exactly as before
     if options["sampling"] not in {"shuffle", "balanced"}:
         raise ValueError('sampling must be "shuffle" or "balanced"')
+    options.setdefault("scheduler", "constant")  # the learning rate stays fixed, exactly as before
+    options.setdefault("warmup_epochs", 0)
+    if options["scheduler"] not in {"constant", "cosine"}:
+        raise ValueError('scheduler must be "constant" or "cosine"')
+    selected = options.get("classes")  # absent or null = every family in the dataset
+    if selected is not None and (not isinstance(selected, list) or len(selected) < 2 or len(set(selected)) != len(selected)
+                                 or not all(isinstance(name, str) and name for name in selected)):
+        raise ValueError("classes must be a list of at least two different model-family names, or left out for all")
     if options["augmentation"] not in {"basic", "strong"}:
         raise ValueError('augmentation must be "basic" or "strong"')
     if not isinstance(options["weight_decay"], (int, float)) or isinstance(options["weight_decay"], bool) or not 0 <= options["weight_decay"] < 1:
@@ -105,6 +129,8 @@ def read_options(config_path, args, model=None):
     for name in ("epochs", "batch_size", "threads"):
         if type(options[name]) is not int or options[name] <= 0:
             raise ValueError(f"{name} must be a positive integer")
+    if type(options["warmup_epochs"]) is not int or not 0 <= options["warmup_epochs"] < options["epochs"]:
+        raise ValueError("warmup_epochs must be a whole number from 0 up to (not including) epochs")
     if type(options["image_size"]) is not int or not 64 <= options["image_size"] <= 1024:
         raise ValueError("image_size must be 64..1024")
     if type(options["workers"]) is not int or options["workers"] < 0 or type(options["seed"]) is not int:
@@ -139,7 +165,9 @@ def record_summary(path, run, options):
            "best_epoch": meta.get("best_epoch"), "epochs_planned": options["epochs"], "patience": options["patience"],
            "batch_size": options["batch_size"], "learning_rate": options["learning_rate"], "fine_tune": options["fine_tune"],
            "augmentation": options["augmentation"] if options["augment"] else "off", "weight_decay": options["weight_decay"],
-           "label_smoothing": options["label_smoothing"], "sampling": options.get("sampling", "shuffle"), "val_top1": round(val["top1"], 4), "val_macro_f1": round(val["macro_f1"], 4), "val_loss": round(val.get("loss", math.nan), 4)}
+           "label_smoothing": options["label_smoothing"], "sampling": options.get("sampling", "shuffle"),
+           "classes": len(meta["dataset"]["classes"]) if "dataset" in meta else "",
+           "scheduler": options.get("scheduler", "constant"), "warmup_epochs": options.get("warmup_epochs", 0), "val_top1": round(val["top1"], 4), "val_macro_f1": round(val["macro_f1"], 4), "val_loss": round(val.get("loss", math.nan), 4)}
     # Older files lack the newer columns: rewrite them once with blanks rather than append misaligned rows.
     rows = summary_rows(path) + [row]
     with path.open("w", encoding="utf-8", newline="") as stream:
@@ -149,13 +177,16 @@ def record_summary(path, run, options):
 
 
 def check_all(args):
-    """Validate every model's settings and the dataset once per distinct snapshot; trains nothing."""
+    """Validate every model's settings and distinct dataset/class selection; trains nothing."""
     checked = set()
     for name in model_names(args.config):
         options = read_options(args.config, args, name)
-        if options["dataset"] not in checked:
-            checked.add(options["dataset"])
-            summary, _ = validate_run(options["dataset"], options["allow_provisional"])
+        selection = options.get("classes")
+        validation_key = (options["dataset"], options["allow_provisional"],
+                          tuple(sorted(selection)) if selection is not None else None)
+        if validation_key not in checked:
+            checked.add(validation_key)
+            summary, _ = validate_run(options["dataset"], options["allow_provisional"], classes=options.get("classes"))
             crops = summary["split_crops"]
             print(f"Dataset {Path(options['dataset']).name}: {summary['status']} | {len(summary['classes'])} classes | "
                   f"train {crops['train']} / val {crops['val']} / test {crops['test']} crops")
@@ -229,6 +260,27 @@ def train_all(args, argv, names=None):
     return 1 if failed else 0
 
 
+def evaluate_own_images(args, options):
+    """Independent labelled images; the dataset snapshot is not read, so this can never touch train/val/test."""
+    from classifier_engine import evaluate_folder
+
+    checkpoint = latest_checkpoint(options["output"], args.model) if args.checkpoint in (None, Path("latest")) else args.checkpoint.resolve()
+    run = Path(options["output"]) / run_name("evaluate", args.model, datetime.now(UTC).astimezone(), uuid4().hex[:6])
+    print(f"Scoring {checkpoint.parent.name} on {args.evaluate_folder}", flush=True)
+    result = evaluate_folder(checkpoint, args.evaluate_folder, options, run)
+    for row in result.get("known_rows", [])[:60]:
+        mark = "OK " if row["true"] == row["predicted"] else "XX "
+        print(f"  {mark}{row['image']:<60} true {row['true']:<14} predicted {row['predicted']:<14} score {row['score']:.3f}")
+    if "known" in result:
+        known = result["known"]
+        print(f"Known models: {known['samples']} images | accuracy {known['top1']:.3f} | macro F1 {known['macro_f1']:.3f} "
+              f"over {known['macro_f1_supported_classes']} models present", flush=True)
+    for row in result.get("other_rows", [])[:60]:
+        print(f"  ?? {row['image']:<60} (not a known model) predicted {row['predicted']:<14} score {row['score']:.3f}")
+    print(f"Report: {run}", flush=True)
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=Path(__file__).with_name("experiments.yaml"))
@@ -249,12 +301,19 @@ def main(argv=None):
     parser.add_argument("--continue-from", type=Path, help="Continue weights on the exact same snapshot with a fresh optimizer in a new run")
     parser.add_argument("--initial-weights", type=Path, help="Optional original torchvision ImageNet state_dict matching --architecture for offline training")
     parser.add_argument("--evaluate-test", action="store_true", help="Explicit held-out test evaluation, after val-based model selection")
-    parser.add_argument("--checkpoint", type=Path, help="ParkMap classifier best.pt; only with --evaluate-test")
+    parser.add_argument("--evaluate-folder", type=Path, help="Score --model's newest run (or --checkpoint) on your own labelled images: <folder>/<class>/*.jpg")
+    parser.add_argument("--checkpoint", type=Path, help="ParkMap classifier best.pt, or latest (with --model); only with --evaluate-test")
     args = parser.parse_args(argv)
     if args.continue_from and (args.initial_weights or args.evaluate_test):
         parser.error("--continue-from cannot be combined with --initial-weights or --evaluate-test")
-    if args.evaluate_test != bool(args.checkpoint):
-        parser.error("--evaluate-test and --checkpoint must be supplied together")
+    if args.evaluate_test and args.evaluate_folder:
+        parser.error("--evaluate-test and --evaluate-folder are separate evaluations; use one")
+    if args.evaluate_test and not args.checkpoint:
+        parser.error("--evaluate-test needs --checkpoint")
+    if args.checkpoint and not (args.evaluate_test or args.evaluate_folder):
+        parser.error("--checkpoint is only for --evaluate-test or --evaluate-folder")
+    if args.evaluate_folder and (not args.model or args.model == "all" or args.choose or args.validate_only or args.continue_from):
+        parser.error("--evaluate-folder needs one --model (its newest run is scored unless --checkpoint is given)")
     if args.initial_weights and args.evaluate_test:
         parser.error("--initial-weights is for training, not test evaluation")
     if args.model == "all" and (args.evaluate_test or args.continue_from):
@@ -270,7 +329,15 @@ def main(argv=None):
         if args.model == "all":
             return check_all(args) if args.validate_only else train_all(args, list(sys.argv[1:] if argv is None else argv))
         options = read_options(args.config, args)
-        summary, samples = validate_run(options["dataset"], options["allow_provisional"], evaluation_only=args.evaluate_test)
+        if args.evaluate_folder:
+            return evaluate_own_images(args, options)
+        if args.evaluate_test and str(args.checkpoint) == "latest":
+            if not args.model:
+                raise ValueError("--checkpoint latest needs --model to know which model's newest run to test")
+            args.checkpoint = latest_checkpoint(options["output"], args.model)
+            print(f"Held-out test evaluation of {args.checkpoint.parent.name}", flush=True)
+        summary, samples = validate_run(options["dataset"], options["allow_provisional"], evaluation_only=args.evaluate_test,
+                                        classes=options.get("classes"))
         if args.initial_weights and not args.initial_weights.is_file():
             raise ValueError("Initial weights file does not exist")
         console_summary = {key: value for key, value in summary.items() if key not in {"class_coverage", "classes", "missing_training_classes"}}

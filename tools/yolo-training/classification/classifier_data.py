@@ -38,8 +38,69 @@ def balanced_weights(rows):
     return [1.0 / (groups_per_class[row["canonical_class"]] * groups[(row["canonical_class"], row["group_id"])]) for row in rows]
 
 
-def validate_run(root, allow_provisional=False, *, evaluation_only=False):
+def validate_imagefolder(root, allow_provisional=False, *, evaluation_only=False, classes=None):
+    """A plain ImageFolder (train/ val/ test/ <class>/ files) listed by manifest.csv (path, split, class, source, ..., id).
+
+    Not a prepare.py snapshot: there are no group or leakage records, so every file is its own group and only exact
+    byte duplicates across splits are detected (they are refused). Splits are used exactly as given.
+    """
+    if not allow_provisional:
+        raise ValueError("An ImageFolder dataset is not a reviewed snapshot; set allow_provisional=true to train on it")
+    with (root / "manifest.csv").open(encoding="utf-8", newline="") as stream:
+        listed = list(csv.DictReader(stream))
+    required = {"path", "split", "class", "id"}
+    if not listed or not required <= set(listed[0]):
+        raise ValueError(f"manifest.csv needs columns {sorted(required)}")
+    rows, paths, ids, split_of_bytes, fingerprint = [], set(), set(), {}, hashlib.sha256()
+    for item in sorted(listed, key=lambda r: r["path"]):
+        relative = PurePosixPath(item["path"])
+        if (len(relative.parts) != 3 or relative.parts[0] != item["split"] or relative.parts[1] != item["class"]
+                or item["split"] not in SPLITS or not item["class"] or not item["id"]):
+            raise ValueError(f"manifest.csv row does not match <split>/<class>/<file>: {item['path']}")
+        path = root / relative
+        if not path.resolve().is_relative_to(root) or path.is_symlink() or not path.is_file():
+            raise ValueError(f"Missing or unsafe image: {item['path']}")
+        if str(relative) in paths or item["id"] in ids:
+            raise ValueError(f"manifest.csv repeats a path or id: {item['path']}")
+        paths.add(str(relative)); ids.add(item["id"])
+        digest = sha256(path)
+        if split_of_bytes.setdefault(digest, item["split"]) != item["split"]:
+            raise ValueError(f"The same image bytes are in two splits: {item['path']}")
+        with Image.open(path) as decoded:
+            decoded.load()
+            if decoded.getexif().get(274, 1) != 1:
+                raise ValueError(f"Unexpected image orientation: {item['path']}")
+        fingerprint.update(f"{relative}\t{digest}\n".encode())
+        rows.append({"classification_path": str(relative), "split": item["split"], "canonical_class": item["class"],
+                     "annotation_id": item["id"], "group_id": item["id"], "source_dataset": item.get("source", "")})
+    actual = {p.relative_to(root).as_posix() for split in SPLITS if (root / split).is_dir() for p in (root / split).rglob("*") if p.is_file()}
+    if actual != paths:
+        raise ValueError(f"Image folders and manifest.csv differ by {len(actual ^ paths)} files")
+    all_classes = sorted({r["canonical_class"] for r in rows})
+    selected = sorted(set(classes)) if classes is not None else all_classes
+    unknown = sorted(set(selected) - set(all_classes))
+    if unknown:
+        raise ValueError(f"classes not in this dataset: {unknown}")
+    if len(selected) < 2:
+        raise ValueError("classes must name at least two model families")
+    samples = {split: [r for r in rows if r["split"] == split and r["canonical_class"] in selected] for split in SPLITS}
+    if not all(samples.values()):
+        raise ValueError("Train, val and test must each have at least one image")
+    absent = set(selected) - {r["canonical_class"] for r in samples["train"]}
+    if absent and not evaluation_only:
+        raise ValueError(f"Classes without training examples: {sorted(absent)}")
+    coverage = {c: {s: sum(1 for r in samples[s] if r["canonical_class"] == c) for s in SPLITS} for c in selected}
+    return {"snapshot": str(root), "fingerprint": fingerprint.hexdigest(), "manifest_sha256": sha256(root / "manifest.csv"),
+            "classes": selected, "split_crops": {s: len(v) for s, v in samples.items()}, "status": "imagefolder (unreviewed)",
+            "similar_pairs_pending": None, "similar_pairs_cross_split_proposed": 0, "unconfirmed_included_annotations": None,
+            "leakage": {"exact_bytes_cross_split": 0}, "class_coverage": coverage, "snapshot_class_count": len(all_classes),
+            "missing_training_classes": sorted(absent)}, samples
+
+
+def validate_run(root, allow_provisional=False, *, evaluation_only=False, classes=None):
     root = Path(root).resolve()
+    if not (root / "COMPLETE").is_file() and (root / "manifest.csv").is_file() and (root / "train").is_dir():
+        return validate_imagefolder(root, allow_provisional, evaluation_only=evaluation_only, classes=classes)
     if not (root / "COMPLETE").is_file():
         raise ValueError("Use the prepared run directory containing COMPLETE, not its classification subfolder")
     leakage = verify_output(root)
@@ -47,7 +108,7 @@ def validate_run(root, allow_provisional=False, *, evaluation_only=False):
     if audit["status"] != "reviewed" and not allow_provisional:
         raise ValueError("Dataset is provisional; set allow_provisional=true for an explicitly exploratory baseline")
     rows = [r for r in read_jsonl(root / "manifest.jsonl") if r["disposition"] == "included"]
-    classes = sorted(audit["classes"])
+    selected, classes = classes, sorted(audit["classes"])
     if len(classes) < 2:
         raise ValueError("Classification requires at least two observed classes")
     samples = {split: [] for split in SPLITS}
@@ -72,6 +133,16 @@ def validate_run(root, allow_provisional=False, *, evaluation_only=False):
     actual = {p.relative_to(root).as_posix() for p in (root / "classification").rglob("*") if p.is_file()}
     if actual != expected:
         raise ValueError("Classification folder does not match included manifest crops")
+    snapshot_class_count = len(classes)
+    if selected is not None:
+        # Train on a subset of the snapshot's families. Every crop above was still verified; the split of each crop is unchanged.
+        unknown = sorted(set(selected) - set(classes))
+        if unknown:
+            raise ValueError(f"classes not in this dataset: {unknown}")
+        classes = sorted(set(selected))
+        if len(classes) < 2:
+            raise ValueError("classes must name at least two model families")
+        samples = {split: [r for r in split_rows if r["canonical_class"] in classes] for split, split_rows in samples.items()}
     if not all(samples.values()):
         raise ValueError("Train, val and test must each have at least one crop")
     absent = set(classes) - {r["canonical_class"] for r in samples["train"]}
@@ -83,7 +154,7 @@ def validate_run(root, allow_provisional=False, *, evaluation_only=False):
             "similar_pairs_pending": audit["similar_pairs_pending"],
             "similar_pairs_cross_split_proposed": audit.get("similar_pairs_cross_split_proposed", 0),
             "unconfirmed_included_annotations": audit["unconfirmed_included_annotations"], "leakage": leakage,
-            "class_coverage": audit["classes"],
+            "class_coverage": {c: audit["classes"][c] for c in classes}, "snapshot_class_count": snapshot_class_count,
             "missing_training_classes": sorted(absent)}, samples
 
 

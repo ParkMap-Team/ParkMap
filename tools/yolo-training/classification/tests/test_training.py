@@ -2,6 +2,7 @@
 
 import importlib.util
 import io
+import itertools
 import json
 import os
 import subprocess
@@ -90,6 +91,156 @@ class ClassifierTests(unittest.TestCase):
         self.assertTrue(summary["validate_only"])
         self.assertEqual(summary["dataset"]["class_count"], 2)
         self.assertFalse(output.exists())
+
+    def test_09b_classes_option_trains_a_subset_without_moving_crops_between_splits(self):
+        from classifier_data import validate_run
+        from prepare import prepare
+        from train import read_options
+
+        archive = self.root / "three.zip"
+        with zipfile.ZipFile(archive, "w") as z:
+            z.writestr("data.yaml", "nc: 3\nnames: [a, b, c]\n")
+            for index in range(24):
+                stream = io.BytesIO()
+                Image.new("RGB", (40, 20), (index * 10, 30, 50)).save(stream, "PNG")
+                z.writestr(f"train/images/{index}.png", stream.getvalue())
+                z.writestr(f"train/labels/{index}.txt", f"{index % 3} 0.5 0.5 1 1")
+        config = {"seed": 42, "ratios": {"train": .7, "val": .15, "test": .15}, "sources": [{
+            "id": "three", "archive": str(archive), "yaml": "data.yaml", "splits": {"train": "train", "val": "valid", "test": "test"},
+            "class_map": {"a": "a", "b": "b", "c": "c"}, "license": {"name": "test", "credit": "synthetic", "url": "local"}}]}
+        path = self.root / "three.json"
+        path.write_text(json.dumps(config))
+        run = prepare(path, self.root / "prepared-three")
+        full, full_samples = validate_run(run, True)
+        subset, samples = validate_run(run, True, classes=["c", "a"])
+        self.assertEqual((full["classes"], subset["classes"]), (["a", "b", "c"], ["a", "c"]))
+        self.assertEqual(subset["snapshot_class_count"], 3)
+        self.assertEqual(sorted(subset["class_coverage"]), ["a", "c"])
+        for split in samples:  # same crops in the same split, only family b removed
+            self.assertEqual([r["annotation_id"] for r in samples[split]],
+                             [r["annotation_id"] for r in full_samples[split] if r["canonical_class"] != "b"])
+        with self.assertRaisesRegex(ValueError, "not in this dataset"):
+            validate_run(run, True, classes=["a", "zzz"])
+        for bad in (["a"], ["a", "a"], "a,b", ["a", ""]):
+            with self.subTest(classes=bad), self.assertRaisesRegex(ValueError, "classes must"):
+                read_options(self.experiments(models={"x": {"architecture": "resnet18"}}, classes=bad), self.cli_args(model="x"))
+        config = self.experiments(models={"x": {"architecture": "resnet18"}})
+        self.assertNotIn("classes", read_options(config, self.cli_args(model="x")))  # absent = every family
+
+    def imagefolder(self, duplicate_across_splits=False):
+        import csv
+
+        root = self.root / "folder"
+        rows = []
+        for split, count in (("train", 3), ("val", 1), ("test", 1)):
+            for family in ("a", "b", "c"):
+                for index in range(count):
+                    relative = f"{split}/{family}/team-{split}{family}{index}.png"
+                    (root / split / family).mkdir(parents=True, exist_ok=True)
+                    shade = 7 if duplicate_across_splits and family == "a" and index == 0 else len(rows) * 9
+                    Image.new("RGB", (30, 20), (shade, 40, 60)).save(root / relative)
+                    rows.append({"path": relative, "split": split, "class": family, "source": "team", "studio": "0", "id": f"{split}{family}{index}"})
+        with (root / "manifest.csv").open("w", encoding="utf-8", newline="") as stream:
+            writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+            writer.writeheader()
+            writer.writerows(rows)
+        return root
+
+    def test_09c_imagefolder_with_manifest_trains_like_a_snapshot(self):
+        from classifier_data import balanced_weights, validate_run
+
+        root = self.imagefolder()
+        summary, samples = validate_run(root, True)
+        self.assertEqual((summary["classes"], summary["split_crops"]), (["a", "b", "c"], {"train": 9, "val": 3, "test": 3}))
+        self.assertEqual(samples["val"][0]["classification_path"], "val/a/team-vala0.png")
+        self.assertEqual(len(balanced_weights(samples["train"])), 9)
+        again, _ = validate_run(root, True)
+        self.assertEqual(again["fingerprint"], summary["fingerprint"])  # stable: test evaluation matches the checkpoint
+        subset, _ = validate_run(root, True, classes=["a", "c"])
+        self.assertEqual((subset["classes"], subset["split_crops"]["train"]), (["a", "c"], 6))
+        with self.assertRaisesRegex(ValueError, "allow_provisional"):
+            validate_run(root, False)
+        (root / "train" / "a" / "stray.png").write_bytes((root / "train" / "a" / "team-traina0.png").read_bytes())
+        with self.assertRaisesRegex(ValueError, "differ by 1 files"):
+            validate_run(root, True)
+        for path in root.rglob("*"):
+            if path.is_file():
+                path.unlink()
+        duplicated = self.imagefolder(duplicate_across_splits=True)
+        with self.assertRaisesRegex(ValueError, "two splits"):
+            validate_run(duplicated, True)
+
+    def test_09c_check_all_validates_each_models_class_selection(self):
+        from train import main
+
+        folder = self.imagefolder()
+        config = self.experiments(models={
+            "good": {"architecture": "resnet18", "classes": ["a", "b"]},
+            "bad": {"architecture": "resnet18", "classes": ["a", "missing"]},
+        }, dataset=str(folder))
+        with self.assertRaises(SystemExit) as error:
+            main(["--config", str(config), "--model", "all", "--validate-only"])
+        self.assertEqual(error.exception.code, 2)
+
+    def test_09d_latest_checkpoint_ignores_unfinished_and_invalid_runs(self):
+        from train import latest_checkpoint
+
+        for day, state in ((1, "complete"), (2, "failed"), (3, "running"), (4, "interrupted")):
+            run = self.root / f"train-202611{day:02d}-090000-demo-abcdef"
+            run.mkdir()
+            (run / "best.pt").write_bytes(b"synthetic")
+            (run / "run.json").write_text(json.dumps({"run_state": state}))
+        for day, metadata in ((5, None), (6, "not json"), (7, "[]")):
+            run = self.root / f"train-202611{day:02d}-090000-demo-abcdef"
+            run.mkdir()
+            (run / "best.pt").write_bytes(b"synthetic")
+            if metadata is not None:
+                (run / "run.json").write_text(metadata)
+        self.assertEqual(latest_checkpoint(self.root, "demo").parent.name, "train-20261101-090000-demo-abcdef")
+
+    def test_09d_latest_checkpoint_picks_the_newest_run_of_exactly_that_model(self):
+        from train import latest_checkpoint
+
+        for name in ("train-20261101-090000-convnext-tiny-aaaaaa", "train-20261102-090000-convnext-tiny-bbbbbb",
+                     "train-20261103-090000-r1-convnext-tiny-cccccc", "train-20261104-090000-convnext-tiny-dddddd"):
+            (self.root / "out" / name).mkdir(parents=True)
+            if not name.endswith("dddddd"):  # newest run never finished an epoch
+                (self.root / "out" / name / "best.pt").write_bytes(b"x")
+                (self.root / "out" / name / "run.json").write_text(json.dumps({"run_state": "complete"}))
+        self.assertEqual(latest_checkpoint(self.root / "out", "convnext_tiny").parent.name, "train-20261102-090000-convnext-tiny-bbbbbb")
+        with self.assertRaisesRegex(ValueError, "No finished training run of 'yolo26n'"):
+            latest_checkpoint(self.root / "out", "yolo26n")
+
+    def test_09e_evaluate_folder_scores_own_photos_without_a_dataset_snapshot(self):
+        from classifier_engine import build_model, save_checkpoint
+        from train import main
+
+        model = build_model(["a", "b", "c"], None, fine_tune=False, pretrained=False, architecture="resnet18")
+        run = self.root / "runs" / "train-20261112-090000-x-abcdef"
+        run.mkdir(parents=True)
+        (run / "run.json").write_text(json.dumps({"run_state": "complete"}))
+        save_checkpoint(run / "best.pt", model, {"architecture": "resnet18", "image_size": 64},
+                        {"classes": ["a", "b", "c"], "fingerprint": "f", "manifest_sha256": "m"}, 1, {})
+        photos = self.root / "photos" / "test"
+        for folder, count in (("a", 2), ("c", 1), ("_other", 1)):
+            (photos / folder).mkdir(parents=True)
+            for index in range(count):
+                Image.new("RGB", (50, 30), (index * 40, 90, 20)).save(photos / folder / f"p{index}.jpg")
+        (photos / "a" / "notes.txt").write_text("not an image")
+        config = self.experiments(models={"x": {"architecture": "resnet18"}})
+        self.assertEqual(main(["--config", str(config), "--model", "x", "--output", str(self.root / "runs"),
+                               "--evaluate-folder", str(photos.parent)]), 0)
+        report = next((self.root / "runs").glob("evaluate-*-x-*"))
+        metrics = json.loads((report / "metrics.json").read_text())
+        self.assertEqual((metrics["samples"], metrics["macro_f1_supported_classes"], metrics["split"]), (3, 2, "own-images"))
+        self.assertEqual(len((report / "other_predictions.jsonl").read_text().splitlines()), 1)
+        (photos / "filano").mkdir()
+        from classifier_engine import folder_rows
+
+        with self.assertRaisesRegex(ValueError, "not classes of this model.*filano"):
+            folder_rows(photos.parent, ["a", "b", "c"])
+        with self.assertRaises(SystemExit):  # one named model is required
+            main(["--config", str(config), "--evaluate-folder", str(photos.parent)])
 
     def test_10_letterbox_and_metrics_preserve_shape_and_include_missed_classes(self):
         data = self.module("classifier_data")
@@ -359,9 +510,10 @@ models:
         from architectures import has_pretrained, is_supported, yolo_asset
         from train import read_options
 
-        for name in ("resnet18", "efficientnet_b0", "mobilenet_v3_large", "convnext_tiny", "yolo11n_cls", "yolo12s_cls", "yolo26x_cls"):
+        for name in ("resnet18", "resnet50", "efficientnet_b0", "mobilenet_v3_large", "convnext_tiny", "vit_small", "yolo11n_cls",
+                     "yolo12s_cls", "yolo26x_cls"):
             self.assertTrue(is_supported(name), name)
-        for name in ("resnet50", "yolo13n_cls", "yolo11z_cls", "yolo11n", "yolo26n-cls", "../yolo11n_cls", None):
+        for name in ("resnet34", "vit_base", "yolo13n_cls", "yolo11z_cls", "yolo11n", "yolo26n-cls", "../yolo11n_cls", None):
             self.assertFalse(is_supported(name), name)
         self.assertEqual(yolo_asset("yolo26s_cls"), "yolo26s-cls")
         self.assertEqual([has_pretrained(name) for name in ("yolo11n_cls", "yolo12n_cls", "yolo26n_cls", "convnext_tiny")], [True, False, True, True])
@@ -383,8 +535,11 @@ models:
             preprocessing_for,
         )
 
-        for name in ("resnet18", "efficientnet_b0", "mobilenet_v3_large", "convnext_tiny", "yolo11n_cls", "yolo12n_cls", "yolo26n_cls"):
+        for name in ("resnet18", "resnet50", "efficientnet_b0", "mobilenet_v3_large", "convnext_tiny", "vit_small",
+                     "yolo11n_cls", "yolo12n_cls", "yolo26n_cls"):
             with self.subTest(architecture=name):
+                if name == "vit_small" and importlib.util.find_spec("timm") is None:
+                    self.skipTest("timm is not installed")
                 model = build_model(["a", "b", "c"], None, fine_tune=True, pretrained=False, architecture=name).eval()
                 with torch.no_grad():
                     self.assertEqual(tuple(model(torch.zeros(2, 3, 64, 64)).shape), (2, 3))
@@ -393,6 +548,43 @@ models:
         metadata = initial_weights_metadata(self.root, None, "yolo12n_cls")
         self.assertIsNone(metadata["initial_weights"])
         self.assertIn("random initialization", metadata["initial_weights_source"])
+
+    def test_05b_vit_small_trains_only_its_new_head_and_records_its_normalization(self):
+        if importlib.util.find_spec("timm") is None:
+            self.skipTest("timm is not installed")
+        import torch
+        from classifier_engine import build_model, classifier_head, preprocessing_for
+
+        model = build_model(["a", "b"], None, fine_tune=False, pretrained=False, architecture="vit_small")
+        self.assertIs(classifier_head(model), model.head)
+        self.assertEqual(model.head.out_features, 2)
+        self.assertTrue(all(p.requires_grad for p in model.head.parameters()))
+        self.assertFalse(model.patch_embed.proj.weight.requires_grad)
+        with torch.no_grad():  # any letterbox size works, not only the pretrained 224
+            self.assertEqual(tuple(model.eval()(torch.zeros(1, 3, 96, 96)).shape), (1, 2))
+        self.assertEqual(preprocessing_for("vit_small")["mean"], [0.5, 0.5, 0.5])
+        resnet = build_model(["a", "b", "c"], None, fine_tune=False, pretrained=False, architecture="resnet50")
+        self.assertEqual(resnet.fc.out_features, 3)
+        self.assertTrue(resnet.fc.weight.requires_grad)
+        self.assertFalse(resnet.conv1.weight.requires_grad)
+
+    def test_05c_cosine_schedule_warms_up_then_decays_and_constant_is_the_default(self):
+        from train import read_options
+        from training_control import lr_factor
+
+        self.assertEqual([lr_factor(e, 10) for e in (1, 5, 10)], [1.0, 1.0, 1.0])
+        factors = [lr_factor(e, 10, "cosine", 2) for e in range(1, 11)]
+        self.assertAlmostEqual(factors[0], 1 / 3)
+        self.assertAlmostEqual(factors[1], 2 / 3)
+        self.assertAlmostEqual(factors[2], 1.0)  # first epoch after warm-up uses the full rate
+        self.assertTrue(all(a >= b for a, b in itertools.pairwise(factors[2:])))
+        self.assertLess(factors[-1], 0.05)
+        self.assertGreater(factors[-1], 0)  # never exactly zero, so the last epoch still learns
+        plain = read_options(self.experiments(models={"x": {"architecture": "resnet18"}}), self.cli_args(model="x"))
+        self.assertEqual((plain["scheduler"], plain["warmup_epochs"]), ("constant", 0))
+        for key, bad in (("scheduler", "step"), ("warmup_epochs", 3), ("warmup_epochs", -1), ("warmup_epochs", 1.5)):
+            with self.subTest(key=key, value=bad), self.assertRaises(ValueError):
+                read_options(self.experiments(models={"x": {"architecture": "resnet18", key: bad}}), self.cli_args(model="x"))
 
     def test_06_regularization_options_default_to_old_behaviour_and_are_validated(self):
         from train import read_options

@@ -7,18 +7,26 @@
 # =====================================================================================
 
 # ---------- ข้อมูลและที่เก็บผลลัพธ์ (ใช้ร่วมกันทุกโมเดล) ----------
-dataset: ../datasets/Classify/parkmap-classifier-run-1/run1
-                        # โฟลเดอร์ snapshot ที่มีไฟล์ COMPLETE (ไม่ใช่โฟลเดอร์ classification/ ข้างใน)
-                        #   run-1 = Thai Motorcycle (ข้อมูลเดียวกับ run-2) + ชุดภายนอก 4 ชุด, 46 รุ่น
-                        #   train 9,047 / val 265 / test 265 crops; รุ่นรถไม่สมดุลมาก จึงใช้ sampling: balanced ด้านล่าง
-output: runs            # ผลการเทรนทุกรอบ: runs/train-<วันที่>-<เวลา>-<ชื่อโมเดล>-<id>/ และ runs/summary.csv
+dataset: ../datasets/Classify/hf-thai-motorcycle/class-project-12
+                        # dataset ที่ใช้เทรน รองรับ 2 แบบ:
+                        #   1) snapshot จาก prepare.py ที่มีไฟล์ COMPLETE เช่น ../datasets/Classify/parkmap-classifier-run-1/run1 (46 รุ่น)
+                        #   2) ImageFolder (train/ val/ test/ <รุ่น>/ ภาพ) + manifest.csv เช่นชุดนี้จาก Hugging Face
+                        # class-project-12 = 12 รุ่น, train 9,333 / val 240 / test 240 (ภาพทีม + ภาพ Bing 1,013 ภาพ)
+                        #   ⚠ ใช้กับงานวิชาเท่านั้น: ห้าม commit ภาพเข้า Git, ห้ามใช้โมเดลที่เทรนจากชุดนี้ในระบบ ParkMap
+                        #     และลบทิ้งหลังจบวิชา (ดู README.md ของ dataset)
+output: runs-class-project
+                        # โฟลเดอร์เก็บผลเทรน: <output>/train-<วันที่>-<เวลา>-<ชื่อโมเดล>-<id>/ และ <output>/summary.csv
+                        #   แยกจาก runs/ เพราะหน้า Parking ของ ParkMap โหลดโมเดลจาก runs/ อัตโนมัติ (ชุดนี้ห้ามใช้ในระบบ)
+# classes:              # (ไม่บังคับ) เทรนเฉพาะบางรุ่นใน dataset; ไม่ใส่ = ใช้ทุกรุ่น
+#   - click             #   ชื่อต้องตรงกับชื่อโฟลเดอร์รุ่นใน train/ ; ทุกภาพยังอยู่ split เดิม
+#   - aerox             #   ตัวอย่าง 10 รุ่นที่ใช้กับ run-1: click aerox nmax scoopy wave pcx fino grand_filano super_cub xmax
 
 # ---------- ค่าการเทรนที่ใช้ร่วมกันทุกโมเดล ----------
 # โมเดลใดต้องการค่าต่างไป ให้ใส่ key เดียวกันในบล็อกของโมเดลนั้นด้านล่าง
 defaults:
   # --- รอบการเทรน ---
   epochs: 50              # จำนวนรอบสูงสุดที่เทรนผ่านข้อมูล train ทั้งชุด
-                          #   run-1 มีภาพ train ~9,000 ภาพต่อ epoch: 30 epoch ≈ 3 เท่าของจำนวนภาพที่เห็นใน 100 epoch บน run-2
+                          #   dataset นี้มีภาพ train ~9,300 ภาพต่อ epoch จึงไม่ต้องเทรนหลายร้อย epoch
   patience: 0             # หยุดก่อนถ้า val macro-F1 ไม่ดีขึ้นติดต่อกันกี่ epoch (0 = ไม่หยุดก่อน)
                           #   เก็บ best.pt จาก epoch ที่ val macro-F1 สูงสุดเสมอ ไม่ว่าค่านี้เป็นเท่าไร
 
@@ -31,9 +39,14 @@ defaults:
   workers: 0              # จำนวน process โหลดภาพคู่ขนาน (Windows แนะนำ 0-2; 0 = โหลดใน process หลัก)
 
   # --- Optimizer (AdamW) ---
-  learning_rate: 0.001    # learning rate ของ AdamW (คงที่ตลอดการเทรน)
+  learning_rate: 0.001    # learning rate ของ AdamW (ค่าสูงสุด; ถ้า scheduler เป็น constant จะคงที่ตลอดการเทรน)
+  scheduler: constant    # ค่าเริ่มต้นใช้ learning rate คงที่; convnext_ft ทับเป็น cosine ด้านล่าง
+  warmup_epochs: 0       # ค่าเริ่มต้นไม่ warmup; convnext_ft ใช้ 2 epoch
   # weight_decay: 0.01    # (ไม่ใส่ = 0.01 ค่าเริ่มต้นของ AdamW) ลงโทษน้ำหนักที่ใหญ่เกินไป ช่วยลด overfitting
   # label_smoothing: 0.0  # (ไม่ใส่ = 0) 0-1; ทำให้โมเดลไม่มั่นใจเกินไป ใช้กับ train loss เท่านั้น val loss เทียบกันได้เหมือนเดิม
+  # scheduler: constant   # (ไม่ใส่ = constant) constant = learning rate คงที่
+                          #   cosine = เพิ่มขึ้นช่วง warmup แล้วค่อย ๆ ลดแบบโค้ง cosine จนเกือบ 0 ที่ epoch สุดท้าย (เหมาะกับ fine_tune)
+  # warmup_epochs: 0      # (ไม่ใส่ = 0) จำนวน epoch แรกที่ค่อย ๆ เพิ่ม learning rate ขึ้นถึงค่าเต็ม (ใช้กับ cosine)
 
   # --- ส่วนของโมเดลที่เทรน ---
   fine_tune: false        # false = เทรนแค่ชั้นสุดท้าย (classifier head) บน backbone ที่ pretrained มาแล้ว
@@ -46,6 +59,7 @@ defaults:
 
   # --- การสุ่มภาพ train ในแต่ละ epoch ---
   sampling: balanced      # balanced = ทุกรุ่นรถถูกสุ่มเท่ากัน และในรุ่นเดียวกันทุก group (รูปเดียว หรือวิดีโอทั้งคลิป) ถูกสุ่มเท่ากัน
+                          #   ImageFolder ไม่มีข้อมูล group: แต่ละไฟล์เป็นหนึ่ง group จึงสมดุลตามรุ่นรถเท่านั้น
                           #   จำนวนภาพต่อ epoch เท่าเดิม สุ่มแบบซ้ำได้ (ชุดที่รุ่นรถไม่สมดุลมาก เช่น run-1 ต้องใช้ค่านี้)
                           # shuffle  = สลับลำดับธรรมดา ทุกภาพเห็นครั้งเดียวต่อ epoch
 
@@ -57,7 +71,8 @@ defaults:
 # ---------- รายชื่อโมเดล (ลำดับนี้ = ลำดับในเมนู run) ----------
 # ชื่อโมเดล: ตัวอักษร ตัวเลข - _ (ห้ามชื่อ all); ใช้เรียกใน .\train-classifier run <ชื่อ> และ test <ชื่อ>
 # ในแต่ละโมเดล:
-#   architecture = สถาปัตยกรรม (resnet18, efficientnet_b0, mobilenet_v3_large, convnext_tiny, yolo<11|12|26><n|s|m|l|x>_cls)
+#   architecture = สถาปัตยกรรม: resnet18, resnet50, efficientnet_b0, mobilenet_v3_large, convnext_tiny, vit_small (ต้องมี timm),
+#                  yolo<11|12|26><n|s|m|l|x>_cls
 #   note         = คำอธิบายที่แสดงในเมนูเท่านั้น ไม่มีผลกับการเทรน
 #   key อื่น       = ทับค่าใน defaults (หรือ dataset) เฉพาะโมเดลนี้
 models:
@@ -83,6 +98,12 @@ models:
   resnet18:
     architecture: resnet18
     note: ResNet18 11.7M, pretrained, simple baseline
+  resnet50:
+    architecture: resnet50
+    note: ResNet50 25.6M, pretrained (ImageNet V2 weights), deeper ResNet baseline
+  vit_small:
+    architecture: vit_small     # ใช้ package timm (ติดตั้งด้วย .\train-classifier setup หรือ uv pip install timm==1.0.31)
+    note: ViT-Small/16 22M, pretrained (ImageNet-21k + 1k), Vision Transformer; first run downloads from Hugging Face
 
   # --- ทดลองลด overfitting บน ConvNeXt-Tiny (เทียบกับ convnext_tiny ด้านบน) ---
   convnext_aug:
@@ -100,3 +121,14 @@ models:
     weight_decay: 0.05
     label_smoothing: 0.1
     note: convnext_tiny + strong augmentation + regularization (both)
+  convnext_ft:
+    architecture: convnext_tiny
+    fine_tune: true         # เทรนทั้งเครือข่าย ไม่ใช่แค่ชั้นสุดท้าย ให้ backbone ปรับตัวกับรถมอเตอร์ไซค์
+    learning_rate: 0.0001   # ต่ำกว่าแบบ head-only 10 เท่า เพื่อไม่ทำลายสิ่งที่ pretrain มา
+    weight_decay: 0.05      # ค่ามาตรฐานตอน fine-tune ConvNeXt
+    augmentation: strong    # fine-tune overfit ง่ายกว่า จึงใช้ augmentation แรงขึ้น
+    scheduler: cosine
+    warmup_epochs: 2
+    epochs: 30
+    patience: 10            # หยุดเองถ้า val macro-F1 ไม่ดีขึ้น 10 epoch ติด
+    note: convnext_tiny full fine-tune (lr 1e-4 cosine, strong aug, early stop) vs head-only convnext_tiny

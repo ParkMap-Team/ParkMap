@@ -1,4 +1,4 @@
-"""Validation-only stopping policy; zero patience preserves fixed-epoch runs."""
+"""Validation-only stopping policy and the per-epoch learning-rate schedule; defaults keep fixed-rate, fixed-epoch runs."""
 
 import math
 
@@ -17,3 +17,18 @@ class EarlyStopping:
         else:
             self.bad_epochs += 1
         return bool(self.patience and self.bad_epochs >= self.patience)
+
+
+def lr_factor(epoch, epochs, scheduler="constant", warmup_epochs=0):
+    """Multiplier of the configured learning rate for 1-based epoch.
+
+    constant: always 1. cosine: linear warm-up over warmup_epochs, then cosine decay towards 0 by the last epoch.
+    """
+    if scheduler == "constant":
+        return 1.0
+    if scheduler != "cosine":
+        raise ValueError('scheduler must be "constant" or "cosine"')
+    if epoch <= warmup_epochs:
+        return epoch / (warmup_epochs + 1)
+    progress = (epoch - warmup_epochs - 1) / max(1, epochs - warmup_epochs)
+    return 0.5 * (1 + math.cos(math.pi * progress))

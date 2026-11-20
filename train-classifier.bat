@@ -1,5 +1,6 @@
 @echo off
 setlocal
+set "PYTHONUTF8=1"
 rem Short entry point for the motorcycle-family classifier. Settings: tools\yolo-training\classification\experiments.yaml
 rem Details: tools\yolo-training\classification\TRAINING.md
 set "CLS=%~dp0tools\yolo-training\classification"
@@ -34,16 +35,18 @@ if not exist "%PY%" (
 if /i "%MODE%"=="check" goto check
 if /i "%MODE%"=="run" goto run
 if /i "%MODE%"=="test" goto test
+if /i "%MODE%"=="evaluate" goto evaluate
 
-echo Usage: train-classifier ^<check ^| run ^| test ^| setup^> [model] [extra train.py options]
+echo Usage: train-classifier ^<check ^| run ^| test ^| evaluate ^| setup^> [model] [extra train.py options]
 echo.
 echo   check          show every model's settings and verify the dataset; trains nothing
 echo   run [model]    pick a model from a menu, or name it (the name all trains every model in turn)
-echo   test [model]   evaluate the newest run (of that model) on the held-out test split, once
+echo   test model     evaluate that model's newest run on the held-out test split, once
+echo   evaluate model "folder"   score that model's newest run on your own labelled photos: folder\^<model^>\*.jpg
 echo   setup          create the CUDA environment for the GPU (one time, needs internet)
 echo.
 echo Models, patience, epochs and the rest are edited in one place: %CLS%\experiments.yaml
-echo Results: %CLS%\runs\summary.csv (one row per finished run) and one folder per run.
+echo Results: the output folder set in experiments.yaml, with summary.csv and one folder per run.
 echo Examples: train-classifier run
 echo           train-classifier run yolo26n
 echo           train-classifier run resnet18 --epochs 10 --device cpu
@@ -72,24 +75,21 @@ if not defined MODEL (
 exit /b %ERRORLEVEL%
 
 :test
-set "PATTERN=train-*"
-rem Fixed-width date, time and id: "convnext_tiny" must not also match a run of another model ending in "convnext_tiny".
-if defined MODEL set "PATTERN=train-????????-??????-%MODEL:_=-%-??????"
-set "MODELARG="
-rem The model name picks its settings (and dataset, if it sets its own) from experiments.yaml.
-if defined MODEL set "MODELARG=--model %MODEL%"
-set "LATEST="
-for /f "delims=" %%d in ('dir /b /ad /o-d "%CLS%\runs\%PATTERN%" 2^>nul') do if not defined LATEST set "LATEST=%%d"
-if not defined LATEST (
-    echo No trained run found. Run: train-classifier run
+if not defined MODEL (
+    echo Name the model to test, e.g. train-classifier test convnext_tiny
     exit /b 1
 )
-if not exist "%CLS%\runs\%LATEST%\best.pt" (
-    echo %LATEST% has no best.pt; it did not finish an epoch.
+rem train.py finds the newest finished run of exactly this model in the output folder set in experiments.yaml.
+"%PY%" "%CLS%\train.py" --config "%CONFIG%" --model %MODEL% --evaluate-test --checkpoint latest %EXTRA%
+exit /b %ERRORLEVEL%
+
+:evaluate
+if not defined MODEL (
+    echo Usage: train-classifier evaluate convnext_ft "D:\path\to\photos"
     exit /b 1
 )
-echo Held-out test evaluation of %LATEST%
-"%PY%" "%CLS%\train.py" --config "%CONFIG%" %MODELARG% --evaluate-test --checkpoint "%CLS%\runs\%LATEST%\best.pt" %EXTRA%
+rem Your own photos in <folder>\<model name>\ (a folder named _other for models the classifier does not know).
+"%PY%" "%CLS%\train.py" --config "%CONFIG%" --model %MODEL% --evaluate-folder %EXTRA%
 exit /b %ERRORLEVEL%
 
 :setup
@@ -99,6 +99,6 @@ where uv >nul 2>&1 || set "UV=%USERPROFILE%\.local\bin\uv.exe"
 set "PY=%GPU_ENV%\Scripts\python.exe"
 "%UV%" venv "%GPU_ENV%" --python 3.12 --allow-existing || exit /b 1
 "%UV%" pip install --python "%PY%" --index-url https://download.pytorch.org/whl/cu130 torch==2.14.1 torchvision==0.29.1 || exit /b 1
-"%UV%" pip install --python "%PY%" ultralytics==8.4.166 pillow==11.3.0 pyyaml==6.0.3 || exit /b 1
+"%UV%" pip install --python "%PY%" ultralytics==8.4.166 pillow==11.3.0 pyyaml==6.0.3 timm==1.0.31 || exit /b 1
 call :device
 exit /b %ERRORLEVEL%

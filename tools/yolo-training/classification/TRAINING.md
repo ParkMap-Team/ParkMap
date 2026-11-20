@@ -5,15 +5,40 @@
 From the repository root:
 
 ```powershell
+Set-Location D:\ParkMap
 .\train-classifier setup          # once, needs internet: CUDA PyTorch environment for the GPU
 .\train-classifier check          # GPU or CPU, every model's settings, dataset summary; trains nothing
 .\train-classifier run            # menu: pick one model, several ("1 3 4") or a = all, trained one after another
 .\train-classifier run yolo26n    # skip the menu: train one model by its name in experiments.yaml
 .\train-classifier run all        # every model in turn, then print them ranked by val macro-F1
 .\train-classifier test yolo26n   # held-out test of that model's newest run; do it once, after choosing by val
+.\train-classifier evaluate yolo26n "D:\my-photos"  # folders named by class; _other for unknown families
 ```
 
-**All settings are in [experiments.yaml](experiments.yaml)**, the only file to edit. Every parameter is commented there; YAML anchors (`&run1` / `*run1`) reuse a value. `dataset` and `output` are shared;
+### วิธีรัน Train ตาม config ปัจจุบัน
+
+Config นี้ใช้ชุดงานวิชา **12 รุ่น** ที่ `tools/yolo-training/datasets/Classify/hf-thai-motorcycle/class-project-12`
+และเก็บผลใน `tools/yolo-training/classification/runs-class-project/` โดยไม่ให้หน้า Parking โหลดโมเดลชุดนี้
+ต้องเตรียม dataset ในเครื่องก่อน; repository ไม่มีภาพหรือ weights ให้ดาวน์โหลดพร้อมโค้ด
+
+1. เปิด PowerShell ที่ root ของ repository แล้วรัน `.\train-classifier setup` ครั้งแรกเพื่อเตรียม GPU environment
+   หากใช้ CPU ให้เตรียม environment ด้วย `uv sync --project apps/vision-api --locked --all-groups` และรันด้วย `--device cpu`
+2. รัน `.\train-classifier check` เพื่อตรวจข้อมูลและ config ของทุกโมเดลก่อนเทรน
+3. รัน `.\train-classifier run convnext_tiny` เพื่อเทรน head หรือ `.\train-classifier run convnext_ft` เพื่อ fine-tune ทั้งโมเดล
+   ใช้ `.\train-classifier run all` เมื่อต้องการเทรนทุกโมเดลเรียงกัน ไม่ใช่ขนาน
+4. เปรียบเทียบ `runs-class-project/summary.csv` ด้วย val macro-F1 แล้วรัน `.\train-classifier test convnext_ft`
+   กับโมเดลที่เลือกเพียงครั้งเดียว ไม่ใช้ test เลือกค่าการเทรน
+
+ค่าเริ่มต้นคือ 50 epochs, batch 8, ภาพ 224 px, balanced sampling และ learning rate คงที่ 0.001
+ส่วน `convnext_ft` ใช้ 30 epochs, patience 10, learning rate 0.0001, cosine schedule และ warmup 2 epochs
+ตัวอย่างปรับค่าเฉพาะรอบ: `.\train-classifier run resnet18 --epochs 10 --batch-size 4 --device cpu`
+ViT ต้องมี `timm` ซึ่งคำสั่ง `setup` ติดตั้งให้; CPU environment ของ API ไม่มี dependency นี้
+
+ชุดนี้ใช้สำหรับงานวิชาเท่านั้น ตาม README ของ dataset: ไม่เผยแพร่ภาพ/weights ไม่ใช้โมเดลใน ParkMap
+และลบข้อมูลกับโมเดลหลังจบวิชา หากกลับไปใช้ dataset ของ ParkMap ให้เปลี่ยน `dataset` และ `output` เป็นคู่
+โดยตรวจสิทธิ์และความเหมาะสมของข้อมูลก่อน ไม่ย้าย weights ชุดงานวิชาเข้า `runs/`
+
+**All settings are in [experiments.yaml](experiments.yaml)**, the only file to edit. Every parameter is commented there. `dataset` and `output` are shared;
 `defaults` holds `epochs`, `patience` (0 turns early stopping off), `batch_size`, `learning_rate`, `seed`, `device`,
 `fine_tune` and the rest; each entry under `models` names a model and sets its `architecture` plus anything that should
 differ from `defaults`. The order of the entries is the order of the `run` menu, and an optional `note` is the hint shown
@@ -31,12 +56,19 @@ ConvNeXt-Tiny, alone and together, against the plain `convnext_tiny` run; `summa
 within a class, every known group (one photo, or one whole video clip) is equally likely; an epoch keeps its usual number of
 draws. `"shuffle"`, the code default, is the earlier plain shuffle. Val/test are never resampled. `summary.csv` records it.
 
-**Dataset.** `dataset` is `datasets/Classify/parkmap-classifier-run-1/run1`: the Thai Motorcycle data plus four external
-Roboflow sets (46 families; train 9,047 / val 265 / test 265 crops). Almost all external crops are train-only and include one
-video group of ~5k frames, which is why `sampling: balanced` is the default. Each epoch is ~9x larger than the Thai-only set,
-so `epochs` defaults to 30.
+**Dataset.** The current config selects the private class-project ImageFolder with 12 families:
+train 9,333 / val 240 / test 240 images, from team data and 1,013 Bing images. It requires
+`allow_provisional: true`. ImageFolder validation checks its manifest, files, decoding and exact-byte leakage;
+it does not verify capture groups or near-duplicate relationships. Each file is its own sampling group.
+The older 46-family prepared snapshot remains an alternative, not the active default.
 
-Models available out of the box (all except YOLO12 start from ImageNet-pretrained weights and train the last layer only):
+**Subset of families.** A top-level `classes:` list trains only the named families, e.g. `[click, aerox]`.
+It is commented out in the current config, so all 12 families are used. Every crop is still
+verified and keeps its split; crops of other families are simply left out, and the checkpoint has only these classes.
+Remove the key to train on every family. `summary.csv` records the class count per run.
+
+Models available out of the box (all except YOLO12 start from ImageNet-pretrained weights;
+YOLO12 and `convnext_ft` train the full network, others train the last layer by default):
 
 | Name in the file | `architecture` | Notes |
 | --- | --- | --- |
@@ -45,13 +77,17 @@ Models available out of the box (all except YOLO12 start from ImageNet-pretraine
 | `convnext_tiny` | `convnext_tiny` | 28M parameters; recommended to try first for accuracy on fine-grained classes |
 | `mobilenet_v3` | `mobilenet_v3_large` | 5.5M parameters; recommended for fast CPU inference in the API |
 | `efficientnet`, `resnet18` | `efficientnet_b0`, `resnet18` | Earlier baselines |
+| `resnet50` | `resnet50` | Deeper ResNet baseline; training tool only |
+| `vit_small` | `vit_small` | Requires `timm`; training tool only |
+| `convnext_ft` | `convnext_tiny` | Full fine-tuning with cosine schedule and warmup |
 
 Other YOLO sizes need only a new entry: `yolo26s: {architecture: yolo26s_cls}` (`n`, `s`, `m`, `l`, `x` for YOLO11,
-YOLO12 and YOLO26; larger ones train slower). The Parking page lists any completed run of these architectures. Which model is
+YOLO12 and YOLO26; larger ones train slower). Parking only lists supported completed runs under `classification/runs/`;
+the current class-project output is deliberately excluded, and its API does not support ResNet50 or ViT. Which model is
 best on this data is for the comparison to show: pretrained transfer usually matters more than the newest architecture.
 
-**Outputs are kept** under `classification/runs/`: one folder per run named `train-<date>-<time>-<model name>-<id>`
-(checkpoints, `history.csv`, `val/` reports, and `run.json` with the exact settings used), and **`runs/summary.csv`** with
+**Outputs are kept** under the config's `output` (`classification/runs-class-project/` currently): one folder per run named `train-<date>-<time>-<model name>-<id>`
+(checkpoints, `history.csv`, `val/` reports, and `run.json` with the exact settings used), and **`<output>/summary.csv`** with
 one row per finished run (model, best epoch, patience, val top-1, val macro-F1, val loss) for comparing models in one place.
 
 `setup` builds `tools/yolo-training/.venv-gpu` (ignored by Git) with the same package versions as the API lock but a
@@ -80,14 +116,16 @@ on an RTX 4070 SUPER. Colab has not been tested. No web page or training service
 
 ## Before training
 
-`check` (or `--validate-only`) verifies the real snapshot without loading Torch,
+`--validate-only` verifies the selected dataset without loading Torch,
 downloading weights, creating a run or training. It verifies all prepared file hashes,
 crop/manifest alignment, class order, decoding, required splits and known
 exact-image/group leakage. It refuses changed snapshots and classes with no train
 samples. Empty val/test class coverage is retained in the dataset metadata and
-metrics, never silently relabelled/dropped.
+metrics, never silently relabelled/dropped. The `.bat check` also prints the device using Torch.
+Prepared-snapshot checks include recorded group leakage; ImageFolder checks are limited as described above.
+`check all` validates each distinct combination of dataset, class selection and provisional permission.
 
-Both datasets are **provisional**: most labels are not individually confirmed and
+These experiments are **provisional**: labels are not all individually confirmed and
 some similar-image pairs crossing the splits remain unchecked. `allow_provisional: true`
 in `experiments.yaml` allows exploratory training on them. Validation metrics may be
 optimistic until those relationships are reviewed. They do not establish accuracy
@@ -113,7 +151,7 @@ For every model:
 
 - Each full crop is scaled proportionally and padded to a square; there is no
   center crop or stretching. Padding is RGB 124/116/104 and normalization is the
-  ImageNet mean/std (YOLO: RGB 0..1), recorded as `letterbox_rgb_v1` in checkpoints.
+  ImageNet mean/std (YOLO: RGB 0..1; ViT: mean/std 0.5), recorded as `letterbox_rgb_v1` in checkpoints.
 - Augmentation applies **only to train**. Val/test use deterministic letterboxing
   and normalization, with no augmentation, resampling or split reassignment.
 - Deterministic Torch algorithms are requested with the configured seed. Results are
@@ -138,11 +176,11 @@ The Terminal reports the epoch number, batches, train loss/top-1, and val
 loss/top-1/macro F1. Each invocation creates a fresh ignored directory:
 
 ```text
-classification/runs/train-<YYYYMMDD-HHMMSS local>-<architecture>-<6-hex id>/
-  # e.g. train-20261102-230415-yolo11n-cls-a1b2c3; held-out evaluation uses test-...
+classification/runs-class-project/train-<YYYYMMDD-HHMMSS local>-<model-name>-<6-hex id>/
+  # e.g. train-20261102-230415-yolo26n-a1b2c3; held-out evaluation uses test-...
   run.json                  # exact dataset fingerprint, options, versions, status
   classes.json              # class-index mapping
-  history.csv               # flushed after each completed epoch
+  history.csv               # epoch, learning_rate, train/val metrics; flushed after each completed epoch
   best.pt                   # selected only using val
   last.pt                   # latest completed epoch
   val/
@@ -176,7 +214,9 @@ test explicitly:
 uv run --project apps/vision-api --no-sync python tools/yolo-training/classification/train.py --model <name> --evaluate-test --checkpoint "<training-run>/best.pt"
 ```
 
-It writes a new `runs/test-.../` report using that checkpoint's exact class order
+`.\train-classifier test <name>` selects the newest matching run with `run_state: complete` and `best.pt`;
+running, interrupted, failed or unreadable runs are skipped. An explicit checkpoint path can still be used for recovery.
+It writes a new `<output>/test-.../` report using that checkpoint's exact class order
 and preprocessing. A different dataset fingerprint/class mapping is rejected.
 Loading uses `torch.load(weights_only=True)` with a state_dict checkpoint, not a
 pickled custom model. The classifier is closed-set: it chooses among its learned
