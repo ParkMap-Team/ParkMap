@@ -20,12 +20,22 @@ Everything for the detector lives in this folder; the model-family classifier is
 From the repository root:
 
 ```powershell
+.\train-classifier setup        # once: prepare the shared training environment (needs internet)
+$env:PYTHONUTF8 = "1"            # print Thai config descriptions correctly on Windows
 .\train-detector check          # validate the dataset, list every model and its settings; trains nothing
 .\train-detector run            # menu: pick one model, several ("1 3") or a = all; they train one after another
 .\train-detector run yolo26s    # skip the menu
+.\train-detector run yolo26n-seg # segmentation model; uses segment_dataset
 .\train-detector run all        # every model in config.yaml
 .\train-detector test           # menu of finished runs: evaluate one ONCE on the held-out test split
 ```
+
+The current config uses `datasets/spu-park-split-final` for boxes and
+`datasets/spu-park-split-final-seg` for polygons, both relative to `tools/yolo-training/`.
+Prepare these private exports locally before `check`; they are not included in Git.
+Shared training settings are image size 1200, batch 1 and workers 0; model entries may override them.
+With `nbs: 4`, batch 1 accumulates gradients across approximately four steps after warmup.
+Review `runs/history.csv` and validation reports before using the held-out `test` menu.
 
 The GPU is used when `tools/yolo-training/.venv-gpu` exists (built once by `.\train-classifier setup`);
 otherwise the API's CPU environment is used. Long form, from the repository root:
