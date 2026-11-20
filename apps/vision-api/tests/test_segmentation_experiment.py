@@ -21,9 +21,9 @@ def test_segmentation_keeps_motorcycle_masks_aligned_with_boxes(monkeypatch):
     polygons = [np.array([[.1, .1], [.4, .1], [.4, .6]]), np.array([[0., 0.], [.1, 0.], [.1, .1]]),
                 np.array([[.6, .2], [.9, .2], [.9, .8]])]
     result = SimpleNamespace(boxes=SimpleNamespace(xyxy=torch.tensor([[10., 5., 40., 30.], [0., 0., 10., 5.], [60., 10., 90., 40.]]),
-        conf=torch.tensor([.9, .8, .7]), cls=torch.tensor([3, 0, 3])), masks=SimpleNamespace(xyn=polygons))
+        conf=torch.tensor([.9, .8, .7]), cls=torch.tensor([0, 1, 0])), masks=SimpleNamespace(xyn=polygons))
     def predict(**kwargs):
-        assert kwargs["classes"] == [3]
+        assert kwargs["classes"] == [0]
         return [result]
     monkeypatch.setattr(service, "_load_model", lambda: SimpleNamespace(predict=predict))
     answer = service.analyze_image(image())

@@ -82,14 +82,14 @@ def test_captured_frame_returns_motorcycle_boxes_without_tracking_or_classifying
         )
     assert response.status_code == 200, response.text
     assert wide.status_code == 200, wide.text
-    assert response.json()["inference"]["imgsz"] == 640
+    assert response.json()["inference"]["imgsz"] == 960
     assert response.json()["mode"] == "near"
     assert response.json()["crop_padding_ratio"] == 0.05
     assert response.json()["max_selected_boxes"] == 60
     assert wide.json()["mode"] == "wide"
     assert invalid.status_code == 422
     assert response.headers["Cache-Control"] == "no-store"
-    assert calls == [((40, 20), 640), ((40, 20), None)]
+    assert calls == [((40, 20), 960), ((40, 20), None)]
     [detection] = response.json()["detections"]
     assert detection["class_name"] == "motorcycle"
     assert detection["bbox"] == pytest.approx(
@@ -111,7 +111,7 @@ def test_selected_segmentation_model_supplies_frame_boxes(monkeypatch):
             model="selected-seg",
             image_width=40,
             image_height=20,
-            imgsz=640,
+            imgsz=imgsz,
             processing_time_ms=1,
             detections=[
                 {
@@ -152,8 +152,8 @@ def test_selected_segmentation_model_supplies_frame_boxes(monkeypatch):
     assert result.json()["model"]["name"] == "selected-seg"
     assert result.json()["detections"][0]["bbox"]["width"] == 0.3
     assert still.status_code == 200, still.text
-    assert still.json()["segmentation"]["imgsz"] == 640
-    assert calls == [((40, 20), 640), ((40, 20), 640)]
+    assert still.json()["segmentation"]["imgsz"] == 960
+    assert calls == [((40, 20), 960), ((40, 20), 960)]
 
 
 def test_classify_selected_maps_results_to_the_reviewed_boxes(monkeypatch):

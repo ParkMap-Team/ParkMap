@@ -17,12 +17,12 @@ function dryRun(databaseUrl) {
   return { status: result.status, output: result.stdout + result.stderr };
 }
 
-test("the plan migrates, restores without overwriting, fetches weights and verifies last", () => {
+test("the plan migrates, restores without overwriting, checks local weights and verifies last", () => {
   const result = dryRun("postgresql://parkmap:secret-password@127.0.0.1:5432/parkmap");
   assert.equal(result.status, 0, result.output);
   const order = ["pnpm install --frozen-lockfile", "uv sync --locked --all-groups", "alembic upgrade head",
     "restore-seed-calibration --parking-area-id sripatum-near-lot --output-dir config",
-    "scripts/download_segmentation_weights.py", "app.manage verify-setup"];
+    "scripts/verify_segmentation_weights.py", "app.manage verify-setup"];
   const positions = order.map((step) => result.output.indexOf(step));
   assert.ok(positions.every((position) => position >= 0), result.output);
   assert.deepEqual(positions, [...positions].sort((a, b) => a - b));

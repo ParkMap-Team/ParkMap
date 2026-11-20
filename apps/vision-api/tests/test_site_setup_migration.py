@@ -176,7 +176,7 @@ def test_other_weights_and_calibration_do_not_match(seeded_setup, tmp_path, monk
 
     message = verify(seeded_setup)
     assert "active calibration of sripatum-near-lot differs" in message
-    assert "are not the pinned yolo11m-seg.pt" in message
+    assert "are not the pinned YOLO26n Seg Round 8 checkpoint" in message
 
 
 def test_an_older_schema_is_reported_before_anything_else(seeded_setup):

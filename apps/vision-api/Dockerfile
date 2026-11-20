@@ -57,5 +57,27 @@ PY
 SH
 USER parkmap
 
+# Segmentation-only release: Calibration and worker share the trained model.
+FROM runtime AS segmentation
+USER root
+RUN --mount=type=bind,from=seg_weight,target=/checkpoints/seg <<'SH'
+python - <<'PY'
+from pathlib import Path
+from shutil import copyfile
+from ultralytics import YOLO
+from app.parking_inference_settings import SEGMENTATION_WEIGHTS, SEGMENTATION_MOTORCYCLE_CLASS_ID
+
+for source, destination, class_id in (
+    ("seg", SEGMENTATION_WEIGHTS, SEGMENTATION_MOTORCYCLE_CLASS_ID),
+):
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    copyfile(Path("/checkpoints") / source / "best.pt", destination)
+    destination.chmod(0o444)
+    model = YOLO(str(destination), task="segment")
+    assert model.task == "segment" and model.names.get(class_id) == "motorcycle", "Invalid segmentation checkpoint"
+PY
+SH
+USER parkmap
+
 # Preserve the weight-free image as the implicit target for existing builds.
 FROM runtime AS default

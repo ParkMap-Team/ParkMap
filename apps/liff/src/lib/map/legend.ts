@@ -12,7 +12,7 @@ export type StatusMark = "solid" | "dashed" | "motorcycle" | "hatch" | "dots" | 
 export const STATUS_TEXT: Record<MapStatus, { label: string; detail: string; mark: StatusMark }> = {
   WIDTH_SUFFICIENT: {
     label: "กว้างพอ",
-    detail: "กว้างพอสำหรับรถจักรยานยนต์มาตรฐาน ยังไม่ตรวจความยาวและทางเข้า–ออก อาจมีการบังหรือความไม่แน่นอน ไม่ใช่การยืนยันว่าจอดได้",
+    detail: "แสดงช่องที่กว้างพอตามขนาดรถ ยังไม่ยืนยันพื้นที่ครบทั้งคัน บางจุดยังไม่มีเส้นทางแนะนำ",
     mark: "solid",
   },
   AVAILABLE: {

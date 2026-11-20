@@ -39,17 +39,17 @@ class HoldContext:
     geometry_version: str
 
 
-def _unsafe_polygons(area: ParkingAreaLiveState):
+def _unsafe_polygons(area: ParkingAreaLiveState, *, routed_only: bool = True):
     demo = area.status == "DEMO" and area.source == "STILL_IMAGE_LOOP"
     allowed = {"FOOTPRINT_NOT_PROVEN", "LOCAL_ROW_UNCERTAINTY"} if demo else set()
     return [r.display_polygon or r.polygon for r in area.regions
             if r.kind in ("UNKNOWN", "ALMOST_AVAILABLE") and
-            (not demo or r.kind != "UNKNOWN" or r.row_id not in AISLES or bool(set(r.reasons) - allowed))]
+            (not demo or r.kind != "UNKNOWN" or not r.row_id or (routed_only and r.row_id not in AISLES) or bool(set(r.reasons) - allowed))]
 
 
 def rider_free_ground(area: ParkingAreaLiveState, family: str, scale: float) -> ParkingAreaLiveState:
-    """Free ground for a rider's model on a held-masked area, avoiding what a recommendation avoids."""
-    return free_ground_for(area, family, scale, blocked=_unsafe_polygons(area))
+    """Width preview across all rows, on an area already masked by shared holds."""
+    return free_ground_for(area, family, scale, blocked=_unsafe_polygons(area, routed_only=False))
 
 
 def _transition(hold: ParkingHold, stage: str, now: datetime, area: ParkingAreaLiveState, reason: str) -> None:

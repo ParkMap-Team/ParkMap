@@ -4,8 +4,10 @@
 // spot in memory. It checks only the shapes it needs; the real service validates fully.
 // Usage: node scripts/dev-line-settings.mjs, then run the app with PARKMAP_SETTINGS_URL=http://127.0.0.1:3091.
 import http from "node:http";
+import { createHash } from "node:crypto";
 
 const TOKEN = "local-dev-line-token";
+const OWNER_KEY = createHash("sha256").update("parkmap-local-development-account").digest("hex");
 const PORT = Number(process.env.PORT ?? 3091);
 // The IDs and labels of MODEL_LABELS in apps/vision-api/app/services/line_motorcycle_settings.py.
 const MODELS = Object.entries({
@@ -14,7 +16,8 @@ const MODELS = Object.entries({
   grand_filano: "Yamaha Grand Filano", hd_road_glide: "Harley-Davidson Road Glide",
   cbr650r: "Honda CBR650R", xmax: "Yamaha XMAX", other: "ไม่ระบุ",
 }).map(([id, label]) => ({ id, label }));
-const ROUTES = { "/api/line/preferences": ["GET", "PUT"], "/api/line/parked-spot": ["GET", "PUT", "DELETE"] };
+const ROUTES = { "/api/line/preferences": ["GET", "PUT"], "/api/line/parked-spot": ["GET", "PUT", "DELETE"],
+  "/api/line/recommendation-owner": ["GET"] };
 let selected = null;
 let spot = null;
 
@@ -32,6 +35,10 @@ const server = http.createServer(async (request, response) => {
   }
   if (request.headers.authorization !== `Bearer ${TOKEN}`) {
     response.writeHead(401).end(JSON.stringify({ detail: "Invalid LINE identity." }));
+    return;
+  }
+  if (request.url === "/api/line/recommendation-owner") {
+    response.end(JSON.stringify({ owner_key: OWNER_KEY, model_id: selected }));
     return;
   }
   if (request.url === "/api/line/parked-spot") {
@@ -59,5 +66,5 @@ const server = http.createServer(async (request, response) => {
 });
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`Development LINE settings stand-in on http://127.0.0.1:${PORT} (not LINE; choices reset on restart)`);
+  console.log(`Development LINE settings stand-in on http://127.0.0.1:${server.address().port} (not LINE; choices reset on restart)`);
 });

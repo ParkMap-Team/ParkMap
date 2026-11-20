@@ -24,6 +24,19 @@ Green that the guide then refuses ("ไม่มีที่ว่างที�
 
 ## Consequences
 
+Amended 2026-11-20 at the owner's request: map width-band display is independent
+of routing. `free_ground_for` evaluates all calibrated rows, including `row_1`,
+and does not apply the guide's right-access restriction. Model width, detected
+occupancy, shared holds and freshness still apply. The guide retains its existing
+supported rows and access rules; green width preview alone does not promise a route.
+
+Amended 2026-11-20 at the owner's request: the recorded-photo width-only preview
+does not reject a band solely for `GROUND_MAY_BE_OCCLUDED`. Both the rider's green
+width bands and the recorded guide use this policy. The advisory remains in the
+response; no region is promoted to `AVAILABLE`. Detected occupied polygons,
+shared holds, model width, row/access rules and freshness gates still apply.
+This is a width-only illustration and does not establish that hidden ground is empty.
+
 - A rider sees where there is room for their own model, but not where ground is advisory or unknown, without asking the guide. The Guard Booth still does.
 - Two riders with different models can see different green on the same lot, and green narrower than a model's width disappears when the rider changes model in settings.
 - Each rider-map poll on the preview area runs the guide's frame search once per free band; it stays cheap while the preview is one lot.

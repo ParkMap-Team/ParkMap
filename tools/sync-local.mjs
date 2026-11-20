@@ -20,7 +20,7 @@ const steps = [
   ["Install Vision API dependencies", apiRoot, "uv", ["sync", "--locked", "--all-groups"]],
   ["Apply database migrations", apiRoot, "uv", ["run", "--no-sync", "python", "-m", "alembic", "upgrade", "head"]],
   ["Restore shared calibration files (never overwrites)", apiRoot, "uv", ["run", "--no-sync", "python", "-m", "app.manage", "restore-seed-calibration", "--parking-area-id", "sripatum-near-lot", "--output-dir", "config"]],
-  ["Download pinned segmentation weights", apiRoot, "uv", ["run", "--no-sync", "python", "scripts/download_segmentation_weights.py"]],
+  ["Verify local segmentation weights", apiRoot, "uv", ["run", "--no-sync", "python", "scripts/verify_segmentation_weights.py"]],
   ["Verify setup matches this version", apiRoot, "uv", ["run", "--no-sync", "python", "-m", "app.manage", "verify-setup"]],
 ];
 

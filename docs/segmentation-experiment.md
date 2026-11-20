@@ -22,28 +22,28 @@ The default [gap/clearance analysis](segmentation-gaps.md) returns rectangular
 width candidates from calibrated reference footprints. It uses
 image masks/boxes to withhold potentially occluded ground, not as ground shapes.
 
-For the configured worker or legacy operator API, install the official model
-from the repository root:
+For Calibration and the worker, restore the local YOLO26n Seg Round 8 checkpoint
+to `apps/vision-api/models/yolo26n-seg_round-08_best.pt`, then verify it:
 
 ```powershell
-apps/vision-api/.venv/Scripts/python.exe apps/vision-api/scripts/download_segmentation_weights.py
+apps/vision-api/.venv/Scripts/python.exe apps/vision-api/scripts/verify_segmentation_weights.py
 ```
 
-It downloads the official Ultralytics v8.4.0 `yolo11m-seg.pt` release asset into
-ignored `apps/vision-api/models/yolo11m-seg.pt`, without overwriting existing files.
+The trained checkpoint is local and ignored by Git; verification never downloads
+or replaces it.
 No HTTP request downloads weights automatically. The detector's `best.pt` is
 unchanged. For a manually configured alternative, set these in the API `.env`
 and restart the API:
 
 ```dotenv
-PARKMAP_SEGMENTATION_MODEL_PATH=models/yolo11m-seg.pt
-PARKMAP_SEGMENTATION_CLASS_ID=3
+PARKMAP_SEGMENTATION_MODEL_PATH=models/yolo26n-seg_round-08_best.pt
+PARKMAP_SEGMENTATION_CLASS_ID=0
 # Optional; otherwise uses PARKMAP_MODEL_IMGSZ (default 960).
 PARKMAP_SEGMENTATION_IMGSZ=960
 ```
 
-The official COCO model uses motorcycle class 3, distinct from ParkMap's custom
-single-class detector. Loading checks both segmentation task and class name.
+The custom segmentation model uses motorcycle class 0.
+Loading checks both segmentation task and class name.
 Confidence, NMS IoU and device use the existing detector settings. Inference is
 serialized per model. Increasing the image size or model complexity adds CPU work.
 

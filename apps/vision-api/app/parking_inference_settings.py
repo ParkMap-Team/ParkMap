@@ -14,15 +14,13 @@ def classifier_runs(api_root: Path) -> Path:
 
 CLASSIFIER_RUNS = classifier_runs(_API_ROOT)
 BOX_WEIGHTS = _TRAINING_RUNS / "yolo26n/round-10_2026-11-09_10-04/weights/best.pt"
-SEGMENTATION_WEIGHTS = (
-    _TRAINING_RUNS / "yolo26n-seg/round-08_2026-11-09_11-44/weights/best.pt"
-)
+SEGMENTATION_WEIGHTS = _API_ROOT / "models/yolo26n-seg_round-08_best.pt"
 SEGMENTATION_MOTORCYCLE_CLASS_ID = 0
 MODEL_ID = "train-20261112-005242-convnext-ft-6ea9a9"
 
 DetectionMode = Literal["wide", "near"]
 DEFAULT_FRAME_MODE: DetectionMode = "near"
-NEAR_FRAME_IMGSZ = 640
+NEAR_FRAME_IMGSZ = 960
 DEFAULT_CLEARANCE_MARGIN_M = 0.0
 MAX_CLEARANCE_MARGIN_M = 1.0
 CROP_PADDING_RATIO = 0.05

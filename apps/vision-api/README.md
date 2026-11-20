@@ -179,3 +179,28 @@ Seg worker publication separates `OCCUPIED` row bands from motorcycle proxies.
 Red/green region geometry matches the operator gap map. Horizontal-image
 hypotheses in calibrated ROI display as horizontal standard-size proxies, even
 without an owner row, without feeding fitting or clearing uncertainty.
+
+## Segmentation image with local weights
+
+From the repository root, run:
+
+```powershell
+python tools/build-vision-demo.py --segmentation-only --platform linux/amd64 --tag parkmap-vision-segmentation:local
+```
+
+This explicitly selects the Dockerfile `segmentation` target. It packages the
+local `apps/vision-api/models/yolo26n-seg_round-08_best.pt` shared by Calibration
+and the worker. The checkpoint remains ignored by Git. BuildKit supplies it
+through a named context, so `.env`, photos and other ignored local files stay
+out of the image. The build loads the model and verifies motorcycle class 0.
+
+The default Docker target remains weight-free. A release requiring these models
+must build the explicit target before pushing its image; `Dockerfile.ghcr` only
+pulls the selected prebuilt image. Keep worker runtime settings at
+`PARKMAP_SEGMENTATION_MODEL_PATH=/app/models/yolo26n-seg_round-08_best.pt`,
+`PARKMAP_SEGMENTATION_CLASS_ID=0`, and `PARKMAP_SEGMENTATION_IMGSZ=960`.
+The segmentation-only image does not include Detect or classification weights.
+For the full Guard Booth deployment, omit `--segmentation-only` to build target
+`demo` with Detect, ConvNeXt and the shared segmentation model; the build script
+requires all configured checkpoints to exist. Do not replace a full Guard Booth
+image with the segmentation-only image.
