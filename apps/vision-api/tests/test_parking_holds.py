@@ -87,7 +87,8 @@ def test_concurrent_line_and_booth_requests_are_serialized(database):
     assert all(result.polygon for result in results)
     for i, result in enumerate(results):
         for other in results[i + 1:]:
-            assert polygon_shape(result.polygon).intersection(polygon_shape(other.polygon)).area == 0
+            # Rotated/clipped slot edges may differ by floating-point residue.
+            assert polygon_shape(result.polygon).intersection(polygon_shape(other.polygon)).area <= 1e-8
 
 
 def test_concurrent_retries_of_one_request_create_exactly_one_hold(database):
@@ -158,7 +159,27 @@ def read(evidence, at):
         return result
 
 
-def test_deadline_needs_new_empty_evidence_and_keeps_occlusion_blocked(database):
+@pytest.mark.parametrize("channel", ["LINE", "GUARD_BOOTH"])
+def test_deadline_releases_the_same_recorded_width_preview_accepted_for_allocation(database, channel):
+    seed()
+    evidence = context()
+    evidence.area.regions[1].reasons = ["FOOTPRINT_NOT_PROVEN", "GROUND_MAY_BE_OCCLUDED"]
+    request = GuardBoothFitRequest(request_id=uuid4(), family="grand_filano", observed_at=NOW)
+    first = issue(request, channel, evidence=evidence, owner="a" * 64 if channel == "LINE" else None)
+    assert first.polygon is not None
+
+    deadline = NOW + timedelta(minutes=2)
+    # Reprocessing the same recorded photo is the demo's evidence clock.
+    evidence.area.processed_at = deadline
+    assert read(evidence, deadline - timedelta(seconds=1))[0].stage == "HELD"
+    assert read(evidence, deadline) == []
+    with Session(get_engine()) as session:
+        shown = mask_held_space(session, "sripatum", evidence.area)
+        assert not any("RECOMMENDATION_HELD" in r.reasons for r in shown.regions)
+        assert any(r.kind == "WIDTH_SUFFICIENT" and polygon_shape(r.polygon).covers(polygon_shape(first.polygon)) for r in shown.regions)
+
+
+def test_deadline_needs_new_empty_evidence_and_keeps_unknown_ground_blocked(database):
     seed()
     request = GuardBoothFitRequest(request_id=uuid4(), family="grand_filano", observed_at=NOW)
     issue(request)
@@ -166,7 +187,7 @@ def test_deadline_needs_new_empty_evidence_and_keeps_occlusion_blocked(database)
     waiting = read(context(), deadline)
     assert len(waiting) == 1 and waiting[0].stage == "AWAITING_CONFIRMATION"
     hidden = context(deadline)
-    hidden.area.regions[1].reasons = ["GROUND_MAY_BE_OCCLUDED"]
+    hidden.area.regions.append(LiveRegion(kind="UNKNOWN", polygon=hidden.area.regions[1].polygon))
     assert read(hidden, deadline)[0].stage == "AWAITING_CONFIRMATION"
     stale = context(deadline)
     stale.area.status = "STALE"
@@ -276,6 +297,23 @@ def test_unknown_patch_cannot_clear_a_hold_even_when_a_width_band_overlaps_it(da
     hidden.area.regions.append(LiveRegion(kind="UNKNOWN", polygon=hidden.area.regions[1].polygon))
     other = issue(request.model_copy(update={"request_id": uuid4(), "observed_at": at}), at=at, evidence=hidden)
     assert other.polygon is None
+
+
+@pytest.mark.parametrize("channel", ["LINE", "GUARD_BOOTH"])
+def test_another_fitting_place_cannot_release_the_original_held_place(database, channel):
+    seed()
+    request = GuardBoothFitRequest(request_id=uuid4(), family="grand_filano", observed_at=NOW)
+    first = issue(request, channel)
+    deadline = NOW + timedelta(minutes=2)
+    hidden = context(deadline)
+    hidden.area.regions.append(LiveRegion(kind="UNKNOWN", polygon=first.polygon))
+
+    waiting = read(hidden, deadline)
+    assert len(waiting) == 1 and waiting[0].stage == "AWAITING_CONFIRMATION"
+    other = issue(request.model_copy(update={"request_id": uuid4(), "observed_at": deadline}),
+                  channel, at=deadline, evidence=hidden)
+    assert other.polygon is not None
+    assert polygon_shape(other.polygon).intersection(polygon_shape(first.polygon)).area <= 1e-8
 
 
 def test_api_entrypoints_share_a_transactional_ledger(database, monkeypatch):

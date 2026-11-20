@@ -63,6 +63,16 @@ def _transition(hold: ParkingHold, stage: str, now: datetime, area: ParkingAreaL
     }]
 
 
+def _fit_held_space(hold: ParkingHold, context: HoldContext, holds: list[ParkingHold]) -> GuardBoothFit:
+    """Recheck the original place using the allocation fitter and the other holds."""
+    return fit_recorded_preview(
+        context.area, hold.family, context.entrance, context.scale,
+        preferred=GuardBoothFit.model_validate(hold.result).polygon,
+        blocked=[*_unsafe_polygons(context.area),
+                 *[h.polygon for h in _shown(holds) if h.request_id != hold.request_id]],
+    )
+
+
 def _reconcile(holds: list[ParkingHold], context: HoldContext, now: datetime) -> None:
     area = context.area
     current = area.status in ("LIVE", "DEMO") and area.observed_at is not None and area.processed_at is not None
@@ -88,15 +98,19 @@ def _reconcile(holds: list[ParkingHold], context: HoldContext, now: datetime) ->
         evidence_at = area.processed_at if demo else area.observed_at
         after_deadline = newer and evidence_at >= hold.expires_at
         if after_deadline:
-            allowed = {"FOOTPRINT_NOT_PROVEN", "LOCAL_ROW_UNCERTAINTY"} if demo else set()
-            empty = unary_union([
-                polygon_shape(r.display_polygon or r.polygon) for r in area.regions
-                if r.kind == ("WIDTH_SUFFICIENT" if demo else "AVAILABLE") and not (set(r.reasons) - allowed)
-            ])
-            # Demo UNKNOWN row envelopes coexist with width bands. Actual
-            # occlusion or other uncertainty still vetoes release.
-            unsafe = unary_union([polygon_shape(p) for p in _unsafe_polygons(area)])
-            if covers(empty, frame) and frame.intersection(unsafe).area <= 1e-8:
+            if demo:
+                # Recorded width previews must use the same fit for allocation,
+                # polling and release. A fit somewhere else cannot clear this place.
+                valid = _fit_held_space(hold, context, holds)
+                empty_confirmed = valid.polygon is not None and polygon_shape(valid.polygon).equals(frame)
+            else:
+                empty = unary_union([
+                    polygon_shape(r.display_polygon or r.polygon) for r in area.regions
+                    if r.kind == "AVAILABLE" and not r.reasons
+                ])
+                unsafe = unary_union([polygon_shape(p) for p in _unsafe_polygons(area)])
+                empty_confirmed = covers(empty, frame) and frame.intersection(unsafe).area <= 1e-8
+            if empty_confirmed:
                 _transition(hold, "RELEASED", now, area, "FRESH_EMPTY_AFTER_DEADLINE")
                 continue
         if hold.stage != "OCCUPIED_CONFIRMED":
@@ -216,8 +230,7 @@ def _answer(hold: ParkingHold, context: HoldContext, holds: list[ParkingHold], n
     elif observed_at is not None and observed_at != area.observed_at:
         reason = "FRAME_CHANGED"
     else:
-        valid = fit_recorded_preview(area, hold.family, context.entrance, context.scale, preferred=result.polygon,
-            blocked=[*_unsafe_polygons(area), *[h.polygon for h in result.holds if h.request_id != hold.request_id]])
+        valid = _fit_held_space(hold, context, holds)
         if valid.polygon is None or not polygon_shape(valid.polygon).equals(polygon_shape(result.polygon)):
             reason = "PLACEMENT_UNAVAILABLE"
     if reason:
