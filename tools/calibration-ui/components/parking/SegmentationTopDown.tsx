@@ -79,6 +79,7 @@ export function SegmentationTopDown({ gaps, selectedId, onSelect, incomingSelect
     {segmentationOnly && <p className="text-xs text-amber-900">ใช้ mask ตรวจการบังในภาพ คันที่ mask ใช้ไม่ได้ใช้กรอบสำรอง · รถที่จัดแถวไม่ชัดเจนยังมีความไม่แน่นอนในการคำนวณ</p>}
     {(continuous || shapes) && <p className="text-xs text-yellow-900">สีเหลือง = อาจจอดได้หากขยับรถข้างเคียง · ขาดความกว้างไม่เกิน {(gaps.advisory_max_extra_width_m*100).toFixed(0)} ซม. และกรอบเป้าหมายทับรถไม่เกิน {(gaps.advisory_max_overlap_ratio*100).toFixed(0)}% · ไม่ใช่ช่องที่พร้อมจอด</p>}
     {previewWidthOnly && <p role="status" aria-label="คำอธิบายโหมดความกว้างทดลอง" className="rounded border border-green-700 bg-green-50 p-3 text-sm font-medium text-green-950">เขียวลายเฉียง = {widthPreviewLabel} · เป็นภาพทดลองเฉพาะความกว้าง สถานะจริงยังเป็น UNKNOWN เหตุผลเดิมยังอยู่ และไม่นับเพิ่มในจำนวนช่วงผ่านเกณฑ์หรือคำแนะนำ</p>}
+    <p className="text-xs text-slate-600">กรอบแดงใช้ความกว้างประมาณจากกรอบ Seg × สเกลเมตรต่อพิกเซล และขยายเต็มความลึกแถวเพื่อคำนวณช่องว่าง หากประมาณไม่ได้ใช้ความกว้างมาตรฐาน ไม่ใช่ขนาดรถที่วัดจริง</p>
     <div className="h-[460px] max-h-[65vh] overflow-auto rounded-xl border bg-slate-200">
       <svg aria-label="Segmentation metric top-down map" viewBox={`${minX-pad} ${minY-pad} ${width+2*pad} ${height+2*pad}`} style={{ width: `${zoom*100}%`, height: `${zoom*100}%` }} className="block" preserveAspectRatio="xMidYMid meet">
         <g transform={`translate(0 ${2*minY+height}) scale(1 -1)`}>

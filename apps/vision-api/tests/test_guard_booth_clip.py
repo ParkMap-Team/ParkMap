@@ -21,8 +21,8 @@ from app.services.guard_booth_clip import (
     parse_zone,
     summarize,
 )
-from app.services.guard_booth_fitting import GuardBoothFitRequest
 from app.services.motorcycle_reference_sizes import load_rules
+from app.services.recommendation_models import GuardBoothFitRequest
 from app.services.video_classifier import ClipEvidence, TrackEvidence, TrackPoint
 
 CLASSES = ["click", "unsized_model", "pcx"]
@@ -267,7 +267,7 @@ def test_evidence_that_cannot_be_stored_is_kept_in_memory(stored_clip, monkeypat
 
 
 def test_nothing_is_stored_without_detector_weights(stored_clip, detector_weights):
-    path, calls = stored_clip
+    path, _calls = stored_clip
     detector_weights.unlink()
     assert len(restarted_evidence().tracks) == 1
     assert not evidence_path(path).exists()

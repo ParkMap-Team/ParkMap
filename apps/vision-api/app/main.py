@@ -73,12 +73,6 @@ from app.services.guard_booth_clip import (
     configured_clip,
     summarize,
 )
-from app.services.guard_booth_fitting import (
-    GuardBoothFit,
-    GuardBoothFitHold,
-    GuardBoothFitRequest,
-    PreviewFamily,
-)
 from app.services.live_state_service import (
     MAX_FUTURE_SKEW_S,
     evaluate_area_state,
@@ -106,6 +100,12 @@ from app.services.parking_holds import snapshot as parking_holds_snapshot
 from app.services.physical_row_geometry_service import (
     measurement_fingerprint,
     physical_row_geometry_service,
+)
+from app.services.recommendation_models import (
+    GuardBoothFit,
+    GuardBoothFitHold,
+    GuardBoothFitRequest,
+    PreviewFamily,
 )
 from app.services.video_classifier import router as video_classifier_router
 

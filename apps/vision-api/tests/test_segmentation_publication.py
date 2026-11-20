@@ -1,4 +1,3 @@
-import json
 from datetime import UTC, datetime
 
 import pytest
@@ -7,6 +6,16 @@ from app.services.segmentation_experiment_service import SegmentationExperimentR
 from app.services.segmentation_gap_service import SegmentationGapResult
 
 NOW = datetime(2026, 11, 11, tzinfo=UTC)
+
+
+def test_operator_display_matches_worker_without_publishing_state():
+    from app.services.live_state_service import build_segmentation_display
+
+    segmentation, gaps = inputs()
+    motorcycles, regions = build_segmentation_display(segmentation, gaps, estimated_widths={0: .9})
+    state = publish(segmentation, gaps, estimated_widths={0: .9})
+    assert motorcycles == state.motorcycles
+    assert regions == [region for region in state.regions if region.kind == "OCCUPIED"]
 
 
 def inputs():
@@ -26,7 +35,21 @@ def publish(segmentation, gaps, **overrides):
 
     return build_segmentation_state_publish(segmentation, gaps, camera_id="camera-1", parking_area_id="area-1",
         source=overrides.get("source", "STILL_IMAGE_LOOP"), observed_at=NOW, processed_at=NOW,
-        calibration_version="v1", calibration_provenance=overrides.get("provenance", "MEASURED"))
+        calibration_version="v1", calibration_provenance=overrides.get("provenance", "MEASURED"),
+        estimated_widths=overrides.get("estimated_widths"))
+
+
+def test_estimated_proxy_width_is_display_metadata_without_changing_occupancy():
+    segmentation, gaps = inputs()
+    result = publish(segmentation, gaps, estimated_widths={0: .5})
+    standard = publish(segmentation, gaps)
+
+    assert result.motorcycles[0].estimated_width_m == .5
+    assert result.motorcycles[0].width_m == pytest.approx(.66)
+    assert result.motorcycles[0].length_m == pytest.approx(2)
+    assert result.regions == standard.regions
+    assert result.motorcycles[0].center == standard.motorcycles[0].center
+    assert standard.motorcycles[0].estimated_width_m is None
 
 
 def test_publication_uses_row_band_for_red_and_horizontal_reference_for_vehicle_only():
@@ -39,13 +62,14 @@ def test_publication_uses_row_band_for_red_and_horizontal_reference_for_vehicle_
     horizontal = [MetricGroundPoint(x_m=x, y_m=y) for x, y in [(0, 0), (2, 0), (2, .66), (0, .66)]]
     gaps.horizontal_vehicles = [HorizontalVehicleClearance(detection_id="detection_1", detection_index=0,
         pixel_aspect_ratio=2., polygon_metric=horizontal, measurement_status="NO_COMPARABLE_NEIGHBOR")]
-    state = publish(segmentation, gaps)
+    state = publish(segmentation, gaps, estimated_widths={0: .8})
     red = [r for r in state.regions if r.kind == "OCCUPIED"]
     assert len(red) == 1
     assert red[0].detection_id == "detection_1"
     assert red[0].polygon[0][2].y_m == pytest.approx(1.9)
     assert state.motorcycles[0].heading_rad == pytest.approx(0.)
     assert state.motorcycles[0].length_m == pytest.approx(2.)
+    assert state.motorcycles[0].estimated_width_m == .8
     assert len(state.motorcycles) == 1  # one ID is never drawn twice
     gaps.occupied_layers = []
     assert len(publish(segmentation, gaps).motorcycles) == 1  # horizontal in an aisle
@@ -114,6 +138,7 @@ def test_worker_analyzes_seg_once_and_publishes_the_matching_gap_result(tmp_path
     from types import SimpleNamespace
 
     import numpy as np
+    from test_motorcycle_width_estimation import write_calibration
 
     import app.services.frame_analysis_service as analyzer
     import app.worker.__main__ as worker
@@ -121,10 +146,9 @@ def test_worker_analyzes_seg_once_and_publishes_the_matching_gap_result(tmp_path
     from app.worker.frames import Frame
 
     segmentation, gaps = inputs()
-    polygon = [{"x": .1, "y": .1}, {"x": .9, "y": .1}, {"x": .9, "y": .9}, {"x": .1, "y": .9}]
-    (tmp_path / "parking_calibration.json").write_text(json.dumps({"camera_id": "camera-1",
-        "reference_image": {"width": 100, "height": 100}, "parking_roi": {"polygon": polygon},
-        "rows": [{"id": "row_1", "name": "Row", "polygon": polygon}]}))
+    write_calibration(tmp_path)
+    gaps.estimated_widths_m = {"detection_1": .5}
+    segmentation.detections[0].bbox.x = .3
     monkeypatch.setattr(analyzer, "CONFIG_DIRECTORY", tmp_path)
     versions = iter([("v1", "MEASURED"), ("v2" if calibration_changed else "v1", "MEASURED")])
     monkeypatch.setattr(analyzer, "calibration_identity", lambda _: next(versions))
@@ -140,6 +164,7 @@ def test_worker_analyzes_seg_once_and_publishes_the_matching_gap_result(tmp_path
         assert detection.model.name == "local-seg.pt"
         assert options["image_row_assignment"] is True
         assert options["visible_free_shapes"] is False
+        assert options["use_segmentation_widths"] is True
         return gaps
 
     def forbidden(*_):
@@ -159,5 +184,6 @@ def test_worker_analyzes_seg_once_and_publishes_the_matching_gap_result(tmp_path
         parking_area_id="area-1", source="STILL_IMAGE_LOOP")
     assert calls == ["seg"]
     assert len(state.motorcycles) == 1
+    assert state.motorcycles[0].estimated_width_m == pytest.approx(.5)
     assert state.observed_at == NOW
     assert state.regions[0].kind == "UNKNOWN"

@@ -2310,6 +2310,11 @@ export interface components {
              * @default 1
              */
             display_scale: number;
+            /**
+             * Estimated Width M
+             * @description Approximate bbox width using local ground homography scale, in physical metres. Display only; never used for occupancy or fitting. Null uses the standard proxy width.
+             */
+            estimated_width_m?: number | null;
             /** Heading Rad */
             heading_rad: number;
             /** Length M */
@@ -2368,6 +2373,8 @@ export interface components {
             /** Classification Error */
             classification_error?: string | null;
             detection: components["schemas"]["DetectionResponse"];
+            /** Motorcycles */
+            motorcycles?: components["schemas"]["MotorcycleProxy"][];
             /** Parking Error */
             parking_error?: string | null;
             /** Reference Size Error */
@@ -2596,6 +2603,13 @@ export interface components {
              * @default []
              */
             detection_row_assignments: components["schemas"]["GapDetectionRowAssignment"][];
+            /**
+             * Estimated Widths M
+             * @description Per-detection approximate bbox widths in metres from this analysis calibration snapshot.
+             */
+            estimated_widths_m?: {
+                [key: string]: number;
+            };
             /**
              * Evaluation Mode
              * @default FULL_FOOTPRINT

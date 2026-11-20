@@ -1,10 +1,10 @@
 """Conservative local fitting from detections, never from projected object masks."""
 
 import math
-from typing import Literal
+from typing import Annotated, Literal
 
 import numpy as np
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from shapely.affinity import rotate, scale, translate
 from shapely.errors import GEOSException
 from shapely.geometry import LineString, Point, Polygon, box
@@ -37,6 +37,7 @@ from app.services.motorcycle_reference_sizes import (
     ReferenceSizeRules,
     load_rules,
 )
+from app.services.motorcycle_width_estimation import estimate_width_m
 from app.services.parking_analysis_service import (
     ParkingAnalysisService,
     _geometry,
@@ -282,6 +283,7 @@ class SegmentationGapResult(BaseModel):
     target_length_m: float | None = LENGTH_M
     clearance_margin_m: float = 0.
     calibration_source: Literal["MEASURED", "ESTIMATED", "UNKNOWN"] = "UNKNOWN"
+    estimated_widths_m: dict[str, Annotated[float, Field(gt=0, le=3, allow_inf_nan=False)]] = Field(default_factory=dict, description="Per-detection approximate bbox widths in metres from this analysis calibration snapshot.")
     calibration_version: str | None = None
     reasons: list[str] = []
     candidates: list[GapCandidate] = []
@@ -1069,7 +1071,7 @@ def _mask_in_selected_rows(mask, image_rows):
     return mask is not None and mask.area > 1e-12 and mask.intersection(image_rows).area / mask.area >= MASK_ROW_MIN_OVERLAP_RATIO
 
 
-def analyze_segmentation_gaps(standard: DetectionResponse, segmentation: SegmentationExperimentResult, service=parking_analysis_service, *, reference_sizes=None, incoming_width_m=None, clearance_margin_m=0., visible_free_shapes=False, bottom_edge_assignment=False, image_row_assignment=False):
+def analyze_segmentation_gaps(standard: DetectionResponse, segmentation: SegmentationExperimentResult, service=parking_analysis_service, *, reference_sizes=None, incoming_width_m=None, clearance_margin_m=0., visible_free_shapes=False, bottom_edge_assignment=False, image_row_assignment=False, use_segmentation_widths=False):
     if incoming_width_m is not None and (not math.isfinite(incoming_width_m) or not 0 < incoming_width_m <= 5):
         raise ValueError("Incoming width must be positive and at most 5 metres")
     if not math.isfinite(clearance_margin_m) or not 0 <= clearance_margin_m <= 1:
@@ -1142,9 +1144,13 @@ def analyze_segmentation_gaps(standard: DetectionResponse, segmentation: Segment
             if anchor_in_row or (bottom_edges is None and mask_in_row):
                 indices.append(index)
         combined = standard.model_copy(update={"detections": [detections[index] for index in indices], "parking_analysis": None})
+        estimated_widths = {f"detection_{index+1}": width for index, detection in enumerate(detections)
+            if use_segmentation_widths and (width := estimate_width_m(detection.bbox, standard.image_width, standard.image_height, matrix)) is not None}
         sizes = []
-        for _ in indices:
-            sizes.append(ReferenceDimensions(width_m=WIDTH_M, length_m=LENGTH_M, basis="STANDARD_SEGMENTATION_REFERENCE"))
+        for index in indices:
+            width = estimated_widths.get(f"detection_{index+1}")
+            sizes.append(ReferenceDimensions(width_m=width if width is not None else WIDTH_M, length_m=LENGTH_M,
+                basis="ESTIMATED_SEGMENTATION_WIDTH" if width is not None else "STANDARD_SEGMENTATION_REFERENCE"))
         analysis = _restore_source_detection_ids(service.analyze(combined, reference_sizes=sizes), indices)
         # Outside-row vehicles remain image occluders, never synthetic ground
         # obstacles whose arbitrary reference length reserves another row.
@@ -1179,6 +1185,7 @@ def analyze_segmentation_gaps(standard: DetectionResponse, segmentation: Segment
             result.family_recommendation_error = "Reference-size rules unavailable; check config/motorcycle_reference_sizes.json."
         if calibration_version(directory) != version:
             raise ValueError("Calibration changed during analysis")
+        result.estimated_widths_m = estimated_widths
         result.calibration_version = version
         return result
     except (OSError, ValueError, KeyError, TypeError, RuntimeError, np.linalg.LinAlgError, GEOSException):

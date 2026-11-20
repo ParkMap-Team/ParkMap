@@ -3772,6 +3772,20 @@
             "title": "Display Scale",
             "type": "number"
           },
+          "estimated_width_m": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 3.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Approximate bbox width using local ground homography scale, in physical metres. Display only; never used for occupancy or fitting. Null uses the standard proxy width.",
+            "title": "Estimated Width M"
+          },
           "heading_rad": {
             "title": "Heading Rad",
             "type": "number"
@@ -3982,6 +3996,13 @@
           },
           "detection": {
             "$ref": "#/components/schemas/DetectionResponse"
+          },
+          "motorcycles": {
+            "items": {
+              "$ref": "#/components/schemas/MotorcycleProxy"
+            },
+            "title": "Motorcycles",
+            "type": "array"
           },
           "parking_error": {
             "anyOf": [
@@ -4520,6 +4541,16 @@
             },
             "title": "Detection Row Assignments",
             "type": "array"
+          },
+          "estimated_widths_m": {
+            "additionalProperties": {
+              "exclusiveMinimum": 0.0,
+              "maximum": 3.0,
+              "type": "number"
+            },
+            "description": "Per-detection approximate bbox widths in metres from this analysis calibration snapshot.",
+            "title": "Estimated Widths M",
+            "type": "object"
           },
           "evaluation_mode": {
             "default": "FULL_FOOTPRINT",

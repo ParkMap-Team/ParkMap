@@ -15,17 +15,15 @@ from sqlalchemy.orm import Session
 from app.db import repository
 from app.db.tables import ParkingHold
 from app.models import LiveRegion, MetricGroundPoint, ParkingAreaLiveState
-from app.services.guard_booth_fitting import (
-    AISLES,
-    HOLD_DURATION,
+from app.services import guard_booth_fitting, rider_recommendation
+from app.services.recommendation_models import (
     GuardBoothFit,
     GuardBoothFitHold,
     GuardBoothFitRequest,
-    covers,
-    fit_recorded_preview,
-    free_ground_for,
 )
 from app.services.region_clipping_service import polygon_shape
+from app.services.rider_map_fitting import free_ground_for
+from app.services.width_band_fitting import covers
 
 Channel = Literal["GUARD_BOOTH", "LINE"]
 BLOCKING = ("HELD", "AWAITING_CONFIRMATION", "OCCUPIED_CONFIRMED")
@@ -39,17 +37,22 @@ class HoldContext:
     geometry_version: str
 
 
-def _unsafe_polygons(area: ParkingAreaLiveState, *, routed_only: bool = True):
+def _policy(channel: Channel):
+    return rider_recommendation if channel == "LINE" else guard_booth_fitting
+
+
+def _unsafe_polygons(area: ParkingAreaLiveState, *, channel: Channel, routed_only: bool = True):
+    aisles = _policy(channel).AISLES if routed_only else None
     demo = area.status == "DEMO" and area.source == "STILL_IMAGE_LOOP"
     allowed = {"FOOTPRINT_NOT_PROVEN", "LOCAL_ROW_UNCERTAINTY"} if demo else set()
     return [r.display_polygon or r.polygon for r in area.regions
             if r.kind in ("UNKNOWN", "ALMOST_AVAILABLE") and
-            (not demo or r.kind != "UNKNOWN" or not r.row_id or (routed_only and r.row_id not in AISLES) or bool(set(r.reasons) - allowed))]
+            (not demo or r.kind != "UNKNOWN" or not r.row_id or (routed_only and r.row_id not in aisles) or bool(set(r.reasons) - allowed))]
 
 
 def rider_free_ground(area: ParkingAreaLiveState, family: str, scale: float) -> ParkingAreaLiveState:
     """Width preview across all rows, on an area already masked by shared holds."""
-    return free_ground_for(area, family, scale, blocked=_unsafe_polygons(area, routed_only=False))
+    return free_ground_for(area, family, scale, blocked=_unsafe_polygons(area, routed_only=False, channel="LINE"))
 
 
 def _transition(hold: ParkingHold, stage: str, now: datetime, area: ParkingAreaLiveState, reason: str) -> None:
@@ -64,11 +67,11 @@ def _transition(hold: ParkingHold, stage: str, now: datetime, area: ParkingAreaL
 
 
 def _fit_held_space(hold: ParkingHold, context: HoldContext, holds: list[ParkingHold]) -> GuardBoothFit:
-    """Recheck the original place using the allocation fitter and the other holds."""
-    return fit_recorded_preview(
+    """Recheck the original place using its channel's allocation policy and the other holds."""
+    return _policy(hold.channel).fit_recorded_preview(
         context.area, hold.family, context.entrance, context.scale,
         preferred=GuardBoothFit.model_validate(hold.result).polygon,
-        blocked=[*_unsafe_polygons(context.area),
+        blocked=[*_unsafe_polygons(context.area, channel=hold.channel),
                  *[h.polygon for h in _shown(holds) if h.request_id != hold.request_id]],
     )
 
@@ -108,7 +111,7 @@ def _reconcile(holds: list[ParkingHold], context: HoldContext, now: datetime) ->
                     polygon_shape(r.display_polygon or r.polygon) for r in area.regions
                     if r.kind == "AVAILABLE" and not r.reasons
                 ])
-                unsafe = unary_union([polygon_shape(p) for p in _unsafe_polygons(area)])
+                unsafe = unary_union([polygon_shape(p) for p in _unsafe_polygons(area, channel=hold.channel)])
                 empty_confirmed = covers(empty, frame) and frame.intersection(unsafe).area <= 1e-8
             if empty_confirmed:
                 _transition(hold, "RELEASED", now, area, "FRESH_EMPTY_AFTER_DEADLINE")
@@ -182,7 +185,7 @@ def reserve(session: Session, site_id: str, request: GuardBoothFitRequest, chann
         raise HTTPException(409, "Request ID already belongs to a different recommendation.")
     if previous:
         return _answer(previous, context, holds, now, request.observed_at)
-    result = fit_recorded_preview(area, request.family, context.entrance, context.scale, blocked=[*_unsafe_polygons(area), *[h.polygon for h in _shown(holds)]])
+    result = _policy(channel).fit_recorded_preview(area, request.family, context.entrance, context.scale, blocked=[*_unsafe_polygons(area, channel=channel), *[h.polygon for h in _shown(holds)]])
     result.request_id = request.request_id
     result.server_time = now
     result.reason = "NO_FIT" if area.status == "DEMO" else "STATE_UNAVAILABLE"
@@ -195,7 +198,7 @@ def reserve(session: Session, site_id: str, request: GuardBoothFitRequest, chann
     if result.reason in ("STATE_UNAVAILABLE", "FRAME_CHANGED", "GEOMETRY_CHANGED"):
         result.polygon, result.route, result.observed_at = None, [], None
     if result.polygon is not None:
-        result.expires_at = now + HOLD_DURATION
+        result.expires_at = now + _policy(channel).HOLD_DURATION
         result.stage = "HELD"
         result.reason = "HELD"
         hold = ParkingHold(
