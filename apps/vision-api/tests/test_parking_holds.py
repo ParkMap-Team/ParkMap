@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from app.db.session import get_engine, reset_engine
 from app.db.tables import ParkingHold, Site
 from app.models import LiveRegion, MetricGroundPoint, ParkingAreaLiveState
-from app.services.guard_booth_fitting import GuardBoothFitRequest
 from app.services.parking_holds import (
     HoldContext,
     mask_held_space,
@@ -20,6 +19,7 @@ from app.services.parking_holds import (
     reserve,
     snapshot,
 )
+from app.services.recommendation_models import GuardBoothFitRequest
 from app.services.region_clipping_service import polygon_shape
 
 NOW = datetime(2026, 11, 18, tzinfo=UTC)
@@ -40,6 +40,23 @@ def seed():
     with Session(get_engine()) as session:
         session.add(Site(id="sripatum", name="Test", latitude=0, longitude=0))
         session.commit()
+
+
+def test_line_and_booth_use_independent_clearance_but_keep_one_ledger(database):
+    seed()
+    evidence = context()
+    gap = [[MetricGroundPoint(x_m=x, y_m=y) for x, y in [(5, 0), (5.71, 0), (5.71, 2), (5, 2)]]]
+    evidence.area.regions[1].polygon = gap
+    evidence.area.regions[1].width_m = .71
+    request = GuardBoothFitRequest(request_id=uuid4(), family="scoopy", observed_at=NOW)
+    booth = issue(request, evidence=evidence)
+    assert booth.polygon is None  # .693 + .05 does not fit
+    rider = issue(request.model_copy(update={"request_id": uuid4()}), "LINE", evidence=evidence, owner="a" * 64)
+    assert rider.polygon is not None  # .693 without clearance fits
+    with Session(get_engine()) as session:
+        assert len(list(session.scalars(select(ParkingHold)))) == 1
+        recovered = owner_recommendation(session, "sripatum", "a" * 64, lambda: evidence, NOW)
+        assert recovered.polygon == rider.polygon  # polling validates with the LINE policy too
 
 
 def issue(request, channel="GUARD_BOOTH", at=NOW, evidence=None, owner=None):
@@ -322,7 +339,7 @@ def test_api_entrypoints_share_a_transactional_ledger(database, monkeypatch):
     body["owner_key"] = "a" * 64
     line = client.post("/api/sites/sripatum/parking-recommendation", json=body)
     assert line.status_code == 200 and line.json()["polygon"], line.text
-    from app.services.guard_booth_fitting import GuardBoothFit
+    from app.services.recommendation_models import GuardBoothFit
     first, second = GuardBoothFit.model_validate(booth.json()), GuardBoothFit.model_validate(line.json())
     assert polygon_shape(first.polygon).intersection(polygon_shape(second.polygon)).area == 0
     assert {h["channel"] for h in client.get("/api/sites/sripatum/parking-holds").json()} == {"GUARD_BOOTH"}

@@ -1,36 +1,10 @@
-from shapely.geometry import Polygon, box
 
 from app.models import LiveRegion, MetricGroundPoint, ParkingAreaLiveState
 from app.services.guard_booth_fitting import (
-    covers,
     fit_recorded_preview,
-    fit_slots,
-    free_ground_for,
 )
 from app.services.region_clipping_service import polygon_shape
-
-
-def test_a_slot_crosses_the_whole_depth_of_a_band_that_narrows():
-    band = Polygon([(0, 0), (4, 0), (4, 2.4), (0, 2.6)])
-    free = band.difference(box(0, -1, 2.5, 3)).difference(box(3.4, -1, 5, 3))
-    slots = fit_slots(free, band, 0.8, 0)
-
-    assert slots
-    for slot in slots:
-        left, bottom, right, top = slot.bounds
-        assert covers(free, slot) and abs(right - left - 0.8) < 1e-9 and bottom == 0
-        # The slot meets the sloping edge, so its depth is the band's own there, not a length.
-        assert abs(top - (2.6 - 0.05 * left)) < 1e-9
-    assert not fit_slots(free, band, 0.95, 0)
-
-
-def test_a_hole_anywhere_across_the_depth_blocks_the_slot():
-    band = box(0, 0, 5, 2.3)
-    blocked = box(1.5, 0.7, 3, 1.4)
-    free = band.difference(blocked)
-    slots = fit_slots(free, band, 0.7, 0)
-    assert any(slot.bounds[2] <= 1.5 for slot in slots) and any(slot.bounds[0] >= 3 for slot in slots)
-    assert all(covers(free, slot) and slot.intersection(blocked).area == 0 for slot in slots)
+from app.services.rider_map_fitting import free_ground_for
 
 
 def test_recorded_preview_uses_width_despite_occlusion_flag_but_keeps_stale_and_hold_gates():
@@ -89,7 +63,7 @@ def test_a_riders_free_ground_includes_unrouted_rows_but_still_requires_model_wi
         LiveRegion(kind="UNKNOWN", row_id="row_5", polygon=rect(5, 35)),
         LiveRegion(kind="UNKNOWN", row_id="row_1", polygon=rect(5, 35, 20, 21.9)),
         LiveRegion(kind="OCCUPIED", row_id="row_5", polygon=rect(5, 6)),
-        # 0.8 m: wide enough for Grand Filano (0.685 + 0.05 m), not for Forza (0.772 + 0.05 m).
+        # No rider clearance: 0.8 m takes Grand Filano and Forza, not Road Glide (.945 m).
         LiveRegion(kind="WIDTH_SUFFICIENT", row_id="row_5", polygon=rect(6, 6.8), width_m=0.8, reasons=["FOOTPRINT_NOT_PROVEN"]),
         LiveRegion(kind="OCCUPIED", row_id="row_5", polygon=rect(6.8, 10)),
         # Wide, but past the right-hand access the guide routes through.
@@ -107,7 +81,7 @@ def test_a_riders_free_ground_includes_unrouted_rows_but_still_requires_model_wi
     assert [r.row_id for r in free(rider_free_ground(state, "grand_filano", scale=1))] == ["row_5", "row_5", "row_1"]
     assert [r.row_id for r in free(small)] == ["row_5", "row_5", "row_1"]
     assert polygon_shape(free(small)[0].polygon).equals(polygon_shape(state.regions[3].polygon))
-    large = free_ground_for(state, "forza", scale=1)
+    large = free_ground_for(state, "hd_road_glide", scale=1)
     assert [r.row_id for r in free(large)] == ["row_5", "row_1"]
     # Displaying unrouted ground must not invent a navigation route to it.
     unrouted = state.model_copy(update={"regions": [r for r in state.regions if r.row_id == "row_1"]})
@@ -133,14 +107,16 @@ def test_length_never_decides_a_fit_in_a_row_that_narrows():
     ])
     entrance = MetricGroundPoint(x_m=21.5, y_m=-21)
 
-    # The 0.8 m gap is shallower than the row's mean depth. Exciter (0.665 m wide, 1.975 m long) and
+    # The 0.8 m gap is shallower than the row's mean depth. Click (0.679 m wide, 1.92 m long) and
     # Grand Filano (0.685 m, 1.82 m) fit by width alike; Forza (0.772 + 0.05 m) is too wide.
-    for family in ("exciter", "grand_filano"):
+    for family in ("click", "grand_filano"):
         fit = fit_recorded_preview(state, family, entrance, scale=1)
         assert fit.polygon is not None and all(10 <= point.x_m <= 10.8 for point in fit.polygon[0])
         assert any(r.kind == "WIDTH_SUFFICIENT" for r in free_ground_for(state, family, scale=1).regions)
     assert fit_recorded_preview(state, "forza", entrance, scale=1).polygon is None
-    assert not any(r.kind == "WIDTH_SUFFICIENT" for r in free_ground_for(state, "forza", scale=1).regions)
+    # The rider map adds no clearance, while the guide above still adds .05 m.
+    assert any(r.kind == "WIDTH_SUFFICIENT" for r in free_ground_for(state, "forza", scale=1).regions)
+    assert not any(r.kind == "WIDTH_SUFFICIENT" for r in free_ground_for(state, "hd_road_glide", scale=1).regions)
 
 
 def test_a_neighbouring_rows_motorcycle_reaching_into_shared_ground_does_not_block_a_slot():

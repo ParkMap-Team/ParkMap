@@ -24,6 +24,21 @@ Green that the guide then refuses ("ไม่มีที่ว่างที�
 
 ## Consequences
 
+Amended 2026-11-20 at the owner's request: rider-map filtering now belongs to
+`rider_map_fitting.py`, with its own `RIDER_CLEARANCE_M = 0.0` policy at the
+owner's request: main-map width previews add no lateral clearance. Guard
+Booth placement and routing stay in `guard_booth_fitting.py`, with independent
+`GUARD_BOOTH_CLEARANCE_M = 0.05` and its existing row/access restrictions.
+LINE recommendations independently use `rider_recommendation.py`, including
+their own `AISLES`, `RIGHT_ACCESS_X`, `ENTRANCE_LANE_Y` and hold duration; they
+use the rider's zero-clearance policy. Shared geometry and API transport types
+do not own either channel's routing policy (see ADR 0020).
+`width_band_fitting.py` owns shared geometry and requires the caller's clearance
+explicitly. The shared module has no Guard Booth row or route policy. The
+recommendation ledger and hold masking stay shared in `parking_holds.py`.
+This extraction preserves existing map colours, filters, fit results and API
+schemas; changing one caller's clearance does not change the other's.
+
 Amended 2026-11-20 at the owner's request: map width-band display is independent
 of routing. `free_ground_for` evaluates all calibrated rows, including `row_1`,
 and does not apply the guide's right-access restriction. Model width, detected

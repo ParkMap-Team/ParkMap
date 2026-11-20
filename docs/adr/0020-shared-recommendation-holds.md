@@ -4,6 +4,17 @@ Accepted 2026-11-18 at the owner's request.
 
 ## Decision
 
+Amended 2026-11-20 at the owner's request: allocation and hold revalidation
+dispatch by channel. `rider_recommendation.py` owns LINE routing rows, right
+access, entrance lane and hold duration, using the rider's zero-clearance policy.
+`guard_booth_fitting.py` owns independent values and keeps 0.05 m clearance.
+Both call the neutral `recommendation_fitting.py` geometry search with explicit
+parameters. `recommendation_models.py` owns shared transport models; their legacy
+schema names remain unchanged for API compatibility. `parking_holds.py` retains
+one locked ledger and checks all channels' blocking holds, while reconciling each
+hold with its own channel's routing rules. Separating policy must not create two
+reservation ledgers or allow overlapping recommendations.
+
 The Vision API owns one PostgreSQL recommendation ledger per site. Guard Booth
 classification and an explicit LINE “recommend parking” action use that ledger.
 Opening the map alone does not reserve space. LINE's server verifies the session
