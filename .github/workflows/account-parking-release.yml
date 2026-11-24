@@ -20,8 +20,8 @@ jobs:
       WORKER_UUID: ${{ vars.COOLIFY_APP_WORKER }}
       LIFF_UUID: ${{ vars.COOLIFY_APP_LIFF }}
       BOT_UUID: svalht0ztkvtlwifegi9n9ly
-      RELEASE: 59aa078bf60adcdbf5624c560c86fba1cf64c4ec
-      CI_RUN: '44574247092'
+      RELEASE: 9b4990ac9f245ab49704c56ef0b2b32f9f8d51ea
+      CI_RUN: '45386522140'
     steps:
       - name: Wait for the existing main CI without queuing another image build
         shell: bash
@@ -43,7 +43,7 @@ jobs:
           done
           echo "Main CI is still pending; no release changes were made."
           exit 1
-      - name: Deploy the matching LIFF display
+      - name: Deploy the matching API and LIFF images
         shell: bash
         run: |
           set -euo pipefail
@@ -51,7 +51,7 @@ jobs:
             curl -fsS --max-time 30 -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" -H "Content-Type: application/json" "$@"
           }
           base="$COOLIFY_URL/api/v1"
-          for spec in "parkmap-liff:$LIFF_UUID:parkmap-liff"; do
+          for spec in "parkmap-api:$API_UUID:parkmap-api" "parkmap-liff:$LIFF_UUID:parkmap-liff"; do
             IFS=: read -r name uuid package <<< "$spec"
             echo "Checking $name"
             test "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" = "$RELEASE"
