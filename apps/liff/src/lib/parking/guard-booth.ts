@@ -116,8 +116,13 @@ export function boothFitStatus(answer: Pick<GuardBoothFit, "polygon" | "stage" |
 export type RiderGuide = { tone: "go" | "wait" | "free" | "stop"; text: string };
 
 /** One short instruction per rider; a rider without a placement of its own is sent to the free space. */
-export function riderGuide(rider: GuardBoothRider | null, fit: RiderFit, number: number, row?: string): RiderGuide {
-  if (!rider || !entranceClipOutcome(rider).fitFamily) return { tone: "free", text: "จอดในพื้นที่สีเขียว" };
+export type BoothFreeGround = "free" | "none" | "unavailable";
+
+export function riderGuide(rider: GuardBoothRider | null, fit: RiderFit, number: number, row?: string, ground: BoothFreeGround = "unavailable"): RiderGuide {
+  if (!rider || !entranceClipOutcome(rider).fitFamily) {
+    if (ground === "free") return { tone: "free", text: "จอดในพื้นที่สีเขียว" };
+    return { tone: "stop", text: ground === "none" ? "ยังไม่พบพื้นที่ว่างที่ยืนยันได้" : "ยังยืนยันพื้นที่ว่างไม่ได้" };
+  }
   switch (fit) {
     case "pending": return { tone: "wait", text: "กำลังหาที่จอด" };
     case "confirming": return { tone: "wait", text: "รอตรวจพื้นที่เดิม" };

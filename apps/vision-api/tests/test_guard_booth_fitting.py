@@ -110,6 +110,19 @@ def test_a_riders_free_ground_includes_unrouted_rows_but_still_requires_model_wi
     assert free_ground_for(live, "forza", scale=1) is live
 
 
+def test_booth_can_pick_row_e_even_when_another_row_fits():
+    def band(row_id, x, y):
+        polygon = [[MetricGroundPoint(x_m=px, y_m=py) for px, py in [(x, y), (x + 2, y), (x + 2, y + 1.9), (x, y + 1.9)]]]
+        return [LiveRegion(kind="UNKNOWN", row_id=row_id, polygon=polygon),
+                LiveRegion(kind="WIDTH_SUFFICIENT", row_id=row_id, polygon=polygon, width_m=2)]
+
+    area = ParkingAreaLiveState(parking_area_id="area", status="DEMO", source="STILL_IMAGE_LOOP",
+                                regions=[*band("row_5", 5, 0), *band("row_1", 24, 12)])
+    fit = fit_recorded_preview(area, "grand_filano", MetricGroundPoint(x_m=21.5, y_m=-21), scale=1)
+    assert fit.polygon is not None and fit.route == []
+    assert polygon_shape(area.regions[3].polygon).covers(polygon_shape(fit.polygon))
+
+
 
 def test_length_never_decides_a_fit_in_a_row_that_narrows():
     def ring(*points: tuple[float, float]):

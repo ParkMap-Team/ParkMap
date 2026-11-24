@@ -6,7 +6,7 @@ from app.models import MetricGroundPoint, MetricPolygon, ParkingAreaLiveState
 from app.services.recommendation_fitting import fit_recommendation
 from app.services.recommendation_models import GuardBoothFit
 
-# Row E has no mapped driving aisle. The booth can show its pin as a fallback.
+# Row E participates in the same search and is marked by a pin without a route.
 AISLES = {"row_1": None, "row_2": 10.2, "row_3": 10.2, "row_4": 3.2, "row_5": 3.2}
 RIGHT_ACCESS_X = 28.9
 ENTRANCE_LANE_Y = -8.0
