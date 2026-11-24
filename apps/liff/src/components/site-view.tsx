@@ -17,7 +17,7 @@ import { FALLBACK_NOTICES, INITIAL_RENDERER, THREE_D_TIMEOUT_MS, detectWebGL, mo
 import { boundsOf, labelPoint, pointInPolygon } from "@/lib/map/geometry";
 import { activeParkingHolds, activeRiders, applyParkingHolds, enqueueRider, entranceClipOutcome, guardBoothFitFamily, guardBoothFrame, guardBoothHeadline, guardBoothModelName, guardBoothPreviewDestination, isKnownFamily, overlapsParkingHold, PARKING_HOLD_MS, RIDER_COLORS, riderGuide, type GuardBoothMode, type GuardBoothOverview, type ParkingHold, type QueuedRider, type RiderFit } from "@/lib/parking/guard-booth";
 import { type GuideStatus, displayedGuideRoute, guideFrame, guideStatus } from "@/lib/parking/guide";
-import { boothFitStatus, canRetryBoothFit } from "@/lib/parking/guard-booth";
+import { type BoothFreeGround, boothFitStatus, canRetryBoothFit } from "@/lib/parking/guard-booth";
 import { STATUS_LABELS, agoLabel, areaPhotos, timeLines, visibleAreas } from "@/lib/parking/presentation";
 import { useParkingState } from "@/lib/parking/use-parking-state";
 import { useParkingRecommendation } from "@/lib/parking/use-parking-recommendation";
@@ -325,6 +325,9 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
     ...boothRows.map(({ letter, anchor }) => ({ id: `parking-row:${letter}`, text: letter, anchor, kind: "PARKING_ROW" as const, landmark: null })),
   ], [boothRows, map]);
   const summary = useMemo(() => summarize(map), [map]);
+  const boothFreeGround: BoothFreeGround = !mockBooth && (connectionLost || summary.currentAreas === 0)
+    ? "unavailable"
+    : summary.present.has("AVAILABLE") || summary.present.has("WIDTH_SUFFICIENT") ? "free" : "none";
   const shownPresent = useMemo(() => summarize(shown).present, [shown]);
 
   const [renderer, dispatch] = useReducer(rendererReducer, INITIAL_RENDERER);
@@ -595,14 +598,14 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
                       <RiderCard key={slot} rider={rider} number={slot + 1} color={RIDER_COLORS[slot]} guide={riderGuide(rider, fit, slot + 1, "A")} compact={slot > 0} />
                     ))}
                   </ol>
-                ) : riders.length === 0 ? <BoothIdle status={clipStatus} /> : (
+                ) : riders.length === 0 ? <BoothIdle status={clipStatus} ground={boothFreeGround} /> : (
                   // Newest first; only the list scrolls, so the panel never runs off the screen.
                   <ol aria-label="รถที่เพิ่งเข้าลาน" aria-live="polite" className="pointer-events-auto -m-2 flex min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain p-2">
                     {riders.map(({ seq, slot, rider }, index) => {
                       const point = markers.find((marker) => marker.id === String(seq))?.point;
                       const rows = point ? boothRows.filter(({ polygon }) => pointInPolygon(point, polygon)) : [];
                       const row = rows.length === 1 ? rows[0].letter : undefined;
-                      return <RiderCard key={seq} rider={rider} number={slot + 1} color={RIDER_COLORS[slot]} guide={riderGuide(rider, riderFit(index), slot + 1, row)} compact={index > 0} />;
+                      return <RiderCard key={seq} rider={rider} number={slot + 1} color={RIDER_COLORS[slot]} guide={riderGuide(rider, riderFit(index), slot + 1, row, boothFreeGround)} compact={index > 0} />;
                     })}
                   </ol>
                 )}

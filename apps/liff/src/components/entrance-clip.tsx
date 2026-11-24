@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CircleOff, type LucideIcon, MapPin, Motorbike, SquareParking, TriangleAlert, Video } from "lucide-react";
 import { type CSSProperties, type SyntheticEvent, useEffect, useRef, useState } from "react";
 import type { GuardBoothClassification, GuardBoothRider } from "@/lib/api/types";
-import { type RiderGuide, arrivedRider, classificationRetryMs, entranceClipCrop, riderGuide, riderTitle } from "@/lib/parking/guard-booth";
+import { type BoothFreeGround, type RiderGuide, arrivedRider, classificationRetryMs, entranceClipCrop, riderGuide, riderTitle } from "@/lib/parking/guard-booth";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
@@ -177,14 +177,14 @@ export function RiderCard({ rider, number, color, guide, compact = false }: { ri
 }
 
 /** The large card's place while no rider is queued, at the same height. */
-export function BoothIdle({ status }: { status: ClipStatus }) {
-  const guide = status === "unknown" ? riderGuide(null, "pending", 0) : null;
+export function BoothIdle({ status, ground }: { status: ClipStatus; ground: BoothFreeGround }) {
+  const guide = status === "unknown" ? riderGuide(null, "pending", 0, undefined, ground) : null;
   return (
     <div className="flex h-32 shrink-0 items-center gap-4 rounded-xl border border-border bg-background p-4 shadow-md">
       {guide ? (
         <>
-          <SquareParking aria-hidden strokeWidth={2.5} className="size-12 shrink-0 text-green-700" />
-          <p className="text-xl font-bold text-green-700">{guide.text}</p>
+          <GuideIcon guide={guide} className={cn("size-12 shrink-0", GUIDE_SIGN[guide.tone])} />
+          <p className={cn("text-xl font-bold", GUIDE_SIGN[guide.tone])}>{guide.text}</p>
         </>
       ) : (
         <>

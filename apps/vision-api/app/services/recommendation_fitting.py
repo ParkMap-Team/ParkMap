@@ -29,7 +29,7 @@ def fit_recommendation(area: ParkingAreaLiveState, family: str, entrance: Metric
     for region, angle, available, free in iter_width_bands(area, blocked, row_ids=aisles):
         aisle = aisles[region.row_id]
         if previous_frame is not None and covers(free, previous_frame) and previous_frame.centroid.x < right_access_x:
-            candidates = [((False, -1), previous_frame.centroid.x, previous_frame.centroid.y, aisle, previous_frame)]
+            candidates = [(-1, previous_frame.centroid.x, previous_frame.centroid.y, aisle, previous_frame)]
             break
         if previous_frame is not None:
             free = free.difference(previous_frame)
@@ -37,9 +37,9 @@ def fit_recommendation(area: ParkingAreaLiveState, family: str, entrance: Metric
             x, y = frame.centroid.coords[0]
             if x < right_access_x:
                 distance = right_access_x - x
-                if aisle is not None:
-                    distance += aisle - entrance_y + abs(y - aisle)
-                candidates.append(((aisle is None, distance), x, y, aisle, frame))
+                # For a pin-only row, use its position to rank it without inventing an aisle.
+                distance += abs(y - entrance_y) if aisle is None else aisle - entrance_y + abs(y - aisle)
+                candidates.append((distance, x, y, aisle, frame))
     if not candidates:
         return result
     _, x, y, aisle, frame = min(candidates, key=lambda item: item[:4])

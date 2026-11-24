@@ -176,7 +176,9 @@ test("a rider is sent to its pin once its frame is placed", () => {
 
 test("a rider without a placement of its own is sent to the free space", () => {
   for (const unplaced of [rider("cbr650r", false), rider(null), null]) {
-    assert.deepEqual(riderGuide(unplaced, "placed", 1), { tone: "free", text: "จอดในพื้นที่สีเขียว" });
+    assert.deepEqual(riderGuide(unplaced, "placed", 1, undefined, "free"), { tone: "free", text: "จอดในพื้นที่สีเขียว" });
+    assert.deepEqual(riderGuide(unplaced, "no-frame", 1), { tone: "stop", text: "ยังยืนยันพื้นที่ว่างไม่ได้" });
+    assert.deepEqual(riderGuide(unplaced, "pending", 1, undefined, "none"), { tone: "stop", text: "ยังไม่พบพื้นที่ว่างที่ยืนยันได้" });
   }
 });
 
