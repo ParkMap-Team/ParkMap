@@ -20,8 +20,8 @@ jobs:
       WORKER_UUID: ${{ vars.COOLIFY_APP_WORKER }}
       LIFF_UUID: ${{ vars.COOLIFY_APP_LIFF }}
       BOT_UUID: svalht0ztkvtlwifegi9n9ly
-      RELEASE: 9b4990ac9f245ab49704c56ef0b2b32f9f8d51ea
-      CI_RUN: '45386522140'
+      RELEASE: 3f382121ca9164d0f9958e7d8723ff2b70a0362e
+      CI_RUN: '45452207125'
     steps:
       - name: Wait for the existing main CI without queuing another image build
         shell: bash
