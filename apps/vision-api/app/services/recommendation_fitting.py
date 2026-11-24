@@ -17,7 +17,7 @@ from app.services.width_band_fitting import (
 
 def fit_recommendation(area: ParkingAreaLiveState, family: str, entrance: MetricGroundPoint, scale: float,
                        blocked: list[MetricPolygon] | None = None, preferred: MetricPolygon | None = None, *,
-                       aisles: Mapping[str, float], right_access_x: float, clearance_m: float,
+                       aisles: Mapping[str, float | None], right_access_x: float, clearance_m: float,
                        entrance_y: float) -> GuardBoothFit:
     size = load_rules().classes[family]
     result = GuardBoothFit(family=family, width_m=size.width_m, length_m=size.length_m, observed_at=area.observed_at)
@@ -29,19 +29,23 @@ def fit_recommendation(area: ParkingAreaLiveState, family: str, entrance: Metric
     for region, angle, available, free in iter_width_bands(area, blocked, row_ids=aisles):
         aisle = aisles[region.row_id]
         if previous_frame is not None and covers(free, previous_frame) and previous_frame.centroid.x < right_access_x:
-            candidates = [(-1, previous_frame.centroid.x, previous_frame.centroid.y, aisle, previous_frame)]
+            candidates = [((False, -1), previous_frame.centroid.x, previous_frame.centroid.y, aisle, previous_frame)]
             break
         if previous_frame is not None:
             free = free.difference(previous_frame)
         for frame in fit_slots(free, available, width, angle):
             x, y = frame.centroid.coords[0]
             if x < right_access_x:
-                distance = aisle - entrance_y + right_access_x - x + abs(y - aisle)
-                candidates.append((distance, x, y, aisle, frame))
+                distance = right_access_x - x
+                if aisle is not None:
+                    distance += aisle - entrance_y + abs(y - aisle)
+                candidates.append(((aisle is None, distance), x, y, aisle, frame))
     if not candidates:
         return result
     _, x, y, aisle, frame = min(candidates, key=lambda item: item[:4])
     result.polygon = [[MetricGroundPoint(x_m=px, y_m=py) for px, py in list(frame.exterior.coords)[:-1]]]
+    if aisle is None:
+        return result
     result.route = [entrance, *[MetricGroundPoint(x_m=px, y_m=py) for px, py in [
         (entrance.x_m, entrance_y), (right_access_x, entrance_y), (right_access_x, aisle), (x, aisle), (x, y),
     ]]]

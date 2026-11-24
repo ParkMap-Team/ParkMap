@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils";
 // the moment that rider enters the booth zone. The page queues those riders; each gets a card under
 // the camera and a numbered pin on the map. Every card has a fixed height, so a change in what it
 // says never moves the camera or the map. The clip loops without pause; each recorded lot photo
-// (its scene) restarts it, so the camera and the lot change together. A loop within one scene
-// replays the same riders with the same requests.
+// (its scene) restarts it, so the camera and the lot change together. Each arrival is reported
+// again when the clip loops.
 
 /** What the booth shows while no rider is queued. */
 export type ClipStatus = "classifying" | "waiting" | "unknown";

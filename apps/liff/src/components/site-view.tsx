@@ -17,10 +17,11 @@ import { FALLBACK_NOTICES, INITIAL_RENDERER, THREE_D_TIMEOUT_MS, detectWebGL, mo
 import { boundsOf, labelPoint, pointInPolygon } from "@/lib/map/geometry";
 import { activeParkingHolds, activeRiders, applyParkingHolds, enqueueRider, entranceClipOutcome, guardBoothFitFamily, guardBoothFrame, guardBoothHeadline, guardBoothModelName, guardBoothPreviewDestination, isKnownFamily, overlapsParkingHold, PARKING_HOLD_MS, RIDER_COLORS, riderGuide, type GuardBoothMode, type GuardBoothOverview, type ParkingHold, type QueuedRider, type RiderFit } from "@/lib/parking/guard-booth";
 import { type GuideStatus, displayedGuideRoute, guideFrame, guideStatus } from "@/lib/parking/guide";
+import { boothFitStatus, canRetryBoothFit } from "@/lib/parking/guard-booth";
 import { STATUS_LABELS, agoLabel, areaPhotos, timeLines, visibleAreas } from "@/lib/parking/presentation";
 import { useParkingState } from "@/lib/parking/use-parking-state";
 import { useParkingRecommendation } from "@/lib/parking/use-parking-recommendation";
-import { activeRecommendation, parkingRequestId, parkingSceneKey, recommendationTime, remainingHoldSeconds } from "@/lib/parking/recommendation-request";
+import { activeRecommendation, parkingRequestId, recommendationTime, remainingHoldSeconds } from "@/lib/parking/recommendation-request";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
 import { type AreaRow, MapPanel, type PeekHeights, type SelectedDetails, type ShownPhoto, useWide } from "./map-panel";
@@ -224,13 +225,6 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
   // The entrance clip replays one scene per recorded photo: another photo restarts the clip and ends
   // the riders of the previous one. A photo briefly missing from a poll does not end its scene.
   const [scene, setScene] = useState(recordedFrame);
-  const [sceneRequestKey, setSceneRequestKey] = useState<string>();
-  useEffect(() => {
-    if (!entranceClip || !scene) return;
-    let storage: Storage | null = null;
-    try { storage = sessionStorage; } catch { /* Disabled storage. */ }
-    setSceneRequestKey(parkingSceneKey(storage, siteId, scene, Date.now()));
-  }, [entranceClip, siteId, scene]);
   if (entranceClip && recordedFrame && recordedFrame !== scene) {
     setScene(recordedFrame);
     setRiderQueue([]);
@@ -262,6 +256,21 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
       refetchInterval: 4000,
     })),
   });
+  useEffect(() => {
+    if (!entranceClip || !recordedFrame) return;
+    const at = Date.now();
+    const retries = new Map(activeRiders(riders, at).flatMap((rider) => {
+      const response = fitQueries[riders.indexOf(rider)];
+      return response?.isSuccess && canRetryBoothFit(response.data, rider.requestId, recordedFrame)
+        ? [[rider.seq, { previous: rider.requestId, next: crypto.randomUUID() }] as const]
+        : [];
+    }));
+    if (retries.size === 0) return;
+    setRiderQueue((queue) => queue.map((rider) => {
+      const retry = retries.get(rider.seq);
+      return retry && rider.requestId === retry.previous ? { ...rider, requestId: retry.next } : rider;
+    }));
+  }, [entranceClip, fitQueries, recordedFrame, riders]);
   // Every answer lists all current holds; the latest is kept while a new request is on its way.
   const latestFit = fitQueries.reduce<(typeof fitQueries)[number] | null>((latest, fitQuery) => fitQuery.data && (!latest || fitQuery.dataUpdatedAt > latest.dataUpdatedAt) ? fitQuery : latest, null)?.data;
   if (latestFit && latestFit !== lastFitResponse) setLastFitResponse(latestFit);
@@ -384,11 +393,9 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
   const onArrival = useCallback((rider: GuardBoothRider) => {
     setSelection(null);
     arrivals.current += 1;
-    let storage: Storage | null = null;
-    try { storage = sessionStorage; } catch { /* Disabled storage. */ }
-    const arrival = { seq: arrivals.current, rider, arrivedAt: Date.now(), requestId: parkingRequestId(storage, `${siteId}:BOOTH:${sceneRequestKey}:${rider.arrival_s}`) };
+    const arrival = { seq: arrivals.current, rider, arrivedAt: Date.now(), requestId: globalThis.crypto?.randomUUID?.() };
     setRiderQueue((queue) => enqueueRider(queue, arrival, arrival.arrivedAt));
-  }, [siteId, sceneRequestKey]);
+  }, []);
 
   // A place selected on a phone stays clear of its own card once the card is measured.
   const selectedPoint = selection?.point ?? null;
@@ -478,8 +485,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
     if (!recordedFrame) return "no-frame";
     if (!fitRequests[index]?.requestId || fitQueries[index]?.isError) return "failed";
     const { matching, expired } = currentFit(index);
-    if (!matching) return "pending";
-    return matching.polygon && !expired ? "placed" : "no-space";
+    return boothFitStatus(matching, expired);
   };
   const displayMode = fitExpired || (currentHold && !activeHolds.includes(currentHold)) ? "waiting" : activeFitFamily ? "fit-preview" : classification;
   const boothHeadline = classification && (matchingFit?.stage === "OCCUPIED_CONFIRMED" ? "พื้นที่แนะนำมีรถจอดแล้ว"

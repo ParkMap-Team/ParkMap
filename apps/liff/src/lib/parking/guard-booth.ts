@@ -98,7 +98,19 @@ export function routeRiderSeq(queue: readonly QueuedRider[]): number | undefined
 }
 
 /** Where a rider's fit stands. */
-export type RiderFit = "no-frame" | "pending" | "failed" | "no-space" | "placed";
+export type RiderFit = "no-frame" | "pending" | "failed" | "no-space" | "placed" | "confirming" | "occupied";
+
+export function canRetryBoothFit(answer: Pick<GuardBoothFit, "request_id" | "observed_at" | "stage"> | undefined, requestId: string | undefined, frame: string | null | undefined): boolean {
+  return !!requestId && !!frame && answer?.stage === "RELEASED" && answer.request_id === requestId && answer.observed_at === frame;
+}
+
+export function boothFitStatus(answer: Pick<GuardBoothFit, "polygon" | "stage" | "reason"> | null, expired: boolean): RiderFit {
+  if (!answer || answer.stage === "RELEASED") return "pending";
+  if (answer.stage === "OCCUPIED_CONFIRMED") return "occupied";
+  if (expired || answer.stage === "AWAITING_CONFIRMATION") return "confirming";
+  if (answer.polygon) return "placed";
+  return answer.reason === "NO_FIT" ? "no-space" : "failed";
+}
 
 /** What a rider is told to do: `go` to its pin, `wait` for a place, park in any `free` space, or `stop` because none was found. */
 export type RiderGuide = { tone: "go" | "wait" | "free" | "stop"; text: string };
@@ -108,6 +120,8 @@ export function riderGuide(rider: GuardBoothRider | null, fit: RiderFit, number:
   if (!rider || !entranceClipOutcome(rider).fitFamily) return { tone: "free", text: "จอดในพื้นที่สีเขียว" };
   switch (fit) {
     case "pending": return { tone: "wait", text: "กำลังหาที่จอด" };
+    case "confirming": return { tone: "wait", text: "รอตรวจพื้นที่เดิม" };
+    case "occupied": return { tone: "stop", text: "พื้นที่แนะนำมีรถแล้ว" };
     case "no-frame":
     case "failed": return { tone: "stop", text: "หาที่จอดไม่ได้" };
     case "no-space": return { tone: "stop", text: "ไม่มีที่ว่างพอสำหรับรุ่นนี้" };

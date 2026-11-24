@@ -2,9 +2,21 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { GuardBoothRider, LotModel, MetricPolygon, ParkingAreaLiveState } from "../api/types.ts";
 import { buildLotMap } from "../map/lot-map.ts";
+import { boothFitStatus, canRetryBoothFit } from "./guard-booth.ts";
 import { activeParkingHolds, activeRiders, applyParkingHolds, arrivedRider, CLASSIFICATION_RETRY_MAX_MS, classificationRetryMs, enqueueRider, entranceClipCrop, entranceClipOutcome, guardBoothFitFamily, guardBoothFrame, guardBoothHeadline, guardBoothModelName, guardBoothPreviewDestination, PARKING_HOLD_MS, RIDER_COLORS, RIDER_QUEUE_LIMIT, RIDER_QUEUE_MS, riderGuide, riderTitle, routeRiderSeq, sripatumPreviewRoute } from "./guard-booth.ts";
 
 const polygon: MetricPolygon = [[{ x_m: 0, y_m: 0 }, { x_m: 2, y_m: 0 }, { x_m: 2, y_m: 2 }, { x_m: 0, y_m: 2 }]];
+
+test("a released hold starts a new search only for the same request and current photo", () => {
+  const released = { request_id: "first", observed_at: "photo", stage: "RELEASED", reason: "RELEASED", polygon: null } as const;
+  assert.equal(canRetryBoothFit(released, "first", "photo"), true);
+  assert.equal(canRetryBoothFit(released, "second", "photo"), false);
+  assert.equal(canRetryBoothFit(released, "first", "other-photo"), false);
+  assert.equal(boothFitStatus(released, false), "pending");
+  assert.equal(boothFitStatus({ ...released, stage: "OCCUPIED_CONFIRMED", reason: "OCCUPIED_CONFIRMED" }, false), "occupied");
+  assert.equal(boothFitStatus({ ...released, stage: null, reason: "NO_FIT" }, false), "no-space");
+  assert.equal(boothFitStatus({ ...released, stage: "AWAITING_CONFIRMATION", reason: "AWAITING_CONFIRMATION" }, true), "confirming");
+});
 const lot: LotModel = { schema_version: 1, site_id: "test", version: 1, outline: polygon, unmonitored: [], parking_areas: [{ parking_area_id: "area", polygon }] };
 const area: ParkingAreaLiveState = { parking_area_id: "area", status: "LIVE", regions: [{ kind: "ALMOST_AVAILABLE", polygon }, { kind: "AVAILABLE", polygon }] };
 

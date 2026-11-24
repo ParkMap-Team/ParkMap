@@ -79,7 +79,7 @@ def test_a_riders_free_ground_includes_unrouted_rows_but_still_requires_model_wi
         LiveRegion(kind="OCCUPIED", row_id="row_5", polygon=rect(6.8, 10)),
         # Wide, but past the right-hand access the guide routes through.
         LiveRegion(kind="WIDTH_SUFFICIENT", row_id="row_5", polygon=rect(30, 34), width_m=4, reasons=["FOOTPRINT_NOT_PROVEN"]),
-        # Wide, but in a row the guide never routes to.
+        # Row E can receive a booth pin without a navigation route.
         LiveRegion(kind="WIDTH_SUFFICIENT", row_id="row_1", polygon=rect(10, 14, 20, 21.9), width_m=4, reasons=["FOOTPRINT_NOT_PROVEN"]),
         LiveRegion(kind="AVAILABLE", row_id="row_5", polygon=rect(12, 14)),
     ])
@@ -94,9 +94,15 @@ def test_a_riders_free_ground_includes_unrouted_rows_but_still_requires_model_wi
     assert polygon_shape(free(small)[0].polygon).equals(polygon_shape(state.regions[3].polygon))
     large = free_ground_for(state, "hd_road_glide", scale=1)
     assert [r.row_id for r in free(large)] == ["row_5", "row_1"]
-    # Displaying unrouted ground must not invent a navigation route to it.
     unrouted = state.model_copy(update={"regions": [r for r in state.regions if r.row_id == "row_1"]})
-    assert fit_recorded_preview(unrouted, "grand_filano", MetricGroundPoint(x_m=21.5, y_m=-21), scale=1).polygon is None
+    entrance = MetricGroundPoint(x_m=21.5, y_m=-21)
+    booth = fit_recorded_preview(unrouted, "grand_filano", entrance, scale=1)
+    assert booth.polygon is not None and booth.route == []
+    assert polygon_shape(unrouted.regions[1].polygon).covers(polygon_shape(booth.polygon))
+    assert fit_recorded_preview(state, "grand_filano", entrance, scale=1).route
+    assert fit_recorded_preview(unrouted, "grand_filano", entrance, scale=1, blocked=[unrouted.regions[1].polygon]).polygon is None
+    from app.services.rider_recommendation import fit_recorded_preview as fit_line
+    assert fit_line(unrouted, "grand_filano", entrance, scale=1).polygon is None
     # The occupied rows and row outlines are never touched.
     assert [r for r in small.regions if r not in free(small)] == [r for r in state.regions if r not in free(state)]
     # Live or stale states keep exactly what the backend reported.
