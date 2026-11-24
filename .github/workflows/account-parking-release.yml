@@ -58,7 +58,11 @@ jobs:
             api "$base/deployments" | jq -e 'type == "array" and length == 0' >/dev/null
             app=$(api "$base/applications/$uuid")
             jq '{name,status,build_pack,git_branch,git_commit_sha,dockerfile_location}' <<< "$app"
-            jq -e --arg name "$name" '.name == $name and .build_pack == "dockerfile" and .git_branch == "main" and .git_commit_sha == "HEAD" and (.status == "running:healthy" or ($name == "parkmap-worker" and .status == "running:unknown")) and (.dockerfile_location | endswith("Dockerfile.ghcr"))' <<< "$app" >/dev/null
+            jq -e --arg name "$name" '.name == $name and .build_pack == "dockerfile" and .git_branch == "main" and .status == "running:healthy" and (.dockerfile_location | endswith("Dockerfile.ghcr"))' <<< "$app" >/dev/null
+            pin=$(jq -er '.git_commit_sha | select(. == "HEAD" or test("^[a-f0-9]{40}$"))' <<< "$app")
+            if [ "$pin" != HEAD ] && [ "$pin" != "$RELEASE" ]; then
+              test "$(gh api "repos/$GITHUB_REPOSITORY/compare/$pin...$RELEASE" --jq '.status')" = ahead
+            fi
             image="ghcr.io/parkmap-team/$package:sha-$RELEASE"
             envs=$(api "$base/applications/$uuid/envs")
             # Coolify can redact the value even when the variable metadata is readable.
@@ -73,6 +77,10 @@ jobs:
             # Only the image reference changes. Keep every credential, flag and other variable.
             update=$(jq -c --arg value "$image" '.[] | select(.key == "PARKMAP_IMAGE" and .is_preview != true) | {key,value:$value,is_preview:false,is_buildtime,is_runtime,is_literal,is_multiline} | with_entries(select(.value != null))' <<< "$envs")
             api -X PATCH "$base/applications/$uuid/envs" --data "$update" >/dev/null
+            if [ "$pin" != HEAD ] && [ "$pin" != "$RELEASE" ]; then
+              api -X PATCH "$base/applications/$uuid" --data "$(jq -cn --arg sha "$RELEASE" '{git_commit_sha:$sha}')" >/dev/null
+              api "$base/applications/$uuid" | jq -e --arg sha "$RELEASE" '.git_commit_sha == $sha' >/dev/null
+            fi
             job=$(api -X POST "$base/deploy?uuid=$uuid&force=false" | jq -er '.deployments[0].deployment_uuid | select(type == "string" and test("^[a-z0-9]+$"))')
             echo "$name queued: $job"
             deadline=$((SECONDS + 2400))
