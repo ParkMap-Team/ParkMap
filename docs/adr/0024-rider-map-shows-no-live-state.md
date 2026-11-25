@@ -24,6 +24,13 @@ Green that the guide then refuses ("ไม่มีที่ว่างที�
 
 ## Consequences
 
+Amended 2026-11-25 at the owner's request: LINE recommendations also select
+row E (`row_1`) and route through row D's approach aisle at y=10.2 before
+turning into the selected frame. This is the recorded preview's configured
+route, not a new pathfinding or access-validation claim. Guard Booth retains
+main's pin-only row E policy. Model width, holds, freshness and calibration
+gates remain unchanged.
+
 Amended 2026-11-20 at the owner's request: rider-map filtering now belongs to
 `rider_map_fitting.py`, with its own `RIDER_CLEARANCE_M = 0.0` policy at the
 owner's request: main-map width previews add no lateral clearance. Guard

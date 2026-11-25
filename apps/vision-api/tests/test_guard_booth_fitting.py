@@ -79,7 +79,7 @@ def test_a_riders_free_ground_includes_unrouted_rows_but_still_requires_model_wi
         LiveRegion(kind="OCCUPIED", row_id="row_5", polygon=rect(6.8, 10)),
         # Wide, but past the right-hand access the guide routes through.
         LiveRegion(kind="WIDTH_SUFFICIENT", row_id="row_5", polygon=rect(30, 34), width_m=4, reasons=["FOOTPRINT_NOT_PROVEN"]),
-        # Wide, but in a row the guide never routes to.
+        # Row E can receive a booth pin without a navigation route.
         LiveRegion(kind="WIDTH_SUFFICIENT", row_id="row_1", polygon=rect(10, 14, 20, 21.9), width_m=4, reasons=["FOOTPRINT_NOT_PROVEN"]),
         LiveRegion(kind="AVAILABLE", row_id="row_5", polygon=rect(12, 14)),
     ])
@@ -94,14 +94,35 @@ def test_a_riders_free_ground_includes_unrouted_rows_but_still_requires_model_wi
     assert polygon_shape(free(small)[0].polygon).equals(polygon_shape(state.regions[3].polygon))
     large = free_ground_for(state, "hd_road_glide", scale=1)
     assert [r.row_id for r in free(large)] == ["row_5", "row_1"]
-    # Displaying unrouted ground must not invent a navigation route to it.
     unrouted = state.model_copy(update={"regions": [r for r in state.regions if r.row_id == "row_1"]})
-    assert fit_recorded_preview(unrouted, "grand_filano", MetricGroundPoint(x_m=21.5, y_m=-21), scale=1).polygon is None
+    entrance = MetricGroundPoint(x_m=21.5, y_m=-21)
+    booth = fit_recorded_preview(unrouted, "grand_filano", entrance, scale=1)
+    assert booth.polygon is not None and booth.route == []
+    assert polygon_shape(unrouted.regions[1].polygon).covers(polygon_shape(booth.polygon))
+    assert fit_recorded_preview(state, "grand_filano", entrance, scale=1).route
+    assert fit_recorded_preview(unrouted, "grand_filano", entrance, scale=1, blocked=[unrouted.regions[1].polygon]).polygon is None
+    from app.services.rider_recommendation import fit_recorded_preview as fit_line
+    line = fit_line(unrouted, "grand_filano", entrance, scale=1)
+    assert line.polygon is not None and line.route
+    assert line.route[-2].y_m == 10.2
     # The occupied rows and row outlines are never touched.
     assert [r for r in small.regions if r not in free(small)] == [r for r in state.regions if r not in free(state)]
     # Live or stale states keep exactly what the backend reported.
     live = state.model_copy(update={"status": "LIVE", "source": "LIVE_CAMERA"})
     assert free_ground_for(live, "forza", scale=1) is live
+
+
+def test_booth_can_pick_row_e_even_when_another_row_fits():
+    def band(row_id, x, y):
+        polygon = [[MetricGroundPoint(x_m=px, y_m=py) for px, py in [(x, y), (x + 2, y), (x + 2, y + 1.9), (x, y + 1.9)]]]
+        return [LiveRegion(kind="UNKNOWN", row_id=row_id, polygon=polygon),
+                LiveRegion(kind="WIDTH_SUFFICIENT", row_id=row_id, polygon=polygon, width_m=2)]
+
+    area = ParkingAreaLiveState(parking_area_id="area", status="DEMO", source="STILL_IMAGE_LOOP",
+                                regions=[*band("row_5", 5, 0), *band("row_1", 24, 12)])
+    fit = fit_recorded_preview(area, "grand_filano", MetricGroundPoint(x_m=21.5, y_m=-21), scale=1)
+    assert fit.polygon is not None and fit.route == []
+    assert polygon_shape(area.regions[3].polygon).covers(polygon_shape(fit.polygon))
 
 
 

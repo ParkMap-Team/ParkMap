@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CircleOff, type LucideIcon, MapPin, Motorbike, SquareParking, TriangleAlert, Video } from "lucide-react";
 import { type CSSProperties, type SyntheticEvent, useEffect, useRef, useState } from "react";
 import type { GuardBoothClassification, GuardBoothRider } from "@/lib/api/types";
-import { type RiderGuide, arrivedRider, classificationRetryMs, entranceClipCrop, riderGuide, riderTitle } from "@/lib/parking/guard-booth";
+import { type BoothFreeGround, type RiderGuide, arrivedRider, classificationRetryMs, entranceClipCrop, riderGuide, riderTitle } from "@/lib/parking/guard-booth";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils";
 // the moment that rider enters the booth zone. The page queues those riders; each gets a card under
 // the camera and a numbered pin on the map. Every card has a fixed height, so a change in what it
 // says never moves the camera or the map. The clip loops without pause; each recorded lot photo
-// (its scene) restarts it, so the camera and the lot change together. A loop within one scene
-// replays the same riders with the same requests.
+// (its scene) restarts it, so the camera and the lot change together. Each arrival is reported
+// again when the clip loops.
 
 /** What the booth shows while no rider is queued. */
 export type ClipStatus = "classifying" | "waiting" | "unknown";
@@ -177,14 +177,14 @@ export function RiderCard({ rider, number, color, guide, compact = false }: { ri
 }
 
 /** The large card's place while no rider is queued, at the same height. */
-export function BoothIdle({ status }: { status: ClipStatus }) {
-  const guide = status === "unknown" ? riderGuide(null, "pending", 0) : null;
+export function BoothIdle({ status, ground }: { status: ClipStatus; ground: BoothFreeGround }) {
+  const guide = status === "unknown" ? riderGuide(null, "pending", 0, undefined, ground) : null;
   return (
     <div className="flex h-32 shrink-0 items-center gap-4 rounded-xl border border-border bg-background p-4 shadow-md">
       {guide ? (
         <>
-          <SquareParking aria-hidden strokeWidth={2.5} className="size-12 shrink-0 text-green-700" />
-          <p className="text-xl font-bold text-green-700">{guide.text}</p>
+          <GuideIcon guide={guide} className={cn("size-12 shrink-0", GUIDE_SIGN[guide.tone])} />
+          <p className={cn("text-xl font-bold", GUIDE_SIGN[guide.tone])}>{guide.text}</p>
         </>
       ) : (
         <>
