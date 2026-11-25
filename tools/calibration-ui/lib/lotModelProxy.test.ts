@@ -3,6 +3,19 @@ import test from 'node:test';
 import { proxyLotModelRequest } from './lotModelProxy.ts';
 import { GET, POST, PUT } from '../app/api/lot-model-editor/route.ts';
 
+for (const [method, op, path] of [['GET', 'routes', '/api/operator/route-editor'], ['PUT', 'routes', '/api/operator/route-editor'], ['POST', 'route-preview', '/api/operator/route-editor/preview']]) {
+  void test(`route editor ${method} stays behind the local operator proxy`, async () => {
+    const response = await proxyLotModelRequest(new Request(`http://localhost:3000/api/lot-model-editor?op=${op}`, {
+      method, headers: { Origin: 'http://localhost:3000', 'Content-Type': 'application/json' }, ...(method === 'GET' ? {} : { body: '{}' }),
+    }), { apiUrl: 'http://127.0.0.1:8000', token: 'private', fetcher: async (url, init) => {
+      assert.equal(url, 'http://127.0.0.1:8000' + path);
+      assert.equal(new Headers(init.headers).get('Authorization'), 'Bearer private');
+      return Response.json({ revision: 'test' });
+    } });
+    assert.equal(response.status, 200);
+  });
+}
+
 void test('calibration ROI preview uses the private same-origin site route', async () => {
   const response = await proxyLotModelRequest(new Request('http://localhost:3000/api/lot-model-editor?op=calibration-roi&site=sripatum', {
     method: 'POST', headers: { Origin: 'http://localhost:3000', 'Content-Type': 'application/json' }, body: '{}',

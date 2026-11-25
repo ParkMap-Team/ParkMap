@@ -7,7 +7,7 @@ import { AnnotationWorkspace } from '@/components/annotation/AnnotationWorkspace
 import { useState } from 'react';
 
 type View = 'PARKING' | 'SETUP' | 'LABEL';
-export function DashboardClient({ initialView = 'PARKING', initialSetupTab = 'camera' }: { initialView?: View; initialSetupTab?: 'camera' | 'lot' }) {
+export function DashboardClient({ initialView = 'PARKING', initialSetupTab = 'camera' }: { initialView?: View; initialSetupTab?: 'camera' | 'lot' | 'routes' }) {
   const [view, setView] = useState<View>(initialView);
   const [visited, setVisited] = useState(() => new Set<View>([initialView]));
   const open = (next: View) => { setView(next); setVisited((old) => new Set([...old, next])); };
