@@ -725,6 +725,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operator/route-editor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Route Editor */
+        get: operations["get_route_editor_api_operator_route_editor_get"];
+        /** Save Route Editor */
+        put: operations["save_route_editor_api_operator_route_editor_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/route-editor/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Route Editor */
+        post: operations["preview_route_editor_api_operator_route_editor_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/parking-areas/{area_id}/frame": {
         parameters: {
             query?: never;
@@ -2519,6 +2554,65 @@ export interface components {
             /** Width M */
             width_m: number;
         };
+        /** RouteConfiguration */
+        RouteConfiguration: {
+            /** Rows */
+            rows: {
+                [key: string]: components["schemas"]["RoutePlan"];
+            };
+            /**
+             * Site Id
+             * @default sripatum
+             * @constant
+             */
+            site_id: "sripatum";
+        };
+        /** RouteEditorState */
+        RouteEditorState: {
+            configuration: components["schemas"]["RouteConfiguration"];
+            defaults: components["schemas"]["RouteConfiguration"];
+            entrance: components["schemas"]["MetricGroundPoint"];
+            lot_model: components["schemas"]["LotModelResponse"];
+            /** Previews */
+            previews: components["schemas"]["RowRoutePreview"][];
+            /** Revision */
+            revision: string;
+        };
+        /** RoutePlan */
+        RoutePlan: {
+            /**
+             * Entry
+             * @default vertical
+             * @enum {string}
+             */
+            entry: "vertical" | "horizontal" | "direct";
+            /** Waypoints */
+            waypoints: components["schemas"]["RouteWaypoint"][];
+        };
+        /** RouteWaypoint */
+        RouteWaypoint: {
+            /** X M */
+            x_m: number;
+            /** Y M */
+            y_m: number;
+        };
+        /** RouteWrite */
+        RouteWrite: {
+            configuration: components["schemas"]["RouteConfiguration"];
+            /** Expected Lot Version */
+            expected_lot_version: number;
+            /** Expected Revision */
+            expected_revision: string;
+        };
+        /** RowRoutePreview */
+        RowRoutePreview: {
+            /** Label */
+            label: string;
+            /** Route */
+            route: components["schemas"]["MetricGroundPoint"][];
+            /** Row Id */
+            row_id: string;
+        };
         /** SavedFrameClassification */
         SavedFrameClassification: {
             /** Crops */
@@ -4204,6 +4298,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_route_editor_api_operator_route_editor_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RouteEditorState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_route_editor_api_operator_route_editor_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RouteWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RouteEditorState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_route_editor_api_operator_route_editor_preview_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RouteConfiguration"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RowRoutePreview"][];
                 };
             };
             /** @description Validation Error */

@@ -27,6 +27,12 @@ class GuardBoothFitRequest(BaseModel):
     ends_with_photo: bool = False
 
 
+class RowRoutePreview(BaseModel):
+    row_id: str
+    label: str
+    route: list[MetricGroundPoint]
+
+
 class GuardBoothFitHold(BaseModel):
     polygon: MetricPolygon
     observed_at: datetime

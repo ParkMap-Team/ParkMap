@@ -24,6 +24,28 @@ Green that the guide then refuses ("ไม่มีที่ว่างที�
 
 ## Consequences
 
+Amended 2026-11-25 at the owner's request: LINE recommendations also select
+row E (`row_1`). Updated to match the owner's route sketch: continue up the
+right access to y=15.0, beyond the lot's upper edge, turn left, then enter the
+selected frame from above. Rows D/C retain y=10.2 and B/A retain y=3.2.
+This is the recorded preview's configured
+route, not a new pathfinding or access-validation claim. Guard Booth retains
+main's pin-only row E policy. Model width, holds, freshness and calibration
+gates remain unchanged.
+
+Route previews and editing live in the local operator Setup route editor.
+The private preview API uses the same Python route builder as recommendations.
+Static preview lines do not allocate holds or claim a free place.
+Open `/route-editor` in Calibration UI (Setup > routes). Operators can add,
+remove, reorder and drag up to 32 waypoints per row, then explicitly save.
+The token-protected API stores `apps/vision-api/config/line_routes.json`
+locally; this runtime file is excluded from Git. Back it up separately and
+run one API process: optimistic revisions protect concurrent editor tabs,
+but the file lock does not coordinate multiple processes or hosts.
+Saving also checks the active lot-model version. New recommendations use
+the saved paths; existing held recommendations keep their original route.
+Paths are operator-authored illustrations, not collision-checked navigation.
+
 Amended 2026-11-20 at the owner's request: rider-map filtering now belongs to
 `rider_map_fitting.py`, with its own `RIDER_CLEARANCE_M = 0.0` policy at the
 owner's request: main-map width previews add no lateral clearance. Guard

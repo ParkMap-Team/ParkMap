@@ -24,6 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from PIL import Image, UnidentifiedImageError
 from pydantic import Field
+from shapely.geometry import Polygon
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
@@ -36,6 +37,7 @@ from app.db.tables import ParkingArea, Site
 from app.lot_model_editor import router as lot_model_editor_router
 from app.mobile_camera import operator_router as mobile_operator_router
 from app.mobile_camera import public_router as mobile_public_router
+from app.operator_auth import require_editor_token
 from app.models import (
     IDENTIFIER_PATTERN,
     AreaFrameLink,
@@ -48,6 +50,7 @@ from app.models import (
     LotModelResponse,
     MotorcycleFittingConfiguration,
     MotorcycleFittingResponse,
+    MetricGroundPoint,
     ParkingAreaLiveState,
     ParkingCalibration,
     ParkingStatePublish,
@@ -106,6 +109,12 @@ from app.services.recommendation_models import (
     GuardBoothFitHold,
     GuardBoothFitRequest,
     PreviewFamily,
+    RowRoutePreview,
+)
+from app.services.rider_recommendation import default_routes, preview_routes
+from app.services.region_clipping_service import polygon_shape
+from app.services.route_configuration import (
+    RouteConfiguration, RouteConflict, RouteEditorState, RouteSettingsUnavailable, RouteWrite, route_settings,
 )
 from app.services.video_classifier import router as video_classifier_router
 
@@ -339,6 +348,61 @@ def _hold_context(site_id: str, session: Session) -> HoldContext:
     state = _site_parking_state(site_id, session)
     area = next(area for area in state.areas if area.parking_area_id == area_id)
     return HoldContext(area=area, entrance=entrance, scale=placement.scale, geometry_version=f"{calibration.version}:lot-{model.version}")
+
+
+def _route_editor_geometry(site_id: str, session: Session):
+    _require_guard_booth_preview(site_id)
+    model, area, calibration, placement = _preview_geometry(site_id, session)
+    entrance = next((item.position for item in model.landmarks if item.landmark_id == "entrance-1"), None)
+    if area is None or calibration is None or placement is None or entrance is None:
+        raise HTTPException(503, "Parking geometry is unavailable.")
+    payload = calibration.payload
+    rows = parking_analysis_service._measured_rows(payload["ground_plane_homography.json"],
+        payload["ground_plane_calibration.json"], payload["parking_calibration.json"])
+    boundary = polygon_shape(area.polygon)
+    placed = {row_id: Polygon([(p.x_m, p.y_m) for x, y in row.exterior.coords
+              for p in [placement.point(MetricGroundPoint(x_m=x, y_m=y))]]).intersection(boundary)
+              for row_id, row in rows}
+    return model, entrance, placed
+
+
+@app.exception_handler(RouteSettingsUnavailable)
+async def route_settings_error(_request, error):
+    return JSONResponse({"detail": str(error)}, status_code=503)
+
+
+def _route_editor_state(session: Session) -> RouteEditorState:
+    model, entrance, rows = _route_editor_geometry("sripatum", session)
+    stored = route_settings.read()
+    defaults = default_routes(entrance)
+    configuration = stored.configuration or defaults
+    return RouteEditorState(revision=stored.revision, configuration=configuration, defaults=defaults,
+                            lot_model=model, entrance=entrance, previews=preview_routes(rows, entrance, configuration))
+
+
+@app.get("/api/operator/route-editor", response_model=RouteEditorState, dependencies=[Depends(require_editor_token)])
+def get_route_editor(session: Session = SessionDependency):
+    return _route_editor_state(session)
+
+
+@app.put("/api/operator/route-editor", response_model=RouteEditorState, dependencies=[Depends(require_editor_token)])
+def save_route_editor(request: RouteWrite, session: Session = SessionDependency):
+    model, _, _ = _route_editor_geometry("sripatum", session)
+    if model.version != request.expected_lot_version:
+        raise HTTPException(409, "Lot model changed; reload before saving routes")
+    try:
+        route_settings.save(request.configuration, request.expected_revision)
+    except RouteConflict as error:
+        raise HTTPException(409, str(error)) from error
+    except OSError as error:
+        raise HTTPException(503, "Could not save local routes") from error
+    return _route_editor_state(session)
+
+
+@app.post("/api/operator/route-editor/preview", response_model=list[RowRoutePreview], dependencies=[Depends(require_editor_token)])
+def preview_route_editor(configuration: RouteConfiguration, session: Session = SessionDependency):
+    _, entrance, rows = _route_editor_geometry("sripatum", session)
+    return preview_routes(rows, entrance, configuration)
 
 
 def _frame_version(processed_at: datetime) -> int:

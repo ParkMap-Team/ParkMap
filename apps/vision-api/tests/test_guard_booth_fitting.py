@@ -1,10 +1,20 @@
 
+import pytest
+
 from app.models import LiveRegion, MetricGroundPoint, ParkingAreaLiveState
 from app.services.guard_booth_fitting import (
     fit_recorded_preview,
 )
 from app.services.region_clipping_service import polygon_shape
 from app.services.rider_map_fitting import free_ground_for
+
+
+@pytest.fixture(autouse=True)
+def isolated_routes(tmp_path, monkeypatch):
+    from app.services import rider_recommendation
+    from app.services.route_configuration import RouteSettings
+
+    monkeypatch.setattr(rider_recommendation, "route_settings", RouteSettings(tmp_path))
 
 
 def test_recorded_preview_uses_width_despite_occlusion_flag_but_keeps_stale_and_hold_gates():
@@ -102,7 +112,9 @@ def test_a_riders_free_ground_includes_unrouted_rows_but_still_requires_model_wi
     assert fit_recorded_preview(state, "grand_filano", entrance, scale=1).route
     assert fit_recorded_preview(unrouted, "grand_filano", entrance, scale=1, blocked=[unrouted.regions[1].polygon]).polygon is None
     from app.services.rider_recommendation import fit_recorded_preview as fit_line
-    assert fit_line(unrouted, "grand_filano", entrance, scale=1).polygon is None
+    line = fit_line(unrouted, "grand_filano", entrance, scale=1)
+    assert line.polygon is not None and line.route
+    assert line.route[-2].y_m == 15.0
     # The occupied rows and row outlines are never touched.
     assert [r for r in small.regions if r not in free(small)] == [r for r in state.regions if r not in free(state)]
     # Live or stale states keep exactly what the backend reported.

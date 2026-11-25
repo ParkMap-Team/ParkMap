@@ -46,6 +46,9 @@ export async function proxyLotModelRequest(request: Request, options: ProxyOptio
     return reply(400, 'รหัสสถานที่ไม่ถูกต้อง');
   }
   const routes: Record<string, string> = {
+    'GET:routes': '/api/operator/route-editor',
+    'PUT:routes': '/api/operator/route-editor',
+    'POST:route-preview': '/api/operator/route-editor/preview',
     'POST:mobile-create': '/api/operator/mobile-camera/sessions',
     'GET:mobile-status': `/api/operator/mobile-camera/sessions/${session}`,
     'POST:mobile-approve': `/api/operator/mobile-camera/sessions/${session}/approve`,
