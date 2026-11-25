@@ -1,10 +1,20 @@
 
+import pytest
+
 from app.models import LiveRegion, MetricGroundPoint, ParkingAreaLiveState
 from app.services.guard_booth_fitting import (
     fit_recorded_preview,
 )
 from app.services.region_clipping_service import polygon_shape
 from app.services.rider_map_fitting import free_ground_for
+
+
+@pytest.fixture(autouse=True)
+def isolated_routes(tmp_path, monkeypatch):
+    from app.services import rider_recommendation
+    from app.services.route_configuration import RouteSettings
+
+    monkeypatch.setattr(rider_recommendation, "route_settings", RouteSettings(tmp_path))
 
 
 def test_recorded_preview_uses_width_despite_occlusion_flag_but_keeps_stale_and_hold_gates():

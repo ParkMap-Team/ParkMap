@@ -32,6 +32,8 @@ apps/vision-api/config/metric_calibration.json
 apps/vision-api/config/ground_plane_calibration.json
 apps/vision-api/config/ground_plane_homography.json
 apps/vision-api/config/physical_row_geometry.json
+apps/vision-api/config/line_routes.json
+apps/vision-api/config/line_routes.*.tmp
 apps/vision-api/photos
 apps/vision-api/single-photo
 

@@ -4389,6 +4389,179 @@
         "title": "ResolvedReferenceSize",
         "type": "object"
       },
+      "RouteConfiguration": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RoutePlan"
+            },
+            "propertyNames": {
+              "enum": [
+                "row_1",
+                "row_2",
+                "row_3",
+                "row_4",
+                "row_5"
+              ]
+            },
+            "title": "Rows",
+            "type": "object"
+          },
+          "site_id": {
+            "const": "sripatum",
+            "default": "sripatum",
+            "title": "Site Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "RouteConfiguration",
+        "type": "object"
+      },
+      "RouteEditorState": {
+        "properties": {
+          "configuration": {
+            "$ref": "#/components/schemas/RouteConfiguration"
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/RouteConfiguration"
+          },
+          "entrance": {
+            "$ref": "#/components/schemas/MetricGroundPoint"
+          },
+          "lot_model": {
+            "$ref": "#/components/schemas/LotModelResponse"
+          },
+          "previews": {
+            "items": {
+              "$ref": "#/components/schemas/RowRoutePreview"
+            },
+            "title": "Previews",
+            "type": "array"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "configuration",
+          "defaults",
+          "lot_model",
+          "entrance",
+          "previews"
+        ],
+        "title": "RouteEditorState",
+        "type": "object"
+      },
+      "RoutePlan": {
+        "additionalProperties": false,
+        "properties": {
+          "entry": {
+            "default": "vertical",
+            "enum": [
+              "vertical",
+              "horizontal",
+              "direct"
+            ],
+            "title": "Entry",
+            "type": "string"
+          },
+          "waypoints": {
+            "items": {
+              "$ref": "#/components/schemas/RouteWaypoint"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Waypoints",
+            "type": "array"
+          }
+        },
+        "required": [
+          "waypoints"
+        ],
+        "title": "RoutePlan",
+        "type": "object"
+      },
+      "RouteWaypoint": {
+        "additionalProperties": false,
+        "properties": {
+          "x_m": {
+            "maximum": 1000.0,
+            "minimum": -1000.0,
+            "title": "X M",
+            "type": "number"
+          },
+          "y_m": {
+            "maximum": 1000.0,
+            "minimum": -1000.0,
+            "title": "Y M",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x_m",
+          "y_m"
+        ],
+        "title": "RouteWaypoint",
+        "type": "object"
+      },
+      "RouteWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "configuration": {
+            "$ref": "#/components/schemas/RouteConfiguration"
+          },
+          "expected_lot_version": {
+            "minimum": 1.0,
+            "title": "Expected Lot Version",
+            "type": "integer"
+          },
+          "expected_revision": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Expected Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "expected_lot_version",
+          "configuration"
+        ],
+        "title": "RouteWrite",
+        "type": "object"
+      },
+      "RowRoutePreview": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "route": {
+            "items": {
+              "$ref": "#/components/schemas/MetricGroundPoint"
+            },
+            "title": "Route",
+            "type": "array"
+          },
+          "row_id": {
+            "title": "Row Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "row_id",
+          "label",
+          "route"
+        ],
+        "title": "RowRoutePreview",
+        "type": "object"
+      },
       "SavedFrameClassification": {
         "properties": {
           "crops": {
@@ -7151,6 +7324,166 @@
         "tags": [
           "Mobile camera"
         ]
+      }
+    },
+    "/api/operator/route-editor": {
+      "get": {
+        "operationId": "get_route_editor_api_operator_route_editor_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteEditorState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Route Editor"
+      },
+      "put": {
+        "operationId": "save_route_editor_api_operator_route_editor_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RouteWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteEditorState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Route Editor"
+      }
+    },
+    "/api/operator/route-editor/preview": {
+      "post": {
+        "operationId": "preview_route_editor_api_operator_route_editor_preview_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RouteConfiguration"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RowRoutePreview"
+                  },
+                  "title": "Response Preview Route Editor Api Operator Route Editor Preview Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Route Editor"
       }
     },
     "/api/parking-areas/{area_id}/frame": {
