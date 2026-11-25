@@ -7,8 +7,8 @@ from app.services import rider_map_fitting
 from app.services.recommendation_fitting import fit_recommendation
 from app.services.recommendation_models import GuardBoothFit
 
-# Row E uses the same approach aisle as row D before turning into its frame.
-AISLES = {"row_1": 10.2, "row_2": 10.2, "row_3": 10.2, "row_4": 3.2, "row_5": 3.2}
+# Row E continues along the right access, then approaches from above the lot.
+AISLES = {"row_1": 15.0, "row_2": 10.2, "row_3": 10.2, "row_4": 3.2, "row_5": 3.2}
 RIGHT_ACCESS_X = 28.9
 ENTRANCE_LANE_Y = -8.0
 HOLD_DURATION = timedelta(minutes=2)

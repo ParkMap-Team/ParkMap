@@ -104,7 +104,7 @@ def test_a_riders_free_ground_includes_unrouted_rows_but_still_requires_model_wi
     from app.services.rider_recommendation import fit_recorded_preview as fit_line
     line = fit_line(unrouted, "grand_filano", entrance, scale=1)
     assert line.polygon is not None and line.route
-    assert line.route[-2].y_m == 10.2
+    assert line.route[-2].y_m == 15.0
     # The occupied rows and row outlines are never touched.
     assert [r for r in small.regions if r not in free(small)] == [r for r in state.regions if r not in free(state)]
     # Live or stale states keep exactly what the backend reported.
