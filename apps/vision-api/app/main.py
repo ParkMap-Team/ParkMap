@@ -58,7 +58,6 @@ from app.models import (
     SiteParkingStateResponse,
     SiteSummary,
 )
-from app.services.auto_parking_service import analyze_detections
 from app.services.calibration_service import calibration_service
 from app.services.cv_service import ModelUnavailableError, cv_service
 from app.services.ground_plane_calibration_service import (
@@ -120,7 +119,6 @@ from app.services.video_classifier import router as video_classifier_router
 
 SessionDependency = Depends(get_session)
 ImageFile = File(..., alias="image")
-ImagesFile = File(..., alias="images")
 
 load_dotenv()
 
@@ -664,63 +662,6 @@ async def analyze_detection(image: UploadFile = ImageFile, include_parking: bool
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
     return {**detection.model_dump(mode="json"), "parking_analysis": analysis}
 
-
-@app.post("/api/auto-parking/analyze")
-async def analyze_auto_parking(images: list[UploadFile] = ImagesFile) -> dict[str, object]:
-    """Experimental structure discovery from multiple images of one camera."""
-    if not images:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="At least one image is required.")
-    responses: list[tuple[str, DetectionResponse]] = []
-    aspect_ratio: float | None = None
-    try:
-        for image in images:
-            if image.content_type not in SUPPORTED_IMAGE_TYPES:
-                raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Supported image types are JPEG, PNG, and WebP.")
-            image_bytes = await image.read(MAX_UPLOAD_BYTES + 1)
-            await image.close()
-            if not image_bytes or len(image_bytes) > MAX_UPLOAD_BYTES:
-                raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="An uploaded image is empty or exceeds the configured size limit.")
-            try:
-                with Image.open(BytesIO(image_bytes)) as decoded:
-                    if decoded.format != IMAGE_FORMATS[image.content_type]:
-                        raise ValueError("Image format does not match the declared media type.")
-                    width, height = decoded.size
-                    if width * height > MAX_IMAGE_PIXELS:
-                        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="An uploaded image has too many pixels.")
-                    decoded.verify()
-            except HTTPException:
-                raise
-            except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as error:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="An uploaded file is not a valid supported image.") from error
-            current_ratio = width / height
-            if aspect_ratio is None:
-                aspect_ratio = current_ratio
-            elif abs(current_ratio - aspect_ratio) > 0.01:
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Auto Mode images must use a compatible aspect ratio.")
-            detection = await run_in_threadpool(cv_service.analyze_image, image_bytes)
-            responses.append((image.filename or f"image_{len(responses) + 1}", detection))
-    except ModelUnavailableError as error:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
-    return analyze_detections(responses)
-
-@app.get("/api/auto-parking/state")
-def get_auto_parking_state() -> dict[str, object]:
-    """Read-only experimental snapshot; never runs CV inference."""
-    snapshot=FilePath(__file__).resolve().parent.parent/'auto-parking-experimental'/'current_state.json'
-    if not snapshot.exists(): return {"mode":"AUTO_EXPERIMENTAL","source_type":"EXPERIMENTAL_SNAPSHOT","status":"UNKNOWN","updated_at":None,"rows":[],"unknown_anchors":[],"summary":{"detection_observations":0,"anchors":0,"logical_rows":0,"unknown_anchors":0}}
-    try:
-        state=json.loads(snapshot.read_text(encoding='utf-8'))
-        image_path=snapshot.parent/'auto_rows_v2.png'
-        if image_path.exists(): state["image"]={"url":"/api/auto-parking/latest/image","width":4032,"height":3024}
-        return state
-    except (OSError,json.JSONDecodeError) as error: raise HTTPException(status_code=500,detail="Experimental snapshot unavailable") from error
-
-@app.get("/api/auto-parking/latest/image")
-def get_auto_latest_image() -> FileResponse:
-    image_path=FilePath(__file__).resolve().parent.parent/'auto-parking-experimental'/'auto_rows_v2.png'
-    if not image_path.exists():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Auto image is available.")
-    return FileResponse(image_path)
 
 @app.get("/api/hybrid-parking/state")
 def get_hybrid_parking_state() -> dict[str, object]:
