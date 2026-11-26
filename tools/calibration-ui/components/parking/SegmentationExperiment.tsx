@@ -24,6 +24,7 @@ export function SegmentationExperiment({ result, error, gaps, motorcycles = [], 
   const [chosenIncoming, setChosenIncoming] = useState('');
   const [chosenDetection, setChosenDetection] = useState<{ result: Result; index: number } | null>(null);
   const [showRows, setShowRows] = useState(true);
+  const [showBoxes, setShowBoxes] = useState(true);
   const [previewWidthOnly, setPreviewWidthOnly] = useState(true);
   const [showOcclusion, setShowOcclusion] = useState(true);
   const [showOrientation, setShowOrientation] = useState(false);
@@ -92,9 +93,11 @@ export function SegmentationExperiment({ result, error, gaps, motorcycles = [], 
     {error && <p role="alert" className="p-4 text-sm text-red-700">{error}</p>}
     {!result && !error && <p className="p-4 text-sm text-slate-600">{primary ? 'เลือกรูปหรือวิดีโอ แล้วกด Analyze เพื่อตรวจจับรถและหาช่องว่าง' : 'กด Analyze เพื่อเปรียบเทียบกับโมเดลเดิม'}</p>}
     {gaps && gaps.rows.length > 0 && <label className="flex items-center gap-2 px-4 py-2 text-sm text-purple-800"><input type="checkbox" aria-label="แสดงกรอบ row" checked={showRows} onChange={event => setShowRows(event.target.checked)} />แสดงกรอบแถว (row) สีม่วง · อิงแถวที่ใช้คำนวณช่องว่าง</label>}
-    {result && <p className="px-4 py-2 text-sm text-orange-900">กดรถบนภาพเพื่อตรวจว่าอยู่แถวไหน หรือถูกกรองออกจากแผนที่หรือไม่ · รถที่เลือกจะแสดงกรอบสีส้ม</p>}
+    {result && <label className="flex items-center gap-2 px-4 py-2 text-sm text-blue-900"><input type="checkbox" checked={showBoxes} onChange={event => setShowBoxes(event.target.checked)} />แสดง Bounding box จาก YOLO-seg · กรอบเส้นประสีฟ้า / mask ตามรูปร่างรถสีฟ้าอมเขียว</label>}
+    {result && <p className="px-4 py-2 text-sm text-orange-900">กดรถบนภาพเพื่อตรวจว่าอยู่แถวไหน หรือถูกกรองออกจากแผนที่หรือไม่ · รถที่เลือกจะแสดงกรอบสีส้ม · ความกว้างที่ประมาณใช้กรอบ Bounding box ไม่ใช่ขอบ mask หรือขนาดรถจริง</p>}
     {result?.preview_url && <div className="relative"><img src={result.preview_url} alt="Segmentation comparison" className="block w-full" />
       <svg viewBox="0 0 1 1" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full" aria-label="Motorcycle segmentation polygons">
+        {showBoxes && result.detections.map((item, index) => <rect key={`bbox-${index}`} data-segmentation-bbox={`detection_${index+1}`} x={item.bbox.x} y={item.bbox.y} width={item.bbox.width} height={item.bbox.height} fill="none" stroke="#2563eb" strokeDasharray=".006 .004" strokeWidth=".002"><title>Bounding box {index+1} · กว้าง {(item.bbox.width*result.image_width).toFixed(0)} px · {(item.confidence*100).toFixed(1)}%</title></rect>)}
         {result.detections.map((item, index) => <g key={index}>{item.polygon ? <polygon points={item.polygon.map(point => `${point.x},${point.y}`).join(' ')} fill="rgba(6,182,212,.22)" stroke="#06b6d4" strokeWidth=".002"><title>Seg {index + 1} · {(item.confidence * 100).toFixed(1)}%</title></polygon> : <rect x={item.bbox.x} y={item.bbox.y} width={item.bbox.width} height={item.bbox.height} fill="none" stroke="#f59e0b" strokeDasharray=".006 .004" strokeWidth=".002"><title>Seg {index + 1} · ไม่มี mask</title></rect>}</g>)}
         {result.detections.map((item, index) => <circle key={`anchor-${index}`} data-ground-anchor={`detection_${index+1}`} cx={item.bbox.x+item.bbox.width/2} cy={item.bbox.y+item.bbox.height} r=".003" fill="#facc15" stroke="#0f172a" strokeWidth=".001"><title>จุดกึ่งกลางล่าง · detection_{index+1} · {gaps?.occupied_layers.find(layer => layer.detection_index === index)?.assigned_row_id ?? 'ยังระบุแถวไม่ได้'}</title></circle>)}
       </svg>
