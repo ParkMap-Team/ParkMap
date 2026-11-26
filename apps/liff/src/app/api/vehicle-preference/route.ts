@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { limitedBody, sameOrigin } from "@/lib/route-guard";
 import { vehiclePreference, VEHICLE_COOKIE, TOKEN_TYPE_COOKIE } from "@/lib/vehicle-session";
+import { preferenceResponse } from "@/lib/preference-response";
 
 const headers = { "Cache-Control": "private, no-store" };
-export async function GET() {
+export async function GET(request: Request) {
   const data = await vehiclePreference();
-  return NextResponse.json(data ?? { detail: "กรุณาเข้าสู่ระบบ LINE อีกครั้ง" }, { status: data ? 200 : 401, headers });
+  return preferenceResponse(data, new URL(request.url).searchParams.get("optional") === "1");
 }
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return new NextResponse(null, { status: 403 });

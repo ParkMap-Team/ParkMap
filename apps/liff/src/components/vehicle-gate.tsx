@@ -73,7 +73,7 @@ export function VehicleGate({ children }: { children: React.ReactNode }) {
         liff.getProfile().then((data) => setProfile(lineProfile(data)), () => setProfile(null));
       }
       setDone(1);
-      const cached = await fetch("/api/vehicle-preference", { cache: "no-store" });
+      const cached = await fetch("/api/vehicle-preference?optional=1", { cache: "no-store" });
       const response = await fetch("/api/vehicle-preference", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ access_token: token }) });
       if (!response.ok) {
         setNeedsLogin(response.status === 401 && !DEV_LINE_TOKEN);
@@ -83,7 +83,7 @@ export function VehicleGate({ children }: { children: React.ReactNode }) {
       const data: Preference = await response.json();
       setPreference(data);
       // Refresh server-rendered map content after a new session is established.
-      if (data.model_id && pathname !== "/settings" && !cached.ok) window.location.reload();
+      if (data.model_id && pathname !== "/settings" && cached.status !== 200) window.location.reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "โหลดการตั้งค่าไม่สำเร็จ");
       setAttempt((count) => count + 1);
