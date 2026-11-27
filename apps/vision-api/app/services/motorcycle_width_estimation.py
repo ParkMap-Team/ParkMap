@@ -15,24 +15,27 @@ from app.services.ground_plane_homography_service import (
 
 
 def estimate_width_m(bbox: DetectionBBox, image_width: int, image_height: int, matrix: np.ndarray) -> float | None:
-    """Estimate a lateral image span using local ground scale at the bbox bottom.
+    """Project the full bbox bottom edge and measure its ground-plane span.
 
-    This ports the legacy +/-16 pixel homography experiment. A camera bbox is
-    not a measured body/mirror width, even when the ground calibration is measured.
+    A camera bbox is not a measured body/mirror width, even when the ground
+    calibration is measured.
     """
     if image_width <= 0 or image_height <= 0 or matrix.shape != (3, 3) or not np.all(np.isfinite(matrix)):
         return None
     if abs(np.linalg.det(matrix)) < 1e-12 or np.linalg.cond(matrix) > 1e12:
         return None
-    x, y = bbox.x + bbox.width / 2, bbox.y + bbox.height
-    delta = 16 / image_width
-    if not delta <= x <= 1 - delta or not 0 <= y <= 1:
+    left, right = bbox.x, bbox.x + bbox.width
+    bottom = bbox.y + bbox.height
+    if not 0 <= left < right <= 1 or not 0 <= bbox.y < bottom <= 1:
         return None
-    points = [transform_point(px, y, matrix) for px in (x, x - delta, x + delta)]
+    # An edge crossing the projective horizon has no finite ground span.
+    denominators = [matrix[2, 0] * x + matrix[2, 1] * bottom + matrix[2, 2] for x in (left, right)]
+    if denominators[0] * denominators[1] <= 0:
+        return None
+    points = [transform_point(x, bottom, matrix) for x in (left, right)]
     if any(point is None for point in points):
         return None
-    local_scale = math.dist(points[1], points[2]) / 32
-    estimate = bbox.width * image_width * local_scale
+    estimate = math.dist(points[0], points[1])
     return estimate if math.isfinite(estimate) and 0 < estimate <= 3 else None
 
 

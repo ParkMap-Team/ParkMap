@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { limitedBody, sameOrigin } from "@/lib/route-guard";
-import { vehiclePreference, VEHICLE_COOKIE, TOKEN_TYPE_COOKIE } from "@/lib/vehicle-session";
+import { vehiclePreference, recommendationOwner, VEHICLE_COOKIE, TOKEN_TYPE_COOKIE } from "@/lib/vehicle-session";
+import { apiClient } from "@/lib/api/server";
+import { guardBoothFitEnabled } from "@/lib/parking/guard-booth-server";
+import { checkVehicleChange } from "@/lib/vehicle-change-lock";
+import { preferenceResponse } from "@/lib/preference-response";
 
 const headers = { "Cache-Control": "private, no-store" };
-export async function GET() {
+export async function GET(request: Request) {
   const data = await vehiclePreference();
-  return NextResponse.json(data ?? { detail: "กรุณาเข้าสู่ระบบ LINE อีกครั้ง" }, { status: data ? 200 : 401, headers });
+  return preferenceResponse(data, new URL(request.url).searchParams.get("optional") === "1");
 }
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return new NextResponse(null, { status: 403 });
@@ -31,6 +35,21 @@ export async function PUT(request: Request) {
   let model: unknown;
   try { model = (JSON.parse(await limitedBody(request))).model_id; } catch { return new NextResponse(null, { status: 400 }); }
   if (typeof model !== "string" || model.length > 40) return new NextResponse(null, { status: 400 });
+  if (guardBoothFitEnabled()) {
+    const owner = await recommendationOwner();
+    if (!owner) return new NextResponse(null, { status: 401, headers });
+    if (owner.model_id !== model) {
+      const blocked = await checkVehicleChange(async () => {
+        const { data, response } = await apiClient().GET("/api/sites/{site_id}/parking-recommendation", {
+          params: { path: { site_id: "sripatum" } }, headers: { "X-Parkmap-Owner": owner.owner_key }, cache: "no-store",
+        });
+        if (response.status === 404) return null;
+        if (!response.ok) throw new Error("Recommendation unavailable");
+        return data;
+      });
+      if (blocked) return blocked;
+    }
+  }
   const data = await vehiclePreference(undefined, model);
   return NextResponse.json(data ?? { detail: "บันทึกไม่สำเร็จ กรุณาลองใหม่" }, { status: data ? 200 : 400, headers });
 }

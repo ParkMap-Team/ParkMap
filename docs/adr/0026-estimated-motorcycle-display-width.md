@@ -4,10 +4,13 @@ Accepted 2026-11-20 at the owner's request. Amends ADR 0011's uniform proxy
 display dimensions. The later worker amendment below also changes occupied
 reference widths; incoming vehicle fitting requirements stay unchanged.
 
-Python ports the old `motorcycleSizeExperiment.ts` calculation: at the bbox's
-bottom centre, project points 16 pixels to the left and right through the current
-ground homography. Their metric distance divided by 32 is the local metres per
-pixel. Multiply by the bbox's pixel width to obtain an approximate image span.
+Amended 2026-11-27 at the owner's request: Python projects the bbox's full bottom
+edge through the current ground homography. Its normalized endpoints are
+`(bbox.x, bbox.y + bbox.height)` and
+`(bbox.x + bbox.width, bbox.y + bbox.height)`. Their Euclidean distance in metres
+is the approximate span. This replaces the central +/-16 pixel scale estimate;
+no pixel-scale extrapolation is used. Both endpoints must lie inside the image,
+and an edge crossing the projective horizon is rejected.
 This is an apparent bbox width, not a measured motorcycle body or mirror width;
 perspective, vehicle heading, height, occlusion and detector boxes affect it.
 
@@ -51,7 +54,7 @@ detection ID from the same validated calibration snapshot used for the red
 bands. The operator response and inspector reuse these values, including for
 unassigned detections, instead of rereading calibration files. A calibration
 change during gap analysis rejects both geometry and width estimates together.
-Checks cover local perspective scale, malformed/stale/mismatched calibration,
+Checks cover full-edge perspective projection, malformed/stale/mismatched calibration,
 publication identity, estimated occupancy widths, transport bounds, fallback and
 single display scaling. Physical accuracy against annotated vehicles remains
 unverified.

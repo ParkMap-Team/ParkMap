@@ -8,7 +8,12 @@ from app.models import MetricGroundPoint, MetricPolygon, ParkingAreaLiveState
 from app.services import rider_map_fitting
 from app.services.recommendation_fitting import fit_recommendation
 from app.services.recommendation_models import GuardBoothFit, RowRoutePreview
-from app.services.route_configuration import RouteConfiguration, RoutePlan, build_route, route_settings
+from app.services.route_configuration import (
+    RouteConfiguration,
+    RoutePlan,
+    build_route,
+    route_settings,
+)
 
 # Row E continues along the right access, then approaches from above the lot.
 AISLES = {"row_1": 15.0, "row_2": 10.2, "row_3": 10.2, "row_4": 3.2, "row_5": 3.2}
@@ -35,8 +40,8 @@ def preview_routes(rows: dict[str, Polygon], entrance: MetricGroundPoint,
         if row_id in rows and rows[row_id].is_valid and not rows[row_id].is_empty]
 
 
-def fit_recorded_preview(area: ParkingAreaLiveState, family: str, entrance: MetricGroundPoint, scale: float, blocked: list[MetricPolygon] | None = None, preferred: MetricPolygon | None = None) -> GuardBoothFit:
+def fit_recorded_preview(area: ParkingAreaLiveState, family: str, entrance: MetricGroundPoint, scale: float, blocked: list[MetricPolygon] | None = None, preferred: MetricPolygon | None = None, *, target: MetricGroundPoint | None = None) -> GuardBoothFit:
     configuration = route_settings.read().configuration
     return fit_recommendation(area, family, entrance, scale, blocked, preferred,
         aisles=AISLES, right_access_x=RIGHT_ACCESS_X, clearance_m=rider_map_fitting.RIDER_CLEARANCE_M,
-        entrance_y=ENTRANCE_LANE_Y, routes=configuration.rows if configuration else None)
+        entrance_y=ENTRANCE_LANE_Y, routes=configuration.rows if configuration else None, target=target)

@@ -1,5 +1,6 @@
 "use client";
 import { createContext, use, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import { MascotLoading } from "@/components/mascot";
 import { MascotScreen } from "@/components/mascot-screen";
@@ -39,11 +40,15 @@ export function useLineProfile(): LineProfile | null {
 /** Saves the model through the session proxy and returns the stored preference. */
 async function savePreference(modelId: string): Promise<Preference> {
   const response = await fetch("/api/vehicle-preference", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model_id: modelId }) });
-  if (!response.ok) throw new Error("บันทึกไม่สำเร็จ กรุณาลองใหม่");
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.detail ?? "บันทึกไม่สำเร็จ กรุณาลองใหม่");
+  }
   return response.json();
 }
 
 export function VehicleGate({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const pathname = usePathname();
   const exempt = pathname === "/mobile-camera" || pathname === "/help" || isPublicBoothPath(pathname);
   const [preference, setPreference] = useState<Preference | null>(null);
@@ -73,7 +78,7 @@ export function VehicleGate({ children }: { children: React.ReactNode }) {
         liff.getProfile().then((data) => setProfile(lineProfile(data)), () => setProfile(null));
       }
       setDone(1);
-      const cached = await fetch("/api/vehicle-preference", { cache: "no-store" });
+      const cached = await fetch("/api/vehicle-preference?optional=1", { cache: "no-store" });
       const response = await fetch("/api/vehicle-preference", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ access_token: token }) });
       if (!response.ok) {
         setNeedsLogin(response.status === 401 && !DEV_LINE_TOKEN);
@@ -83,7 +88,7 @@ export function VehicleGate({ children }: { children: React.ReactNode }) {
       const data: Preference = await response.json();
       setPreference(data);
       // Refresh server-rendered map content after a new session is established.
-      if (data.model_id && pathname !== "/settings" && !cached.ok) window.location.reload();
+      if (data.model_id && pathname !== "/settings" && cached.status !== 200) window.location.reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "โหลดการตั้งค่าไม่สำเร็จ");
       setAttempt((count) => count + 1);
@@ -119,7 +124,10 @@ export function VehicleGate({ children }: { children: React.ReactNode }) {
       </main>
     );
   }
-  const vehicle: Vehicle = { preference, save: async (modelId) => setPreference(await savePreference(modelId)) };
+  const vehicle: Vehicle = { preference, save: async (modelId) => {
+    setPreference(await savePreference(modelId));
+    await queryClient.invalidateQueries({ queryKey: ["parking-vehicle"] });
+  } };
   return (
     <VehicleContext value={vehicle}>
       <ProfileContext value={profile}>{children}</ProfileContext>

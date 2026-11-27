@@ -21,6 +21,26 @@ GET recommendation restores the account's latest status and reconciles evidence;
 it never allocates. Only an explicit user action POSTs. Poll only active holds,
 stop at terminal stages, and never reissue a recommendation automatically.
 An explicit request after release or occupancy may allocate a new point.
+The LIFF vehicle selector is locked while an account recommendation is `HELD`
+or `AWAITING_CONFIRMATION`, including after returning to Settings or reloading.
+The LIFF preference PUT route rechecks the verified owner's recommendation before
+changing the model and returns 409 while active; an unavailable status check
+returns 503. Released or occupied-confirmed recommendations allow changes again.
+Closing the LIFF guide explicitly DELETEs its account recommendation before
+hiding the route. The trusted server derives the owner from the LINE session;
+the site transaction lock releases only that owner's active LINE hold and records
+`USER_CANCELLED`. Confirmed occupancy and other accounts' holds are untouched.
+Cancellation waits for any in-flight allocation, and a failed cancellation keeps
+the guide open with a retry message. After successful cancellation the rider may
+change models and request a new place. Saved parked-spot records are not deleted.
+This guard applies to LIFF preference updates, not direct LINE OA settings edits.
+The same POST also accepts an optional selected point with its parking-area ID,
+observed frame timestamp, and lot-model version. A mismatched snapshot is rejected
+without allocating elsewhere. The site lock prevents double booking, and an
+active account recommendation must be cancelled before selecting another point.
+Retries reuse the request UUID and original selected point stored in the ledger
+history. An explicitly held frame uses the usual LINE route, timeout, cancellation,
+and vehicle-model lock; saving a parked spot remains a separate action.
 All channel holds still block fitting and are subtracted from green in Python.
 
 ## Display and evidence

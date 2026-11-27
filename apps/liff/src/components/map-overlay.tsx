@@ -173,7 +173,7 @@ export function LabelLayer({
   const all: PlacedLabel[] = [
     ...placed,
     ...(markers ?? []).map((marker) => ({ id: `marker-${marker.id}`, text: marker.text, kind: "AREA" as const, anchor: marker.point, direction: null, raised: true, pin: marker.color })),
-    ...(selection ? [{ id: SELECTED_ID, text: selection.text, kind: "AREA" as const, anchor: selection.point, direction: null, raised: true, pin: selection.destination ? COLORS.ENTRANCE : undefined, destination: selection.destination }] : []),
+    ...(selection ? [{ id: SELECTED_ID, text: selection.text, kind: "AREA" as const, anchor: selection.point, direction: null, raised: true, pin: selection.destination || callout ? COLORS.ENTRANCE : undefined, destination: selection.destination || !!callout }] : []),
   ];
 
   /**
@@ -186,7 +186,7 @@ export function LabelLayer({
     if (!element) return;
     const pinCentre = shown.get(SELECTED_ID);
     const pin = elements.current.get(SELECTED_ID);
-    const point = selection?.destination ? project(selection.point) : null;
+    const point = selection && callout ? project(selection.point) : null;
     if (!pinCentre || !pin || !point) {
       element.style.visibility = "hidden";
       return;
@@ -271,12 +271,12 @@ export function LabelLayer({
           {/* A tooltip on the brand's wine surface. It grows out of its tail once the pin has landed. */}
           <div
             className="relative rounded-xl bg-notice text-notice-foreground shadow-lg shadow-black/30 ring-1 ring-white/15 [--tail-y:100%] group-data-[side=below]/callout:[--tail-y:0%] motion-safe:animate-callout-pop"
-            style={{ transformOrigin: "var(--tail-x, 50%) var(--tail-y)" }}
+            style={{ transformOrigin: "var(--tail-x, 50%) var(--tail-y)", backgroundColor: "var(--notice, #621537)", color: "var(--notice-foreground, #ffffff)" }}
           >
             <span
               aria-hidden
               className="absolute top-full size-3 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[2px] bg-notice group-data-[side=below]/callout:top-0"
-              style={{ left: "var(--tail-x, 50%)" }}
+              style={{ left: "var(--tail-x, 50%)", backgroundColor: "var(--notice, #621537)" }}
             />
             <div className="relative">{callout}</div>
           </div>

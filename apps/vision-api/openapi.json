@@ -212,23 +212,6 @@
         "title": "Body_analyze_api_operator_classifier_analyze_post",
         "type": "object"
       },
-      "Body_analyze_auto_parking_api_auto_parking_analyze_post": {
-        "properties": {
-          "images": {
-            "items": {
-              "contentMediaType": "application/octet-stream",
-              "type": "string"
-            },
-            "title": "Images",
-            "type": "array"
-          }
-        },
-        "required": [
-          "images"
-        ],
-        "title": "Body_analyze_auto_parking_api_auto_parking_analyze_post",
-        "type": "object"
-      },
       "Body_analyze_detection_api_detection_analyze_post": {
         "properties": {
           "image": {
@@ -3093,6 +3076,18 @@
             "title": "Family",
             "type": "string"
           },
+          "lot_model_version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Model Version"
+          },
           "observed_at": {
             "format": "date-time",
             "title": "Observed At",
@@ -3103,10 +3098,33 @@
             "title": "Owner Key",
             "type": "string"
           },
+          "parking_area_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parking Area Id"
+          },
           "request_id": {
             "format": "uuid4",
             "title": "Request Id",
             "type": "string"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetricGroundPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -5230,84 +5248,6 @@
   },
   "openapi": "3.1.0",
   "paths": {
-    "/api/auto-parking/analyze": {
-      "post": {
-        "description": "Experimental structure discovery from multiple images of one camera.",
-        "operationId": "analyze_auto_parking_api_auto_parking_analyze_post",
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_analyze_auto_parking_api_auto_parking_analyze_post"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Analyze Auto Parking Api Auto Parking Analyze Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Analyze Auto Parking"
-      }
-    },
-    "/api/auto-parking/latest/image": {
-      "get": {
-        "operationId": "get_auto_latest_image_api_auto_parking_latest_image_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Get Auto Latest Image"
-      }
-    },
-    "/api/auto-parking/state": {
-      "get": {
-        "description": "Read-only experimental snapshot; never runs CV inference.",
-        "operationId": "get_auto_parking_state_api_auto_parking_state_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Auto Parking State Api Auto Parking State Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Get Auto Parking State"
-      }
-    },
     "/api/calibrated/state": {
       "get": {
         "description": "Read-only calibrated geometry state for the unified web viewer.",
@@ -5543,7 +5483,8 @@
     },
     "/api/hybrid-parking/analyze": {
       "post": {
-        "description": "Run YOLO and return detections classified only against backend ROI.",
+        "deprecated": true,
+        "description": "Retired with Auto-parking experiments; use the segmentation analysis API.",
         "operationId": "analyze_hybrid_parking_api_hybrid_parking_analyze_post",
         "requestBody": {
           "content": {
@@ -5567,6 +5508,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "410": {
+            "description": "Experimental Hybrid Auto analysis was retired."
           },
           "422": {
             "content": {
@@ -7833,6 +7777,47 @@
       }
     },
     "/api/sites/{site_id}/parking-recommendation": {
+      "delete": {
+        "operationId": "cancel_line_parking_api_sites__site_id__parking_recommendation_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Site Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Parkmap-Owner",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Parkmap-Owner",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Line Parking"
+      },
       "get": {
         "operationId": "read_line_parking_api_sites__site_id__parking_recommendation_get",
         "parameters": [

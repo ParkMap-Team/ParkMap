@@ -991,8 +991,13 @@ def test_saved_calibration_uses_only_segmentation_with_mask_fallback(tmp_path, m
     assert narrow_red.area == pytest.approx(.5)
     assert sum(item.gap_width_m for item in narrow.candidates) > sum(item.gap_width_m for item in sized.candidates)
     edge_seg = segmentation.model_copy(deep=True)
-    edge_seg.detections[0].bbox.x = .11  # local sampling falls outside the image
-    fallback = analyze_segmentation_gaps(primary, edge_seg, service, image_row_assignment=True, use_segmentation_widths=True)
+    edge_seg.detections[0].bbox.x = .11  # Valid full edge no longer needs +/-16 px padding.
+    edge = analyze_segmentation_gaps(primary, edge_seg, service, image_row_assignment=True, use_segmentation_widths=True)
+    assert edge.estimated_widths_m == pytest.approx({"detection_1": .5})
+    wide_seg = segmentation.model_copy(deep=True)
+    wide_seg.detections[0].bbox.x = .3
+    wide_seg.detections[0].bbox.width = .4  # Four metres exceeds the estimate limit.
+    fallback = analyze_segmentation_gaps(primary, wide_seg, service, image_row_assignment=True, use_segmentation_widths=True)
     fallback_red = _geometry_to_shapely(fallback.occupied_layers[0].row_depth_geometry.model_dump())
     assert fallback_red.bounds[2] - fallback_red.bounds[0] == pytest.approx(.66)
     assert fallback.estimated_widths_m == {}

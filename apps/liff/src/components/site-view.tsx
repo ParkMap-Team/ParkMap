@@ -21,6 +21,8 @@ import { type BoothFreeGround, boothFitStatus, canRetryBoothFit } from "@/lib/pa
 import { STATUS_LABELS, agoLabel, areaPhotos, timeLines, visibleAreas } from "@/lib/parking/presentation";
 import { useParkingState } from "@/lib/parking/use-parking-state";
 import { useParkingRecommendation } from "@/lib/parking/use-parking-recommendation";
+import { vehicleChangeLocked } from "@/lib/vehicle-change-lock";
+import type { SelectedReservation } from "@/lib/parking/selected-reservation";
 import { activeRecommendation, parkingRequestId, recommendationTime, remainingHoldSeconds } from "@/lib/parking/recommendation-request";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
@@ -28,6 +30,7 @@ import { type AreaRow, MapPanel, type PeekHeights, type SelectedDetails, type Sh
 import { type MapMarker, type MapViewHandle, ViewErrorBoundary } from "./map-overlay";
 import { MapSkeleton } from "./map-skeleton";
 import { ParkedSpotPrompt } from "./parked-spot-prompt";
+import { ReserveSpotPrompt } from "./reserve-spot-prompt";
 import { BoothIdle, type ClipStatus, EntranceClip, RiderCard } from "./entrance-clip";
 
 // The site screen: the map with a chip saying how old the data is, and a card over it that says
@@ -208,7 +211,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
     },
   });
   const lineClock = recommendationTime(lineRecommendation.data?.server_time, lineRecommendation.dataUpdatedAt, now);
-  // The map shows the student's place only while the guide is on; closing it leaves the hold to expire.
+  // Closing the guide releases its active account hold before hiding the route.
   const lineFit = guiding && !lineRecommendation.isError && !connectionLost &&
     activeRecommendation(lineRecommendation.data, recordedFrame, lineClock) ? lineRecommendation.data : null;
   const restoredGuide = useRef(false);
@@ -382,6 +385,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
   );
 
   const [selection, setSelection] = useState<Selection | null>(null);
+  const [reservationError, setReservationError] = useState("");
   const [expanded, setExpanded] = useState(false);
   const followed = useMemo(() => (selection ? followSelection(shown, selection) : null), [shown, selection]);
   const selectionText = followed?.hit ? STATUS_TEXT[followed.hit.status].label : "ไม่มีข้อมูลตรงจุดนี้";
@@ -397,7 +401,40 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
     times: timeLines(followed.hit?.area?.live ?? null, query.data ? query.dataUpdatedAt : null),
   };
 
-  const onSelect = useCallback((point: Selection["point"] | null) => setSelection(point ? selectAt(shown, point) : null), [shown]);
+  const onSelect = useCallback((point: Selection["point"] | null) => {
+    setReservationError("");
+    setSelection(point ? selectAt(shown, point) : null);
+  }, [shown]);
+  const selectedHit = followed?.hit;
+  const selectedFrame = selectedHit?.area?.live?.observed_at;
+  const manualTarget: SelectedReservation | null = !guardBooth && recommendationsEnabled && !guiding && !guide.cancelling
+    && !vehicleChangeLocked(lineRecommendation.data) && !connectionLost && !!recordedFrame && selection
+    && selectedHit?.area && !selectedHit.unknownReason && selectedFrame
+    && (selectedHit.status === "AVAILABLE" || selectedHit.status === "WIDTH_SUFFICIENT")
+    ? { target: selection.point, parking_area_id: selectedHit.area.parkingAreaId, observed_at: selectedFrame, lot_model_version: lotModel.version } : null;
+  async function confirmSelectedPlace() {
+    if (!manualTarget || lineRecommendation.isRequesting || lineRecommendation.isPending) return;
+    setReservationError("");
+    try {
+      const result = await lineRecommendation.reserveSelected(manualTarget);
+      if (result.stage !== "HELD" || !result.polygon || !result.route.length) {
+        setReservationError(result.reason === "FRAME_CHANGED" ? "ภาพเปลี่ยนแล้ว กรุณาเลือกจุดจากข้อมูลล่าสุดอีกครั้ง"
+          : result.reason === "GEOMETRY_CHANGED" ? "แผนผังเปลี่ยนแล้ว กรุณารีเฟรชหน้าและเลือกจุดใหม่"
+          : "จองจุดนี้ไม่ได้แล้ว อาจมีคนจองก่อนหรือพื้นที่ไม่พอ กรุณาเลือกจุดใหม่");
+        void query.refetch();
+        return;
+      }
+      setSelection(null);
+      setExpanded(false);
+      guide.resume();
+    } catch (error) {
+      setReservationError(error instanceof Error ? error.message : "จองไม่สำเร็จ กรุณาลองใหม่");
+    }
+  }
+  const reservationPrompt = manualTarget ? <ReserveSpotPrompt
+    busy={lineRecommendation.isRequesting || lineRecommendation.isPending}
+    error={reservationError} onConfirm={() => void confirmSelectedPlace()} onClose={() => setSelection(null)}
+  /> : undefined;
   // Each rider reaching the booth joins the queue with its own fit request; earlier riders stay until they expire.
   const onArrival = useCallback((rider: GuardBoothRider) => {
     setSelection(null);
@@ -523,9 +560,10 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
   const [closedPrompt, setClosedPrompt] = useState<string>();
   const spotX = destination?.point.x_m;
   const spotY = destination?.point.y_m;
-  const callout = useMemo(() => foundRequest && closedPrompt !== foundRequest && spotX !== undefined && spotY !== undefined
+  const parkedCallout = useMemo(() => foundRequest && closedPrompt !== foundRequest && spotX !== undefined && spotY !== undefined
     ? <ParkedSpotPrompt key={foundRequest} spot={{ site_id: siteId, x_m: spotX, y_m: spotY }} onClose={() => setClosedPrompt(foundRequest)} />
     : undefined, [foundRequest, closedPrompt, siteId, spotX, spotY]);
+  const callout = reservationPrompt ?? parkedCallout;
 
   const viewSwitch = (
     <div role="group" aria-label="มุมมองแผนที่" className={cn("flex h-11 overflow-hidden rounded-lg border bg-background shadow-sm", !guardBooth && "w-full")}>

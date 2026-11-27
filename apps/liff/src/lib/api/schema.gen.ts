@@ -4,63 +4,6 @@
  */
 
 export interface paths {
-    "/api/auto-parking/analyze": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Analyze Auto Parking
-         * @description Experimental structure discovery from multiple images of one camera.
-         */
-        post: operations["analyze_auto_parking_api_auto_parking_analyze_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auto-parking/latest/image": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Auto Latest Image */
-        get: operations["get_auto_latest_image_api_auto_parking_latest_image_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auto-parking/state": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Auto Parking State
-         * @description Read-only experimental snapshot; never runs CV inference.
-         */
-        get: operations["get_auto_parking_state_api_auto_parking_state_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/calibrated/state": {
         parameters: {
             query?: never;
@@ -196,7 +139,8 @@ export interface paths {
         put?: never;
         /**
          * Analyze Hybrid Parking
-         * @description Run YOLO and return detections classified only against backend ROI.
+         * @deprecated
+         * @description Retired with Auto-parking experiments; use the segmentation analysis API.
          */
         post: operations["analyze_hybrid_parking_api_hybrid_parking_analyze_post"];
         delete?: never;
@@ -912,7 +856,8 @@ export interface paths {
         put?: never;
         /** Recommend Line Parking */
         post: operations["recommend_line_parking_api_sites__site_id__parking_recommendation_post"];
-        delete?: never;
+        /** Cancel Line Parking */
+        delete: operations["cancel_line_parking_api_sites__site_id__parking_recommendation_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1044,11 +989,6 @@ export interface components {
              * @enum {string}
              */
             segmentation_model: "configured" | "yolo26n-seg";
-        };
-        /** Body_analyze_auto_parking_api_auto_parking_analyze_post */
-        Body_analyze_auto_parking_api_auto_parking_analyze_post: {
-            /** Images */
-            images: string[];
         };
         /** Body_analyze_detection_api_detection_analyze_post */
         Body_analyze_detection_api_detection_analyze_post: {
@@ -2116,6 +2056,8 @@ export interface components {
             ends_with_photo: boolean;
             /** Family */
             family: string;
+            /** Lot Model Version */
+            lot_model_version?: number | null;
             /**
              * Observed At
              * Format: date-time
@@ -2123,11 +2065,14 @@ export interface components {
             observed_at: string;
             /** Owner Key */
             owner_key: string;
+            /** Parking Area Id */
+            parking_area_id?: string | null;
             /**
              * Request Id
              * Format: uuid4
              */
             request_id: string;
+            target?: components["schemas"]["MetricGroundPoint"] | null;
         };
         /** LiveRegion */
         LiveRegion: {
@@ -2925,83 +2870,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    analyze_auto_parking_api_auto_parking_analyze_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_analyze_auto_parking_api_auto_parking_analyze_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_auto_latest_image_api_auto_parking_latest_image_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_auto_parking_state_api_auto_parking_state_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-        };
-    };
     get_calibrated_state_api_calibrated_state_get: {
         parameters: {
             query?: never;
@@ -3248,6 +3116,13 @@ export interface operations {
                         [key: string]: unknown;
                     };
                 };
+            };
+            /** @description Experimental Hybrid Auto analysis was retired. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -4759,6 +4634,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["GuardBoothFit"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_line_parking_api_sites__site_id__parking_recommendation_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Parkmap-Owner"?: string;
+            };
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

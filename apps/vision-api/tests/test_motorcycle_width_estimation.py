@@ -10,11 +10,38 @@ from app.services.motorcycle_width_estimation import estimate_width_m
 
 
 @pytest.mark.parametrize("bottom, expected", [(.4, .8 / 1.4), (.8, .8 / 1.8)])
-def test_bbox_width_uses_local_ground_scale_at_its_bottom_centre(bottom, expected):
+def test_bbox_bottom_edge_projects_to_ground_at_its_depth(bottom, expected):
     matrix = np.array([[10., 0., 0.], [0., 10., 0.], [0., 1., 1.]])
     bbox = DetectionBBox(x=.4, y=bottom - .2, width=.08, height=.2)
 
     assert estimate_width_m(bbox, 1000, 500, matrix) == pytest.approx(expected)
+
+
+def test_projective_width_uses_both_bbox_edges_instead_of_central_scale():
+    # x_ground = x/(1+x), y_ground = y/(1+x).
+    # Bottom endpoints (.2,.5) and (.8,.5) map to (1/6,5/12) and (4/9,5/18).
+    # Their exact distance is sqrt(125)/36 metres.
+    matrix = np.array([[1., 0., 0.], [0., 1., 0.], [1., 0., 1.]])
+    bbox = DetectionBBox(x=.2, y=.3, width=.6, height=.2)
+    assert estimate_width_m(bbox, 1000, 500, matrix) == pytest.approx(np.sqrt(125) / 36, abs=1e-10)
+
+
+def test_bbox_touching_image_edge_does_not_need_sixteen_pixel_padding():
+    bbox = DetectionBBox(x=0., y=.3, width=.02, height=.2)
+    assert estimate_width_m(bbox, 1000, 500, np.diag([10., 10., 1.])) == pytest.approx(.2)
+
+
+@pytest.mark.parametrize("bbox", [
+    DetectionBBox(x=.9, y=.3, width=.2, height=.2),
+    DetectionBBox(x=.2, y=.9, width=.2, height=.2),
+])
+def test_bbox_extending_outside_image_has_no_width_estimate(bbox):
+    assert estimate_width_m(bbox, 1000, 500, np.eye(3)) is None
+
+
+def test_bottom_edge_crossing_projective_horizon_has_no_width_estimate():
+    matrix = np.array([[.01, 0., 0.], [0., .01, 0.], [1., 0., -.5]])
+    assert estimate_width_m(DetectionBBox(x=.2, y=.3, width=.6, height=.2), 1000, 500, matrix) is None
 
 
 def write_calibration(directory):

@@ -1,7 +1,10 @@
 """Shared geometric recommendation search, with all routing and clearance supplied by the caller."""
 
 from collections.abc import Mapping
+from itertools import pairwise
 from math import hypot
+
+from shapely.geometry import Point
 
 from app.models import MetricGroundPoint, MetricPolygon, ParkingAreaLiveState
 from app.services.motorcycle_reference_sizes import load_rules
@@ -27,7 +30,8 @@ def route_to_point(entrance: MetricGroundPoint, x: float, y: float, *, aisle: fl
 def fit_recommendation(area: ParkingAreaLiveState, family: str, entrance: MetricGroundPoint, scale: float,
                        blocked: list[MetricPolygon] | None = None, preferred: MetricPolygon | None = None, *,
                        aisles: Mapping[str, float | None], right_access_x: float, clearance_m: float,
-                       entrance_y: float, routes: Mapping[str, RoutePlan] | None = None) -> GuardBoothFit:
+                       entrance_y: float, routes: Mapping[str, RoutePlan] | None = None,
+                       target: MetricGroundPoint | None = None) -> GuardBoothFit:
     size = load_rules().classes[family]
     result = GuardBoothFit(family=family, width_m=size.width_m, length_m=size.length_m, observed_at=area.observed_at)
     if not is_recorded_preview(area):
@@ -35,6 +39,7 @@ def fit_recommendation(area: ParkingAreaLiveState, family: str, entrance: Metric
     candidates = []
     previous_frame = polygon_shape(preferred) if preferred is not None else None
     width = required_width_m(family, scale, clearance_m=clearance_m)
+    selected = Point(target.x_m, target.y_m) if target is not None else None
     for region, angle, available, free in iter_width_bands(area, blocked, row_ids=aisles):
         aisle = aisles[region.row_id]
         if previous_frame is not None and covers(free, previous_frame) and previous_frame.centroid.x < right_access_x:
@@ -43,6 +48,8 @@ def fit_recommendation(area: ParkingAreaLiveState, family: str, entrance: Metric
         if previous_frame is not None:
             free = free.difference(previous_frame)
         for frame in fit_slots(free, available, width, angle):
+            if selected is not None and not frame.covers(selected):
+                continue
             x, y = frame.centroid.coords[0]
             if x < right_access_x:
                 distance = right_access_x - x
@@ -50,7 +57,9 @@ def fit_recommendation(area: ParkingAreaLiveState, family: str, entrance: Metric
                 distance += abs(y - entrance_y) if aisle is None else aisle - entrance_y + abs(y - aisle)
                 if routes is not None:
                     path = build_route(entrance, MetricGroundPoint(x_m=x, y_m=y), routes[region.row_id])
-                    distance = sum(hypot(a.x_m-b.x_m, a.y_m-b.y_m) for a, b in zip(path, path[1:]))
+                    distance = sum(hypot(a.x_m-b.x_m, a.y_m-b.y_m) for a, b in pairwise(path))
+                if selected is not None:
+                    distance = frame.centroid.distance(selected)
                 candidates.append((distance, x, y, region.row_id, aisle, frame))
     if not candidates:
         return result

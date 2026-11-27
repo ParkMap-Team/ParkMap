@@ -27,6 +27,7 @@ export function TabBar() {
   const slot = TABS.find((tab) => tab.id === current)?.slot;
   return (
     <nav aria-label="เมนูหลัก" className="relative z-20 shrink-0 border-t bg-background pb-[var(--safe-bottom)]">
+      {guide.cancelError && <p role="alert" className="absolute inset-x-2 bottom-full mb-2 rounded-xl border bg-background p-3 text-sm text-destructive shadow-md">{guide.cancelError}</p>}
       <div className="relative grid h-16 grid-cols-5">
         <div
           aria-hidden
@@ -43,6 +44,8 @@ export function TabBar() {
           <button
             type="button"
             aria-pressed={guide.active}
+            disabled={guide.cancelling}
+            aria-label={guide.cancelling ? "กำลังยกเลิกคำแนะนำ" : guide.active ? "ยกเลิกคำแนะนำที่จอด" : "แนะนำที่จอด"}
             onClick={() => (guide.active ? guide.stop() : guide.start())}
             className={cn("-mt-4 flex flex-col items-center gap-1 outline-none focus-visible:[&>span:first-child]:outline-3 focus-visible:[&>span:first-child]:outline-ring/50", PRESS)}
           >
@@ -50,7 +53,11 @@ export function TabBar() {
               Rises 20px above the bar (16px offset plus the 4px ring), its label level with the others; the paper ring parts it from
               what is behind. The map's floating card keeps clear of it (FLOAT_GAP_PX in map-panel.tsx).
             */}
-            <span className={cn("grid size-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-md ring-4 ring-background transition-colors duration-150", guide.active && "bg-notice text-notice-foreground")}>
+            <span
+              className="grid size-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-md ring-4 ring-background transition-colors duration-150"
+              // Keep the raised stop button opaque even if a cached stylesheet lacks the notice utilities/tokens.
+              style={guide.active ? { backgroundColor: "var(--notice, #621537)", color: "var(--notice-foreground, #ffffff)" } : undefined}
+            >
               {guide.active
                 ? <X key="stop" aria-hidden className="size-6 motion-safe:animate-icon-pop" />
                 : <Navigation key="start" aria-hidden className="size-6 motion-safe:animate-icon-pop" />}
