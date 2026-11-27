@@ -5,7 +5,7 @@ import type { OsmPlace } from "./places.ts";
 export const OSM_BASE = "2026-11-18T13:52:05Z";
 
 export const OSM_PLACES: readonly OsmPlace[] = [
-  {"id":"osm-node-11209447337","osm":"node/11209447337","name":"จุดจอดรถมอเตอร์ไซค์และจักรยาน","latitude":13.8455431,"longitude":100.5714485,"kind":"OSM","fee":null,"hours":null,"covered":null,"photo":null},
-  {"id":"osm-way-1195263847","osm":"way/1195263847","name":"ที่จอดมอเตอร์ไซค์","latitude":13.8476578,"longitude":100.5697682,"kind":"OSM","fee":null,"hours":null,"covered":null,"photo":null},
-  {"id":"osm-way-589579457","osm":"way/589579457","name":"ที่จอดมอเตอร์ไซค์ Phahonyothin Park Place","latitude":13.8522764,"longitude":100.5821179,"kind":"OSM","fee":"เสียค่าจอด","hours":null,"covered":null,"photo":null},
+  {"id":"osm-node-11209447337","osm":"node/11209447337","name":"จุดจอดรถมอเตอร์ไซค์และจักรยาน","latitude":13.8455431,"longitude":100.5714485,"kind":"OSM","fee":null,"hours":null,"covered":null,"photos":[]},
+  {"id":"osm-way-1195263847","osm":"way/1195263847","name":"ที่จอดมอเตอร์ไซค์","latitude":13.8476578,"longitude":100.5697682,"kind":"OSM","fee":null,"hours":null,"covered":null,"photos":[]},
+  {"id":"osm-way-589579457","osm":"way/589579457","name":"ที่จอดมอเตอร์ไซค์ Phahonyothin Park Place","latitude":13.8522764,"longitude":100.5821179,"kind":"OSM","fee":"เสียค่าจอด","hours":null,"covered":null,"photos":[]},
 ];

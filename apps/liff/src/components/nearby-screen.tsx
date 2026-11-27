@@ -122,9 +122,13 @@ function PlaceSheet({ place, open, onClose }: { place: NearbyPlace | null; open:
 function PlaceDetails({ place }: { place: NearbyPlace }) {
   return (
     <>
-      {place.photo && (
-        <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
-          <Image src={`/nearby/${place.photo}`} alt={`ที่จอด ${place.name}`} fill sizes="(min-width: 28rem) 28rem, 100vw" className="object-cover" />
+      {place.photos.length > 0 && (
+        <div role="group" aria-label={`รูปที่จอด ${place.name}`} className={`grid gap-2 ${place.photos.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+          {place.photos.map((photo, index) => (
+            <div key={photo} className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
+              <Image src={`/nearby/${photo}`} alt={`ที่จอด ${place.name} ภาพที่ ${index + 1}`} fill sizes={place.photos.length > 1 ? "(min-width: 28rem) 14rem, 50vw" : "(min-width: 28rem) 28rem, 100vw"} className="object-cover" />
+            </div>
+          ))}
         </div>
       )}
       {place.kind === "CAMERA" ? (

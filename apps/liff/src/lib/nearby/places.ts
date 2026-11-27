@@ -24,8 +24,8 @@ type PlaceBase = {
   hours: string | null;
   /** Whether motorcycles park under a roof; null when nobody has checked. */
   covered: boolean | null;
-  /** A WebP file in `public/nearby/`, with no faces or readable licence plates; null for none. */
-  photo: string | null;
+  /** WebP files in `public/nearby/`, with faces and readable licence plates blurred. */
+  photos: readonly string[];
 };
 
 /** A place the team listed, in the campus or near it. */
@@ -36,7 +36,7 @@ export type ListedPlace = PlaceBase & {
 };
 
 /** Motorcycle parking mapped in OpenStreetMap; `scripts/nearby-osm.ts` refreshes the list. */
-export type OsmPlace = PlaceBase & { kind: "OSM"; osm: string; photo: null };
+export type OsmPlace = PlaceBase & { kind: "OSM"; osm: string };
 
 /** A pin: a listed place, an OpenStreetMap place, or a lot with cameras whose live map is one tap away. */
 export type NearbyPlace = ListedPlace | OsmPlace | (PlaceBase & { kind: "CAMERA"; siteId: string });
@@ -58,7 +58,7 @@ export type NearbyPlace = ListedPlace | OsmPlace | (PlaceBase & { kind: "CAMERA"
  *   fee: "ฟรี",                   // or null if unchecked
  *   hours: "ทุกวัน 06:00-22:00",  // or null if unchecked
  *   covered: true,                // or null if unchecked
- *   photo: "example-place.webp",  // or null
+ *   photos: ["example-place.webp"], // or []
  *   osm: null,                    // or "node/123", "way/123" from osm-places.gen.ts
  * },
  * ```
@@ -66,14 +66,14 @@ export type NearbyPlace = ListedPlace | OsmPlace | (PlaceBase & { kind: "CAMERA"
 export const LISTED_PLACES: readonly ListedPlace[] = [
   {
     id: "campus-motorcycle-parking",
-    name: "ที่จอดมอเตอร์ไซค์ในมหาวิทยาลัย",
+    name: "ลานจอดรถในมหาวิทยาลัย",
     latitude: 13.854267,
     longitude: 100.584388,
     kind: "CAMPUS",
-    fee: null,
-    hours: null,
-    covered: null,
-    photo: null,
+    fee: "ฟรี",
+    hours: "ตามเวลาเปิด-ปิดมหาวิทยาลัย",
+    covered: true,
+    photos: ["campus-motorcycle-parking-6154.webp", "campus-motorcycle-parking-6156.webp"],
     osm: null,
   },
 ];
@@ -96,7 +96,7 @@ export function nearbyPlaces(
       fee: null,
       hours: null,
       covered: null,
-      photo: null,
+      photos: [],
     })),
     ...listed,
     ...osm.filter((place) => !replaced.has(place.osm)),
