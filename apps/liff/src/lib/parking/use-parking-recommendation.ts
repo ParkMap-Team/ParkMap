@@ -3,10 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef } from "react";
 import type { GuardBoothFit } from "../api/types";
+import type { SelectedReservation } from "./selected-reservation";
 
 export function useParkingRecommendation(siteId: string, enabled: boolean) {
   const client = useQueryClient();
   const requestId = useRef<string | null>(null);
+  const selectedRequest = useRef<{ fingerprint: string; id: string } | null>(null);
   const key = ["line-parking-recommendation", siteId];
   const url = `/api/sites/${encodeURIComponent(siteId)}/parking-recommendation`;
   const preference = useQuery<{ model_id: string | null }>({
@@ -29,9 +31,9 @@ export function useParkingRecommendation(siteId: string, enabled: boolean) {
   const mutation = useMutation({
     mutationKey: ["line-parking-recommendation-request"],
     retry: false,
-    mutationFn: async (id: string): Promise<GuardBoothFit> => {
+    mutationFn: async ({ id, selected }: { id: string; selected?: SelectedReservation }): Promise<GuardBoothFit> => {
       await client.cancelQueries({ queryKey: key });
-      const response = await fetch(url, { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: id }) });
+      const response = await fetch(url, { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: id, ...selected }) });
       const body = await response.json();
       if (!response.ok) throw new Error(body.detail ?? "ยังแนะนำที่จอดไม่ได้ กรุณาลองใหม่");
       return body;
@@ -41,11 +43,18 @@ export function useParkingRecommendation(siteId: string, enabled: boolean) {
   const requestPlace = useCallback(() => {
     if (mutation.isPending) return;
     if (!requestId.current || query.data?.stage === "RELEASED" || query.data?.stage === "OCCUPIED_CONFIRMED" || query.data?.stage == null) requestId.current = crypto.randomUUID();
-    mutation.mutate(requestId.current);
+    mutation.mutate({ id: requestId.current });
+  }, [mutation, query.data?.stage]);
+  const reserveSelected = useCallback(async (selected: SelectedReservation) => {
+    const fingerprint = JSON.stringify(selected);
+    if (!selectedRequest.current || selectedRequest.current.fingerprint !== fingerprint || query.data?.stage === "RELEASED") {
+      selectedRequest.current = { fingerprint, id: crypto.randomUUID() };
+    }
+    return mutation.mutateAsync({ id: selectedRequest.current.id, selected });
   }, [mutation, query.data?.stage]);
   return {
     ...query, isError: query.isError || mutation.isError, error: mutation.error ?? query.error,
     isRequesting: mutation.isPending, requested: mutation.isPending || query.data != null,
-    family: query.data?.family ?? preference.data?.model_id, requestPlace, preferenceError: preference.isError,
+    family: query.data?.family ?? preference.data?.model_id, requestPlace, reserveSelected, preferenceError: preference.isError,
   };
 }

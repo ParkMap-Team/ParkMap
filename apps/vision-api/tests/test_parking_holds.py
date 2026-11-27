@@ -102,6 +102,46 @@ def test_owner_can_cancel_only_their_line_hold_and_choose_another_family(databas
     assert second.family == "click"
 
 
+def test_selected_line_hold_is_idempotent_and_cannot_be_replaced_or_double_booked(database):
+    from shapely.geometry import Point
+
+    seed()
+    evidence = context()
+    evidence.lot_model_version = 1
+    request = GuardBoothFitRequest(request_id=uuid4(), family="click", observed_at=NOW)
+    target = MetricGroundPoint(x_m=6.5, y_m=1)
+    with Session(get_engine()) as session:
+        def selected(req=request, owner="a" * 64):
+            return reserve(session, "sripatum", req, "LINE", lambda: evidence, NOW,
+                           owner_key=owner, target=target, parking_area_id="area", lot_model_version=1)
+        first = selected()
+        assert first.stage == "HELD"
+        assert polygon_shape(first.polygon).covers(Point(6.5, 1))
+        assert selected().request_id == first.request_id
+        with pytest.raises(HTTPException) as error:
+            selected(request.model_copy(update={"request_id": uuid4()}))
+        assert error.value.status_code == 409
+        other = selected(request.model_copy(update={"request_id": uuid4()}), "b" * 64)
+        assert other.polygon is None  # No automatic fallback to another point.
+        session.commit()
+
+
+@pytest.mark.parametrize("change,reason", [("frame", "FRAME_CHANGED"), ("area", "FRAME_CHANGED"), ("lot", "GEOMETRY_CHANGED")])
+def test_selected_place_rejects_outdated_map_snapshot(database, change, reason):
+    seed()
+    evidence = context()
+    evidence.lot_model_version = 1
+    request = GuardBoothFitRequest(request_id=uuid4(), family="click",
+                                   observed_at=NOW-timedelta(seconds=1) if change == "frame" else NOW)
+    with Session(get_engine()) as session:
+        result = reserve(session, "sripatum", request, "LINE", lambda: evidence, NOW, owner_key="a" * 64,
+                         target=MetricGroundPoint(x_m=6.5, y_m=1), parking_area_id="old-area" if change == "area" else "area",
+                         lot_model_version=2 if change == "lot" else 1)
+        assert result.reason == reason
+        assert result.polygon is None and result.route == []
+        assert list(session.scalars(select(ParkingHold))) == []
+
+
 def test_one_line_account_recovers_one_hold_across_new_requests_and_restart(database):
     seed()
     request = GuardBoothFitRequest(request_id=uuid4(), family="grand_filano", observed_at=NOW)

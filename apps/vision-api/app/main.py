@@ -23,7 +23,7 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from PIL import Image, UnidentifiedImageError
-from pydantic import Field
+from pydantic import Field, model_validator
 from shapely.geometry import Polygon
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -301,6 +301,15 @@ def reserve_guard_booth_fit(request: GuardBoothFitRequest, site_id: str = SiteId
 
 class LineParkingRequest(GuardBoothFitRequest):
     owner_key: str = Field(pattern=r"^[0-9a-f]{64}$", repr=False)
+    target: MetricGroundPoint | None = None
+    parking_area_id: str | None = Field(default=None, min_length=1, max_length=128)
+    lot_model_version: int | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def complete_target(self):
+        if len({self.target is None, self.parking_area_id is None, self.lot_model_version is None}) != 1:
+            raise ValueError("A selected point requires its parking area and lot model version.")
+        return self
 
 
 @app.post("/api/sites/{site_id}/parking-recommendation", response_model=GuardBoothFit)
@@ -308,7 +317,9 @@ def recommend_line_parking(request: LineParkingRequest, site_id: str = SiteId, s
     # Called by the trusted LIFF server with its verified saved model. The Python
     # API is private, just as its other operator and map endpoints are.
     _require_guard_booth_preview(site_id)
-    result = reserve_parking_hold(session, site_id, request, "LINE", lambda: _hold_context(site_id, session), datetime.now(UTC), owner_key=request.owner_key)
+    result = reserve_parking_hold(session, site_id, request, "LINE", lambda: _hold_context(site_id, session), datetime.now(UTC),
+                                  owner_key=request.owner_key, target=request.target, parking_area_id=request.parking_area_id,
+                                  lot_model_version=request.lot_model_version)
     session.commit()
     result.holds = [h for h in result.holds if h.request_id == result.request_id]
     return result
@@ -361,7 +372,8 @@ def _hold_context(site_id: str, session: Session) -> HoldContext:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Parking geometry is unavailable.")
     state = _site_parking_state(site_id, session)
     area = next(area for area in state.areas if area.parking_area_id == area_id)
-    return HoldContext(area=area, entrance=entrance, scale=placement.scale, geometry_version=f"{calibration.version}:lot-{model.version}")
+    return HoldContext(area=area, entrance=entrance, scale=placement.scale,
+                       geometry_version=f"{calibration.version}:lot-{model.version}", lot_model_version=model.version)
 
 
 def _route_editor_geometry(site_id: str, session: Session):

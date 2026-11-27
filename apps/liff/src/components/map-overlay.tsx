@@ -173,7 +173,7 @@ export function LabelLayer({
   const all: PlacedLabel[] = [
     ...placed,
     ...(markers ?? []).map((marker) => ({ id: `marker-${marker.id}`, text: marker.text, kind: "AREA" as const, anchor: marker.point, direction: null, raised: true, pin: marker.color })),
-    ...(selection ? [{ id: SELECTED_ID, text: selection.text, kind: "AREA" as const, anchor: selection.point, direction: null, raised: true, pin: selection.destination ? COLORS.ENTRANCE : undefined, destination: selection.destination }] : []),
+    ...(selection ? [{ id: SELECTED_ID, text: selection.text, kind: "AREA" as const, anchor: selection.point, direction: null, raised: true, pin: selection.destination || callout ? COLORS.ENTRANCE : undefined, destination: selection.destination || !!callout }] : []),
   ];
 
   /**
@@ -186,7 +186,7 @@ export function LabelLayer({
     if (!element) return;
     const pinCentre = shown.get(SELECTED_ID);
     const pin = elements.current.get(SELECTED_ID);
-    const point = selection?.destination ? project(selection.point) : null;
+    const point = selection && callout ? project(selection.point) : null;
     if (!pinCentre || !pin || !point) {
       element.style.visibility = "hidden";
       return;

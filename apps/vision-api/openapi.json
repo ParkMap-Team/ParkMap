@@ -3076,6 +3076,18 @@
             "title": "Family",
             "type": "string"
           },
+          "lot_model_version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Model Version"
+          },
           "observed_at": {
             "format": "date-time",
             "title": "Observed At",
@@ -3086,10 +3098,33 @@
             "title": "Owner Key",
             "type": "string"
           },
+          "parking_area_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parking Area Id"
+          },
           "request_id": {
             "format": "uuid4",
             "title": "Request Id",
             "type": "string"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetricGroundPoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [

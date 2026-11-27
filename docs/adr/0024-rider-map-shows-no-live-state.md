@@ -2,6 +2,19 @@
 
 Accepted 2026-11-18 at the owner's request.
 
+Amended 2026-11-27 at the owner's request: while the parking guide is inactive,
+a rider may tap the free-green ground and explicitly confirm a temporary hold
+at that point. Python fits a width-band frame containing the tapped point, using
+the verified account's saved vehicle, current evidence, and shared hold ledger.
+If it cannot fit there, it does not substitute another place. The same LINE guide
+then displays the route to the held frame. These remain temporary recommendations
+in an unmarked lot, not fixed stalls or physical guarantees. The earlier rationale
+below that riders cannot pick green ground is superseded by this amendment.
+Selection is unavailable while guidance or cancellation is active; the existing
+cancel action releases the hold.
+The confirmation uses the same map-anchored callout as the save-parking prompt,
+above the tapped point's marker in both 2D and 3D, rather than a side-panel action.
+
 ## Decision
 
 The LINE rider's lot map (`/sites/[id]` in LIFF, 2D and 3D) paints no cells. Every monitored area is plain ground with the detected motorcycles on it, and the only live state drawn is free ground: `AVAILABLE` and `WIDTH_SUFFICIENT` regions show as one soft neon-green glow with no edge or outline (`FREE_SHADOW`), always, so the API's narrow cells never read as stalls. No `ALMOST_AVAILABLE`, `OCCUPIED` or `UNKNOWN` region is drawn, an area without a current state is not hatched and shows no free ground, a motorcycle has no red footprint, and other riders' holds are not drawn. The ground outside the cameras keeps its own treatment.

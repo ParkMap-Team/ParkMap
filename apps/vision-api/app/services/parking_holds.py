@@ -35,6 +35,7 @@ class HoldContext:
     entrance: MetricGroundPoint
     scale: float
     geometry_version: str
+    lot_model_version: int | None = None
 
 
 def _policy(channel: Channel):
@@ -167,15 +168,28 @@ def mask_held_space(session: Session, site_id: str, area: ParkingAreaLiveState) 
 
 
 def reserve(session: Session, site_id: str, request: GuardBoothFitRequest, channel: Channel,
-            load: Callable[[], HoldContext], now: datetime, *, owner_key: str | None = None) -> GuardBoothFit:
+            load: Callable[[], HoldContext], now: datetime, *, owner_key: str | None = None,
+            target: MetricGroundPoint | None = None, parking_area_id: str | None = None,
+            lot_model_version: int | None = None) -> GuardBoothFit:
     if channel == "LINE" and request.ends_with_photo:
         raise HTTPException(422, "LINE holds do not end with a preview photo.")
+    if (target is None) != (parking_area_id is None) or (target is not None and (channel != "LINE" or not owner_key)):
+        raise HTTPException(422, "A selected point requires a verified LINE account and parking area.")
     context, holds = _locked(session, site_id, load, now)
     area = context.area
-    if channel == "LINE":
+    requested_target = {"point": target.model_dump(), "parking_area_id": parking_area_id,
+                        "observed_at": request.observed_at.isoformat(), "lot_model_version": lot_model_version} if target is not None else None
+    if channel == "LINE" and target is None:
         request = request.model_copy(update={"observed_at": area.observed_at or request.observed_at})
     active = next((h for h in holds if owner_key and h.owner_key == owner_key and h.channel == "LINE"
                    and h.stage in ("HELD", "AWAITING_CONFIRMATION")), None)
+    if target is not None:
+        selected_previous = session.get(ParkingHold, (site_id, request.request_id))
+        if selected_previous and (selected_previous.owner_key != owner_key or selected_previous.family != request.family or
+                                  selected_previous.history[0].get("requested_target") != requested_target):
+            raise HTTPException(409, "Request ID belongs to another selected place.")
+        if active and active.request_id != request.request_id:
+            raise HTTPException(409, "Cancel the active recommendation before selecting a place.")
     if active:
         return _answer(active, context, holds, now)
     previous = session.get(ParkingHold, (site_id, request.request_id))
@@ -185,15 +199,17 @@ def reserve(session: Session, site_id: str, request: GuardBoothFitRequest, chann
         raise HTTPException(409, "Request ID already belongs to a different recommendation.")
     if previous:
         return _answer(previous, context, holds, now, request.observed_at)
-    result = _policy(channel).fit_recorded_preview(area, request.family, context.entrance, context.scale, blocked=[*_unsafe_polygons(area, channel=channel), *[h.polygon for h in _shown(holds)]])
+    options = {"target": target} if target is not None else {}
+    result = _policy(channel).fit_recorded_preview(area, request.family, context.entrance, context.scale,
+        blocked=[*_unsafe_polygons(area, channel=channel), *[h.polygon for h in _shown(holds)]], **options)
     result.request_id = request.request_id
     result.server_time = now
     result.reason = "NO_FIT" if area.status == "DEMO" else "STATE_UNAVAILABLE"
     if area.processed_at is None:
         result.reason = "STATE_UNAVAILABLE"
-    elif request.observed_at != area.observed_at:
+    elif request.observed_at != area.observed_at or (target is not None and parking_area_id != area.parking_area_id):
         result.reason = "FRAME_CHANGED"
-    elif any(h.stage in BLOCKING and h.geometry_version != context.geometry_version for h in holds):
+    elif target is not None and (lot_model_version is None or lot_model_version != context.lot_model_version) or any(h.stage in BLOCKING and h.geometry_version != context.geometry_version for h in holds):
         result.reason = "GEOMETRY_CHANGED"
     if result.reason in ("STATE_UNAVAILABLE", "FRAME_CHANGED", "GEOMETRY_CHANGED"):
         result.polygon, result.route, result.observed_at = None, [], None
@@ -206,7 +222,8 @@ def reserve(session: Session, site_id: str, request: GuardBoothFitRequest, chann
             area_id=area.parking_area_id, geometry_version=context.geometry_version, ends_with_photo=request.ends_with_photo,
             stage="HELD", issued_at=now, expires_at=result.expires_at, observed_at=area.observed_at,
             processed_at=area.processed_at, result=result.model_dump(mode="json"),
-            history=[{"stage": "HELD", "at": now.isoformat(), "reason": "RECOMMENDATION_ISSUED"}],
+            history=[{"stage": "HELD", "at": now.isoformat(), "reason": "RECOMMENDATION_ISSUED",
+                      **({"requested_target": requested_target} if requested_target is not None else {})}],
         )
         session.add(hold)
         session.flush()

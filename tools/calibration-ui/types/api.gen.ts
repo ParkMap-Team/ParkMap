@@ -2055,6 +2055,8 @@ export interface components {
             ends_with_photo: boolean;
             /** Family */
             family: string;
+            /** Lot Model Version */
+            lot_model_version?: number | null;
             /**
              * Observed At
              * Format: date-time
@@ -2062,11 +2064,14 @@ export interface components {
             observed_at: string;
             /** Owner Key */
             owner_key: string;
+            /** Parking Area Id */
+            parking_area_id?: string | null;
             /**
              * Request Id
              * Format: uuid4
              */
             request_id: string;
+            target?: components["schemas"]["MetricGroundPoint"] | null;
         };
         /** LiveRegion */
         LiveRegion: {
