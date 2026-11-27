@@ -756,55 +756,11 @@ def _normalized_point_in_polygon(x: float, y: float, polygon: list[object]) -> b
             inside = not inside
     return inside
 
-@app.post("/api/hybrid-parking/analyze")
+@app.post("/api/hybrid-parking/analyze", deprecated=True, responses={410: {"description": "Experimental Hybrid Auto analysis was retired."}})
 async def analyze_hybrid_parking(image: UploadFile = ImageFile) -> dict[str, object]:
-    """Run YOLO and return detections classified only against backend ROI."""
-    calibration = calibration_service.load()
-    if calibration is None:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Hybrid ROI is not configured.")
-    if image.content_type not in SUPPORTED_IMAGE_TYPES:
-        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Supported image types are JPEG, PNG, and WebP.")
-    image_bytes = await image.read(MAX_UPLOAD_BYTES + 1)
+    """Retired with Auto-parking experiments; use the segmentation analysis API."""
     await image.close()
-    if not image_bytes or len(image_bytes) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="The uploaded image is empty or exceeds the configured size limit.")
-    try:
-        with Image.open(BytesIO(image_bytes)) as decoded:
-            if decoded.format != IMAGE_FORMATS[image.content_type]:
-                raise ValueError("Image format does not match the declared media type.")
-            decoded.verify()
-    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as error:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The uploaded file is not a valid supported image.") from error
-    try:
-        detection = await run_in_threadpool(cv_service.analyze_image, image_bytes)
-    except ModelUnavailableError as error:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
-    roi = calibration.parking_roi.polygon
-    detections = []
-    occupied_regions = []
-    for index, item in enumerate(detection.detections, 1):
-        bbox = item.bbox
-        point = {"x": bbox.x + bbox.width / 2, "y": bbox.y + bbox.height}
-        inside_roi = _normalized_point_in_polygon(point["x"], point["y"], roi)
-        bbox_corners = [(bbox.x, bbox.y), (bbox.x + bbox.width, bbox.y), (bbox.x + bbox.width, bbox.y + bbox.height), (bbox.x, bbox.y + bbox.height)]
-        bbox_intersects_roi = any(_normalized_point_in_polygon(x, y, roi) for x, y in bbox_corners) or any(bbox.x <= vertex.x <= bbox.x + bbox.width and bbox.y <= vertex.y <= bbox.y + bbox.height for vertex in roi)
-        detection_id = f"detection_{index}"
-        detections.append({"detection_id": detection_id, "confidence": item.confidence, "bbox": bbox.model_dump(mode="json"), "point": point, "inside_roi": inside_roi, "bbox_intersects_roi": bbox_intersects_roi})
-        if inside_roi:
-            occupied_regions.append({"region_id": f"occupied_{index}", "detection_id": detection_id, "coordinate_space": "NORMALIZED_IMAGE", "polygon":[{"x":bbox.x,"y":bbox.y},{"x":bbox.x+bbox.width,"y":bbox.y},{"x":bbox.x+bbox.width,"y":bbox.y+bbox.height},{"x":bbox.x,"y":bbox.y+bbox.height}],"status":"OCCUPIED_EVIDENCE"})
-    roi_detections=[item for item in detection.detections if _normalized_point_in_polygon(item.bbox.x + item.bbox.width / 2, item.bbox.y + item.bbox.height, roi)]
-    roi_detection=detection.model_copy(update={"detections": roi_detections})
-    auto_analysis = analyze_detections([(image.filename or "hybrid_image", roi_detection)])
-    inferred_rows = auto_analysis["rows"]
-    corridors = [{"corridor_id": f"corridor_{row['row_id']}", "row_id": row["row_id"], "coordinate_space": row["coordinate_space"], "polygon": row["polygon"], "support_status": row["status"]} for row in inferred_rows if row["status"] == "SUPPORTED"]
-    result={"mode":"HYBRID","status":"READY","source_type":"HYBRID_ANALYSIS","updated_at":datetime.now(UTC).isoformat(),"roi":{"polygon":[point.model_dump(mode="json") for point in roi]},"rows":inferred_rows,"rejected_observations":auto_analysis["rejected_observations"],"parking_corridors":corridors,"unknown_anchors":[],"detections":detections,"occupied_regions":occupied_regions,"summary":{"detected":len(detections),"inside_roi":sum(1 for item in detections if item["inside_roi"]),"inferred_rows":len(inferred_rows),"supported_corridors":len(corridors)},"availability":"NOT_ESTIMATED"}
-    snapshot=FilePath(__file__).resolve().parent.parent/'hybrid-parking-experimental'/'current_state.json'
-    snapshot.parent.mkdir(parents=True,exist_ok=True)
-    image_path=snapshot.parent/'latest_image'
-    image_path.write_bytes(image_bytes)
-    result["image"]={"url":"/api/hybrid-parking/latest/image","width":detection.image_width,"height":detection.image_height}
-    snapshot.write_text(json.dumps(result,indent=2),encoding='utf-8')
-    return result
+    raise HTTPException(status_code=410, detail="Experimental Hybrid Auto analysis was retired; use segmentation analysis.")
 
 @app.get("/api/hybrid-parking/latest/image")
 def get_hybrid_latest_image() -> FileResponse:

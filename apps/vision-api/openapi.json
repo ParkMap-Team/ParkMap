@@ -5483,7 +5483,8 @@
     },
     "/api/hybrid-parking/analyze": {
       "post": {
-        "description": "Run YOLO and return detections classified only against backend ROI.",
+        "deprecated": true,
+        "description": "Retired with Auto-parking experiments; use the segmentation analysis API.",
         "operationId": "analyze_hybrid_parking_api_hybrid_parking_analyze_post",
         "requestBody": {
           "content": {
@@ -5507,6 +5508,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "410": {
+            "description": "Experimental Hybrid Auto analysis was retired."
           },
           "422": {
             "content": {

@@ -139,7 +139,8 @@ export interface paths {
         put?: never;
         /**
          * Analyze Hybrid Parking
-         * @description Run YOLO and return detections classified only against backend ROI.
+         * @deprecated
+         * @description Retired with Auto-parking experiments; use the segmentation analysis API.
          */
         post: operations["analyze_hybrid_parking_api_hybrid_parking_analyze_post"];
         delete?: never;
@@ -3115,6 +3116,13 @@ export interface operations {
                         [key: string]: unknown;
                     };
                 };
+            };
+            /** @description Experimental Hybrid Auto analysis was retired. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
