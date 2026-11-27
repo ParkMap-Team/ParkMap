@@ -49,7 +49,7 @@ function place(element: unknown, center: LatLng, metres: number): OsmPlace | nul
     fee,
     hours: hours === "24/7" ? "ตลอด 24 ชม." : hours,
     covered,
-    photo: null,
+    photos: [],
   };
 }
 

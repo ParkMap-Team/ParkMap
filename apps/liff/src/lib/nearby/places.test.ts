@@ -19,9 +19,9 @@ test("every listed place has a unique id, a location within the radius, and a ph
     assert.ok(place.longitude > 97 && place.longitude < 106, `${place.id} longitude ${place.longitude}`);
     assert.ok(distanceM(CAMPUS, place) <= RADIUS_M, `${place.id} is more than ${RADIUS_M} m from the campus`);
     if (place.osm !== null) assert.ok(OSM_PLACES.some((osm) => osm.osm === place.osm), `${place.id} replaces ${place.osm}, which osm-places.gen.ts lacks`);
-    if (place.photo !== null) {
-      assert.match(place.photo, /^[a-z0-9-]+\.webp$/, `${place.id} photo ${place.photo}`);
-      assert.ok(existsSync(new URL(place.photo, PHOTO_DIR)), `${place.id} photo is missing from public/nearby/`);
+    for (const photo of place.photos) {
+      assert.match(photo, /^[a-z0-9-]+\.webp$/, `${place.id} photo ${photo}`);
+      assert.ok(existsSync(new URL(photo, PHOTO_DIR)), `${place.id} photo is missing from public/nearby/`);
     }
   }
 });
@@ -43,15 +43,15 @@ test("the campus point is inside the campus grounds the map opens on", () => {
 
 const site = (id: string, latitude: number, longitude: number) => ({ site_id: id, name: id, latitude, longitude });
 const listed: ListedPlace = {
-  id: "listed", name: "ที่จอด", latitude: 13.856, longitude: 100.586, kind: "CAMPUS", fee: "ฟรี", hours: null, covered: true, photo: null, osm: "way/1",
+  id: "listed", name: "ที่จอด", latitude: 13.856, longitude: 100.586, kind: "CAMPUS", fee: "ฟรี", hours: null, covered: true, photos: [], osm: "way/1",
 };
 const osm = (id: number): OsmPlace => ({
-  id: `osm-way-${id}`, osm: `way/${id}`, name: "ที่จอดมอเตอร์ไซค์", latitude: 13.85, longitude: 100.58, kind: "OSM", fee: null, hours: null, covered: null, photo: null,
+  id: `osm-way-${id}`, osm: `way/${id}`, name: "ที่จอดมอเตอร์ไซค์", latitude: 13.85, longitude: 100.58, kind: "OSM", fee: null, hours: null, covered: null, photos: [],
 });
 
 test("camera sites come first, link to their lot, and claim no fee, hours, or roof", () => {
   assert.deepEqual(nearbyPlaces([site("sripatum", 13.85528, 100.58528)], [], [])[0], {
-    id: "site-sripatum", name: "sripatum", latitude: 13.85528, longitude: 100.58528, kind: "CAMERA", siteId: "sripatum", fee: null, hours: null, covered: null, photo: null,
+    id: "site-sripatum", name: "sripatum", latitude: 13.85528, longitude: 100.58528, kind: "CAMERA", siteId: "sripatum", fee: null, hours: null, covered: null, photos: [],
   });
 });
 

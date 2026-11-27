@@ -21,9 +21,9 @@ test("nodes use their position, ways their centre, and tags become the place's f
     ],
   }, CENTER, 2_000);
   assert.deepEqual(places, [
-    { id: "osm-node-11209447337", osm: "node/11209447337", name: "จุดจอดรถมอเตอร์ไซค์", latitude: 13.8455431, longitude: 100.5714485, kind: "OSM", fee: null, hours: "ตลอด 24 ชม.", covered: true, photo: null },
-    { id: "osm-node-7", osm: "node/7", name: "ที่จอดมอเตอร์ไซค์", latitude: 13.855, longitude: 100.585, kind: "OSM", fee: "10 THB/day", hours: "Mo-Fr 06:00-22:00", covered: false, photo: null },
-    { id: "osm-way-589579457", osm: "way/589579457", name: "ที่จอดมอเตอร์ไซค์ Park Place", latitude: 13.8522764, longitude: 100.5821179, kind: "OSM", fee: "เสียค่าจอด", hours: null, covered: null, photo: null },
+    { id: "osm-node-11209447337", osm: "node/11209447337", name: "จุดจอดรถมอเตอร์ไซค์", latitude: 13.8455431, longitude: 100.5714485, kind: "OSM", fee: null, hours: "ตลอด 24 ชม.", covered: true, photos: [] },
+    { id: "osm-node-7", osm: "node/7", name: "ที่จอดมอเตอร์ไซค์", latitude: 13.855, longitude: 100.585, kind: "OSM", fee: "10 THB/day", hours: "Mo-Fr 06:00-22:00", covered: false, photos: [] },
+    { id: "osm-way-589579457", osm: "way/589579457", name: "ที่จอดมอเตอร์ไซค์ Park Place", latitude: 13.8522764, longitude: 100.5821179, kind: "OSM", fee: "เสียค่าจอด", hours: null, covered: null, photos: [] },
   ]);
 });
 
