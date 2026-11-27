@@ -39,7 +39,10 @@ export function useLineProfile(): LineProfile | null {
 /** Saves the model through the session proxy and returns the stored preference. */
 async function savePreference(modelId: string): Promise<Preference> {
   const response = await fetch("/api/vehicle-preference", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model_id: modelId }) });
-  if (!response.ok) throw new Error("บันทึกไม่สำเร็จ กรุณาลองใหม่");
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.detail ?? "บันทึกไม่สำเร็จ กรุณาลองใหม่");
+  }
   return response.json();
 }
 
