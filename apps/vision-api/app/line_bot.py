@@ -1,5 +1,8 @@
-"""LIFF preferences with an OA confirmation after saving; no chat webhook."""
+"""LIFF preferences, follow-event rich menus, and OA confirmation; no chat settings flow."""
+import base64
 import hashlib
+import hmac
+import json
 import logging
 import os
 import re
@@ -8,7 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 
 import requests
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from linebot.v3.messaging import (
     ApiClient,
     Configuration,
@@ -19,6 +22,7 @@ from linebot.v3.messaging import (
 from linebot.v3.messaging.exceptions import ApiException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.concurrency import run_in_threadpool
 from urllib3.exceptions import HTTPError
 
 from app.db import line_settings
@@ -28,6 +32,8 @@ from app.services.line_motorcycle_settings import MODEL_LABELS
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 identity_log = logging.getLogger("parkmap.identity")
+MAX_WEBHOOK_BODY_BYTES = 1_000_000
+LINE_USER_ID_PATTERN = re.compile(r"U[0-9a-f]{32}")
 
 
 def reject_identity(reason: str, provider_status: int | None = None) -> None:
@@ -130,16 +136,22 @@ def notify_saved(account: Account, model: str) -> str:
 
 def preference(account: Account, model: str | None = None):
     key = account.key
+    rich_menu_status = None
     try:
         with open_session() as session:
             line_settings.lock_account(session, key)
             if model is not None:
                 line_settings.save_model(session, key, model, time.time_ns() // 1_000_000, uuid.uuid4().hex)
-                session.commit()
             current = line_settings.current_model(session, key)
+            if model is not None and current == model:
+                # Keep the account lock through the provider change so a concurrent follow event
+                # cannot restore the onboarding menu after a successful save.
+                rich_menu_status = update_user_rich_menu(account.user_id, onboarding=False)
+                session.commit()
         result = {"model_id": current, "models": [{"id": k, "label": v} for k, v in MODEL_LABELS.items()]}
         if model is not None and current == model:
             result["notification_status"] = notify_saved(account, current)
+            result["rich_menu_status"] = rich_menu_status
         return result
     except (DatabaseNotConfiguredError, SQLAlchemyError):
         raise HTTPException(503, "Settings storage is unavailable.") from None
@@ -155,6 +167,89 @@ def health():
     except (DatabaseNotConfiguredError, SQLAlchemyError):
         raise HTTPException(503, "Settings storage is unavailable.") from None
     return {"status": "ok", "service": "parkmap-line-settings"}
+
+
+def update_user_rich_menu(user_id: str, *, onboarding: bool) -> str:
+    """Link the first-run menu or unlink it to reveal the current default menu."""
+    token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "").strip()
+    menu_id = os.getenv("LINE_ONBOARDING_RICH_MENU_ID", "").strip()
+    if not token or not re.fullmatch(r"richmenu-[A-Za-z0-9]+", menu_id):
+        return "not_configured"
+
+    if onboarding:
+        method = requests.post
+        url = f"https://api.line.me/v2/bot/user/{user_id}/richmenu/{menu_id}"
+        operation = "link_onboarding"
+    else:
+        method = requests.delete
+        url = f"https://api.line.me/v2/bot/user/{user_id}/richmenu"
+        operation = "unlink_onboarding"
+    try:
+        response = method(url, headers={"Authorization": f"Bearer {token}"}, timeout=(3, 5))
+    except requests.RequestException:
+        identity_log.warning("line_rich_menu_update_failed operation=%s provider_status=unavailable", operation)
+        return "failed"
+    if not 200 <= response.status_code < 300:
+        identity_log.warning("line_rich_menu_update_failed operation=%s provider_status=%s", operation, response.status_code)
+        return "failed"
+    return "updated"
+
+
+def valid_webhook_signature(body: bytes, signature: str, secret: str) -> bool:
+    if not re.fullmatch(r"[A-Za-z0-9+/]{43}=", signature):
+        return False
+    digest = hmac.new(secret.encode(), body, hashlib.sha256).digest()
+    expected = base64.b64encode(digest).decode()
+    return hmac.compare_digest(expected, signature)
+
+
+@app.post("/api/line/webhook")
+async def line_webhook(request: Request):
+    secret = os.getenv("LINE_CHANNEL_SECRET", "").strip()
+    if not secret:
+        raise HTTPException(503, "LINE webhook is not configured.")
+
+    chunks: list[bytes] = []
+    size = 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > MAX_WEBHOOK_BODY_BYTES:
+            raise HTTPException(413, "Webhook body is too large.")
+        chunks.append(chunk)
+    body = b"".join(chunks)
+    signature = request.headers.get("x-line-signature", "")
+    if not valid_webhook_signature(body, signature, secret):
+        raise HTTPException(401, "Invalid LINE webhook signature.")
+    try:
+        payload = json.loads(body)
+    except (ValueError, UnicodeDecodeError):
+        raise HTTPException(400, "Invalid LINE webhook body.") from None
+    events = payload.get("events") if isinstance(payload, dict) else None
+    if not isinstance(events, list):
+        raise HTTPException(400, "Invalid LINE webhook body.")
+
+    for event in events:
+        if not isinstance(event, dict) or event.get("type") != "follow":
+            continue
+        source = event.get("source")
+        user_id = source.get("userId") if isinstance(source, dict) else None
+        if not isinstance(user_id, str) or not LINE_USER_ID_PATTERN.fullmatch(user_id):
+            raise HTTPException(400, "Invalid LINE follow event.")
+        await run_in_threadpool(process_follow_event, user_id)
+    return {"status": "ok"}
+
+
+def process_follow_event(user_id: str) -> None:
+    account_key = hashlib.sha256(user_id.encode()).hexdigest()
+    try:
+        with open_session() as session:
+            line_settings.lock_account(session, account_key)
+            model = line_settings.current_model(session, account_key)
+            status = update_user_rich_menu(user_id, onboarding=model is None)
+            if status != "updated":
+                raise HTTPException(503, "LINE rich menu could not be updated.")
+    except (DatabaseNotConfiguredError, SQLAlchemyError):
+        raise HTTPException(503, "Settings storage is unavailable.") from None
 
 
 @app.get("/api/line/preferences")

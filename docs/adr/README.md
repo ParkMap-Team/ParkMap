@@ -27,3 +27,4 @@
 - [0024: A rider's map paints only free ground, softly](0024-rider-map-shows-no-live-state.md)
 - [0025: Store the Guard Booth clip's track evidence beside it](0025-store-guard-booth-clip-evidence.md)
 - [0026: Estimated bbox width for LIFF motorcycle display](0026-estimated-motorcycle-display-width.md)
+- [0027: Per-user onboarding rich menu](0027-per-user-onboarding-rich-menu.md)

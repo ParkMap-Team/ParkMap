@@ -16,7 +16,7 @@ def client(monkeypatch):
 
 def test_preferences_require_verified_identity(client, no_database):
     assert client.get("/api/line/preferences").status_code == 401
-    assert client.post("/api/line/webhook", json={}).status_code == 404
+    assert client.post("/api/line/webhook", json={}).status_code == 503
 
 
 @pytest.mark.parametrize("model", ["click", "aerox", "nmax", "scoopy", "wave", "pcx", "fino", "forza", "grand_filano", "hd_road_glide", "cbr650r", "xmax", "other"])
@@ -83,10 +83,12 @@ def test_provider_rejection_logs_only_reason_code(client, no_database, monkeypat
 def test_save_notifies_only_verified_user_after_commit(database, client, monkeypatch, status):
     import hashlib
     import json
+
     import requests
     import urllib3
-    from app.db.session import open_session
+
     from app.db.line_settings import current_model
+    from app.db.session import open_session
 
     user = "U" + "3" * 32
     class IdentityResponse:

@@ -4,6 +4,7 @@ import type { messagingApi } from "@line/bot-sdk";
 // 2500 px and a width/height ratio of at least 1.45.
 export const MENU_SIZE = { width: 1536, height: 1024 } as const;
 export const MENU_IMAGE = new URL("./rich-menu.jpg", import.meta.url);
+export const ONBOARDING_MENU_IMAGE = new URL("./onboarding.jpg", import.meta.url);
 // LINE accepts JPEG or PNG up to 1 MB. JPEG keeps the glossy art well under it.
 export const MENU_IMAGE_TYPE = "image/jpeg";
 export const MAX_IMAGE_BYTES = 1_000_000;
@@ -11,7 +12,7 @@ export const MAX_IMAGE_BYTES = 1_000_000;
 // Buttons cover the tiles; the logo strip below them is not a button.
 export const BUTTONS_HEIGHT = 832;
 
-// Four buttons open LIFF; settings starts the signed OA webhook conversation.
+// All five buttons open LIFF; settings changes the saved model in the app.
 // Tap areas meet in the middle of the gutters between the tiles, measured on the image.
 const BUTTONS = [
   { label: "พื้นที่ว่างตอนนี้", path: "", bounds: { x: 0, y: 0, width: 896, height: BUTTONS_HEIGHT } },
@@ -45,5 +46,18 @@ export function richMenu(liffId: string): messagingApi.RichMenuRequest {
       bounds: { ...bounds },
       action: { type: "uri", label, uri: `${liffUrl(liffId)}${path}` },
     })),
+  };
+}
+
+export function onboardingRichMenu(liffId: string): messagingApi.RichMenuRequest {
+  return {
+    size: { ...MENU_SIZE },
+    selected: true,
+    name: "ParkMap onboarding",
+    chatBarText: "เริ่มตั้งค่ารถ",
+    areas: [{
+      bounds: { x: 0, y: 0, width: MENU_SIZE.width, height: MENU_SIZE.height },
+      action: { type: "uri", label: "เริ่มตั้งค่ารถ", uri: liffUrl(liffId) },
+    }],
   };
 }
