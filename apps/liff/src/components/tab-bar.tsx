@@ -50,7 +50,11 @@ export function TabBar() {
               Rises 20px above the bar (16px offset plus the 4px ring), its label level with the others; the paper ring parts it from
               what is behind. The map's floating card keeps clear of it (FLOAT_GAP_PX in map-panel.tsx).
             */}
-            <span className={cn("grid size-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-md ring-4 ring-background transition-colors duration-150", guide.active && "bg-notice text-notice-foreground")}>
+            <span
+              className="grid size-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-md ring-4 ring-background transition-colors duration-150"
+              // Keep the raised stop button opaque even if a cached stylesheet lacks the notice utilities/tokens.
+              style={guide.active ? { backgroundColor: "var(--notice, #621537)", color: "var(--notice-foreground, #ffffff)" } : undefined}
+            >
               {guide.active
                 ? <X key="stop" aria-hidden className="size-6 motion-safe:animate-icon-pop" />
                 : <Navigation key="start" aria-hidden className="size-6 motion-safe:animate-icon-pop" />}
