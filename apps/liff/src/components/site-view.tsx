@@ -308,6 +308,12 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
   // A rider's map paints no cells (ADR 0024): the lot has no fixed spaces, so free ground is a soft
   // shadow and only the recommended place is solid green. The card still words the state from the full map; the Guard Booth draws it all.
   const shown = useMemo(() => (guardBooth ? map : plainLotMap(map)), [guardBooth, map]);
+  // At the booth, leave unproven ground as asphalt and let verified green and hold overlays show through.
+  // Keep the full map for status text and hit testing.
+  const paintedMap = useMemo(() => guardBooth ? {
+    ...shown,
+    areas: shown.areas.map((area) => ({ ...area, regions: area.regions.filter(({ kind }) => kind !== "UNKNOWN") })),
+  } : shown, [guardBooth, shown]);
   const boothRows = useMemo(() => {
     if (!guardBooth || siteId !== "sripatum") return [];
     const regions = areas?.find((area) => area.parking_area_id === "sripatum-near-lot")?.regions ?? [];
@@ -543,13 +549,13 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
   const stage = useMemo(() => {
     const selection = destination ?? mapSelection;
     // Other riders' holds are live state too, so only the Guard Booth draws them.
-    const viewProps = { map: shown, labels, selection, route, routeReplay, heldPolygons: guardBooth ? heldPolygons : undefined, plain: !guardBooth, markers, overviewKey, onSelect, insets, callout, ref: view };
+    const viewProps = { map: paintedMap, labels, selection, route, routeReplay, heldPolygons: guardBooth ? heldPolygons : undefined, plain: !guardBooth, markers, overviewKey, onSelect, insets, callout, ref: view };
     return (
       <ViewErrorBoundary key={renderer.mode} onError={onFailed}>
         {renderer.status3d === "checking" ? null : showsThreeD ? <LotScene {...viewProps} onReady={onReady} onError={onFailed} /> : <LotPlan {...viewProps} />}
       </ViewErrorBoundary>
     );
-  }, [shown, labels, mapSelection, destination, route, routeReplay, heldPolygons, guardBooth, markers, overviewKey, onSelect, insets, callout, renderer.mode, renderer.status3d, showsThreeD, onReady, onFailed]);
+  }, [paintedMap, labels, mapSelection, destination, route, routeReplay, heldPolygons, guardBooth, markers, overviewKey, onSelect, insets, callout, renderer.mode, renderer.status3d, showsThreeD, onReady, onFailed]);
 
   return (
     <main className={cn("flex flex-col overflow-hidden bg-background text-foreground", guardBooth ? "h-dvh" : "min-h-0 flex-1")}>
