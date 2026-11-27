@@ -25,6 +25,20 @@ from app.services.region_clipping_service import polygon_shape
 NOW = datetime(2026, 11, 18, tzinfo=UTC)
 
 
+def test_cancellation_endpoint_requires_verified_owner_header(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app.db.session import get_session
+    from app.main import app
+
+    monkeypatch.setenv("PARKMAP_GUARD_BOOTH_FIT_PREVIEW", "1")
+    # Authentication rejection must happen before the endpoint uses a database.
+    monkeypatch.setitem(app.dependency_overrides, get_session, lambda: None)
+    client = TestClient(app)
+    for headers in ({}, {"X-Parkmap-Owner": "invalid"}):
+        assert client.delete("/api/sites/sripatum/parking-recommendation", headers=headers).status_code == 403
+
+
 def context(at=NOW):
     polygon = [[MetricGroundPoint(x_m=x, y_m=y) for x, y in [(5, 0), (10, 0), (10, 2), (5, 2)]]]
     return HoldContext(
@@ -67,6 +81,25 @@ def issue(request, channel="GUARD_BOOTH", at=NOW, evidence=None, owner=None):
         result = reserve(session, "sripatum", request, channel, lambda: evidence or context(at), at, owner_key=owner)
         session.commit()
         return result
+
+
+def test_owner_can_cancel_only_their_line_hold_and_choose_another_family(database):
+    from app.services.parking_holds import cancel_owner_recommendation
+
+    seed()
+    first = issue(GuardBoothFitRequest(request_id=uuid4(), family="grand_filano", observed_at=NOW), "LINE", owner="a" * 64)
+    with Session(get_engine()) as session:
+        cancel_owner_recommendation(session, "sripatum", "b" * 64, NOW)
+        assert session.get(ParkingHold, ("sripatum", first.request_id)).stage == "HELD"
+        cancel_owner_recommendation(session, "sripatum", "a" * 64, NOW)
+        cancel_owner_recommendation(session, "sripatum", "a" * 64, NOW)  # idempotent
+        hold = session.get(ParkingHold, ("sripatum", first.request_id))
+        assert hold.stage == "RELEASED"
+        assert hold.history[-1]["reason"] == "USER_CANCELLED"
+        session.commit()
+    second = issue(GuardBoothFitRequest(request_id=uuid4(), family="click", observed_at=NOW), "LINE", owner="a" * 64)
+    assert second.request_id != first.request_id
+    assert second.family == "click"
 
 
 def test_one_line_account_recovers_one_hold_across_new_requests_and_restart(database):

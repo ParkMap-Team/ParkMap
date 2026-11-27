@@ -208,7 +208,7 @@ export function SiteView({ siteId, siteName, lotModel, guardBooth, fitPreviewEna
     },
   });
   const lineClock = recommendationTime(lineRecommendation.data?.server_time, lineRecommendation.dataUpdatedAt, now);
-  // The map shows the student's place only while the guide is on; closing it leaves the hold to expire.
+  // Closing the guide releases its active account hold before hiding the route.
   const lineFit = guiding && !lineRecommendation.isError && !connectionLost &&
     activeRecommendation(lineRecommendation.data, recordedFrame, lineClock) ? lineRecommendation.data : null;
   const restoredGuide = useRef(false);

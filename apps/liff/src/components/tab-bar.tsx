@@ -27,6 +27,7 @@ export function TabBar() {
   const slot = TABS.find((tab) => tab.id === current)?.slot;
   return (
     <nav aria-label="เมนูหลัก" className="relative z-20 shrink-0 border-t bg-background pb-[var(--safe-bottom)]">
+      {guide.cancelError && <p role="alert" className="absolute inset-x-2 bottom-full mb-2 rounded-xl border bg-background p-3 text-sm text-destructive shadow-md">{guide.cancelError}</p>}
       <div className="relative grid h-16 grid-cols-5">
         <div
           aria-hidden
@@ -43,6 +44,8 @@ export function TabBar() {
           <button
             type="button"
             aria-pressed={guide.active}
+            disabled={guide.cancelling}
+            aria-label={guide.cancelling ? "กำลังยกเลิกคำแนะนำ" : guide.active ? "ยกเลิกคำแนะนำที่จอด" : "แนะนำที่จอด"}
             onClick={() => (guide.active ? guide.stop() : guide.start())}
             className={cn("-mt-4 flex flex-col items-center gap-1 outline-none focus-visible:[&>span:first-child]:outline-3 focus-visible:[&>span:first-child]:outline-ring/50", PRESS)}
           >

@@ -7738,6 +7738,47 @@
       }
     },
     "/api/sites/{site_id}/parking-recommendation": {
+      "delete": {
+        "operationId": "cancel_line_parking_api_sites__site_id__parking_recommendation_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "site_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+              "title": "Site Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Parkmap-Owner",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Parkmap-Owner",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Line Parking"
+      },
       "get": {
         "operationId": "read_line_parking_api_sites__site_id__parking_recommendation_get",
         "parameters": [

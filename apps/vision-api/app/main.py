@@ -37,7 +37,6 @@ from app.db.tables import ParkingArea, Site
 from app.lot_model_editor import router as lot_model_editor_router
 from app.mobile_camera import operator_router as mobile_operator_router
 from app.mobile_camera import public_router as mobile_public_router
-from app.operator_auth import require_editor_token
 from app.models import (
     IDENTIFIER_PATTERN,
     AreaFrameLink,
@@ -48,9 +47,9 @@ from app.models import (
     HealthResponse,
     LotModelDefinition,
     LotModelResponse,
+    MetricGroundPoint,
     MotorcycleFittingConfiguration,
     MotorcycleFittingResponse,
-    MetricGroundPoint,
     ParkingAreaLiveState,
     ParkingCalibration,
     ParkingStatePublish,
@@ -58,6 +57,7 @@ from app.models import (
     SiteParkingStateResponse,
     SiteSummary,
 )
+from app.operator_auth import require_editor_token
 from app.services.calibration_service import calibration_service
 from app.services.cv_service import ModelUnavailableError, cv_service
 from app.services.ground_plane_calibration_service import (
@@ -93,6 +93,7 @@ from app.services.parking_analysis_service import (
 )
 from app.services.parking_holds import (
     HoldContext,
+    cancel_owner_recommendation,
     mask_held_space,
     owner_recommendation,
     rider_free_ground,
@@ -110,10 +111,15 @@ from app.services.recommendation_models import (
     PreviewFamily,
     RowRoutePreview,
 )
-from app.services.rider_recommendation import default_routes, preview_routes
 from app.services.region_clipping_service import polygon_shape
+from app.services.rider_recommendation import default_routes, preview_routes
 from app.services.route_configuration import (
-    RouteConfiguration, RouteConflict, RouteEditorState, RouteSettingsUnavailable, RouteWrite, route_settings,
+    RouteConfiguration,
+    RouteConflict,
+    RouteEditorState,
+    RouteSettingsUnavailable,
+    RouteWrite,
+    route_settings,
 )
 from app.services.video_classifier import router as video_classifier_router
 
@@ -316,6 +322,16 @@ def read_line_parking(site_id: str = SiteId, owner_key: str = Header(default="",
     result = owner_recommendation(session, site_id, owner_key, lambda: _hold_context(site_id, session), datetime.now(UTC))
     session.commit()
     return result
+
+
+@app.delete("/api/sites/{site_id}/parking-recommendation", status_code=204)
+def cancel_line_parking(site_id: str = SiteId, owner_key: str = Header(default="", alias="X-Parkmap-Owner"), session: Session = SessionDependency):
+    _require_guard_booth_preview(site_id)
+    if not re.fullmatch(r"[0-9a-f]{64}", owner_key):
+        raise HTTPException(403, "Verified owner required.")
+    cancel_owner_recommendation(session, site_id, owner_key, datetime.now(UTC))
+    session.commit()
+    return Response(status_code=204)
 
 
 @app.get("/api/sites/{site_id}/parking-holds", response_model=list[GuardBoothFitHold])

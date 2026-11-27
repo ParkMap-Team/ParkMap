@@ -26,6 +26,13 @@ or `AWAITING_CONFIRMATION`, including after returning to Settings or reloading.
 The LIFF preference PUT route rechecks the verified owner's recommendation before
 changing the model and returns 409 while active; an unavailable status check
 returns 503. Released or occupied-confirmed recommendations allow changes again.
+Closing the LIFF guide explicitly DELETEs its account recommendation before
+hiding the route. The trusted server derives the owner from the LINE session;
+the site transaction lock releases only that owner's active LINE hold and records
+`USER_CANCELLED`. Confirmed occupancy and other accounts' holds are untouched.
+Cancellation waits for any in-flight allocation, and a failed cancellation keeps
+the guide open with a retry message. After successful cancellation the rider may
+change models and request a new place. Saved parked-spot records are not deleted.
 This guard applies to LIFF preference updates, not direct LINE OA settings edits.
 All channel holds still block fitting and are subtracted from green in Python.
 

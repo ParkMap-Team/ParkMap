@@ -855,7 +855,8 @@ export interface paths {
         put?: never;
         /** Recommend Line Parking */
         post: operations["recommend_line_parking_api_sites__site_id__parking_recommendation_post"];
-        delete?: never;
+        /** Cancel Line Parking */
+        delete: operations["cancel_line_parking_api_sites__site_id__parking_recommendation_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4620,6 +4621,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["GuardBoothFit"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_line_parking_api_sites__site_id__parking_recommendation_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Parkmap-Owner"?: string;
+            };
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

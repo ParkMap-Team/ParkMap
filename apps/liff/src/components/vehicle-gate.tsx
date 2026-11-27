@@ -1,5 +1,6 @@
 "use client";
 import { createContext, use, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import { MascotLoading } from "@/components/mascot";
 import { MascotScreen } from "@/components/mascot-screen";
@@ -47,6 +48,7 @@ async function savePreference(modelId: string): Promise<Preference> {
 }
 
 export function VehicleGate({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const pathname = usePathname();
   const exempt = pathname === "/mobile-camera" || pathname === "/help" || isPublicBoothPath(pathname);
   const [preference, setPreference] = useState<Preference | null>(null);
@@ -122,7 +124,10 @@ export function VehicleGate({ children }: { children: React.ReactNode }) {
       </main>
     );
   }
-  const vehicle: Vehicle = { preference, save: async (modelId) => setPreference(await savePreference(modelId)) };
+  const vehicle: Vehicle = { preference, save: async (modelId) => {
+    setPreference(await savePreference(modelId));
+    await queryClient.invalidateQueries({ queryKey: ["parking-vehicle"] });
+  } };
   return (
     <VehicleContext value={vehicle}>
       <ProfileContext value={profile}>{children}</ProfileContext>

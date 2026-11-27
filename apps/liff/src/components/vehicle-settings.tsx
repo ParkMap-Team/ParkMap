@@ -114,7 +114,8 @@ function VehicleModel() {
     staleTime: 0, refetchOnMount: "always", refetchInterval: 4000, retry: false,
   });
   const requests = useMutationState({ filters: { mutationKey: ["line-parking-recommendation-request"], status: "pending" } });
-  const locked = vehicleChangeLocked(recommendation.data) || requests.length > 0;
+  const cancellations = useMutationState({ filters: { mutationKey: ["line-parking-recommendation-cancel"], status: "pending" } });
+  const locked = vehicleChangeLocked(recommendation.data) || requests.length > 0 || cancellations.length > 0;
   const checking = recommendation.isPending || recommendation.isError;
   const [open, setOpen] = useState(false);
   // The model being saved; the row shows it at once and falls back to the stored one if saving fails.

@@ -3,9 +3,24 @@ import { apiClient, upstreamFailureStatus } from "@/lib/api/server";
 import { guardBoothFitEnabled } from "@/lib/parking/guard-booth-server";
 import { parkingRequestBody } from "@/lib/parking/request-body";
 import { recommendationOwner } from "@/lib/vehicle-session";
+import { sameOrigin } from "@/lib/route-guard";
 
 const headers = { "Cache-Control": "private, no-store" };
 type Context = { params: Promise<{ siteId: string }> };
+
+export async function DELETE(request: Request, { params }: Context) {
+  if (!sameOrigin(request)) return new Response(null, { status: 403 });
+  const { siteId } = await params;
+  if (siteId !== "sripatum" || !guardBoothFitEnabled()) return new Response(null, { status: 404 });
+  const owner = await recommendationOwner();
+  if (!owner) return new Response(null, { status: 403, headers });
+  try {
+    const { response } = await apiClient().DELETE("/api/sites/{site_id}/parking-recommendation", {
+      params: { path: { site_id: siteId } }, headers: { "X-Parkmap-Owner": owner.owner_key }, cache: "no-store",
+    });
+    return new Response(null, { status: response.ok ? 204 : upstreamFailureStatus(response.status), headers });
+  } catch { return new Response(null, { status: 502, headers }); }
+}
 
 export async function GET(_request: Request, { params }: Context) {
   const { siteId } = await params;

@@ -250,3 +250,17 @@ def owner_recommendation(session: Session, site_id: str, owner_key: str, load: C
     result = _answer(owned, context, holds, now)
     result.holds = [h for h in result.holds if h.request_id == owned.request_id]
     return result
+
+
+def cancel_owner_recommendation(session: Session, site_id: str, owner_key: str, now: datetime) -> None:
+    """Release only this account's active LINE hold; no new camera evidence is claimed."""
+    if repository.lock_site(session, site_id) is None:
+        raise HTTPException(404, "Site not found.")
+    hold = session.scalar(select(ParkingHold).where(
+        ParkingHold.site_id == site_id, ParkingHold.channel == "LINE",
+        ParkingHold.owner_key == owner_key,
+        ParkingHold.stage.in_(("HELD", "AWAITING_CONFIRMATION")),
+    ).order_by(ParkingHold.issued_at.desc()).limit(1))
+    if hold is not None:
+        hold.stage = "RELEASED"
+        hold.history = [*hold.history, {"stage": "RELEASED", "at": now.isoformat(), "reason": "USER_CANCELLED"}]
