@@ -1,4 +1,4 @@
-// The signed-in student's LINE name and picture, shown only to them on the settings screen. They
+// The signed-in student's LINE name and picture, shown only to them on onboarding and settings. They
 // come from the LIFF SDK in the browser, are never sent to ParkMap's servers, and are never logged.
 
 /** What the settings screen shows for the LINE account. */

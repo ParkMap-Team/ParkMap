@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import type { messagingApi } from "@line/bot-sdk";
-import { BUTTONS_HEIGHT, MAX_IMAGE_BYTES, MENU_IMAGE, MENU_SIZE, parseLiffId, richMenu } from "./menu.ts";
+import { BUTTONS_HEIGHT, MAX_IMAGE_BYTES, MENU_IMAGE, MENU_SIZE, ONBOARDING_MENU_IMAGE, onboardingRichMenu, parseLiffId, richMenu } from "./menu.ts";
 
 const LIFF_ID = "1234567890-AbCdEfGh";
 
@@ -66,6 +66,21 @@ function jpegSize(bytes: Buffer) {
 
 test("the image matches the menu size and LINE's 1 MB limit", () => {
   const image = readFileSync(MENU_IMAGE);
+  assert.ok(image.length <= MAX_IMAGE_BYTES, `${image.length} bytes`);
+  assert.deepEqual(jpegSize(image), MENU_SIZE);
+});
+
+test("the onboarding menu has one full-image button that opens the LIFF entry point", () => {
+  const menu = onboardingRichMenu(LIFF_ID);
+  assert.deepEqual(menu.size, MENU_SIZE);
+  assert.equal(menu.areas?.length, 1);
+  const area = menu.areas?.[0];
+  assert.deepEqual(rect(area?.bounds), { x: 0, y: 0, width: MENU_SIZE.width, height: MENU_SIZE.height });
+  assert.deepEqual(area?.action, { type: "uri", label: "เริ่มตั้งค่ารถ", uri: `https://liff.line.me/${LIFF_ID}` });
+});
+
+test("the onboarding artwork matches the menu size and LINE's image limit", () => {
+  const image = readFileSync(ONBOARDING_MENU_IMAGE);
   assert.ok(image.length <= MAX_IMAGE_BYTES, `${image.length} bytes`);
   assert.deepEqual(jpegSize(image), MENU_SIZE);
 });

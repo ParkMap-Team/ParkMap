@@ -7,7 +7,13 @@ const SCRIPT = fileURLToPath(new URL("./deploy.ts", import.meta.url));
 
 // Both cases fail before any request to LINE.
 function deploy(env: Record<string, string>) {
-  const { LINE_CHANNEL_ACCESS_TOKEN: _token, PRODUCTION_LIFF_ID: _liffId, ...inherited } = process.env;
+  const {
+    LINE_CHANNEL_ACCESS_TOKEN: _token,
+    LINE_BOT_HEALTH_URL: _healthUrl,
+    LINE_ONBOARDING_RICH_MENU_ID: _onboardingMenuId,
+    PRODUCTION_LIFF_ID: _liffId,
+    ...inherited
+  } = process.env;
   return spawnSync(process.execPath, ["--experimental-strip-types", SCRIPT], {
     env: { ...inherited, ...env },
     encoding: "utf8",
@@ -18,6 +24,13 @@ test("a missing token exits non-zero", () => {
   const result = deploy({ PRODUCTION_LIFF_ID: "1234567890-AbCdEfGh" });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /LINE_CHANNEL_ACCESS_TOKEN/);
+});
+
+test("a missing settings health URL exits before contacting LINE", () => {
+  const result = deploy({ LINE_CHANNEL_ACCESS_TOKEN: "synthetic-token", PRODUCTION_LIFF_ID: "1234567890-AbCdEfGh" });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /LINE_BOT_HEALTH_URL/);
+  assert.ok(!result.stdout.includes("synthetic-token") && !result.stderr.includes("synthetic-token"));
 });
 
 test("a failure never prints the token", () => {

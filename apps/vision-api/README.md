@@ -2,7 +2,7 @@
 
 # ParkMap Backend
 
-One Python project with separate API (`uvicorn app.main:app`), frame worker (`python -m app.worker`), and optional LINE bot (`uvicorn app.line_bot:app`) entrypoints. The API serves parking state and upload analysis; the worker pushes derived state; the bot handles the requested account-specific motorcycle settings conversation. Only the bot gets Messaging API credentials and public webhook routes. See [ADR 0002](../../docs/adr/0002-live-state-pipeline-and-liff-app.md), [ADR 0005](../../docs/adr/0005-cloud-hosted-video-replay-demo.md), and the [LINE settings runbook](../../docs/line-motorcycle-settings.md).
+One Python project with separate API (`uvicorn app.main:app`), frame worker (`python -m app.worker`), and optional LINE settings service (`uvicorn app.line_bot:app`) entrypoints. The API serves parking state and upload analysis; the worker pushes derived state; the settings service verifies LINE Login accounts, handles signed follow webhooks, and changes the per-user onboarding rich menu. Only the settings service gets Messaging API credentials and public webhook routes. See [ADR 0002](../../docs/adr/0002-live-state-pipeline-and-liff-app.md), [ADR 0005](../../docs/adr/0005-cloud-hosted-video-replay-demo.md), [ADR 0027](../../docs/adr/0027-per-user-onboarding-rich-menu.md), and the [LINE settings runbook](../../docs/line-motorcycle-settings.md).
 
 ## Run locally
 

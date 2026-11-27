@@ -2,7 +2,7 @@
 import { createContext, use, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
-import { MascotLoading } from "@/components/mascot";
+import { Mascot, MascotLoading } from "@/components/mascot";
 import { MascotScreen } from "@/components/mascot-screen";
 import { Button } from "@/components/ui/button";
 import { VehicleForm } from "@/components/vehicle-form";
@@ -114,13 +114,21 @@ export function VehicleGate({ children }: { children: React.ReactNode }) {
   // A first visit chooses a model before any map; the server pages render nothing without one.
   if (!preference.model_id) {
     return (
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,var(--safe-bottom))] motion-safe:animate-screen-enter">
-        <h1 className="text-title font-semibold">ตั้งค่ารุ่นรถของฉัน</h1>
-        <p className="mt-1 text-sm text-muted-foreground">เลือกรุ่นรถก่อนดูแผนที่ ระบบใช้รุ่นรถเพื่อแนะนำที่จอดที่พอดีกับรถของคุณ</p>
-        <VehicleForm models={preference.models} initial="" submitLabel="บันทึกและดูแผนที่" onSave={async (modelId) => {
-          await savePreference(modelId);
-          window.location.assign("/");
-        }} />
+      <main className="flex w-full flex-1 bg-primary text-primary-foreground">
+        <div className="mx-auto flex min-h-full w-full max-w-md flex-col px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,var(--safe-bottom))] motion-safe:animate-screen-enter">
+          <section className="flex flex-col items-center text-center">
+            <div className="grid size-56 place-items-center rounded-full bg-primary-foreground">
+              <Mascot mood="happy" size={200} />
+            </div>
+            <p className="mt-4 text-sm text-primary-foreground/85">ยินดีต้อนรับ</p>
+            <h1 className="mt-0.5 max-w-full truncate text-title font-semibold">{profile?.name ?? "มาเริ่มตั้งค่ารถกัน"}</h1>
+            <p className="mt-2 text-sm text-primary-foreground/90">เลือกรุ่นรถเพื่อรับคำแนะนำที่จอดที่เหมาะกับรถของคุณ</p>
+          </section>
+          <VehicleForm models={preference.models} initial="" submitLabel="บันทึกและดูแผนที่" onSave={async (modelId) => {
+            await savePreference(modelId);
+            window.location.assign("/");
+          }} />
+        </div>
       </main>
     );
   }
