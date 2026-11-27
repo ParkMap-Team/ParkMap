@@ -75,3 +75,5 @@ Thumbs.db
 .vscode/
 .idea/
 *.pem
+# Standalone calibration guide has its own Sites repository.
+/tools/calibration-guide/
