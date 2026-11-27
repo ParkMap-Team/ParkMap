@@ -21,6 +21,12 @@ GET recommendation restores the account's latest status and reconciles evidence;
 it never allocates. Only an explicit user action POSTs. Poll only active holds,
 stop at terminal stages, and never reissue a recommendation automatically.
 An explicit request after release or occupancy may allocate a new point.
+The LIFF vehicle selector is locked while an account recommendation is `HELD`
+or `AWAITING_CONFIRMATION`, including after returning to Settings or reloading.
+The LIFF preference PUT route rechecks the verified owner's recommendation before
+changing the model and returns 409 while active; an unavailable status check
+returns 503. Released or occupied-confirmed recommendations allow changes again.
+This guard applies to LIFF preference updates, not direct LINE OA settings edits.
 All channel holds still block fitting and are subtracted from green in Python.
 
 ## Display and evidence

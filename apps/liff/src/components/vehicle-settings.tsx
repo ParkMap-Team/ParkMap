@@ -9,6 +9,9 @@ import { type ReactNode, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useLineProfile, useVehicle } from "@/components/vehicle-gate";
+import { useMutationState, useQuery } from "@tanstack/react-query";
+import type { GuardBoothFit } from "@/lib/api/types";
+import { vehicleChangeLocked, VEHICLE_CHANGE_LOCK_MESSAGE } from "@/lib/vehicle-change-lock";
 import { lineOaId, reportChatUrl, shortCommit } from "@/lib/app-info";
 import type { Preference } from "@/lib/vehicle-session";
 import { modelMatches, UNSPECIFIED_MODEL } from "@/lib/vehicle-search";
@@ -100,6 +103,19 @@ function LineAccount() {
 function VehicleModel() {
   const id = useId();
   const { preference, save } = useVehicle();
+  const recommendation = useQuery<GuardBoothFit | null>({
+    queryKey: ["line-parking-recommendation", "sripatum"],
+    queryFn: async () => {
+      const response = await fetch("/api/sites/sripatum/parking-recommendation", { cache: "no-store" });
+      if (response.status === 404) return null;
+      if (!response.ok) throw new Error("ตรวจสถานะคำแนะนำไม่ได้");
+      return response.json();
+    },
+    staleTime: 0, refetchOnMount: "always", refetchInterval: 4000, retry: false,
+  });
+  const requests = useMutationState({ filters: { mutationKey: ["line-parking-recommendation-request"], status: "pending" } });
+  const locked = vehicleChangeLocked(recommendation.data) || requests.length > 0;
+  const checking = recommendation.isPending || recommendation.isError;
   const [open, setOpen] = useState(false);
   // The model being saved; the row shows it at once and falls back to the stored one if saving fails.
   const [pending, setPending] = useState<string | null>(null);
@@ -111,6 +127,7 @@ function VehicleModel() {
   const label = selected?.label ?? "เลือกรุ่นรถ";
 
   async function choose(modelId: string) {
+    if (locked || checking) return;
     setPending(modelId); setConfirmed(false); setError("");
     try {
       await save(modelId);
@@ -129,7 +146,7 @@ function VehicleModel() {
   const footer = (
     <>
       <div className="flex min-h-6 items-start justify-between gap-3 px-1 pt-2 text-sm">
-        <p id={`${id}-hint`} className="text-pretty text-muted-foreground">ใช้หาที่ว่างที่รถรุ่นนี้จอดได้พอดี</p>
+        <p id={`${id}-hint`} className="text-pretty text-muted-foreground">{locked ? VEHICLE_CHANGE_LOCK_MESSAGE : checking ? "กำลังตรวจสถานะคำแนะนำ กรุณารอสักครู่หรือลองเปิดหน้านี้ใหม่" : "ใช้หาที่ว่างที่รถรุ่นนี้จอดได้พอดี"}</p>
         {confirmed && (
           <p role="status" className="flex shrink-0 items-center gap-1 text-muted-foreground">
             <Check aria-hidden className="size-4 motion-safe:animate-icon-pop" />
@@ -143,11 +160,11 @@ function VehicleModel() {
 
   return (
     <Group title="รถของฉัน" footer={footer}>
-      <Drawer.Root open={open} onOpenChange={setOpen}>
+      <Drawer.Root open={open && !locked && !checking} onOpenChange={setOpen}>
         <Drawer.Trigger
-          disabled={pending !== null}
+          disabled={pending !== null || locked || checking}
           aria-describedby={error ? `${id}-error ${id}-hint` : `${id}-hint`}
-          className={`${ROW} disabled:cursor-wait`}
+          className={`${ROW} ${pending !== null ? "disabled:cursor-wait" : "disabled:cursor-not-allowed"}`}
         >
           <Motorbike aria-hidden className="size-5 shrink-0 text-muted-foreground" />
           <span className="shrink-0">รุ่นรถ</span>

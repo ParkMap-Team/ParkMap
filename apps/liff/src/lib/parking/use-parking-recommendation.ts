@@ -27,6 +27,7 @@ export function useParkingRecommendation(siteId: string, enabled: boolean) {
     },
   });
   const mutation = useMutation({
+    mutationKey: ["line-parking-recommendation-request"],
     retry: false,
     mutationFn: async (id: string): Promise<GuardBoothFit> => {
       await client.cancelQueries({ queryKey: key });
