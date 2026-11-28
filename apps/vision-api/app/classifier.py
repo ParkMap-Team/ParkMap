@@ -286,7 +286,12 @@ async def predict(image: Annotated[UploadFile, File()], model_id: Annotated[str,
 
 
 @router.post("/analyze", response_model=ParkingClassifierResult)
-async def analyze(image: Annotated[UploadFile, File()], response: Response, model_id: str = Form(""), include_parking: bool = Form(True), include_segmentation: bool = Form(False), include_segmentation_gaps: bool = Form(False), incoming_width_m: Annotated[float | None, Form(gt=0, le=5, allow_inf_nan=False)] = None, clearance_margin_m: Annotated[float, Form(ge=0, le=MAX_CLEARANCE_MARGIN_M, allow_inf_nan=False)] = DEFAULT_CLEARANCE_MARGIN_M, primary_detector: Literal["standard", "segmentation"] = Form("standard"), segmentation_model: Literal["configured", "yolo26n-seg"] = Form("configured")):
+async def analyze(image: Annotated[UploadFile, File()], response: Response, model_id: str = Form(""), 
+                  include_parking: bool = Form(True), include_segmentation: bool = Form(False), 
+                  include_segmentation_gaps: bool = Form(False), incoming_width_m: Annotated[float | None, 
+                  Form(gt=0, le=5, allow_inf_nan=False)] = None, clearance_margin_m: Annotated[float, 
+                  Form(ge=0, le=MAX_CLEARANCE_MARGIN_M, allow_inf_nan=False)] = DEFAULT_CLEARANCE_MARGIN_M, primary_detector: Literal["standard", "segmentation"] = Form("standard"), 
+                  segmentation_model: Literal["configured", "yolo26n-seg"] = Form("configured")):
     response.headers["Cache-Control"] = "no-store"
     decoded = await read_image(image)
     try:

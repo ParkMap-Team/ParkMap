@@ -1,0 +1,199 @@
+ไฟล์ Python สำคัญที่เกี่ยวข้องกับเว็บ Calibration
+==================================================
+ตำแหน่งหลัก: apps/vision-api/app/services/
+เอกสารนี้สรุปไฟล์สำคัญเพื่ออ่านโค้ด ไม่ใช่รายการ dependency ทั้งหมด
+ไฟล์ที่ไม่ได้อยู่ในรายการไม่ได้หมายความว่าไม่ได้ใช้หรือลบได้
+แต่ละโหมดและตัวเลือกบนเว็บอาจเรียก service ต่างกัน
+
+1. หน้า Parking: วิเคราะห์ภาพและหาที่ว่าง
+--------------------------------------------------
+segmentation_experiment_service.py
+- โหลดและรันโมเดล Seg
+- คืน mask, bounding box และ confidence ของรถแต่ละคัน
+- เป็น service ที่ Calibration และ Worker ใช้ร่วมกัน
+
+segmentation_gap_service.py
+- นำผลตรวจรถมาวิเคราะห์ร่วมกับ ROI, calibration และแถวเสมือน
+- จัดรถเข้าแถว วิเคราะห์การบัง และหาช่วงว่างตามเงื่อนไข
+- เรียกใช้บริการย่อยด้าน geometry ความกว้าง และความไม่แน่นอน
+
+motorcycle_width_estimation.py
+- ประมาณความกว้างรถโดยแปลงปลายสองด้านของขอบล่าง bounding box ผ่าน homography
+- คำนวณระยะระหว่างจุดที่แปลงแล้วเป็นเมตร
+- เป็นความกว้างที่ประมาณจากภาพ ไม่ใช่ขนาดตัวรถจริงที่วัดได้
+
+parking_analysis_service.py
+- รวมขั้นตอนวิเคราะห์พื้นที่จอดจากข้อมูล detection
+- อ่านข้อมูล calibration และแถว แล้วเรียกบริการย่อยคำนวณผล
+- จัดผลพื้นที่ครอบครอง พื้นที่เหลือ และผลวิเคราะห์ที่เกี่ยวข้อง
+
+virtual_fitting_service.py
+- ทดลองวางกรอบรถในแถวและตรวจเงื่อนไขการ fitting
+- ตรวจการทับพื้นที่ครอบครองและการเกินขอบพื้นที่
+- มีค่าขนาดมาตรฐานและค่าความคลาดเคลื่อนที่บริการอื่นใช้ร่วมกัน
+
+live_state_service.py
+- มีฟังก์ชันสร้างข้อมูลรถสำหรับแสดงบนแผนผังในหน้า Parking
+- มีงานส่วนกลางอื่น เช่น จัดรูปแบบสถานะ ตรวจ calibration และความสดของข้อมูล
+- ไม่ได้เป็นบริการเฉพาะ Calibration
+
+cv_service.py
+- โหลดและรันโมเดลตรวจจับแบบ bounding box
+- ใช้กับเส้นทาง detector ปกติและงานตรวจจับที่เกี่ยวข้อง
+- หน้า Parking แบบ Seg หลักไม่ได้รันโมเดลนี้ซ้ำเพื่อหากรอบรถ
+
+2. หน้า Setup: ROI แถว และสเกลเมตร
+--------------------------------------------------
+calibration_service.py
+- อ่านและบันทึก ROI กับแถวเสมือน
+- ข้อมูลหลักอยู่ใน config/parking_calibration.json
+
+ground_plane_calibration_service.py
+- จัดการจุดอ้างอิงภาพกับพิกัดพื้น และข้อมูลระยะที่ใช้ calibration
+- ตรวจข้อมูลและบันทึกการตั้งค่า
+
+ground_plane_homography_service.py
+- คำนวณและตรวจ homography จากข้อมูล calibration
+- มีฟังก์ชันแปลงพิกัดภาพเป็นพิกัดพื้นหน่วยเมตร
+- หลายส่วน เช่น การประมาณความกว้างและการหาที่ว่าง ใช้ร่วมกัน
+
+physical_row_geometry_service.py
+- สร้างรูปทรงแถวบนพื้นจากแนวแถวและขนาดที่กำหนด
+- ช่วยให้การคำนวณใช้รูปทรงแถวที่สัมพันธ์กับข้อมูลระยะ
+
+motorcycle_fitting_service.py
+- จัดการค่าตั้งและผลที่เกี่ยวกับการ fitting รถ
+- แยกหน้าที่จาก virtual_fitting_service.py ซึ่งมีตรรกะคำนวณการวางกรอบ
+
+3. หน้า Lot Model Editor
+--------------------------------------------------
+lot_model_editor_service.py
+- จัดการร่างแผนผังลานจอด พื้นที่จอด และ landmark
+- ทำงานร่วมกับ API ใน app/lot_model_editor.py
+
+calibration_roi_preview_service.py
+- สร้างผล preview ของ calibration ROI สำหรับการแก้แผนผัง
+- ใช้ตรวจการเปลี่ยนรูปแบบการวางพื้นที่ก่อนนำไปใช้
+
+lot_placement_service.py
+- เชื่อมตำแหน่งพื้นที่ที่ calibration ไว้กับตำแหน่งใน lot model
+- ใช้จัดวางข้อมูลพื้นที่และผลวิเคราะห์บนแผนผังรวม
+
+4. บริการประกอบที่ควรรู้
+--------------------------------------------------
+motorcycle_reference_sizes.py
+- อ่าน config/motorcycle_reference_sizes.json
+- ให้ขนาดรถอ้างอิงตามรุ่นและกฎ fallback ของบริการ
+- ไม่ใช่การวัดขนาดรถจริงจากภาพ
+- LIFF มีเงื่อนไขของตัวเลือก "อื่นๆ" แยกต่างหาก อย่าสรุปว่าใช้ fallback ทุกกรณี
+
+horizontal_vehicle_service.py
+- วิเคราะห์รถที่มีแนวขวางในภาพและระยะว่างที่เกี่ยวข้อง
+- ช่วยการแสดงผลและวิเคราะห์กรณีรถวางขวาง
+
+almost_available_service.py
+- คำนวณกรณีเกือบว่างและการวางรถที่เกี่ยวข้องกับการขยับรถเดิม
+- ผลเกือบว่างไม่เท่ากับยืนยันว่าสามารถจอดได้ทันที
+
+uncertainty_service.py
+- คำนวณค่าความไม่แน่นอนเพื่อประกอบการวิเคราะห์
+
+witness_uncertainty_service.py
+- ประเมินความไม่แน่นอนของหลักฐานการวางกรอบรถ
+
+camera_projection_service.py
+- ช่วยฉายพิกัดและรูปทรงระหว่างพื้นที่เชิงเมตรกับภาพ
+
+visible_gap_geometry.py
+- ฟังก์ชัน geometry ประกอบการวิเคราะห์พื้นที่ว่างที่มองเห็น
+- ถูกเรียกจาก segmentation_gap_service.py
+
+experimental_occupancy_v2_service.py
+- คำนวณพื้นที่ครอบครองในขั้นตอนวิเคราะห์ของ parking_analysis_service.py
+- ชื่อ experimental ไม่ได้หมายความว่าไม่ได้ถูกใช้
+
+video_classifier.py
+- API และการประมวลผลตรวจจับ ครอป จำแนก และติดตามรถในภาพ/วิดีโอ
+- มีส่วนใช้โมเดลและฟังก์ชันจำแนกร่วมกับ app/classifier.py
+
+mobile_camera_sessions.py
+- จัดการ session การจับคู่กล้องมือถือและเฟรมที่ส่งเข้ามา
+- ใช้กับการเชื่อมกล้องในหน้า Setup
+
+frame_analysis_service.py
+- รวมเส้นทางวิเคราะห์เฟรมด้วย Seg สำหรับ Worker และกล้องมือถือ
+- ไม่ใช่จุดรับคำขอ Analyze ของภาพนิ่งในหน้า Parking
+- เรียก service รัน Seg และหาช่วงว่างร่วมกับหน้า Parking
+
+5. ไฟล์ประสานงานนอก services
+--------------------------------------------------
+apps/vision-api/app/classifier.py
+- รับคำขอวิเคราะห์ภาพจากหน้า Parking
+- เส้นทางสำคัญคือ analyze() และ analyze_segmentation_primary()
+- เรียก Seg วิเคราะห์พื้นที่ หาช่วงว่าง และรวมผลกลับเว็บ
+- ในไฟล์เดียวกันยังมี API จำแนกรุ่นรถ แต่เส้นทาง Seg หลักไม่ได้เรียก classifier รุ่นรถ
+
+apps/vision-api/app/parking_inference_settings.py
+- กำหนดไฟล์น้ำหนักโมเดล ขนาดภาพ ระยะเผื่อ และข้อจำกัดประมวลผล
+- เป็นค่าตอน inference ไม่ใช่ค่าฝึกโมเดล
+
+apps/vision-api/app/models.py
+- กำหนดโครงสร้างข้อมูลและตรวจข้อมูลเข้าออก API
+- models ในไฟล์นี้หมายถึง data models ไม่ใช่น้ำหนัก AI
+
+apps/vision-api/app/operator_auth.py
+- ตรวจ token ก่อนใช้ API เครื่องมือผู้ดูแล
+- ไม่ใช่ระบบล็อกอิน LINE ของผู้ใช้
+
+apps/vision-api/app/main.py
+- ประกอบ FastAPI และเชื่อม router ต่างๆ
+- มี API ส่วนกลางที่ Setup และส่วนอื่นเรียกใช้
+
+apps/vision-api/app/lot_model_editor.py
+- API ของ Lot Model Editor ซึ่งเรียก lot_model_editor_service.py
+
+apps/vision-api/app/mobile_camera.py
+- API สำหรับจับคู่และรับภาพจากกล้องมือถือ
+- เรียก mobile_camera_sessions.py และ frame_analysis_service.py
+
+6. ค่าตั้งประกอบที่ควรรู้
+--------------------------------------------------
+apps/vision-api/config/parking_calibration.json
+- ROI และแถวเสมือน
+
+apps/vision-api/config/ground_plane_calibration.json
+- จุดอ้างอิงและข้อมูลระยะสำหรับ calibration
+
+apps/vision-api/config/ground_plane_homography.json
+- ผล homography และข้อมูลประกอบ
+
+apps/vision-api/config/physical_row_geometry.json
+- ค่าตั้งรูปทรงแถว
+
+apps/vision-api/config/motorcycle_reference_sizes.json
+- ขนาดรถอ้างอิงแต่ละรุ่นและ fallback
+
+7. ลำดับอ่านเมื่อเวลาน้อย
+--------------------------------------------------
+1) app/classifier.py: อ่านเส้นทาง Seg เพื่อรู้ภาพรวม
+2) services/segmentation_experiment_service.py: โมเดลรับอะไรและคืนอะไร
+3) services/ground_plane_homography_service.py: แปลงพิกัดอย่างไร
+4) services/motorcycle_width_estimation.py: ประมาณความกว้างเป็นเมตรอย่างไร
+5) services/segmentation_gap_service.py: จัดแถวและหาช่วงว่างอย่างไร
+6) services/virtual_fitting_service.py: ตรวจการวางกรอบรถอย่างไร
+7) อ่าน service อื่นเฉพาะส่วนที่ฟังก์ชันข้างต้นเรียกต่อ
+
+ทุกไฟล์ให้ตอบสามข้อ: รับอะไร -> ทำอะไร -> ส่งอะไร
+
+8. แยก Calibration กับ LIFF ให้ได้
+--------------------------------------------------
+ภาพนิ่งในหน้า Parking ของ Calibration:
+ImageAnalyzer.tsx -> detection.ts -> app/classifier.py
+-> บริการ Seg และคำนวณช่วงว่าง -> ส่งผลกลับหน้า Calibration
+
+สถานะลานที่ LIFF อ่าน:
+app/worker/__main__.py -> services/frame_analysis_service.py
+-> บริการ Seg และคำนวณช่วงว่าง -> จัดรูปแบบและเผยแพร่สถานะ -> LIFF อ่านผ่าน API
+
+ผลจากการกด Analyze ใน Calibration ไม่ได้อัปเดตสถานะ LIFF โดยตรง
+ทั้งสองเส้นทางใช้บริการประมวลผลบางส่วนร่วมกัน

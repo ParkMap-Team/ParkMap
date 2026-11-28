@@ -1,0 +1,207 @@
+ข้อ 1: โค้ดสำคัญใน classifier.py สำหรับหน้า Parking แบบ Seg
+==========================================================
+อ้างอิง: apps/vision-api/app/classifier.py
+เลขบรรทัดอ้างอิงจากไฟล์ขณะจัดทำ อาจเลื่อนเมื่อแก้โค้ด
+โค้ดบางช่วงคัดเฉพาะคำสั่งสำคัญ ไม่ใช่โปรแกรมที่นำไปรันแยกได้
+
+จำภาพรวมก่อน
+ไฟล์นี้เป็นตัวประสานงาน:
+รับรูป -> เรียก Seg -> วิเคราะห์พื้นที่ -> หาช่วงว่าง -> ส่งผลให้เว็บ
+ไม่ได้คำนวณทุกอย่างเอง แต่เรียก service ที่รับผิดชอบแต่ละเรื่อง
+เส้นทาง Seg หลักนี้ไม่เรียกโมเดลจำแนกรุ่นรถ
+
+1. รับคำขอจากปุ่ม Analyze — บรรทัด 288–296
+----------------------------------------------------------
+โค้ดสำคัญ:
+    @router.post("/analyze", response_model=ParkingClassifierResult)
+    async def analyze(...):
+        response.headers["Cache-Control"] = "no-store"
+        decoded = await read_image(image)
+
+อธิบาย:
+- @router.post กำหนดจุดรับคำขอแบบ POST
+- เมื่อรวม prefix ของ router จะเป็น /api/operator/classifier/analyze
+- response_model กำหนดรูปแบบผลที่จะส่งกลับ
+- no-store บอกไม่ให้เก็บผลคำขอนี้ไว้ใน cache
+- read_image ตรวจไฟล์ เปิดภาพ แก้การหมุนตาม EXIF และแปลงเป็น RGB
+- API กลุ่มนี้ต้องผ่าน require_editor_token ก่อนใช้งาน
+
+ตัวเลือกที่ควรรู้:
+- image: รูปที่ผู้ใช้อัปโหลด
+- primary_detector: เลือก standard หรือ segmentation เป็นตัวตรวจหลัก
+- segmentation_model: เลือกบริการ Seg ที่ใช้
+- include_parking: จะเรียกการวิเคราะห์พื้นที่จอดประกอบหรือไม่
+- incoming_width_m: ความกว้างรถเป้าหมาย หากส่งมา
+- clearance_margin_m: ระยะเผื่อด้านข้างรวม หน่วยเมตร
+
+ประโยคอธิบาย:
+"เมื่อกด Analyze เว็บส่งรูปมายัง API นี้ ระบบตรวจรูปก่อนประมวลผล"
+
+2. เตรียมภาพและเลือกเส้นทาง Seg — บรรทัด 298–303
+----------------------------------------------------------
+โค้ด:
+    stream = io.BytesIO()
+    decoded.save(stream, "PNG")
+    if primary_detector == "segmentation":
+        detector = parking_segmentation_service if segmentation_model == "yolo26n-seg" else segmentation_experiment_service
+        return await analyze_segmentation_primary(decoded, stream.getvalue(), include_parking, incoming_width_m, clearance_margin_m, detector,
+            imgsz=NEAR_FRAME_IMGSZ if segmentation_model == "yolo26n-seg" else None)
+
+อธิบาย:
+- BytesIO เก็บข้อมูลภาพไว้ในหน่วยความจำ ไม่ต้องสร้างไฟล์ PNG บนดิสก์
+- ถ้าเลือก Seg จะเลือก detector ตาม segmentation_model
+- ถ้าเป็น yolo26n-seg จะใช้ parking_segmentation_service และส่งขนาดภาพตาม NEAR_FRAME_IMGSZ
+- ส่งภาพและตัวเลือกไปทำงานใน analyze_segmentation_primary
+- return ทำให้จบเส้นทางนี้ ไม่ไหลไปทำส่วน standard/classification ด้านล่าง
+
+ประโยคอธิบาย:
+"ถ้าเลือก Seg ระบบจะส่งงานไปเส้นทาง Seg โดยตรง ไม่เรียกโมเดลจำแนกรุ่นรถ"
+
+3. เรียกโมเดล Seg — บรรทัด 353–361
+----------------------------------------------------------
+โค้ด:
+    async def analyze_segmentation_primary(decoded, raw, include_parking, incoming_width_m, clearance_margin_m, detector, *, imgsz=None):
+        try:
+            if imgsz is None:
+                segmented = await run_in_threadpool(detector.analyze_image, raw)
+            else:
+                segmented = await run_in_threadpool(detector.analyze_frame, decoded, imgsz=imgsz)
+        except (ModelUnavailableError, OSError, ValueError, RuntimeError) as error:
+            raise HTTPException(503, "Segmentation unavailable; verify configured local segmentation weights and settings.") from error
+
+อธิบาย:
+- decoded คือภาพที่เปิดแล้ว ส่วน raw คือข้อมูลภาพแบบ bytes
+- detector คือบริการ Seg ที่เลือกจากขั้นก่อนหน้า
+- ถ้าไม่ระบุ imgsz เรียก analyze_image
+- ถ้าระบุ imgsz เรียก analyze_frame พร้อมขนาดภาพเข้าโมเดล
+- ทั้งสองกรณีเรียกโมเดลผ่าน segmentation_experiment_service.py
+- ผล segmented มีรถแต่ละคัน พร้อม mask, bounding box และ confidence
+- run_in_threadpool ส่งงานหนักไปทำใน thread เพื่อลดการขวาง event loop ของ API
+- await รอผลก่อนทำขั้นต่อไป ไม่ได้หมายความว่าข้ามการรอโมเดล
+- ถ้าโมเดลทำงานไม่ได้ จะตอบ HTTP 503
+
+ประโยคอธิบาย:
+"ส่วนนี้ส่งภาพเข้าโมเดล Seg เพื่อให้ได้ขอบ mask กรอบรถ และคะแนนความมั่นใจ"
+
+4. จัดรูปแบบผลจาก Seg — บรรทัด 362–364
+----------------------------------------------------------
+โค้ด:
+    segmented.preview_url = encode_preview(decoded)
+    detection = detector.detection_response(segmented)
+    result = ParkingClassifierResult(detection=detection, segmentation=segmented)
+
+อธิบาย:
+- encode_preview สร้างภาพตัวอย่างแบบ Base64 สำหรับแสดงบนเว็บ
+- detection_response แปลงผล Seg เป็นโครงสร้าง detection ให้บริการอื่นใช้ต่อได้
+- ไม่ได้เรียกโมเดลตรวจกรอบรถอีกครั้ง
+- result เป็นกล่องรวมผลทั้งหมดที่จะส่งกลับเว็บ
+
+ประโยคอธิบาย:
+"นำผล Seg ชุดเดียวมาจัดเป็นข้อมูลสำหรับคำนวณต่อและแสดงผล"
+
+5. เรียกวิเคราะห์พื้นที่จอด — บรรทัด 365–369
+----------------------------------------------------------
+โค้ด:
+    if include_parking:
+        try:
+            detection.parking_analysis = await run_in_threadpool(parking_analysis_service.analyze, detection)
+        except ParkingCalibrationUnavailableError:
+            result.parking_error = "Parking calibration is unavailable; segmentation remains usable."
+
+อธิบาย:
+- ทำส่วนนี้เมื่อ include_parking เป็น True
+- ส่ง detection ไปให้ parking_analysis_service.py วิเคราะห์พื้นที่จอด
+- ถ้าข้อมูล calibration ไม่พร้อม จะบันทึกข้อความ parking_error
+- ยังเก็บผล Seg ไว้ได้ ไม่ได้ลบผลตรวจรถทั้งหมด
+- include_parking ควบคุมบล็อกนี้ ส่วนการหาช่วงว่างด้านล่างยังถูกเรียก
+
+ประโยคอธิบาย:
+"หลังตรวจรถ ระบบเรียกบริการวิเคราะห์พื้นที่จอด หาก calibration ไม่พร้อม ยังแสดงผล Seg ได้"
+
+6. เรียกหาช่วงว่าง — บรรทัด 370–371
+----------------------------------------------------------
+โค้ด:
+    result.segmentation_gaps = await run_in_threadpool(analyze_segmentation_gaps, detection, segmented,
+        incoming_width_m=incoming_width_m, clearance_margin_m=clearance_margin_m, visible_free_shapes=False, bottom_edge_assignment=True, image_row_assignment=True, use_segmentation_widths=True)
+
+อธิบาย:
+- เรียก analyze_segmentation_gaps ใน segmentation_gap_service.py
+- ส่งทั้ง detection และข้อมูล mask ไปคำนวณร่วมกับ calibration/ROI/แถว
+- incoming_width_m ส่งความกว้างรถเป้าหมาย ถ้ามี
+- clearance_margin_m ส่งระยะเผื่อด้านข้างรวม
+- bottom_edge_assignment และ image_row_assignment เปิดแนวทางจัดรถเข้าแถวของเส้นทางนี้
+- use_segmentation_widths=True ให้ใช้ค่าความกว้างประมาณที่คำนวณจากผล Seg
+- ผลอยู่ใน result.segmentation_gaps
+- รายละเอียดสูตรและเงื่อนไขการหาช่วงว่างอยู่ใน service ไม่ใช่ฟังก์ชันนี้
+
+ประโยคอธิบาย:
+"นำข้อมูลรถไปหาช่วงว่างในแถว โดยใช้ความกว้างประมาณจาก Seg และระยะเผื่อที่กำหนด"
+
+7. เตรียมรถให้เว็บวาดบนแผนผัง — บรรทัด 372–375
+----------------------------------------------------------
+โค้ด:
+    if result.segmentation_gaps.status != "CALIBRATION_REQUIRED":
+        widths = {index: result.segmentation_gaps.estimated_widths_m[f"detection_{index+1}"]
+            for index in range(len(segmented.detections)) if f"detection_{index+1}" in result.segmentation_gaps.estimated_widths_m}
+        result.motorcycles, _ = build_segmentation_display(segmented, result.segmentation_gaps, estimated_widths=widths)
+
+อธิบาย:
+- ถ้าสถานะไม่ใช่ CALIBRATION_REQUIRED จึงพยายามสร้างข้อมูลรถสำหรับแผนผัง
+- widths จับคู่ลำดับรถกับค่าความกว้างประมาณที่มีอยู่
+- เช่น detection_1 สอดคล้องกับรถ index 0
+- build_segmentation_display สร้างข้อมูลรถให้ฝั่งเว็บนำไปวาด
+- ตัวแปร _ หมายถึงมีผลลัพธ์อีกตัวจากฟังก์ชัน แต่ตรงนี้ไม่ได้ใช้
+- ไม่ใช่การสร้างโมเดล 3D จริงของรถจากภาพ แต่เป็นข้อมูลสำหรับสัญลักษณ์แสดงผล
+
+ประโยคอธิบาย:
+"นำตำแหน่งและความกว้างประมาณของรถไปเตรียมข้อมูลให้เว็บวาดบนแผนผัง"
+
+8. ส่งผลและคืนทรัพยากร — บรรทัด 376 และ 349–350
+----------------------------------------------------------
+โค้ดท้าย analyze_segmentation_primary:
+    return result
+
+โค้ดใน analyze ที่ครอบการทำงานไว้:
+    finally:
+        decoded.close()
+
+อธิบาย:
+- return result ส่งข้อมูลกลับผ่าน analyze และ API ให้เว็บ
+- ผลสำคัญมี detection, segmentation, segmentation_gaps, motorcycles และข้อผิดพลาดที่เกี่ยวข้อง
+- finally ทำงานแม้มี return หรือเกิดข้อผิดพลาด
+- decoded.close() ปิดรูปเพื่อคืนทรัพยากรเมื่อจบคำขอ
+
+สิ่งที่ยังไม่ต้องอ่านละเอียดในรอบแรก
+----------------------------------------------------------
+- available_models / load_model: จัดการโมเดลจำแนกรุ่นรถ
+- crop_probabilities / classify: ทำนายรุ่นรถจากภาพครอป
+- predict: API สำหรับจำแนกรุ่นรถ
+- analyze ช่วงบรรทัด 304–348: เส้นทาง standard และการทดลองเสริม
+ส่วนเหล่านี้อยู่ในไฟล์เดียวกัน แต่เส้นทาง Seg หลัก return ออกก่อนถึงส่วน standard
+
+คำถามที่ควรตอบได้
+----------------------------------------------------------
+ถาม: โมเดล Seg ถูกเรียกตรงไหน?
+ตอบ: detector.analyze_image หรือ detector.analyze_frame ภายใน analyze_segmentation_primary
+
+ถาม: ไฟล์นี้หาที่ว่างเองทั้งหมดหรือไม่?
+ตอบ: ไม่ทั้งหมด ไฟล์นี้ประสานงาน ส่วนคำนวณช่วงว่างอยู่ใน segmentation_gap_service.py
+
+ถาม: ได้กรอบรถแล้วต้องรัน detector อีกรอบหรือไม่?
+ตอบ: เส้นทางนี้ไม่ต้อง ใช้ detector.detection_response แปลงผล Seg ชุดเดิม
+
+ถาม: หน้า Parking แบบ Seg ต้องจำแนกรุ่นรถก่อนหรือไม่?
+ตอบ: เส้นทาง Seg หลักนี้ไม่เรียกโมเดลจำแนกรุ่นรถ
+
+ถาม: ไม่มี calibration แล้วเกิดอะไรขึ้น?
+ตอบ: ยังแสดงผลตรวจรถจาก Seg ได้ แต่ต้องดูสถานะและข้อผิดพลาดของการคำนวณพื้นที่
+ห้ามสรุปว่าพื้นที่ว่างหรือจอดได้จาก mask อย่างเดียว
+
+บทพูดสำหรับซ้อม 30 วินาที
+----------------------------------------------------------
+"เมื่อกด Analyze หน้าเว็บจะส่งภาพเข้า API ใน classifier.py
+ระบบตรวจรูปและเลือกเส้นทาง Seg แล้วเรียกบริการโมเดลให้ตรวจรถ
+ผลที่ได้มี mask, bounding box และ confidence จากนั้นจัดข้อมูล detection
+เพื่อวิเคราะห์พื้นที่จอดและเรียก segmentation_gap_service หาช่วงว่าง
+โดยใช้ข้อมูล calibration แถว ความกว้างประมาณ และระยะเผื่อ
+สุดท้ายเตรียมข้อมูลรถบนแผนผัง รวมผลส่งกลับเว็บ และปิดรูปเมื่อเสร็จ"

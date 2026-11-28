@@ -1,0 +1,90 @@
+แผนทำความเข้าใจโค้ดหน้า Parking ใน Calibration ภายในคืนเดียว
+เวลารวมประมาณ 4 ชั่วโมง
+
+เป้าหมาย
+อธิบายได้ว่าตั้งแต่กด Analyze ระบบรับรูป เรียกโมเดล แปลงพิกัด
+และหาช่วงว่างอย่างไร โดยแยกผลจากโมเดลกับการคำนวณต่อให้ชัดเจน
+
+1. เข้าใจภาพรวม — 30 นาที
+ไฟล์: apps/vision-api/app/classifier.py
+เน้นฟังก์ชัน analyze() และ analyze_segmentation_primary()
+- รับรูปและตัวเลือกอะไรจากหน้าเว็บ
+- เรียกส่วนประมวลผลใดบ้าง
+- รวมข้อมูลอะไรส่งกลับไปแสดงผล
+
+2. เข้าใจการเรียกโมเดล — 45 นาที
+ไฟล์:
+- apps/vision-api/app/services/segmentation_experiment_service.py
+- apps/vision-api/app/parking_inference_settings.py
+เน้น: โหลดโมเดล -> ส่งภาพ -> ได้ mask, bounding box และ confidence
+- โมเดลที่ใช้และตำแหน่งไฟล์น้ำหนัก
+- หน้าที่ของ self._model และ self._lock
+- analyze_image() และ analyze_frame() ทำงานอย่างไร
+- ค่าตั้งตอน inference ไม่ใช่ parameter ตอน train
+
+3. เข้าใจการแปลงเป็นเมตร — 45 นาที
+ไฟล์:
+- apps/vision-api/app/services/motorcycle_width_estimation.py
+- apps/vision-api/app/services/ground_plane_homography_service.py
+เน้นฟังก์ชัน estimate_width_m() และ transform_point()
+- พิกัดภาพแบบ normalized คืออะไร
+- จุดอ้างอิงใน calibration เชื่อมพิกัดภาพกับพิกัดพื้นอย่างไร
+- แปลงปลายสองด้านของขอบล่าง bounding box แล้วหาระยะเป็นเมตร
+- ค่าที่ได้เป็นความกว้างโดยประมาณ ไม่ใช่การวัดตัวรถจริงหรือภาพ 3D จริง
+
+4. เข้าใจการหาที่ว่าง — 1 ชั่วโมง
+ไฟล์:
+- apps/vision-api/app/services/segmentation_gap_service.py
+- apps/vision-api/app/services/virtual_fitting_service.py
+เน้น: ROI -> จัดรถเข้าแถว -> พื้นที่ถูกครอบครอง -> ช่วงว่าง -> เกณฑ์แสดงผล
+- ROI และแถวเสมือนจำกัดบริเวณที่วิเคราะห์อย่างไร
+- รถแต่ละคันถูกจัดเข้าแถวอย่างไร
+- ใช้ความกว้างรถและระยะเผื่ออย่างไร
+- ช่วงว่างผ่านเงื่อนไขใดจึงแสดงสีเขียว
+- การบังและความไม่แน่นอนส่งผลอย่างไร
+อ่าน virtual_fitting_service.py เฉพาะฟังก์ชันที่เส้นทางนี้เรียกใช้ก่อน
+
+5. ดูค่าประกอบและการรวมผล — 30 นาที
+ไฟล์:
+- apps/vision-api/config/motorcycle_reference_sizes.json
+- apps/vision-api/app/services/motorcycle_reference_sizes.py
+- apps/vision-api/app/services/parking_analysis_service.py
+- apps/vision-api/config/parking_calibration.json
+เน้น:
+- ขนาดรถอ้างอิงแต่ละรุ่นและค่า fallback
+- ค่าขนาดอ้างอิงต่างจากความกว้างที่ประมาณจาก Seg อย่างไร
+- ROI และแถวถูกกำหนดไว้ที่ไหน
+- parking_analysis_service.py เรียกส่วนใดและรวมผลอะไร
+อย่าเข้าใจว่าทุกเส้นทางใช้ fallback เหมือนกัน:
+ตัวเลือก "อื่นๆ" ใน LIFF มีเงื่อนไขปฏิเสธการแนะนำแยกต่างหาก
+
+6. เปิดเว็บและซ้อมอธิบาย — 30 นาที
+เลือกภาพหนึ่งภาพแล้วกด Analyze ในหน้า Parking โดยเลือก Seg
+ไล่อธิบายตามลำดับ:
+1) เว็บส่งรูปไป API
+2) classifier.py รับคำขอ
+3) segmentation_experiment_service.py รันโมเดล
+4) ได้ mask, bounding box และ confidence
+5) แปลงพิกัด ประมาณความกว้าง และจัดรถเข้าแถว
+6) คำนวณช่วงว่างและตรวจเงื่อนไข
+7) ส่งผลกลับให้เว็บแสดงรถและพื้นที่สีต่างๆ
+
+ไฟล์ฝั่งเว็บที่ควรรู้
+- tools/calibration-ui/components/camera/ImageAnalyzer.tsx: ปุ่ม Analyze และสถานะผล
+- tools/calibration-ui/lib/detection.ts: ส่งคำขอวิเคราะห์
+- tools/calibration-ui/components/camera/CameraMonitor.tsx: แสดง Detected image
+- tools/calibration-ui/components/parking/SegmentationExperiment.tsx: แสดงผล Seg และช่องว่าง
+
+วิธีอ่านให้ทัน
+- ไม่ต้องจำทุกบรรทัด ให้ตอบแต่ละไฟล์ได้ว่า "รับอะไร -> ทำอะไร -> ส่งอะไร"
+- เริ่มจากฟังก์ชันที่ถูกเรียกจริง แล้วค่อยตามไปอ่านฟังก์ชันย่อย
+- ใช้รูปตัวอย่างเดียวกันตลอด เพื่อเชื่อมค่าบนเว็บกับโค้ด
+- แยกให้ออก: โมเดลตรวจรถ ส่วนโค้ด geometry ใช้ผลนั้นคำนวณที่ว่าง
+- สีเขียวเป็นผลตามเงื่อนไขของระบบ ไม่ใช่หลักฐานว่าโมเดลมี accuracy สูง
+
+ประโยคสำหรับซ้อมอธิบาย
+"เมื่อกด Analyze ระบบจะส่งภาพไปยัง Vision API แล้วเรียก YOLO Seg
+เพื่อตรวจรถและสร้าง mask กับ bounding box จากนั้นใช้ calibration
+แปลงพิกัดที่เกี่ยวข้องเป็นพิกัดพื้น ประมาณความกว้างและจัดรถเข้าแถว
+แล้วคำนวณช่วงว่างตาม ROI ขนาดรถ ระยะเผื่อ และข้อจำกัดเรื่องการบัง
+สุดท้ายส่งผลกลับมาแสดงบนหน้า Parking"
